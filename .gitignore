@@ -1,0 +1,7 @@
+/JUCE/
+/build/
+/artefacts/
+*.user
+.vs/
+__pycache__/
+/tools/pluginval/
