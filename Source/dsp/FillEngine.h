@@ -3,6 +3,8 @@
 #include "FillVoice.h"
 #include "VisualisationState.h"
 
+#include <limits>
+
 namespace gapfill
 {
 
@@ -119,9 +121,13 @@ private:
     float lastEventTransient = 0.5f;
     std::int64_t gapIndex = 0;
 
-    // --- protection envelopes (hop rate) ---
+    // --- protection envelopes ---
+    // Protect Hold defines a safe region immediately after a detected hit in
+    // which the wet path stays fully protected; after it the protection
+    // releases smoothly rather than jumping back.
     float transEnv = 0.0f, scEnv = 0.0f;
-    float transDecay = 0.9f, scDecay = 0.9f;
+    std::int64_t lastMainEventPos = std::numeric_limits<std::int64_t>::min() / 4;
+    std::int64_t lastScEventPos   = std::numeric_limits<std::int64_t>::min() / 4;
     float currentDuck = 1.0f;
 
     // --- recent algorithm history ---

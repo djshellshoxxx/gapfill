@@ -246,17 +246,15 @@ int randomiseParameters (juce::AudioProcessorValueTreeState& state,
         {
             int enabled = 0;
 
-            for (int i = 0; i < numAlgos; ++i)
-            {
-                static const char* ids[] = { "wReverse", "wStutter", "wDelay", "wGranular",
-                                             "wFreeze", "wPitchRise", "wPitchFall", "wFilter",
-                                             "wTexture", "wCrush", "wDistort", "wScramble",
-                                             "wSpectral", "wComb" };
+            static const char* weightIDs[] = { "wReverse", "wStutter", "wDelay", "wGranular",
+                                               "wFreeze", "wPitchRise", "wPitchFall", "wFilter",
+                                               "wTexture", "wCrush", "wDistort", "wScramble",
+                                               "wSpectral", "wComb" };
 
-                if (auto* w = state.getParameter (ids[i]))
+            for (const char* weightID : weightIDs)
+                if (auto* w = state.getParameter (weightID))
                     if (w->getValue() > 0.05f)
                         ++enabled;
-            }
 
             if (enabled < 3)
             {

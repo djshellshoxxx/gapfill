@@ -5,3 +5,4 @@
 .vs/
 __pycache__/
 /tools/pluginval/
+*.log

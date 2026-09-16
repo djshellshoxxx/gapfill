@@ -89,6 +89,11 @@ private:
     void configureAlgorithm();
     void generateSample (float& left, float& right, const SourceHistory& history) noexcept;
     float readCapture (int channel, double index) const noexcept;
+
+    /** Reads the looping "freeze" region at `position` (0 .. freezeLen) with an
+        equal-power crossfade across the loop point, so that none of the
+        algorithms built on it can click when the loop wraps. */
+    void readFreezeLoop (double position, float& l, float& r) const noexcept;
     float envelopeAt (int t) const noexcept;
     void applyModifiers (float& l, float& r) noexcept;
 

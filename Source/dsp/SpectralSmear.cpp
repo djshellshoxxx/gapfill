@@ -35,6 +35,19 @@ void SpectralSmear::reset()
     }
 
     hopCounter = 0;
+    scramblePhases();
+}
+
+void SpectralSmear::scramblePhases() noexcept
+{
+    // Every bin has to start somewhere of its own. Starting them all at zero
+    // leaves the bins coherent, and a spectrum whose bins all line up is an
+    // impulse: because each phase then advances at exactly its nominal rate,
+    // they realign every fftSize samples and the output ticks once per period
+    // instead of smearing.
+    for (auto& c : channels)
+        for (auto& ph : c.phase)
+            ph = rng.nextBipolar() * juce::MathConstants<float>::pi;
 }
 
 void SpectralSmear::setCharacter (float smear01, float jitter01, std::uint64_t seed) noexcept
@@ -42,6 +55,7 @@ void SpectralSmear::setCharacter (float smear01, float jitter01, std::uint64_t s
     smear  = juce::jlimit (0.0f, 0.97f, 0.45f + 0.5f * juce::jlimit (0.0f, 1.0f, smear01));
     jitter = juce::jlimit (0.0f, 1.0f, jitter01);
     rng.seed (seed);
+    scramblePhases();
 }
 
 void SpectralSmear::process (float inL, float inR, float& outL, float& outR) noexcept

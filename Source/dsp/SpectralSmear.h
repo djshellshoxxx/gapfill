@@ -51,6 +51,7 @@ private:
     };
 
     void computeFrame (Channel& c) noexcept;
+    void scramblePhases() noexcept;
 
     juce::dsp::FFT fft { fftOrder };
     std::vector<float> window;

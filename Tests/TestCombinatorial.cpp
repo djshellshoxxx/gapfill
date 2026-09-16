@@ -477,7 +477,10 @@ GF_TEST (Combinatorial, algorithm_weight_pairs_in_auto_mode)
         }
     }
 
-    // And the pathological case: every algorithm disabled.
+    // And the pathological case: every algorithm disabled. Clear the tails left
+    // over from the pairs above first, so that what is measured is only what
+    // this configuration generates.
+    h.proc.reset();
     h.resetParameters();
     h.set ("fillType", 0.0f);
     h.set ("fill", 100.0f);

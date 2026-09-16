@@ -117,9 +117,34 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
 void GapFillAudioProcessor::releaseResources()
 {
     prepared.store (false);
+    reset();
+}
+
+void GapFillAudioProcessor::reset()
+{
+    // Hosts call this on transport jumps and when re-arming a track: every
+    // piece of running DSP state has to go, without reallocating anything.
     engine.reset();
     analysis.reset();
     history.clear();
+
+    delayRing.clear();
+    wetBuffer.clear();
+    mainBuffer.clear();
+    delayWrite = 0;
+    samplesProcessed = 0;
+    latencyCrossfade = latencyCrossfadeLength = 0;
+    currentLatency = targetLatency;
+
+    for (auto& hp : lowProtect)
+        hp.reset();
+
+    soloSplitter.reset();
+    lastLowProtectHz = -1.0f;
+    meterIn = meterOut = meterWet = 0.0f;
+    lastPpqPosition = 0.0;
+    lastTransportPlaying = false;
+    sidechainSilentSamples = kSidechainSilenceSeconds * (int) currentSampleRate;
 }
 
 //==============================================================================
@@ -440,6 +465,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
     if (bypassed)
     {
+        // Keep analysing (so the visualiser still shows what the detector sees)
+        // but stop scheduling and fade out anything still playing.
+        engineSettings.fill01 = 0.0f;
         engine.panic();
     }
 

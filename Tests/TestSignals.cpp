@@ -1,15 +1,31 @@
 #include "TestSignals.h"
 #include <cmath>
+#include <cstdint>
+#include <cstring>
+#include <initializer_list>
 
 namespace gftest
 {
 
 namespace
 {
-    juce::Random& testRandom()
+    /** A generator must not depend on the order the tests happen to run in: one
+        shared random stream would mean a failure could not be reproduced by
+        running its test on its own. Each generator therefore mixes its own
+        arguments into a seed, so the same call always returns the same buffer
+        and two different calls still get different noise. */
+    juce::Random seededRandom (std::initializer_list<double> args)
     {
-        static juce::Random r (0x5eed1234);
-        return r;
+        std::uint64_t h = 0x9e3779b97f4a7c15ull;
+
+        for (auto a : args)
+        {
+            std::uint64_t bits = 0;
+            std::memcpy (&bits, &a, sizeof (bits));
+            h ^= bits + 0x9e3779b97f4a7c15ull + (h << 6) + (h >> 2);
+        }
+
+        return juce::Random ((juce::int64) (h & 0x7fffffffffffffffull));
     }
 }
 
@@ -55,7 +71,8 @@ void addDrumHit (juce::AudioBuffer<float>& buffer, int position, double sampleRa
     if (position < 0 || length <= 0)
         return;
 
-    auto& rng = testRandom();
+    auto rng = seededRandom ({ (double) position, sampleRate, (double) frequency,
+                               (double) decaySeconds, (double) amplitude, (double) noiseAmount });
     const auto decayCoeff = (float) std::exp (-1.0 / (decaySeconds * sampleRate));
     float env = 1.0f;
     double phase = 0.0;
@@ -151,7 +168,7 @@ juce::AudioBuffer<float> makePhrases (double sampleRate, double seconds,
     const auto n = (int) (sampleRate * seconds);
     auto b = makeSilence (numChannels, n);
     const auto phrase = juce::jmax (1, (int) (sampleRate * phraseSeconds));
-    auto& rng = testRandom();
+    auto rng = seededRandom ({ sampleRate, seconds, phraseSeconds, (double) numChannels });
 
     double phase = 0.0;
 
@@ -179,7 +196,7 @@ juce::AudioBuffer<float> makeNoiseBursts (double sampleRate, double seconds,
     auto b = makeSilence (numChannels, n);
     const auto burst = juce::jmax (1, (int) (sampleRate * burstSeconds));
     const auto period = burst + juce::jmax (1, (int) (sampleRate * gapSeconds));
-    auto& rng = testRandom();
+    auto rng = seededRandom ({ sampleRate, seconds, burstSeconds, gapSeconds, (double) numChannels });
 
     for (int start = 0; start < n; start += period)
         for (int i = 0; i < burst && start + i < n; ++i)
@@ -198,7 +215,7 @@ juce::AudioBuffer<float> makeNoise (double sampleRate, double seconds, float amp
 {
     const auto n = (int) (sampleRate * seconds);
     auto b = makeSilence (numChannels, n);
-    auto& rng = testRandom();
+    auto rng = seededRandom ({ sampleRate, seconds, (double) amplitude, (double) numChannels });
 
     for (int ch = 0; ch < b.getNumChannels(); ++ch)
         for (int i = 0; i < n; ++i)
@@ -266,6 +283,42 @@ float maxSampleJump (const juce::AudioBuffer<float>& buffer)
 
         for (int i = 1; i < buffer.getNumSamples(); ++i)
             worst = juce::jmax (worst, std::abs (d[i] - d[i - 1]));
+    }
+
+    return worst;
+}
+
+float maxRelativeJump (const juce::AudioBuffer<float>& buffer, int lookbackSamples,
+                       float floorLevel)
+{
+    constexpr int guard = 2;        // an attack is allowed to span a few samples
+
+    float worst = 0.0f;
+    const auto window = juce::jmax (guard + 1, lookbackSamples);
+    const auto n = buffer.getNumSamples();
+
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        const auto* d = buffer.getReadPointer (ch);
+
+        for (int i = 1; i < n; ++i)
+        {
+            const auto jump = std::abs (d[i] - d[i - 1]);
+
+            if (jump < floorLevel)
+                continue;
+
+            // The reference is the fastest the material moves on its own, taken
+            // from both sides so that a genuine attack is measured against the
+            // energy it releases rather than against the silence it came out of.
+            float neighbour = 0.0f;
+
+            for (int k = juce::jmax (1, i - window); k < juce::jmin (n, i + window); ++k)
+                if (std::abs (k - i) > guard)
+                    neighbour = juce::jmax (neighbour, std::abs (d[k] - d[k - 1]));
+
+            worst = juce::jmax (worst, jump / juce::jmax (floorLevel, neighbour));
+        }
     }
 
     return worst;

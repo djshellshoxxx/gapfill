@@ -65,6 +65,13 @@ void LaneDetector::reset()
     eventThisHop = false;
 }
 
+namespace
+{
+    /** How far below the whole programme a band may sit before it counts as
+        empty rather than busy (-35 dB). */
+    constexpr float kBandActivityFloor = 0.0178f;
+}
+
 void LaneDetector::updateHop (const AnalysisSettings& s, float flux) noexcept
 {
     const auto hopMs   = hopSeconds * 1000.0f;
@@ -133,8 +140,20 @@ void LaneDetector::updateHop (const AnalysisSettings& s, float flux) noexcept
 
     const auto threshold = lerp (0.72f, 0.10f, juce::jlimit (0.0f, 1.0f, s.sensitivity01));
 
+    // The level this lane is judged against. A band lane borrows the broadband
+    // figure so that "is there space here" is answered relative to how loud the
+    // music is, not to how loud this band happens to be on its own.
+    const auto refLevel = externalReference >= 0.0f ? juce::jmax (externalReference, reference)
+                                                    : reference;
+
     // Absolute gate: never fire on the noise floor or on digital silence.
-    const auto audible = f > juce::jmax (floorEnv * 2.5f, 3.0e-5f);
+    auto audible = f > juce::jmax (floorEnv * 2.5f, 3.0e-5f);
+
+    // ...and a band has to hold a real share of the programme before its own
+    // level jumps count as activity, or crossover leakage from a hit in another
+    // band would mark this one busy.
+    if (externalReference >= 0.0f)
+        audible = audible && f > refLevel * kBandActivityFloor;
 
     auto guardMs = juce::jmax (hopMs, s.retrigGuardMs);
 
@@ -157,18 +176,23 @@ void LaneDetector::updateHop (const AnalysisSettings& s, float flux) noexcept
     }
 
     // -- gap confidence -----------------------------------------------------
-    const auto dropDb = gainToDb (reference + kTinyLevel) - gainToDb (sl + kTinyLevel);
+    // Gap confidence has to follow the material as it actually decays, so it
+    // measures the fast envelope. The slow one exists to give the onset test a
+    // stable background to compare against and lags far too much for this.
+    const auto gapLevel = juce::jmax (f, rms * 0.5f);
+
+    const auto dropDb = gainToDb (refLevel + kTinyLevel) - gainToDb (gapLevel + kTinyLevel);
     const auto requiredDrop = lerp (30.0f, 7.0f, juce::jlimit (0.0f, 1.0f, s.gapThresh01));
 
     auto levelConf = smoothstep (requiredDrop - 7.0f, requiredDrop + 3.0f, dropDb);
 
     // A region sitting on the adaptive floor is space regardless of the drop.
     const auto nearFloor = 1.0f - smoothstep (floorEnv * 1.4f + 1.0e-6f,
-                                              floorEnv * 4.0f + 4.0e-6f, sl);
+                                              floorEnv * 4.0f + 4.0e-6f, gapLevel);
     levelConf = juce::jmax (levelConf, nearFloor * 0.95f);
 
     // Absolute silence is always usable space.
-    if (sl < 1.0e-5f)
+    if (gapLevel < 1.0e-5f)
         levelConf = 1.0f;
 
     const auto holdMs = juce::jmax (0.0f, s.protectHoldMs);
@@ -180,7 +204,11 @@ void LaneDetector::updateHop (const AnalysisSettings& s, float flux) noexcept
     // back to "busy" is immediate so that a new hit always wins.
     const auto cRise = onePoleCoeff (hopRate, juce::jmax (1.0f, s.gapReleaseMs));
     const auto cFall = onePoleCoeff (hopRate, 4.0f);
-    confValue += (raw > confValue ? cRise : cFall) * (raw - confValue);
+
+    if (eventThisHop)
+        confValue = 0.0f;                 // a new hit closes the gap on the spot
+    else
+        confValue += (raw > confValue ? cRise : cFall) * (raw - confValue);
 
     if (! std::isfinite (confValue))
         confValue = 0.0f;
@@ -458,9 +486,13 @@ void AnalysisEngine::processBlock (const float* mainMono, const float* sidechain
             mainLane.updateHop (s, mainFluxValue);
 
             // Band lanes deliberately ignore broadband flux so that activity in
-            // one region cannot mark another region as busy.
+            // one region cannot mark another region as busy, and they judge
+            // their own level against the broadband reference.
             for (auto& l : mainBandLanes)
+            {
+                l.externalReference = mainLane.referenceLevel;
                 l.updateHop (s, 0.0f);
+            }
 
             if (needsScLane)
             {
@@ -468,7 +500,10 @@ void AnalysisEngine::processBlock (const float* mainMono, const float* sidechain
 
                 if (needsScBands)
                     for (auto& l : scBandLanes)
+                    {
+                        l.externalReference = scLane.referenceLevel;
                         l.updateHop (s, 0.0f);
+                    }
             }
 
             writeFrame (s);

@@ -259,7 +259,7 @@ GF_TEST (AnalysisEngine, detects_synthetic_transients_at_the_right_positions)
 
         const double bpm = 120.0;
         const auto beat = (int) (60.0 / bpm * sr);
-        auto loop = makeDrumLoop (sr, 2.0, bpm, 1);
+        auto loop = makeDrumLoop (sr, 3.0, bpm, 1);
 
         auto settings = defaultAnalysisSettings();
         std::vector<float> mono ((size_t) loop.getNumSamples());
@@ -328,7 +328,7 @@ GF_TEST (AnalysisEngine, spectral_mode_finds_space_in_the_high_band_while_the_lo
     auto settings = defaultAnalysisSettings();
     settings.mode = DetMode::Spectral;
 
-    auto loop = makeLowKicksWithOpenHighs (sr, 2.0, 140.0, 1);
+    auto loop = makeLowKicksWithOpenHighs (sr, 3.0, 140.0, 1);
     std::vector<float> mono ((size_t) loop.getNumSamples());
 
     for (int i = 0; i < loop.getNumSamples(); ++i)
@@ -494,8 +494,14 @@ GF_TEST (FillVoice, every_algorithm_is_finite_bounded_and_click_free)
                 const auto tail = maxAbs (wet, wet.getNumSamples() - 64, 64);
                 GF_EXPECT_MSG (tail < 1.0e-3f, label + ": did not fade out (tail " + juce::String (tail) + ")");
 
-                // A single-sample jump larger than this would be audible as a click.
-                GF_EXPECT_MSG (maxSampleJump (wet) < 1.6f,
+                // No slice boundary, loop point or envelope step may show up as a
+                // jump that stands out from the material around it. The limit
+                // sits above the staircase a bit-crushed voice makes on purpose
+                // (worst measured 2.5) and well below a real discontinuity - the
+                // coherent-phase tick this caught in the spectral smear read 10.
+                GF_EXPECT_MSG (maxRelativeJump (wet) < 4.0f,
+                               label + ": click, relative jump " + juce::String (maxRelativeJump (wet)));
+                GF_EXPECT_MSG (maxSampleJump (wet) < 4.0f,
                                label + ": sample jump " + juce::String (maxSampleJump (wet)));
             }
         }
@@ -565,9 +571,9 @@ GF_TEST (FillEngine, minimum_gap_prevents_fills_in_short_spaces)
         history.prepare (2, (int) (sr * 6.0));
         engine.prepare (sr, 512, 2);
 
-        // Fast pattern: the spaces between hits are about 60 ms.
+        // Fast pattern: the spaces between hits are about 65 ms.
         auto loop = makeSilence (2, (int) (sr * 4.0));
-        const auto step = (int) (sr * 0.075);
+        const auto step = (int) (sr * 0.1);
 
         for (int pos = 0; pos + step < loop.getNumSamples(); pos += step)
             addDrumHit (loop, pos, sr, 180.0f, 0.008f, 0.8f, 0.5f);
@@ -585,6 +591,12 @@ GF_TEST (FillEngine, minimum_gap_prevents_fills_in_short_spaces)
 
         auto analysisSettings = defaultAnalysisSettings();
         analysisSettings.sensitivity01 = 0.65f;
+
+        // A pattern this fast only ever has short gaps, so the detector has to
+        // be told to confirm them quickly - otherwise nothing reaches the
+        // minimum-gap check that this test is actually about.
+        analysisSettings.protectHoldMs = 10.0f;
+        analysisSettings.gapReleaseMs = 10.0f;
 
         juce::AudioBuffer<float> wet (2, 512);
         std::vector<float> mono (512);

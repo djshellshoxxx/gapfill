@@ -36,6 +36,19 @@ namespace
 
     constexpr float kEnterGapConf = 0.55f;
     constexpr float kExitGapConf  = 0.28f;
+
+    /** How long protection takes to release once the safe region has passed. */
+    constexpr double kProtectReleaseSeconds = 0.12;
+
+    /** Full protection for `hold` samples after the event, then a smooth
+        release. `distance` is how long ago the event was, in samples. */
+    inline float protectEnvelope (std::int64_t distance, float hold, float release) noexcept
+    {
+        if (distance < 0)
+            return 0.0f;
+
+        return 1.0f - smoothstep (hold, hold + juce::jmax (1.0f, release), (float) distance);
+    }
 }
 
 //==============================================================================
@@ -48,10 +61,6 @@ void FillEngine::prepare (double sampleRate, int /*maxBlockSize*/, int numChanne
         v.prepare (sr, channels);
 
     spectral.prepare (sr, 2);
-
-    const auto hopSeconds = (float) (AnalysisEngine::hopSize / sr);
-    transDecay = std::exp (-hopSeconds / 0.09f);
-    scDecay    = std::exp (-hopSeconds / 0.12f);
 
     // Keep the visualiser feed at a roughly constant rate across sample rates.
     vizDecim = juce::jmax (1, (int) std::round (sr / (double) AnalysisEngine::hopSize / 700.0));
@@ -75,6 +84,7 @@ void FillEngine::reset()
     lastEventTransient = 0.5f;
     gapIndex = 0;
     transEnv = scEnv = 0.0f;
+    lastMainEventPos = lastScEventPos = std::numeric_limits<std::int64_t>::min() / 4;
     currentDuck = 1.0f;
     lastRenderedAlgo = -1;
     fillsStarted = 0;
@@ -166,23 +176,26 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
     const bool mainEventNow = (analysis.nextMainEvent (outputPos) == outputPos);
     const bool scEventNow   = s.sidechainActive && (analysis.nextSidechainEvent (outputPos) == outputPos);
 
-    transEnv *= transDecay;
-    scEnv    *= scDecay;
-
     if (mainEventNow)
     {
-        transEnv = 1.0f;
+        lastMainEventPos = outputPos;
         lastEventPos = outputPos;
         lastEventTransient = frame.mainTransient;
     }
 
     if (scEventNow)
     {
-        scEnv = 1.0f;
+        lastScEventPos = outputPos;
 
         if (s.mode != DetMode::Transient || s.sidechainActive)
             lastEventPos = juce::jmax (lastEventPos, outputPos);
     }
+
+    const auto holdSamples = (float) (juce::jmax (0.0f, s.protectHoldMs) * 0.001 * sr);
+    const auto releaseSamples = (float) (kProtectReleaseSeconds * sr);
+
+    transEnv = protectEnvelope (outputPos - lastMainEventPos, holdSamples, releaseSamples);
+    scEnv    = protectEnvelope (outputPos - lastScEventPos, holdSamples, releaseSamples);
 
     // ---- next-event protection ------------------------------------------
     const auto lookaheadSamples = (int) (s.lookaheadMs * 0.001 * sr);

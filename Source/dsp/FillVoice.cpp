@@ -111,6 +111,30 @@ float FillVoice::readCapture (int channel, double index) const noexcept
     return data[i0] + (data[i1] - data[i0]) * frac;
 }
 
+void FillVoice::readFreezeLoop (double position, float& l, float& r) const noexcept
+{
+    const auto fadeRegion = (double) (freezeLen - freezeXfade);
+
+    float gA = 1.0f, gB = 0.0f;
+    double altP = position;
+
+    if (position > fadeRegion && freezeXfade > 0)
+    {
+        const auto t = (float) ((position - fadeRegion) / (double) freezeXfade);
+        equalPower (t, gA, gB);
+        altP = position - (double) freezeLen;
+    }
+
+    l = readCapture (0, (double) freezeStart + position) * gA;
+    r = readCapture (1, (double) freezeStart + position) * gA;
+
+    if (gB > 0.0f)
+    {
+        l += readCapture (0, (double) freezeStart + altP) * gB;
+        r += readCapture (1, (double) freezeStart + altP) * gB;
+    }
+}
+
 float FillVoice::envelopeAt (int t) const noexcept
 {
     if (totalLength <= 0)
@@ -195,7 +219,9 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
         case Algo::Stutter:  needed = (int) (setup.stutterSeconds * sr * 1.5); break;
         case Algo::Delay:    needed = (int) (juce::jmin (setup.delaySeconds, 0.25f) * sr); break;
         case Algo::Freeze:   needed = (int) (sr * 0.28); break;
-        case Algo::Comb:     needed = (int) (sr * 0.05); break;
+        // The resonator is excited by the hit that opened the gap, so its slice
+        // has to reach back far enough to still contain that hit.
+        case Algo::Comb:     needed = setup.sinceEventSamples + (int) (sr * 0.05); break;
         case Algo::Granular: needed = 256; break;            // grains read the history directly
         case Algo::Texture:  needed = 256; break;            // synthesised, no source slice
         default: break;
@@ -810,27 +836,7 @@ void FillVoice::genGranular (float& l, float& r, const SourceHistory& history) n
 
 void FillVoice::genFreeze (float& l, float& r) noexcept
 {
-    const auto p = playPos;
-    const auto fadeRegion = (double) (freezeLen - freezeXfade);
-
-    float gA = 1.0f, gB = 0.0f;
-    double altP = p;
-
-    if (p > fadeRegion && freezeXfade > 0)
-    {
-        const auto t = (float) ((p - fadeRegion) / (double) freezeXfade);
-        equalPower (t, gA, gB);
-        altP = p - (double) freezeLen;
-    }
-
-    l = readCapture (0, (double) freezeStart + p) * gA;
-    r = readCapture (1, (double) freezeStart + p) * gA;
-
-    if (gB > 0.0f)
-    {
-        l += readCapture (0, (double) freezeStart + altP) * gB;
-        r += readCapture (1, (double) freezeStart + altP) * gB;
-    }
+    readFreezeLoop (playPos, l, r);
 
     playPos += playRate;
 
@@ -879,9 +885,8 @@ void FillVoice::genFilter (float& l, float& r) noexcept
     filterL.set (sr, cutoff, filterQ);
     filterR.set (sr, cutoff, filterQ);
 
-    const auto p = playPos;
-    const auto src0 = readCapture (0, (double) freezeStart + std::fmod (p, (double) freezeLen));
-    const auto src1 = readCapture (1, (double) freezeStart + std::fmod (p, (double) freezeLen));
+    float src0 = 0.0f, src1 = 0.0f;
+    readFreezeLoop (std::fmod (playPos, (double) freezeLen), src0, src1);
 
     float lp = 0.0f, bp = 0.0f, hp = 0.0f;
     filterL.process (src0, lp, bp, hp);
@@ -921,9 +926,8 @@ void FillVoice::genTexture (float& l, float& r) noexcept
 
 void FillVoice::genCrush (float& l, float& r) noexcept
 {
-    const auto p = std::fmod (playPos, (double) freezeLen);
-    const auto s0 = readCapture (0, (double) freezeStart + p);
-    const auto s1 = readCapture (1, (double) freezeStart + p);
+    float s0 = 0.0f, s1 = 0.0f;
+    readFreezeLoop (std::fmod (playPos, (double) freezeLen), s0, s1);
 
     if (--crushCounter <= 0)
     {
@@ -940,9 +944,8 @@ void FillVoice::genCrush (float& l, float& r) noexcept
 
 void FillVoice::genDistort (float& l, float& r) noexcept
 {
-    const auto p = std::fmod (playPos, (double) freezeLen);
-    const auto s0 = readCapture (0, (double) freezeStart + p);
-    const auto s1 = readCapture (1, (double) freezeStart + p);
+    float s0 = 0.0f, s1 = 0.0f;
+    readFreezeLoop (std::fmod (playPos, (double) freezeLen), s0, s1);
 
     const auto norm = 1.0f / juce::jmax (0.2f, std::tanh (driveAmount));
 
@@ -994,9 +997,8 @@ void FillVoice::genSpectral (float& l, float& r) noexcept
     if (spectralProcessor == nullptr)
         return;
 
-    const auto p = std::fmod (playPos, (double) juce::jmax (1, freezeLen));
-    const auto in0 = readCapture (0, (double) freezeStart + p);
-    const auto in1 = readCapture (1, (double) freezeStart + p);
+    float in0 = 0.0f, in1 = 0.0f;
+    readFreezeLoop (std::fmod (playPos, (double) juce::jmax (1, freezeLen)), in0, in1);
 
     spectralProcessor->process (in0, in1, l, r);
     playPos += 1.0;

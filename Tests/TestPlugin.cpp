@@ -218,9 +218,16 @@ GF_TEST (Plugin, state_round_trips_through_save_and_restore)
         auto* pa = a.getValueTreeState().getParameter (id);
         auto* pb = b.getValueTreeState().getParameter (id);
         GF_EXPECT (pa != nullptr && pb != nullptr);
-        GF_EXPECT_MSG (std::abs (pa->getValue() - pb->getValue()) < 1.0e-4f,
-                       "parameter " + id + " did not restore (" + juce::String (pa->getValue())
-                         + " vs " + juce::String (pb->getValue()) + ")");
+
+        // Compare what the DSP actually reads. A bool parameter keeps whatever
+        // raw normalised float the host last pushed at it, so two parameters
+        // that both mean "on" can hold different values for getValue().
+        const auto va = pa->convertFrom0to1 (pa->getValue());
+        const auto vb = pb->convertFrom0to1 (pb->getValue());
+
+        GF_EXPECT_MSG (std::abs (va - vb) < 1.0e-4f * juce::jmax (1.0f, std::abs (va)),
+                       "parameter " + id + " did not restore (" + juce::String (va)
+                         + " vs " + juce::String (vb) + ")");
     }
 }
 
@@ -621,9 +628,13 @@ GF_TEST (Protection, transient_protect_reduces_activity_around_hits)
     {
         GapFillAudioProcessor proc;
         prepareProcessor (proc, sr, 512, false);
+        // A short gap confirm plus long fills gets material still playing when the
+        // next hit lands - which is the situation transient protect exists for.
         configure (proc, { { "fill", 100.0f }, { "density", 100.0f }, { "minGap", 40.0f },
                            { "maxFill", 600.0f }, { "protTrans", protectAmount },
                            { "protNext", 0.0f }, { "protLow", 20.0f },
+                           { "gapRelease", 10.0f },
+                           { "complexity", 100.0f }, { "chaos", 0.0f },
                            { "lookahead", 0.0f }, { "dry", 0.0f }, { "wet", 100.0f },
                            { "seed", 5.0f } });
         proc.prepareToPlay (sr, 512);
@@ -663,6 +674,7 @@ GF_TEST (Protection, next_event_protect_fades_fills_before_upcoming_events)
                            { "maxFill", 800.0f }, { "protTrans", 0.0f },
                            { "protNext", protectAmount }, { "protLow", 20.0f },
                            { "lookahead", 60.0f }, { "dry", 0.0f }, { "wet", 100.0f },
+                           { "complexity", 95.0f }, { "intensity", 90.0f }, { "chaos", 0.0f },
                            { "seed", 11.0f } });
         proc.prepareToPlay (sr, 512);
 
@@ -670,9 +682,9 @@ GF_TEST (Protection, next_event_protect_fades_fills_before_upcoming_events)
 
         const auto latency = proc.getLatencySamples();
         double energy = 0.0;
-        const auto window = (int) (sr * 0.02);
+        const auto window = (int) (sr * 0.015);
 
-        // The 20 ms immediately before each hit, compensated for plugin latency.
+        // The 15 ms immediately before each hit, compensated for plugin latency.
         for (int b = 2; b * beat + latency < wet.getNumSamples(); ++b)
             energy += regionEnergy (wet, b * beat + latency - window, window);
 

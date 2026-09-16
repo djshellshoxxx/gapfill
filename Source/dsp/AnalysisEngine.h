@@ -71,6 +71,12 @@ public:
         so that broadband activity cannot mark their own region as busy. */
     bool  useFlux           = true;
 
+    /** When >= 0 the lane measures loudness against this external (broadband)
+        level as well as its own peak hold. Band lanes are driven this way: a
+        band that holds nothing at all must not look busy just because the tiny
+        amount of crossover leakage in it jumped. */
+    float externalReference = -1.0f;
+
     float conf              = 0.0f;
     float energy            = 0.0f;
     /** Local musical loudness (linear peak with slow decay). Zero after the

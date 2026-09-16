@@ -59,8 +59,18 @@ float maxAbs (const juce::AudioBuffer<float>& buffer);
 float rmsLevel (const juce::AudioBuffer<float>& buffer);
 float maxAbs (const juce::AudioBuffer<float>& buffer, int start, int numSamples);
 
-/** Largest absolute difference between consecutive samples (click detector). */
+/** Largest absolute difference between consecutive samples. */
 float maxSampleJump (const juce::AudioBuffer<float>& buffer);
+
+/** Click detector. Even a heavily distorted or bit-crushed waveform can swing by
+    roughly its own peak from one sample to the next, so an absolute jump limit
+    says nothing useful about it. What marks a click is a single-sample jump that
+    the material around it cannot account for, so this measures the largest ratio
+    of one jump to the fastest the waveform moves either side of it. A real
+    attack passes: the transient it releases moves just as fast. Jumps quieter
+    than `floorLevel` are ignored - they are inaudible whatever their ratio. */
+float maxRelativeJump (const juce::AudioBuffer<float>& buffer, int lookbackSamples = 64,
+                       float floorLevel = 0.02f);
 
 /** Positions where a rectified, smoothed envelope crosses `threshold` upwards. */
 std::vector<int> findOnsets (const juce::AudioBuffer<float>& buffer, double sampleRate,
