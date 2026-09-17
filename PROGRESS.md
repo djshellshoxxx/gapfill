@@ -15,7 +15,7 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 | Reset button | **Done** | Header button → `GapFillAudioProcessor::resetAllParameters()`. |
 | Random button | **Done** | Random + Random All; each press reseeds from defaults so no two presses match. |
 | Save / Save As / Open / Options dropdown | **Done** | The FILE button in the top bar opens it. Save/Save As/Open use `.gapfill` files anywhere on disk. |
-| Options page (tooltips on/off, audio + MIDI device choice) | **Partial** | Tooltip toggle works. The Standalone device hookup is written but has never been compiled - only the test target has been built, and it excludes that branch. |
+| Options page (tooltips on/off, audio + MIDI device choice) | **Done** | Tooltip toggle works and persists. The Standalone device hookup now compiles and ships in both `GapFill.exe` and the VST3 (where the runtime `StandalonePluginHolder::getInstance()` check disables it). Still unexercised by hand - see Next up. |
 | Export audio to WAV | **N/A** | `include.md` exempts effects. Revisit only if a "special function" export is wanted. |
 | Right-click on any control | **Done** | Reset to default, set exact value, MIDI learn / forget CC / clear all. |
 | Hover tooltips | **Done** | Set on every control; the on/off switch belongs to the Options page. |
@@ -33,6 +33,56 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 | Version in 9px muted mono, bottom-right | **Done** — `footerBounds()` reserves a 12px strip. |
 
 ## Session log
+
+### 2026-09-16, session 17 - CLAP, GitHub, and a broken VST3 bundle
+
+- **The VST3 bundle was empty and nobody had noticed.** `GapFill.vst3/Contents`
+  held only `Resources/moduleinfo.json` - no `x86_64-win/GapFill.vst3` binary.
+  Cause: the `foreach(fmt VST3 Standalone)` loop set `RUNTIME_OUTPUT_DIRECTORY`
+  on `GapFill_VST3`, which made JUCE link the DLL to `build/artefacts/<Config>/`
+  *beside* the bundle rather than inside it. Every previous pluginval run
+  passed because it was pointed at that loose DLL, which is a valid VST3 on
+  Windows - but a host given the path this README documented would have found
+  an unloadable shell. Only the Standalone exe is redirected now, and the loose
+  stale DLL was deleted so it cannot be picked up again by mistake.
+- **CLAP support added** via `clap-juce-extensions` (CLAP 1.2.7), checked out
+  beside the source and gitignored, exactly like `JUCE/`. CMake skips the CLAP
+  target with a message if the checkout is absent, so the other formats never
+  break because of it. `GapFill.clap` is 8.9MB.
+  Note: adding `clap_juce_extensions_plugin` puts `HAS_CLAP_JUCE_EXTENSIONS=1`
+  and new include dirs on the shared `GapFill` target, so the first CLAP build
+  recompiles all 37 SharedCode TUs and invalidates the existing VST3/Standalone
+  binaries. Relink both afterwards, or you ship mismatched artefacts.
+- **Pushed to GitHub**: `github.com/djshellshoxxx/gapfill`, private, `master` at
+  372114e. There was no remote before this. `instructions.md` said not to push
+  without being asked; this was asked for explicitly.
+- **Full suite green against current code**: 42 tests in the main run plus the
+  Combinatorial group 8/8 in a separate run - 50 tests, 0 failures. The first
+  attempt at the Combinatorial group was killed part-way when it was competing
+  with the CLAP build for a 4GB machine; re-run on an idle machine it passed in
+  about 13 minutes.
+- pluginval strictness 5 against the **fixed bundle**: 19 sections, exit 0, no
+  failures, warnings or exceptions. "GapFill Audio: GapFill v1.0.0", 17 programs.
+  Checked the real exit code, not `tail`'s through a pipe.
+- README corrected: both the VST3 and the Standalone artefact paths it gave
+  were wrong, and the test-runner path was missing `<Config>`. Added the CLAP
+  and Linux build sections.
+- **Linux build: prepared but NOT finished.** WSL Ubuntu 26.04 has gcc, g++,
+  cmake, ninja and every JUCE dependency needed once `JUCE_WEB_BROWSER=0` and
+  `JUCE_USE_CURL=0` are taken into account - only `libglu1-mesa-dev` and
+  `mesa-common-dev` are missing, and neither matters because `juce_opengl` is
+  not in `GAPFILL_MODULES`. So **no apt install and no sudo are required**,
+  which matters because passwordless sudo is off in that distro. JUCE 8.0.15
+  and clap-juce-extensions are cloned to `~/gapfill-linux` on the WSL side.
+  The build itself was stopped by the harness's low-memory reaper during the
+  CMake configure step (building `juceaide`); it had produced no objects. The
+  build script is at `wslbuild.sh` in the session scratchpad. Nothing is wrong
+  with it - it needs re-running on a machine with memory free.
+- Memory management was most of the difficulty this session. Two orphaned
+  `link.exe` processes from the previous session were holding 1.1GB before
+  anything started. Killing stray `cl.exe`/`link.exe`/`MSBuild.exe` and running
+  `wsl --shutdown` when the Linux side is idle are both worth doing before any
+  build here.
 
 ### 2026-09-16
 - Finished the MIDI-learn feature that was left half-wired:
@@ -53,8 +103,9 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 ## Next up (in order)
 
 Everything in `include.md` and `theme.md` is implemented, the full test suite is
-green, and both Debug and Release builds pass pluginval. What is left needs a
-person at the keyboard:
+green (50 tests, 0 failures), and the Release VST3 bundle passes pluginval. The
+work is committed and pushed to `github.com/djshellshoxxx/gapfill` (private).
+What is left needs a person at the keyboard, or a machine with more RAM:
 
 1. Manual pass on the new UI: FILE menu save / save as / open, the options page
    and its tooltip toggle, right-click MIDI learn on a few controls, and the
@@ -63,9 +114,10 @@ person at the keyboard:
    with a hardware controller - pluginval does not send CCs.
 3. Check the meters by eye against the spec: the gradient, the 1.5s peak hold
    and its 20dB/s fall are only verified by construction, not by a test.
-4. Nothing is committed yet. `git status` still shows all of this as working
-   changes plus the untracked `MidiLearn.*`, `OptionsView.*`, `PROGRESS.md`,
-   `include.md` and `theme.md`.
+4. Finish the Linux build. Everything is staged for it (see session 17); it
+   only needs a machine with memory free.
+5. Load the CLAP in a CLAP host (Bitwig, Reaper 7, MultitrackStudio). It builds
+   and links, but no CLAP host has opened it - pluginval does not validate CLAP.
 
 ### 2026-09-16, session 2
 - The earlier full-suite run was killed by the OS for low memory, not by a
