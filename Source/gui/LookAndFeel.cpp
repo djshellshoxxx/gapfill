@@ -1,8 +1,79 @@
 #include "LookAndFeel.h"
+#include "Knob.h"   // FlashButton::flashProperty - the momentary flash flag
 
 namespace gapfill
 {
 
+//==============================================================================
+namespace fonts
+{
+namespace
+{
+    /** Returns the first name in `chain` that is actually installed, or an empty
+        string to mean "let JUCE pick the platform default". Looked up once. */
+    juce::String resolve (const juce::StringArray& chain)
+    {
+        const auto installed = juce::Font::findAllTypefaceNames();
+
+        for (const auto& wanted : chain)
+            if (installed.contains (wanted))
+                return wanted;
+
+        return {};
+    }
+
+    const juce::String& sansName()
+    {
+        static const juce::String name = resolve ({ "Inter", "Space Grotesk", "Segoe UI Variable Text",
+                                                    "Segoe UI", "Helvetica Neue" });
+        return name;
+    }
+
+    const juce::String& monoName()
+    {
+        static const juce::String name = resolve ({ "JetBrains Mono", "IBM Plex Mono", "Cascadia Mono",
+                                                    "Consolas", "Menlo", "DejaVu Sans Mono" });
+        return name;
+    }
+
+    juce::FontOptions withFace (const juce::String& face, float height)
+    {
+        return face.isEmpty() ? juce::FontOptions (height)
+                              : juce::FontOptions (face, height, juce::Font::plain);
+    }
+}
+
+juce::Font ui (float height, bool semiBold)
+{
+    auto f = juce::Font (withFace (sansName(), height));
+
+    // Weight 600 for headers; the rest of the UI sits at the regular weight,
+    // which reads as the spec's 500 at these sizes.
+    return semiBold ? f.boldened() : f;
+}
+
+juce::Font mono (float height)
+{
+    return juce::Font (withFace (monoName(), height));
+}
+
+juce::Font label (float height)
+{
+    return ui (height).withExtraKerningFactor (0.08f);
+}
+
+juce::Font sectionHeader (float height)
+{
+    return ui (height, true).withExtraKerningFactor (0.08f);
+}
+
+juce::Font value (float height)
+{
+    return mono (height);
+}
+} // namespace fonts
+
+//==============================================================================
 GapFillLookAndFeel::GapFillLookAndFeel()
 {
     setColour (juce::ResizableWindow::backgroundColourId, colours::background);
@@ -10,23 +81,55 @@ GapFillLookAndFeel::GapFillLookAndFeel()
     setColour (juce::Slider::textBoxTextColourId,         colours::text);
     setColour (juce::Slider::textBoxBackgroundColourId,   juce::Colours::transparentBlack);
     setColour (juce::Slider::textBoxOutlineColourId,      juce::Colours::transparentBlack);
-    setColour (juce::Slider::thumbColourId,               colours::accent);
-    setColour (juce::ComboBox::backgroundColourId,        colours::panelRaised);
+    setColour (juce::Slider::thumbColourId,               colours::primary);
+    setColour (juce::ComboBox::backgroundColourId,        colours::panel);
     setColour (juce::ComboBox::textColourId,              colours::text);
-    setColour (juce::ComboBox::outlineColourId,           colours::outline);
-    setColour (juce::ComboBox::arrowColourId,             colours::textDim);
-    setColour (juce::PopupMenu::backgroundColourId,       colours::panelRaised);
+    setColour (juce::ComboBox::outlineColourId,           colours::edge);
+    setColour (juce::ComboBox::arrowColourId,             colours::textMuted);
+    setColour (juce::PopupMenu::backgroundColourId,       colours::panel);
     setColour (juce::PopupMenu::textColourId,             colours::text);
-    setColour (juce::PopupMenu::highlightedBackgroundColourId, colours::accent.withAlpha (0.25f));
-    setColour (juce::PopupMenu::highlightedTextColourId,  juce::Colours::white);
-    setColour (juce::TextButton::buttonColourId,          colours::panelRaised);
-    setColour (juce::TextButton::buttonOnColourId,        colours::accent.withAlpha (0.55f));
-    setColour (juce::TextButton::textColourOffId,         colours::text);
-    setColour (juce::TextButton::textColourOnId,          juce::Colours::black);
-    setColour (juce::TooltipWindow::backgroundColourId,   juce::Colour (0xf2101419));
-    setColour (juce::TooltipWindow::textColourId,         colours::text);
-    setColour (juce::TooltipWindow::outlineColourId,      colours::outline);
-    setColour (juce::ScrollBar::thumbColourId,            colours::outline.brighter (0.4f));
+    setColour (juce::PopupMenu::headerTextColourId,       colours::textMuted);
+    setColour (juce::PopupMenu::highlightedBackgroundColourId, colours::primary.withAlpha (0.18f));
+    setColour (juce::PopupMenu::highlightedTextColourId,  colours::text);
+    setColour (juce::TextButton::buttonColourId,          colours::panel);
+    setColour (juce::TextButton::buttonOnColourId,        colours::primary);
+    setColour (juce::TextButton::textColourOffId,         colours::textMuted);
+    setColour (juce::TextButton::textColourOnId,          colours::primary);
+    setColour (juce::ToggleButton::textColourId,          colours::text);
+    setColour (juce::TooltipWindow::backgroundColourId,   juce::Colour (0xf20e1116));
+    setColour (juce::TooltipWindow::textColourId,         colours::textMuted);
+    setColour (juce::TooltipWindow::outlineColourId,      colours::edge);
+    setColour (juce::ScrollBar::thumbColourId,            colours::edge.brighter (0.4f));
+    setColour (juce::AlertWindow::backgroundColourId,     colours::panel);
+    setColour (juce::AlertWindow::textColourId,           colours::text);
+    setColour (juce::AlertWindow::outlineColourId,        colours::edge);
+    setColour (juce::TextEditor::backgroundColourId,      colours::background);
+    setColour (juce::TextEditor::textColourId,            colours::text);
+    setColour (juce::TextEditor::outlineColourId,         colours::edge);
+    setColour (juce::TextEditor::focusedOutlineColourId,  colours::primary);
+    setColour (juce::TextEditor::highlightColourId,       colours::primary.withAlpha (0.3f));
+    setColour (juce::CaretComponent::caretColourId,       colours::primary);
+}
+
+//==============================================================================
+juce::ColourGradient GapFillLookAndFeel::bodyGradient (juce::Rectangle<float> bounds)
+{
+    return juce::ColourGradient (colours::knobTop,    bounds.getCentreX(), bounds.getY(),
+                                 colours::knobBottom, bounds.getCentreX(), bounds.getBottom(),
+                                 false);
+}
+
+void GapFillLookAndFeel::drawShadow (juce::Graphics& g, juce::Rectangle<float> bounds, float cornerRadius)
+{
+    // Cheap approximation of an 8px blur with a +2 y offset: a few expanding,
+    // fading rings. Far cheaper than a real blur and visually equivalent here.
+    for (int i = 4; i >= 1; --i)
+    {
+        const auto spread = (float) i * 2.0f;
+        g.setColour (colours::shadow.withMultipliedAlpha (0.10f));
+        g.fillRoundedRectangle (bounds.expanded (spread).translated (0.0f, 2.0f),
+                                cornerRadius + spread);
+    }
 }
 
 //==============================================================================
@@ -34,88 +137,175 @@ void GapFillLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int 
                                            float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
                                            juce::Slider& slider)
 {
-    const auto bounds = juce::Rectangle<int> (x, y, width, height).toFloat().reduced (3.0f);
-    const auto radius = juce::jmin (bounds.getWidth(), bounds.getHeight()) * 0.5f;
-    const auto centre = bounds.getCentre();
-    const auto thickness = juce::jmax (2.5f, radius * 0.17f);
-    const auto arcRadius = radius - thickness * 0.5f;
+    const auto area = juce::Rectangle<int> (x, y, width, height).toFloat();
+    const auto full = juce::jmin (area.getWidth(), area.getHeight());
 
-    const auto angle = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
-    const auto accentColour = slider.findColour (juce::Slider::thumbColourId);
+    // Spec geometry: a 3px value arc sits OUTSIDE the knob body with a 4px gap.
+    // Everything scales from the available size so the knob still works at the
+    // 36 / 48 / 64px sizes and when the window is resized.
+    const auto scale     = juce::jlimit (0.7f, 1.6f, full / (float) metrics::knobDefault);
+    const auto arcWidth  = 3.0f * scale;
+    const auto gap       = 4.0f * scale;
 
-    juce::Path track;
-    track.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
-                         rotaryStartAngle, rotaryEndAngle, true);
-    g.setColour (colours::outline);
-    g.strokePath (track, juce::PathStrokeType (thickness, juce::PathStrokeType::curved,
-                                               juce::PathStrokeType::rounded));
+    const auto arcRadius  = full * 0.5f - arcWidth * 0.5f;
+    const auto bodyRadius = juce::jmax (4.0f, arcRadius - arcWidth * 0.5f - gap);
+    const auto centre     = area.getCentre();
 
-    if (slider.isEnabled())
+    const auto enabled = slider.isEnabled();
+    const auto accent  = slider.findColour (juce::Slider::thumbColourId);
+    const auto angle   = rotaryStartAngle + sliderPos * (rotaryEndAngle - rotaryStartAngle);
+
+    // Hover brightens the whole control by ~8%.
+    const auto hovered = slider.isMouseOverOrDragging();
+    const auto lift    = hovered ? 0.08f : 0.0f;
+
+    // --- value arc ---------------------------------------------------------
     {
-        juce::Path value;
-        value.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
-                             rotaryStartAngle, angle, true);
-        g.setColour (accentColour.withAlpha (0.25f));
-        g.strokePath (value, juce::PathStrokeType (thickness * 2.1f, juce::PathStrokeType::curved,
+        juce::Path track;
+        track.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
+                             rotaryStartAngle, rotaryEndAngle, true);
+        g.setColour (colours::edge.withAlpha (0.6f));
+        g.strokePath (track, juce::PathStrokeType (arcWidth, juce::PathStrokeType::curved,
                                                    juce::PathStrokeType::rounded));
-        g.setColour (accentColour);
-        g.strokePath (value, juce::PathStrokeType (thickness, juce::PathStrokeType::curved,
-                                                   juce::PathStrokeType::rounded));
+
+        if (enabled && std::abs (angle - rotaryStartAngle) > 1.0e-4f)
+        {
+            juce::Path filled;
+            filled.addCentredArc (centre.x, centre.y, arcRadius, arcRadius, 0.0f,
+                                  rotaryStartAngle, angle, true);
+            g.setColour (accent.brighter (lift));
+            g.strokePath (filled, juce::PathStrokeType (arcWidth, juce::PathStrokeType::curved,
+                                                        juce::PathStrokeType::rounded));
+        }
     }
 
-    // Inner face
-    const auto inner = arcRadius - thickness * 0.85f;
-    g.setColour (colours::panelRaised.brighter (0.05f));
-    g.fillEllipse (juce::Rectangle<float> (inner * 2.0f, inner * 2.0f).withCentre (centre));
-    g.setColour (colours::outline.withAlpha (0.8f));
-    g.drawEllipse (juce::Rectangle<float> (inner * 2.0f, inner * 2.0f).withCentre (centre), 1.0f);
+    // --- body --------------------------------------------------------------
+    const auto body = juce::Rectangle<float> (bodyRadius * 2.0f, bodyRadius * 2.0f).withCentre (centre);
 
-    // Pointer
-    juce::Path pointer;
-    const auto pw = juce::jmax (2.0f, radius * 0.09f);
-    pointer.addRoundedRectangle (-pw * 0.5f, -inner * 0.92f, pw, inner * 0.55f, pw * 0.5f);
-    pointer.applyTransform (juce::AffineTransform::rotation (angle).translated (centre));
-    g.setColour (slider.isEnabled() ? accentColour.brighter (0.3f) : colours::textDim);
-    g.fillPath (pointer);
+    {
+        auto gradient = bodyGradient (body);
+
+        if (hovered)
+        {
+            gradient.clearColours();
+            gradient.addColour (0.0, colours::knobTop.brighter (lift));
+            gradient.addColour (1.0, colours::knobBottom.brighter (lift));
+        }
+
+        g.setGradientFill (gradient);
+        g.fillEllipse (body);
+
+        g.setColour (colours::edge);
+        g.drawEllipse (body.reduced (0.5f), 1.0f);
+    }
+
+    // --- indicator: a single 2px line from centre to rim, rounded cap -------
+    if (enabled)
+    {
+        const auto indicatorWidth = 2.0f * scale;
+        const auto inner = bodyRadius * 0.28f;
+        const auto outer = bodyRadius * 0.86f;
+
+        juce::Path indicator;
+        indicator.startNewSubPath (0.0f, -inner);
+        indicator.lineTo (0.0f, -outer);
+        indicator.applyTransform (juce::AffineTransform::rotation (angle).translated (centre));
+
+        g.setColour (accent.brighter (lift));
+        g.strokePath (indicator, juce::PathStrokeType (indicatorWidth, juce::PathStrokeType::curved,
+                                                       juce::PathStrokeType::rounded));
+    }
+
+    // --- centre dot: accent when moved from default, muted when at default --
+    {
+        const auto dotSize = 4.0f * scale;
+        const auto atDefault = slider.isEnabled()
+                                 && std::abs (slider.getValue() - slider.getDoubleClickReturnValue()) < 1.0e-6;
+
+        g.setColour (atDefault || ! enabled ? colours::textMuted.withAlpha (0.5f)
+                                            : accent.brighter (lift));
+        g.fillEllipse (juce::Rectangle<float> (dotSize, dotSize).withCentre (centre));
+    }
 }
 
 void GapFillLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int width, int height,
                                            float sliderPos, float, float,
                                            juce::Slider::SliderStyle style, juce::Slider& slider)
 {
-    const auto accentColour = slider.findColour (juce::Slider::thumbColourId);
+    const auto accent  = slider.findColour (juce::Slider::thumbColourId);
+    const auto hovered = slider.isMouseOverOrDragging();
+    const auto lift    = hovered ? 0.08f : 0.0f;
+
+    constexpr float trackThickness = 4.0f;   // spec: 4px track
+    constexpr float thumbShort     = 16.0f;  // spec: 16x24 rounded rect
+    constexpr float thumbLong      = 24.0f;
+
+    // Spec: 1px muted tick lines at a logical interval, outside the track.
+    // Quarters are the sensible generic reading of "logical interval" - these
+    // sliders carry percentages and amounts rather than decibel scales.
+    constexpr int   numTickDivisions = 4;
+    constexpr float tickLength       = 3.0f;
+    constexpr float tickGap          = 3.0f;
 
     if (style == juce::Slider::LinearHorizontal)
     {
         const auto cy = (float) y + (float) height * 0.5f;
-        const auto h = juce::jmax (4.0f, (float) height * 0.28f);
-        juce::Rectangle<float> track ((float) x, cy - h * 0.5f, (float) width, h);
+        juce::Rectangle<float> track ((float) x, cy - trackThickness * 0.5f,
+                                      (float) width, trackThickness);
 
-        g.setColour (colours::outline);
-        g.fillRoundedRectangle (track, h * 0.5f);
+        g.setColour (colours::edge);
+        g.fillRoundedRectangle (track, trackThickness * 0.5f);
 
         auto filled = track.withWidth (juce::jmax (0.0f, sliderPos - (float) x));
-        g.setColour (accentColour.withAlpha (0.85f));
-        g.fillRoundedRectangle (filled, h * 0.5f);
+        g.setColour (accent.brighter (lift));
+        g.fillRoundedRectangle (filled, trackThickness * 0.5f);
 
-        g.setColour (accentColour.brighter (0.4f));
-        g.fillEllipse (juce::Rectangle<float> (h * 1.9f, h * 1.9f).withCentre ({ sliderPos, cy }));
+        g.setColour (colours::textMuted.withAlpha (0.45f));
+
+        for (int i = 0; i <= numTickDivisions; ++i)
+        {
+            const auto tx = std::round ((float) x + (float) width * (float) i / (float) numTickDivisions);
+            const auto top = track.getBottom() + tickGap;
+            g.fillRect (juce::Rectangle<float> (tx, top, 1.0f, tickLength));
+        }
+
+        auto thumb = juce::Rectangle<float> (thumbShort, juce::jmin (thumbLong, (float) height))
+                       .withCentre ({ sliderPos, cy });
+
+        g.setGradientFill (bodyGradient (thumb));
+        g.fillRoundedRectangle (thumb, metrics::controlRadius);
+        g.setColour (accent.brighter (lift));
+        g.drawRoundedRectangle (thumb.reduced (0.5f), metrics::controlRadius, 1.0f);
     }
     else
     {
         const auto cx = (float) x + (float) width * 0.5f;
-        const auto w = juce::jmax (4.0f, (float) width * 0.28f);
-        juce::Rectangle<float> track (cx - w * 0.5f, (float) y, w, (float) height);
+        juce::Rectangle<float> track (cx - trackThickness * 0.5f, (float) y,
+                                      trackThickness, (float) height);
 
-        g.setColour (colours::outline);
-        g.fillRoundedRectangle (track, w * 0.5f);
+        g.setColour (colours::edge);
+        g.fillRoundedRectangle (track, trackThickness * 0.5f);
 
         auto filled = track.withTop (sliderPos);
-        g.setColour (accentColour.withAlpha (0.85f));
-        g.fillRoundedRectangle (filled, w * 0.5f);
+        g.setColour (accent.brighter (lift));
+        g.fillRoundedRectangle (filled, trackThickness * 0.5f);
 
-        g.setColour (accentColour.brighter (0.4f));
-        g.fillEllipse (juce::Rectangle<float> (w * 1.9f, w * 1.9f).withCentre ({ cx, sliderPos }));
+        g.setColour (colours::textMuted.withAlpha (0.45f));
+
+        for (int i = 0; i <= numTickDivisions; ++i)
+        {
+            const auto ty = std::round ((float) y + (float) height * (float) i / (float) numTickDivisions);
+            const auto left = track.getRight() + tickGap;
+            g.fillRect (juce::Rectangle<float> (left, ty, tickLength, 1.0f));
+        }
+
+        auto thumb = juce::Rectangle<float> (juce::jmin (thumbLong, (float) width), thumbShort)
+                       .withCentre ({ cx, sliderPos });
+
+        g.setGradientFill (bodyGradient (thumb));
+        g.fillRoundedRectangle (thumb, metrics::controlRadius);
+        g.setColour (accent.brighter (lift));
+        g.drawRoundedRectangle (thumb.reduced (0.5f), metrics::controlRadius, 1.0f);
     }
 }
 
@@ -124,11 +314,12 @@ void GapFillLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height,
                                        int, int, int, int, juce::ComboBox& box)
 {
     juce::Rectangle<float> bounds (0.0f, 0.0f, (float) width, (float) height);
+    const auto hovered = box.isMouseOver();
 
-    g.setColour (box.findColour (juce::ComboBox::backgroundColourId));
-    g.fillRoundedRectangle (bounds.reduced (0.5f), 4.0f);
+    g.setColour (box.findColour (juce::ComboBox::backgroundColourId).brighter (hovered ? 0.08f : 0.0f));
+    g.fillRoundedRectangle (bounds.reduced (0.5f), metrics::panelRadius);
     g.setColour (box.findColour (juce::ComboBox::outlineColourId));
-    g.drawRoundedRectangle (bounds.reduced (0.5f), 4.0f, 1.0f);
+    g.drawRoundedRectangle (bounds.reduced (0.5f), metrics::panelRadius, 1.0f);
 
     juce::Path arrow;
     const auto cx = (float) width - 12.0f;
@@ -144,7 +335,7 @@ void GapFillLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height,
 
 void GapFillLookAndFeel::positionComboBoxText (juce::ComboBox& box, juce::Label& label)
 {
-    label.setBounds (8, 0, box.getWidth() - 24, box.getHeight());
+    label.setBounds (metrics::grid, 0, box.getWidth() - 24, box.getHeight());
     label.setFont (getComboBoxFont (box));
     label.setJustificationType (juce::Justification::centredLeft);
 }
@@ -155,28 +346,52 @@ void GapFillLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& 
                                                bool highlighted, bool down)
 {
     auto bounds = button.getLocalBounds().toFloat().reduced (0.5f);
-    auto colour = backgroundColour;
+    const auto on = button.getToggleState();
 
-    if (down)
-        colour = colour.brighter (0.25f);
-    else if (highlighted)
-        colour = colour.brighter (0.12f);
+    // Spec: OFF is the panel surface; ON is the accent at 15% with an accent
+    // border. A momentary press also flashes the accent for 100ms - the button
+    // sets this property for the duration, see FlashButton.
+    const auto accent = on ? backgroundColour : colours::primary;
+    const bool flashing = (bool) button.getProperties()
+                                   .getWithDefault (FlashButton::flashProperty, false);
 
-    g.setColour (colour);
-    g.fillRoundedRectangle (bounds, 4.0f);
+    if (on)
+    {
+        g.setColour (accent.withAlpha (down || flashing ? 0.30f : (highlighted ? 0.22f : 0.15f)));
+        g.fillRoundedRectangle (bounds, metrics::panelRadius);
+        g.setColour (accent);
+        g.drawRoundedRectangle (bounds, metrics::panelRadius, 1.0f);
+    }
+    else
+    {
+        auto surface = colours::panel;
 
-    g.setColour (button.getToggleState() ? colour.brighter (0.5f) : colours::outline);
-    g.drawRoundedRectangle (bounds, 4.0f, 1.0f);
+        if (down || flashing)
+            surface = accent.withAlpha (0.25f).overlaidWith (surface).brighter (0.20f);
+        else if (highlighted)
+            surface = surface.brighter (0.08f);
+
+        g.setColour (surface);
+        g.fillRoundedRectangle (bounds, metrics::panelRadius);
+        g.setColour (down || flashing ? accent : colours::edge);
+        g.drawRoundedRectangle (bounds, metrics::panelRadius, 1.0f);
+    }
 }
 
 void GapFillLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton& button,
-                                         bool, bool)
+                                         bool highlighted, bool)
 {
     g.setFont (getTextButtonFont (button, button.getHeight()));
-    g.setColour (button.findColour (button.getToggleState() ? juce::TextButton::textColourOnId
-                                                            : juce::TextButton::textColourOffId));
-    g.drawFittedText (button.getButtonText(), button.getLocalBounds().reduced (4, 0),
-                      juce::Justification::centred, 1, 0.8f);
+
+    auto colour = button.findColour (button.getToggleState() ? juce::TextButton::textColourOnId
+                                                             : juce::TextButton::textColourOffId);
+
+    if (highlighted)
+        colour = colour.brighter (0.08f);
+
+    g.setColour (button.isEnabled() ? colour : colour.withAlpha (0.4f));
+    g.drawFittedText (button.getButtonText(), button.getLocalBounds().reduced (metrics::halfGrid, 0),
+                      juce::Justification::centred, 1, 0.85f);
 }
 
 void GapFillLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& button,
@@ -185,49 +400,60 @@ void GapFillLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton
     auto bounds = button.getLocalBounds().toFloat();
     const auto boxSize = juce::jmin (16.0f, bounds.getHeight() - 2.0f);
     juce::Rectangle<float> box (bounds.getX() + 1.0f, bounds.getCentreY() - boxSize * 0.5f, boxSize, boxSize);
+    const auto on = button.getToggleState();
 
-    g.setColour (button.getToggleState() ? colours::accent.withAlpha (0.85f) : colours::panelRaised);
-    g.fillRoundedRectangle (box, 3.0f);
-    g.setColour (highlighted ? colours::accent : colours::outline);
-    g.drawRoundedRectangle (box, 3.0f, 1.0f);
+    g.setColour (on ? colours::primary.withAlpha (0.15f) : colours::panel);
+    g.fillRoundedRectangle (box, metrics::controlRadius);
+    g.setColour (on ? colours::primary : (highlighted ? colours::edge.brighter (0.3f) : colours::edge));
+    g.drawRoundedRectangle (box, metrics::controlRadius, 1.0f);
 
-    if (button.getToggleState())
+    if (on)
     {
         juce::Path tick;
         tick.startNewSubPath (box.getX() + boxSize * 0.24f, box.getCentreY());
         tick.lineTo (box.getCentreX() - boxSize * 0.03f, box.getBottom() - boxSize * 0.28f);
         tick.lineTo (box.getRight() - boxSize * 0.22f, box.getY() + boxSize * 0.28f);
-        g.setColour (juce::Colours::black.withAlpha (0.85f));
+        g.setColour (colours::primary);
         g.strokePath (tick, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved,
                                                   juce::PathStrokeType::rounded));
     }
 
-    g.setColour (button.findColour (juce::ToggleButton::textColourId));
-    g.setFont (juce::FontOptions (12.0f));
-    g.drawFittedText (button.getButtonText(),
-                      bounds.withTrimmedLeft (boxSize + 8.0f).toNearestInt(),
-                      juce::Justification::centredLeft, 1, 0.8f);
+    g.setColour (on ? colours::primary : colours::textMuted);
+    g.setFont (fonts::label());
+    g.drawFittedText (button.getButtonText().toUpperCase(),
+                      bounds.withTrimmedLeft (boxSize + (float) metrics::grid).toNearestInt(),
+                      juce::Justification::centredLeft, 1, 0.85f);
 }
 
 //==============================================================================
 juce::Font GapFillLookAndFeel::getLabelFont (juce::Label& label)
 {
-    return juce::Font (juce::FontOptions (juce::jlimit (10.0f, 18.0f, (float) label.getHeight() * 0.72f)));
+    return fonts::ui (juce::jlimit (10.0f, 18.0f, (float) label.getHeight() * 0.72f));
 }
 
 juce::Font GapFillLookAndFeel::getComboBoxFont (juce::ComboBox&)
 {
-    return juce::Font (juce::FontOptions (13.0f));
+    return fonts::ui (13.0f);
 }
 
 juce::Font GapFillLookAndFeel::getTextButtonFont (juce::TextButton&, int buttonHeight)
 {
-    return juce::Font (juce::FontOptions (juce::jlimit (10.0f, 14.0f, (float) buttonHeight * 0.48f)));
+    return fonts::label (juce::jlimit (9.5f, 12.0f, (float) buttonHeight * 0.42f));
 }
 
 juce::Font GapFillLookAndFeel::getPopupMenuFont()
 {
-    return juce::Font (juce::FontOptions (13.5f));
+    return fonts::ui (13.5f);
+}
+
+juce::Font GapFillLookAndFeel::getAlertWindowMessageFont()
+{
+    return fonts::ui (13.5f);
+}
+
+juce::Font GapFillLookAndFeel::getAlertWindowTitleFont()
+{
+    return fonts::ui (16.0f, true);
 }
 
 //==============================================================================
@@ -235,16 +461,18 @@ void GapFillLookAndFeel::drawTooltip (juce::Graphics& g, const juce::String& tex
 {
     juce::Rectangle<float> bounds (0.0f, 0.0f, (float) width, (float) height);
 
+    // Spec: a dark pill with muted text.
+    const auto radius = juce::jmin (bounds.getHeight() * 0.5f, 10.0f);
+
     g.setColour (findColour (juce::TooltipWindow::backgroundColourId));
-    g.fillRoundedRectangle (bounds, 5.0f);
+    g.fillRoundedRectangle (bounds, radius);
     g.setColour (findColour (juce::TooltipWindow::outlineColourId));
-    g.drawRoundedRectangle (bounds.reduced (0.5f), 5.0f, 1.0f);
+    g.drawRoundedRectangle (bounds.reduced (0.5f), radius, 1.0f);
 
     juce::AttributedString s;
     s.setJustification (juce::Justification::centredLeft);
-    s.append (text, juce::Font (juce::FontOptions (12.5f)),
-              findColour (juce::TooltipWindow::textColourId));
-    s.draw (g, bounds.reduced (9.0f, 6.0f));
+    s.append (text, fonts::ui (12.0f), findColour (juce::TooltipWindow::textColourId));
+    s.draw (g, bounds.reduced (12.0f, 6.0f));
 }
 
 juce::Rectangle<int> GapFillLookAndFeel::getTooltipBounds (const juce::String& tipText,
@@ -253,12 +481,12 @@ juce::Rectangle<int> GapFillLookAndFeel::getTooltipBounds (const juce::String& t
 {
     juce::AttributedString s;
     s.setJustification (juce::Justification::centredLeft);
-    s.append (tipText, juce::Font (juce::FontOptions (12.5f)));
+    s.append (tipText, fonts::ui (12.0f));
 
     juce::TextLayout layout;
     layout.createLayoutWithBalancedLineLengths (s, 340.0f);
 
-    const auto w = (int) (layout.getWidth() + 20.0f);
+    const auto w = (int) (layout.getWidth() + 26.0f);
     const auto h = (int) (layout.getHeight() + 14.0f);
 
     return juce::Rectangle<int> (screenPos.x > parentArea.getCentreX() ? screenPos.x - (w + 12) : screenPos.x + 18,
@@ -272,21 +500,46 @@ void GapFillLookAndFeel::drawPanel (juce::Graphics& g, juce::Rectangle<float> bo
                                     const juce::String& title, juce::Colour tint)
 {
     g.setColour (colours::panel);
-    g.fillRoundedRectangle (bounds, 7.0f);
-    g.setColour (colours::outline);
-    g.drawRoundedRectangle (bounds.reduced (0.5f), 7.0f, 1.0f);
+    g.fillRoundedRectangle (bounds, metrics::panelRadius);
+    g.setColour (colours::edge);
+    g.drawRoundedRectangle (bounds.reduced (0.5f), metrics::panelRadius, 1.0f);
 
     if (title.isNotEmpty())
     {
-        auto header = bounds.removeFromTop (24.0f).reduced (10.0f, 0.0f);
+        auto header = bounds.removeFromTop (24.0f).withTrimmedLeft ((float) metrics::edgePadding);
 
+        // Spec: a 2px wide, 12px tall accent bar to the left of the header.
         g.setColour (tint);
-        g.fillRoundedRectangle (header.getX() - 4.0f, header.getCentreY() - 5.0f, 3.0f, 10.0f, 1.5f);
+        g.fillRect (juce::Rectangle<float> (2.0f, 12.0f)
+                      .withCentre ({ header.getX() - 6.0f, header.getCentreY() }));
 
-        g.setColour (colours::textDim);
-        g.setFont (juce::Font (juce::FontOptions (11.0f)).withExtraKerningFactor (0.14f));
+        g.setColour (colours::text);
+        g.setFont (fonts::sectionHeader());
         g.drawText (title.toUpperCase(), header.toNearestInt(), juce::Justification::centredLeft);
     }
+}
+
+void GapFillLookAndFeel::drawSeparator (juce::Graphics& g, juce::Rectangle<float> area)
+{
+    g.setColour (colours::edge);
+    g.fillRect (area.withHeight (1.0f).withY (area.getCentreY()));
+}
+
+void GapFillLookAndFeel::drawSignatureNotch (juce::Graphics& g, juce::Rectangle<float> windowBounds)
+{
+    // 12px long, 45 degrees, 2px wide, in the top-left corner.
+    constexpr float length = 12.0f;
+    constexpr float inset  = 6.0f;
+
+    const auto diagonal = length * juce::MathConstants<float>::sqrt2 * 0.5f;
+
+    juce::Path notch;
+    notch.startNewSubPath (windowBounds.getX() + inset, windowBounds.getY() + inset + diagonal);
+    notch.lineTo (windowBounds.getX() + inset + diagonal, windowBounds.getY() + inset);
+
+    g.setColour (colours::primary);
+    g.strokePath (notch, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved,
+                                               juce::PathStrokeType::butt));
 }
 
 } // namespace gapfill

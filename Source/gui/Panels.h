@@ -116,9 +116,15 @@ public:
     void setConfidence (float c) { confidence.setConfidence (c); }
     void setStatusText (const juce::String& text);
 
+    /** Drops the held meter peaks. The old peak is meaningless once the
+        settings have been thrown away, so RESET clears it. */
+    void resetMeterPeaks();
+
 private:
     GapKnob dry, wet, output;
-    LevelMeter inputMeter { colours::accentGreen }, outputMeter { colours::accent }, wetMeter { colours::accentWarm };
+    // The gradient is the same on every meter, per the identity spec, so
+    // these are no longer tinted individually.
+    LevelMeter inputMeter, outputMeter, wetMeter;
     juce::Label inLabel, outLabel, wetLabel, status;
     ConfidenceBar confidence;
 };

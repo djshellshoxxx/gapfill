@@ -1,5 +1,18 @@
 #include "PluginEditor.h"
 
+// The standalone wrapper owns the audio and MIDI devices, so the options page
+// can only offer device settings when we are running inside it. The macro is
+// defined for the shared code whenever Standalone is one of the build FORMATS,
+// and getInstance() returns null in every other host - which is exactly the
+// test we want, since the VST3 built from these same sources must not offer it.
+#if defined (JucePlugin_Build_Standalone) && JucePlugin_Build_Standalone
+ // The standalone header is written to be pulled in by the wrapper, which has
+ // already included these two; on its own it does not include them itself.
+ #include <juce_audio_devices/juce_audio_devices.h>
+ #include <juce_audio_utils/juce_audio_utils.h>
+ #include <juce_audio_plugin_client/Standalone/juce_StandaloneFilterWindow.h>
+#endif
+
 namespace gapfill
 {
 
@@ -8,6 +21,7 @@ namespace
     constexpr int kTopBarHeight = 46;
     constexpr int kMixHeight    = 124;
     constexpr int kTabHeight    = 26;
+    constexpr int kFooterHeight = 12;   // version marker, bottom-right
     constexpr int kMinWidth     = 880;
     constexpr int kMinHeight    = 620;
 
@@ -57,7 +71,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     prevPreset.setTooltip ("Previous preset");
     nextPreset.setTooltip ("Next preset");
-    savePreset.setTooltip ("Save the current settings as a user preset");
+    fileButton.setTooltip ("Save, save as, open a preset file, or open the options page");
     abButton.setTooltip ("Switch between the A and B snapshots");
     copyButton.setTooltip ("Copy the current settings into the other snapshot");
     randomButton.setTooltip ("Generate a brand new fill character. Different every single press - "
@@ -82,7 +96,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
         presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
     };
 
-    savePreset.onClick = [this] { saveUserPreset(); };
+    fileButton.onClick = [this] { showFileMenu(); };
     abButton.onClick = [this] { toggleAB(); };
     copyButton.onClick = [this] { copyToOtherSlot(); };
 
@@ -103,6 +117,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     resetButton.onClick = [this]
     {
         proc.resetAllParameters();
+        mixPanel.resetMeterPeaks();
         presetBox.setSelectedId (kFactoryOffset, juce::dontSendNotification);
     };
 
@@ -117,13 +132,24 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
         }
     };
 
+    bypassButton.setButtonText ("BYPASS");
+    bypassButton.onRightClick = [this]
+    {
+        showParameterMenu (bypassButton, proc.getValueTreeState(), "bypass");
+    };
     bypassButton.setClickingTogglesState (true);
     bypassButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xffff5252));
     bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
                             proc.getValueTreeState(), "bypass", bypassButton);
 
-    for (auto* b : { &prevPreset, &nextPreset, &savePreset, &abButton, &copyButton,
-                     &randomButton, &randomAllButton, &resetButton, &helpButton, &bypassButton })
+    // Spelled out because bypassButton is a ParamButton: with the element type
+    // named, each pointer converts to the base rather than having to deduce a
+    // single type from a mixed list.
+    const std::initializer_list<juce::TextButton*> topBarButtons
+        { &prevPreset, &nextPreset, &fileButton, &abButton, &copyButton,
+          &randomButton, &randomAllButton, &resetButton, &helpButton, &bypassButton };
+
+    for (auto* b : topBarButtons)
     {
         b->setWantsKeyboardFocus (false);
         addAndMakeVisible (b);
@@ -155,6 +181,30 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     helpView.onClose = [this] { helpView.setVisible (false); };
     addChildComponent (helpView);
+
+    optionsView.onClose = [this] { optionsView.setVisible (false); };
+
+   #if defined (JucePlugin_Build_Standalone) && JucePlugin_Build_Standalone
+    if (juce::StandalonePluginHolder::getInstance() != nullptr)
+    {
+        optionsView.onShowDeviceSettings = []
+        {
+            // Re-checked at click time: the holder outlives the editor, but
+            // being defensive here costs nothing.
+            if (auto* holder = juce::StandalonePluginHolder::getInstance())
+                holder->showAudioSettingsDialog();
+        };
+    }
+   #endif
+
+    optionsView.onTooltipsChanged = [this] (bool on)
+    {
+        proc.setTooltipsEnabled (on);
+        applyTooltipSetting();
+    };
+    addChildComponent (optionsView);
+
+    applyTooltipSetting();
 
     // ---- A/B snapshots -----------------------------------------------------
     slotA = proc.getValueTreeState().copyState().createCopy();
@@ -245,13 +295,17 @@ void GapFillAudioProcessorEditor::presetSelected()
                 auto tree = juce::ValueTree::fromXml (*xml);
 
                 if (tree.isValid() && tree.hasType (proc.getValueTreeState().state.getType()))
+                {
                     proc.getValueTreeState().replaceState (tree);
+                    currentPresetFile = userPresetFiles[index];
+                }
             }
         }
     }
     else if (id >= kFactoryOffset)
     {
         proc.selectPreset (id - kFactoryOffset);
+        currentPresetFile = juce::File();
     }
 }
 
@@ -285,12 +339,155 @@ void GapFillAudioProcessorEditor::saveUserPreset()
             if (auto xml = proc.getValueTreeState().copyState().createXml())
                 xml->writeTo (file);
 
+            currentPresetFile = file;
             refreshPresetList();
 
             for (int i = 0; i < userPresetFiles.size(); ++i)
                 if (userPresetFiles[i] == file)
                     presetBox.setSelectedId (i + kUserOffset, juce::dontSendNotification);
         }), false);
+}
+
+//==============================================================================
+void GapFillAudioProcessorEditor::showFileMenu()
+{
+    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions };
+
+    juce::PopupMenu menu;
+    menu.setLookAndFeel (&lookAndFeel);
+
+    // "Save" only means something once there is a file to save over.
+    menu.addItem (kSave, currentPresetFile != juce::File()
+                             ? "Save (" + currentPresetFile.getFileName() + ")"
+                             : juce::String ("Save"),
+                  currentPresetFile != juce::File());
+    menu.addItem (kSaveAs, "Save As...");
+    menu.addItem (kOpen, "Open...");
+    menu.addSeparator();
+    menu.addItem (kSavePreset, "Save as user preset...");
+    menu.addSeparator();
+    menu.addItem (kOptions, "Options...");
+
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&fileButton),
+                        [this] (int result)
+    {
+        switch (result)
+        {
+            case kSave:       doSave(); break;
+            case kSaveAs:     doSaveAs(); break;
+            case kOpen:       doOpen(); break;
+            case kSavePreset: saveUserPreset(); break;
+            case kOptions:    showOptions(); break;
+            default: break;
+        }
+    });
+}
+
+void GapFillAudioProcessorEditor::savePresetToFile (const juce::File& file)
+{
+    if (file == juce::File())
+        return;
+
+    if (auto xml = proc.getValueTreeState().copyState().createXml())
+    {
+        if (xml->writeTo (file))
+        {
+            currentPresetFile = file;
+
+            // A file saved into the user preset folder should show up in the
+            // dropdown straight away.
+            refreshPresetList();
+        }
+    }
+}
+
+void GapFillAudioProcessorEditor::loadPresetFromFile (const juce::File& file)
+{
+    auto xml = juce::XmlDocument::parse (file);
+
+    if (xml == nullptr)
+        return;
+
+    auto tree = juce::ValueTree::fromXml (*xml);
+
+    if (! tree.isValid() || ! tree.hasType (proc.getValueTreeState().state.getType()))
+        return;
+
+    proc.getValueTreeState().replaceState (tree);
+    currentPresetFile = file;
+
+    presetBox.setSelectedId (0, juce::dontSendNotification);
+    presetBox.setText (file.getFileNameWithoutExtension(), juce::dontSendNotification);
+}
+
+void GapFillAudioProcessorEditor::doSave()
+{
+    if (currentPresetFile == juce::File())
+    {
+        doSaveAs();
+        return;
+    }
+
+    savePresetToFile (currentPresetFile);
+}
+
+void GapFillAudioProcessorEditor::doSaveAs()
+{
+    auto start = currentPresetFile != juce::File() ? currentPresetFile
+                                                   : userPresetDirectory().getChildFile ("My GapFill.gapfill");
+
+    chooser = std::make_unique<juce::FileChooser> ("Save GapFill settings", start, "*.gapfill");
+
+    chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                            | juce::FileBrowserComponent::canSelectFiles
+                            | juce::FileBrowserComponent::warnAboutOverwriting,
+                          [this] (const juce::FileChooser& fc)
+    {
+        const auto file = fc.getResult();
+
+        if (file == juce::File())
+            return;
+
+        savePresetToFile (file.hasFileExtension ("gapfill") ? file
+                                                            : file.withFileExtension ("gapfill"));
+    });
+}
+
+void GapFillAudioProcessorEditor::doOpen()
+{
+    auto start = currentPresetFile != juce::File() ? currentPresetFile.getParentDirectory()
+                                                   : userPresetDirectory();
+
+    chooser = std::make_unique<juce::FileChooser> ("Open GapFill settings", start, "*.gapfill");
+
+    chooser->launchAsync (juce::FileBrowserComponent::openMode
+                            | juce::FileBrowserComponent::canSelectFiles,
+                          [this] (const juce::FileChooser& fc)
+    {
+        if (fc.getResult() != juce::File())
+            loadPresetFromFile (fc.getResult());
+    });
+}
+
+void GapFillAudioProcessorEditor::showOptions()
+{
+    optionsView.refresh (proc.isTooltipsEnabled());
+    optionsView.setVisible (true);
+    optionsView.toFront (false);
+    optionsView.resized();
+}
+
+void GapFillAudioProcessorEditor::applyTooltipSetting()
+{
+    if (proc.isTooltipsEnabled())
+    {
+        if (tooltips == nullptr)
+            tooltips = std::make_unique<juce::TooltipWindow> (nullptr, metrics::tooltipDelayMs);
+    }
+    else
+    {
+        tooltips.reset();
+    }
 }
 
 //==============================================================================
@@ -372,6 +569,21 @@ void GapFillAudioProcessorEditor::paint (juce::Graphics& g)
 
     g.setColour (colours::accent);
     g.fillRoundedRectangle (14.0f, top.getCentreY() - 11.0f, 3.0f, 22.0f, 1.5f);
+
+    // --- identity markers (theme.md) ---------------------------------------
+    GapFillLookAndFeel::drawSignatureNotch (g, getLocalBounds().toFloat());
+
+    g.setColour (colours::textMuted);
+    g.setFont (fonts::mono (9.0f));
+    g.drawText ("v" + versionString(), footerBounds(),
+                juce::Justification::centredRight, false);
+}
+
+/** The strip along the bottom that resized() keeps clear for the version. */
+juce::Rectangle<int> GapFillAudioProcessorEditor::footerBounds() const
+{
+    return getLocalBounds().withTrimmedTop (kTopBarHeight).reduced (10, 8)
+                           .removeFromBottom (kFooterHeight);
 }
 
 void GapFillAudioProcessorEditor::resized()
@@ -404,12 +616,13 @@ void GapFillAudioProcessorEditor::resized()
         prevPreset.setBounds (top.removeFromLeft (26).reduced (1, 0));
         nextPreset.setBounds (top.removeFromLeft (26).reduced (1, 0));
         top.removeFromLeft (4);
-        savePreset.setBounds (top.removeFromRight (56).reduced (2, 0));
+        fileButton.setBounds (top.removeFromRight (56).reduced (2, 0));
         presetBox.setBounds (top.removeFromLeft (juce::jmin (230, juce::jmax (110, top.getWidth() - 70))).reduced (1, 1));
         latencyLabel.setBounds (top.reduced (6, 0));
     }
 
     b.reduce (10, 8);
+    b.removeFromBottom (kFooterHeight);
 
     // ---- mix strip --------------------------------------------------------
     mixPanel.setBounds (b.removeFromBottom (kMixHeight));
@@ -444,6 +657,10 @@ void GapFillAudioProcessorEditor::resized()
 
     if (helpView.isVisible())
         helpView.resized();
+
+    // The options page is a small panel rather than a full overlay.
+    optionsView.setBounds (juce::Rectangle<int> (480, 300)
+                             .withCentre (getLocalBounds().getCentre()));
 }
 
 } // namespace gapfill

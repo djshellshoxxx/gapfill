@@ -434,6 +434,13 @@ MixPanel::MixPanel (juce::AudioProcessorValueTreeState& s)
     addAndMakeVisible (status);
 }
 
+void MixPanel::resetMeterPeaks()
+{
+    inputMeter.resetPeak();
+    outputMeter.resetPeak();
+    wetMeter.resetPeak();
+}
+
 void MixPanel::setLevels (float in, float out, float wetLevel)
 {
     inputMeter.setLevel (in);

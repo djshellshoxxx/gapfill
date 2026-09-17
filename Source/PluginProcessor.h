@@ -4,6 +4,7 @@
 
 #include "Parameters.h"
 #include "Presets.h"
+#include "MidiLearn.h"
 #include "dsp/AnalysisEngine.h"
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
@@ -33,7 +34,8 @@ public:
     bool hasEditor() const override                      { return true; }
 
     const juce::String getName() const override          { return "GapFill"; }
-    bool acceptsMidi() const override                    { return false; }
+    // MIDI is accepted for CC-based parameter control (MIDI learn) only.
+    bool acceptsMidi() const override                    { return true; }
     bool producesMidi() const override                   { return false; }
     bool isMidiEffect() const override                   { return false; }
     double getTailLengthSeconds() const override         { return 2.5; }
@@ -55,6 +57,7 @@ public:
     juce::AudioProcessorValueTreeState& getValueTreeState() noexcept { return apvts; }
     MeterState& getMeterState() noexcept                            { return meters; }
     VisualisationFifo& getVisualisationFifo() noexcept              { return viz; }
+    MidiLearnManager& getMidiLearnManager() noexcept                { return midiLearn; }
 
     void resetAllParameters();
     /** Randomises creative (or, with `everything`, a wider) parameter set.
@@ -63,6 +66,11 @@ public:
 
     juce::String getCurrentPresetName() const;
     void selectPreset (int index);
+
+    /** Options-page settings. These are UI preferences rather than
+        parameters, so they live in the plugin state but are not automatable. */
+    bool isTooltipsEnabled() const noexcept              { return tooltipsEnabled; }
+    void setTooltipsEnabled (bool shouldBeOn) noexcept   { tooltipsEnabled = shouldBeOn; }
 
     /** Editor size persistence. */
     juce::Point<int> getSavedEditorSize() const noexcept { return savedEditorSize; }
@@ -89,6 +97,8 @@ private:
     AnalysisEngine analysis;
     SourceHistory  history;
     FillEngine     engine;
+
+    MidiLearnManager midiLearn;
 
     MeterState meters;
     VisualisationFifo viz;
@@ -131,6 +141,7 @@ private:
 
     int currentProgram = 0;
     juce::Point<int> savedEditorSize { 1100, 700 };
+    bool tooltipsEnabled = true;
 
     juce::Random randomSource;
     std::atomic<int> latencyToReport { 0 };

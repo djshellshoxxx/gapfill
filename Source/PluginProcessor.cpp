@@ -21,6 +21,7 @@ GapFillAudioProcessor::GapFillAudioProcessor()
 {
     params.connect (apvts);
     bypassParameter = apvts.getParameter ("bypass");
+    midiLearn.connect (apvts);
     randomSource.setSeedRandomly();
     startTimerHz (15);
 }
@@ -154,6 +155,10 @@ void GapFillAudioProcessor::timerCallback()
 
     if (wanted != getLatencySamples())
         setLatencySamples (wanted);
+
+    // Applies CC moves and completed learns on the thread that owns them.
+    if (midiLearn.applyPendingChanges())
+        updateHostDisplay();
 }
 
 //==============================================================================
@@ -303,9 +308,11 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
 }
 
 //==============================================================================
-void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+
+    midiLearn.processMidi (midi);
 
     const auto numSamples = buffer.getNumSamples();
 
@@ -328,9 +335,11 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     }
 }
 
-void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+
+    midiLearn.processMidi (midi);
 
     const auto numSamples = buffer.getNumSamples();
 
@@ -752,7 +761,9 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     root.setProperty ("program", currentProgram, nullptr);
     root.setProperty ("editorWidth", savedEditorSize.x, nullptr);
     root.setProperty ("editorHeight", savedEditorSize.y, nullptr);
+    root.setProperty ("tooltips", tooltipsEnabled, nullptr);
     root.appendChild (apvts.copyState(), nullptr);
+    root.appendChild (midiLearn.toValueTree(), nullptr);
 
     if (auto xml = root.createXml())
         copyXmlToBinary (*xml, destData);
@@ -777,9 +788,15 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         currentProgram = (int) root.getProperty ("program", 0);
         savedEditorSize = { (int) root.getProperty ("editorWidth", 1100),
                             (int) root.getProperty ("editorHeight", 700) };
+        tooltipsEnabled = (bool) root.getProperty ("tooltips", true);
 
         if (root.getNumChildren() > 0)
             paramState = root.getChild (0);
+
+        // Absent in state written before MIDI learn existed; leave the current
+        // mappings alone in that case rather than wiping them.
+        if (const auto mapState = root.getChildWithName (MidiLearnManager::stateType); mapState.isValid())
+            midiLearn.restoreFromValueTree (mapState);
     }
     else if (root.hasType (apvts.state.getType()))
     {
@@ -802,6 +819,17 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
 juce::AudioProcessorEditor* GapFillAudioProcessor::createEditor()
 {
     return new GapFillAudioProcessorEditor (*this);
+}
+
+//==============================================================================
+MidiLearnManager* findMidiLearnManager (juce::AudioProcessorValueTreeState& state)
+{
+    // The test harness drives a bare APVTS, so a failed cast is expected there
+    // and simply means the MIDI items are left out of the menu.
+    if (auto* processor = dynamic_cast<GapFillAudioProcessor*> (&state.processor))
+        return &processor->getMidiLearnManager();
+
+    return nullptr;
 }
 
 } // namespace gapfill

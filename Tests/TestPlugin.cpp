@@ -988,6 +988,122 @@ GF_TEST (Editor, opens_and_closes_repeatedly_without_leaking_state)
     }
 }
 
+//==============================================================================
+// The FILE menu writes the APVTS tree straight to a .gapfill file and reads it
+// back, so the round trip is what actually has to hold.
+GF_TEST (Editor, preset_files_round_trip_through_disk)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    auto& state = proc.getValueTreeState();
+
+    juce::Random random (20260916);
+    randomiseParameters (state, true, random);
+
+    // Snapshot every parameter before writing.
+    juce::HashMap<juce::String, float> before;
+
+    for (const auto& id : allParameterIDs())
+        if (auto* v = state.getRawParameterValue (id))
+            before.set (id, v->load());
+
+    juce::TemporaryFile temp (".gapfill");
+    auto file = temp.getFile();
+
+    {
+        auto xml = state.copyState().createXml();
+        GF_EXPECT (xml != nullptr);
+        GF_EXPECT (xml->writeTo (file));
+    }
+
+    GF_EXPECT (file.existsAsFile());
+    GF_EXPECT (file.getSize() > 0);
+
+    // Move everything away from the saved values, then load the file back.
+    proc.resetAllParameters();
+
+    {
+        auto xml = juce::XmlDocument::parse (file);
+        GF_EXPECT (xml != nullptr);
+
+        auto tree = juce::ValueTree::fromXml (*xml);
+        GF_EXPECT (tree.isValid());
+        GF_EXPECT (tree.hasType (state.state.getType()));
+
+        state.replaceState (tree);
+    }
+
+    // Compare the value the DSP actually reads. A bool parameter keeps the raw
+    // normalised value it was set with, so getValue() can differ across a round
+    // trip even when both sides mean the same thing.
+    for (const auto& id : allParameterIDs())
+        if (auto* v = state.getRawParameterValue (id))
+            GF_EXPECT_MSG (std::abs (v->load() - before[id]) < 1.0e-4f,
+                           id + ": saved " + juce::String (before[id])
+                              + " but reloaded " + juce::String (v->load()));
+}
+
+//==============================================================================
+// MIDI mappings are stored in their own child tree, and state written before
+// that tree existed must still load.
+GF_TEST (Editor, midi_mappings_survive_a_state_round_trip)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    auto& learn = proc.getMidiLearnManager();
+
+    learn.setMapping ("wet", 21);
+    learn.setMapping ("dry", 22);
+    GF_EXPECT (learn.getNumMappings() == 2);
+
+    juce::MemoryBlock saved;
+    proc.getStateInformation (saved);
+
+    learn.clearAllMappings();
+    GF_EXPECT (learn.getNumMappings() == 0);
+
+    proc.setStateInformation (saved.getData(), (int) saved.getSize());
+
+    GF_EXPECT (learn.getMappedCC ("wet") == 21);
+    GF_EXPECT (learn.getMappedCC ("dry") == 22);
+
+    // One CC drives one parameter: re-pointing CC 21 must release "wet".
+    learn.setMapping ("output", 21);
+    GF_EXPECT (learn.getMappedCC ("output") == 21);
+    GF_EXPECT (learn.getMappedCC ("wet") == -1);
+
+    // A tree with no MIDMAP child must leave the current mappings alone rather
+    // than silently wiping them.
+    GapFillAudioProcessor older;
+    juce::MemoryBlock legacy;
+    older.getStateInformation (legacy);
+
+    if (auto xml = juce::AudioProcessor::getXmlFromBinary (legacy.getData(), (int) legacy.getSize()))
+    {
+        auto root = juce::ValueTree::fromXml (*xml);
+        auto stripped = root.getChildWithName (MidiLearnManager::stateType);
+        GF_EXPECT_MSG (stripped.isValid(), "fresh state had no " + juce::String (MidiLearnManager::stateType) + " child");
+
+        root.removeChild (stripped, nullptr);
+        GF_EXPECT_MSG (! root.getChildWithName (MidiLearnManager::stateType).isValid(),
+                       "failed to strip the map child");
+
+        if (auto rewritten = root.createXml())
+        {
+            juce::MemoryBlock block;
+            juce::AudioProcessor::copyXmlToBinary (*rewritten, block);
+            proc.setStateInformation (block.getData(), (int) block.getSize());
+        }
+    }
+
+    GF_EXPECT_MSG (learn.getMappedCC ("output") == 21,
+                   "legacy state wiped the mappings: out -> "
+                     + juce::String (learn.getMappedCC ("output"))
+                     + ", total mappings " + juce::String (learn.getNumMappings()));
+}
+
 GF_TEST (Editor, reset_and_randomise_behave)
 {
     GapFillAudioProcessor proc;

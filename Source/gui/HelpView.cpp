@@ -35,10 +35,16 @@ HelpContent::HelpContent()
         text.append (description + "\n", bodyFont(), colours::text.withAlpha (0.86f));
     };
 
+    auto versionLine = [this] (const juce::String& s)
+    {
+        text.append (s + "\n", fonts::mono (10.0f), colours::textMuted);
+    };
+
     text.setLineSpacing (3.0f);
 
     //--------------------------------------------------------------------------
     title ("GapFill - what it actually does");
+    versionLine ("version " + versionString());
     body ("Most effects process everything they are given. GapFill does the opposite: it listens "
           "for the musical events in your audio, works out where the usable spaces between those "
           "events are, and puts generated ear candy only in those spaces - while actively "
@@ -292,10 +298,14 @@ void HelpView::paint (juce::Graphics& g)
 {
     auto b = getLocalBounds().toFloat();
 
+    // Matches the options overlay: the shared panel radius and the house shadow,
+    // rather than a radius of its own.
+    GapFillLookAndFeel::drawShadow (g, b, metrics::panelRadius);
+
     g.setColour (juce::Colour (0xf20b0d11));
-    g.fillRoundedRectangle (b, 8.0f);
+    g.fillRoundedRectangle (b, metrics::panelRadius);
     g.setColour (colours::outline);
-    g.drawRoundedRectangle (b.reduced (0.5f), 8.0f, 1.0f);
+    g.drawRoundedRectangle (b.reduced (0.5f), metrics::panelRadius, 1.0f);
 
     g.setColour (colours::accent);
     g.setFont (juce::Font (juce::FontOptions (13.0f)).withExtraKerningFactor (0.18f));

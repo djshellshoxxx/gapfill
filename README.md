@@ -18,28 +18,68 @@ KICK ——[granular reverse]—— SNARE ——[stutter]—— KICK ——[pitc
 Requirements: CMake 3.22+, a C++20 compiler (MSVC 2022 on Windows), and the JUCE
 checkout in `JUCE/` (JUCE 8.0.15 is what this was developed against).
 
+Both dependencies are checked out beside the source rather than vendored, and
+both are gitignored:
+
 ```bash
 git clone --depth 1 --branch 8.0.15 https://github.com/juce-framework/JUCE JUCE
+git clone --recurse-submodules --depth 1 \
+    https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
 cmake -S . -B build -G "Visual Studio 17 2022" -A x64
 cmake --build build --config Release
 ```
 
+`clap-juce-extensions` is optional. If the directory is absent CMake prints a
+note and simply skips the CLAP target; the VST3 and Standalone still build.
+
 Artefacts land in a deterministic location inside the build tree:
 
-| Target      | Path                                                     |
-|-------------|----------------------------------------------------------|
-| VST3        | `build/GapFill_artefacts/Release/VST3/GapFill.vst3`      |
-| Standalone  | `build/GapFill_artefacts/Release/Standalone/GapFill.exe` |
-| Test runner | `build/artefacts/GapFillTests.exe`                       |
+| Target      | Path                                                          |
+|-------------|---------------------------------------------------------------|
+| VST3        | `build/GapFill_artefacts/<Config>/VST3/GapFill.vst3`          |
+| CLAP        | `build/GapFill_artefacts/<Config>/CLAP/GapFill.clap`          |
+| Standalone  | `build/artefacts/<Config>/GapFill.exe`                        |
+| Test runner | `build/artefacts/<Config>/GapFillTests.exe`                   |
+
+The VST3 and CLAP are bundles, so the binary sits at
+`GapFill.vst3/Contents/x86_64-win/GapFill.vst3` inside the directory of that
+name. Do not set `RUNTIME_OUTPUT_DIRECTORY` on those two targets: JUCE links
+them straight into the bundle layout, and redirecting the output drops the
+binary beside the bundle and leaves an empty shell no host can load.
 
 Nothing is copied into a system plugin folder automatically, so a read-only
 system directory can never fail the build.
 
+### Linux
+
+The same CMake build produces a Linux VST3, CLAP and standalone. Build
+dependencies (Debian/Ubuntu; `JUCE_WEB_BROWSER=0` and `JUCE_USE_CURL=0` mean
+neither WebKit nor curl is required):
+
+```bash
+sudo apt install build-essential cmake ninja-build \
+    libasound2-dev libfreetype-dev libfontconfig1-dev \
+    libx11-dev libxcomposite-dev libxcursor-dev libxext-dev \
+    libxinerama-dev libxrandr-dev libxrender-dev
+cmake -S . -B build-linux -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-linux
+```
+
+Linux artefacts follow the same layout, with `x86_64-linux` as the bundle
+architecture directory and no extension on the standalone binary.
+
+On a machine with little free RAM, cap the compiler as well as MSBuild — JUCE's
+recommended flags add `/MP`, which starts one `cl.exe` per core:
+
+```bash
+cmake --build build --config Release -- -m:1 -p:CL_MPCount=1
+```
+
 ## Testing
 
 ```bash
-build/artefacts/GapFillTests.exe            # everything
-build/artefacts/GapFillTests.exe Protection # only tests matching "Protection"
+build/artefacts/Release/GapFillTests.exe            # everything
+build/artefacts/Release/GapFillTests.exe Protection # only tests matching "Protection"
 ```
 
 The suite covers the DSP primitives (ring buffer wraparound, crossover energy
@@ -52,7 +92,8 @@ Plugin validation (scan, creation, editor lifecycle, bus layouts, state, audio
 processing) is run with [pluginval](https://github.com/Tracktion/pluginval):
 
 ```bash
-tools/pluginval/pluginval.exe --strictness-level 8 --validate build/GapFill_artefacts/Release/VST3/GapFill.vst3
+tools/pluginval/pluginval.exe --strictness-level 8 \
+    --validate build/GapFill_artefacts/Release/VST3/GapFill.vst3
 ```
 
 ---
@@ -104,9 +145,10 @@ Key points:
 ```
 Source/
   PluginProcessor.*       host integration, buses, latency, mix, protection bus
-  PluginEditor.*          top bar, tabs, A/B, presets, help overlay
+  PluginEditor.*          top bar, tabs, A/B, presets, FILE menu, overlays
   Parameters.*            stable parameter IDs (X-macro) + cached atomics
   Presets.*               17 factory presets, reset, randomise
+  MidiLearn.*             CC learn and mapping, lock-free audio -> UI
   dsp/
     DspUtils.h            SVF, envelopes, RNG, SourceHistory, EventQueue
     AnalysisEngine.*      detection lanes, flux, band splitting, frame ring
@@ -114,7 +156,8 @@ Source/
     FillEngine.*          scheduler, voice pool, protection envelopes
     SpectralSmear.*       streaming phase-vocoder smear
     VisualisationState.h  lock-free audio -> GUI transfer
-  gui/                    look and feel, controls, visualiser, panels, help
+  gui/                    look and feel, controls, visualiser, panels,
+                          help and options overlays
 Tests/                    unit, integration and combinatorial tests
 ```
 

@@ -16,6 +16,17 @@ set(GAPFILL_ARTEFACT_DIR "${CMAKE_BINARY_DIR}/artefacts")
 
 add_subdirectory(JUCE)
 
+# CLAP support (unofficial JUCE extensions). Optional: if the checkout is absent
+# the VST3/Standalone builds still work, only the CLAP target is skipped.
+set(GAPFILL_CLAP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/clap-juce-extensions")
+if (EXISTS "${GAPFILL_CLAP_DIR}/CMakeLists.txt")
+    add_subdirectory("${GAPFILL_CLAP_DIR}" EXCLUDE_FROM_ALL)
+    set(GAPFILL_HAS_CLAP TRUE)
+else()
+    set(GAPFILL_HAS_CLAP FALSE)
+    message(STATUS "clap-juce-extensions not found - CLAP target disabled")
+endif()
+
 # ---------------------------------------------------------------------------
 # Shared source list (used by both the plugin and the test runner)
 # ---------------------------------------------------------------------------
@@ -24,6 +35,7 @@ set(GAPFILL_SOURCES
     Source/PluginEditor.cpp
     Source/Parameters.cpp
     Source/Presets.cpp
+    Source/MidiLearn.cpp
     Source/dsp/AnalysisEngine.cpp
     Source/dsp/FillVoice.cpp
     Source/dsp/FillEngine.cpp
@@ -33,6 +45,7 @@ set(GAPFILL_SOURCES
     Source/gui/WaveformGapView.cpp
     Source/gui/Panels.cpp
     Source/gui/HelpView.cpp
+    Source/gui/OptionsView.cpp
 )
 
 set(GAPFILL_MODULES
@@ -59,6 +72,7 @@ set(GAPFILL_DEFS
     JUCE_STRICT_REFCOUNTEDPOINTER=1
     JUCE_MODAL_LOOPS_PERMITTED=0
     _USE_MATH_DEFINES=1
+    GAPFILL_VERSION="${PROJECT_VERSION}"
 )
 
 # ---------------------------------------------------------------------------
@@ -74,7 +88,7 @@ juce_add_plugin(GapFill
     DESCRIPTION             "Intelligent gap-aware creative fill processor"
     VST3_CATEGORIES         Fx Delay Modulation
     IS_SYNTH                FALSE
-    NEEDS_MIDI_INPUT        FALSE
+    NEEDS_MIDI_INPUT        TRUE
     NEEDS_MIDI_OUTPUT       FALSE
     IS_MIDI_EFFECT          FALSE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
@@ -94,13 +108,23 @@ else()
     target_compile_options(GapFill PRIVATE -Wall -Wextra)
 endif()
 
-foreach(fmt VST3 Standalone)
-    if (TARGET GapFill_${fmt})
-        set_target_properties(GapFill_${fmt} PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY "${GAPFILL_ARTEFACT_DIR}"
-            LIBRARY_OUTPUT_DIRECTORY "${GAPFILL_ARTEFACT_DIR}")
-    endif()
-endforeach()
+# Do NOT redirect the VST3 or CLAP output here. JUCE builds those binaries
+# directly into their bundle layout (GapFill.vst3/Contents/x86_64-win/...);
+# overriding RUNTIME_OUTPUT_DIRECTORY drops the DLL beside the bundle instead
+# of inside it and leaves the bundle an empty shell that a host cannot load.
+# Their deterministic home is build/GapFill_artefacts/<Config>/<Format>/.
+if (TARGET GapFill_Standalone)
+    set_target_properties(GapFill_Standalone PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${GAPFILL_ARTEFACT_DIR}")
+endif()
+
+if (GAPFILL_HAS_CLAP)
+    clap_juce_extensions_plugin(TARGET GapFill
+        CLAP_ID "com.gapfillaudio.gapfill"
+        CLAP_FEATURES audio-effect glitch delay granular
+        CLAP_MANUAL_URL "https://github.com/djshellshoxxx/gapfill"
+        CLAP_SUPPORT_URL "https://github.com/djshellshoxxx/gapfill/issues")
+endif()
 
 # ---------------------------------------------------------------------------
 # Test runner
@@ -124,7 +148,7 @@ target_compile_definitions(GapFillTests PUBLIC
     JucePlugin_IsSynth=0
     JucePlugin_IsMidiEffect=0
     JucePlugin_ProducesMidiOutput=0
-    JucePlugin_WantsMidiInput=0
+    JucePlugin_WantsMidiInput=1
 )
 
 target_include_directories(GapFillTests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/Source")
