@@ -34,6 +34,13 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 
 ## Session log
 
+### 2026-10-06 - creative performance Phase 1 started
+
+- Audited the activity visualizer producer, FIFO, and paint path against the approved feature spec. The existing frame flags already distinguish event, usable gap, active fill, protected region, and lookahead; the view also labels the signal and spectral-band lanes. No inferred rejection reason is shown, so no scheduler change was needed.
+- Added `visualisation_fifo_preserves_activity_flags` to cover enabled/disabled transport and preservation of flags and representative frame values.
+- JUCE test execution is pending: this workspace has no project checkout, the GitHub shell proxy is unavailable, and the JUCE submodule is not present locally. CI evidence will be recorded separately.
+
+
 ### 2026-10-06 - keyboard navigation and host validation completion
 
 - Added opt-in keyboard navigation: controls are non-focusable by default, while buttons, sliders and combo boxes become Tab-focusable only when the user enables the preference. The JUCE wrapper now permits keyboard events so the opt-in mode can actually function in VST3 hosts; the editor root itself remains non-focusable.
