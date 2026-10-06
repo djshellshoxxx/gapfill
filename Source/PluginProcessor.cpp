@@ -801,14 +801,13 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         return;
 
     juce::ValueTree paramState;
+    int restoredProgram = -1;
 
     if (root.hasType ("GAPFILL_STATE"))
     {
         const auto savedProgram = (int) root.getProperty ("program", 0);
         const auto presetCount = (int) getFactoryPresets().size();
-        currentProgram.store (juce::isPositiveAndBelow (savedProgram, presetCount) || savedProgram == 0
-                                ? savedProgram : -1,
-                              std::memory_order_relaxed);
+        restoredProgram = (savedProgram >= 0 && savedProgram < presetCount) ? savedProgram : -1;
         savedEditorWidth.store ((int) root.getProperty ("editorWidth", 1100), std::memory_order_relaxed);
         savedEditorHeight.store ((int) root.getProperty ("editorHeight", 700), std::memory_order_relaxed);
         tooltipsEnabled.store ((bool) root.getProperty ("tooltips", true), std::memory_order_relaxed);
@@ -835,6 +834,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     // whole tree so the restored program identity is preserved.
     programChangeInProgress.store (true, std::memory_order_relaxed);
     apvts.replaceState (paramState);
+    currentProgram.store (restoredProgram, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
 
     savedEditorWidth.store (juce::jlimit (860, 3200,
