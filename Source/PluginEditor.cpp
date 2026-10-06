@@ -87,6 +87,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 {
     setLookAndFeel (&lookAndFeel);
     setWantsKeyboardFocus (false);
+    setFocusContainerType (juce::Component::FocusContainerType::keyboardFocusContainer);
 
     // ---- top bar ----------------------------------------------------------
     logo.setText ("GAPFILL", juce::dontSendNotification);
