@@ -255,6 +255,15 @@ HelpContent::HelpContent()
     entry ("Everything changed after reopening the project", "check the Seed was saved - it is part "
                                                              "of the plugin state and should restore "
                                                              "automatically.");
+    entry ("MIDI learn", "right-click a parameter and choose MIDI learn, then move a controller. "
+                         "The status line shows the armed parameter and countdown. Learn cancels "
+                         "automatically after 10 seconds, or right-click the same control again to cancel.");
+
+    //--------------------------------------------------------------------------
+    heading ("About");
+    body ("GapFill is a Circuit Drift Labs audio effect. Project documentation, source and release "
+          "information live in the repository.");
+    body ("Circuit Drift Labs: https://djshellshoxxx.github.io/circuitdriftlabs/");
 
     text.append ("\n", bodyFont(), colours::text);
 }
