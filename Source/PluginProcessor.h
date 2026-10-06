@@ -62,6 +62,11 @@ public:
     void getStateInformation (juce::MemoryBlock& destData) override;
     void setStateInformation (const void* data, int sizeInBytes) override;
 
+    /** Validates and atomically applies a bare APVTS parameter tree.
+        Unknown parameters are ignored for forward compatibility; malformed
+        values for known parameters reject the whole state. */
+    bool applyParameterState (const juce::ValueTree& state);
+
     //==========================================================================
     // Editor-facing helpers (message thread only)
     juce::AudioProcessorValueTreeState& getValueTreeState() noexcept { return apvts; }
@@ -116,6 +121,7 @@ private:
     EngineSettings gatherEngineSettings() const;
     AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
+    bool isParameterStateValid (const juce::ValueTree& state) const;
 
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
