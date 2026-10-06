@@ -99,6 +99,15 @@ public:
         tooltipsEnabled.store (shouldBeOn, std::memory_order_relaxed);
     }
 
+    bool isReducedMotionEnabled() const noexcept
+    {
+        return reducedMotionEnabled.load (std::memory_order_relaxed);
+    }
+    void setReducedMotionEnabled (bool shouldReduce) noexcept
+    {
+        reducedMotionEnabled.store (shouldReduce, std::memory_order_relaxed);
+    }
+
     /** Editor size persistence. */
     juce::Point<int> getSavedEditorSize() const noexcept
     {
@@ -184,6 +193,7 @@ private:
     std::atomic<int> savedEditorWidth { 1100 };
     std::atomic<int> savedEditorHeight { 700 };
     std::atomic<bool> tooltipsEnabled { true };
+    std::atomic<bool> reducedMotionEnabled { false };
 
     juce::Random randomSource;
     std::atomic<int> latencyToReport { 0 };
