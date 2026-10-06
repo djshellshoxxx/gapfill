@@ -159,7 +159,7 @@ private:
     bool  sidechainHasSignal = false;
     float lastSoloXoverLM = -1.0f, lastSoloXoverMH = -1.0f;
 
-    std::atomic<int> currentProgram { 0 }; 
+    std::atomic<int> currentProgram { 0 };
     std::atomic<bool> programChangeInProgress { false };
     std::atomic<int> savedEditorWidth { 1100 };
     std::atomic<int> savedEditorHeight { 700 };
