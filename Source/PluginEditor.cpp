@@ -423,12 +423,10 @@ void GapFillAudioProcessorEditor::loadPresetFromFile (const juce::File& file)
 
     auto tree = juce::ValueTree::fromXml (*xml);
 
-    if (! tree.isValid() || ! tree.hasType (proc.getValueTreeState().state.getType()))
+    if (! proc.applyParameterState (tree))
         return;
 
-    proc.getValueTreeState().replaceState (tree);
     currentPresetFile = file;
-
     presetBox.setSelectedId (0, juce::dontSendNotification);
     presetBox.setText (file.getFileNameWithoutExtension(), juce::dontSendNotification);
 }
