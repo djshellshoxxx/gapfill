@@ -423,15 +423,31 @@ void GapFillAudioProcessorEditor::saveUserPreset()
             auto dir = userPresetDirectory();
 
             if (! dir.isDirectory() && ! dir.createDirectory().wasOk())
+            {
+                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                        "Could not save preset",
+                                                        "GapFill could not create the user preset folder.",
+                                                        "OK",
+                                                        this);
                 return;
+            }
 
-            auto file = dir.getChildFile (juce::File::createLegalFileName (name) + ".gapfill");
+            const auto legalName = juce::File::createLegalFileName (name);
 
-            if (auto xml = proc.getValueTreeState().copyState().createXml())
-                xml->writeTo (file);
+            if (legalName.isEmpty())
+            {
+                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                        "Could not save preset",
+                                                        "Please choose a preset name that contains valid filename characters.",
+                                                        "OK",
+                                                        this);
+                return;
+            }
 
-            currentPresetFile = file;
-            refreshPresetList();
+            auto file = dir.getChildFile (legalName + ".gapfill");
+
+            if (! savePresetToFile (file))
+                return;
 
             for (int i = 0; i < userPresetFiles.size(); ++i)
                 if (userPresetFiles[i] == file)
@@ -474,22 +490,29 @@ void GapFillAudioProcessorEditor::showFileMenu()
     });
 }
 
-void GapFillAudioProcessorEditor::savePresetToFile (const juce::File& file)
+bool GapFillAudioProcessorEditor::savePresetToFile (const juce::File& file)
 {
     if (file == juce::File())
-        return;
+        return false;
 
-    if (auto xml = proc.getValueTreeState().copyState().createXml())
+    juce::String error;
+
+    if (! proc.saveParameterStateToFile (file, error))
     {
-        if (xml->writeTo (file))
-        {
-            currentPresetFile = file;
-
-            // A file saved into the user preset folder should show up in the
-            // dropdown straight away.
-            refreshPresetList();
-        }
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                "Could not save preset",
+                                                error,
+                                                "OK",
+                                                this);
+        return false;
     }
+
+    currentPresetFile = file;
+
+    // A file saved into the user preset folder should show up in the dropdown
+    // straight away.
+    refreshPresetList();
+    return true;
 }
 
 void GapFillAudioProcessorEditor::loadPresetFromFile (const juce::File& file)
