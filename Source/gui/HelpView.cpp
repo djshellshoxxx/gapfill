@@ -255,6 +255,9 @@ HelpContent::HelpContent()
     entry ("Everything changed after reopening the project", "check the Seed was saved - it is part "
                                                              "of the plugin state and should restore "
                                                              "automatically.");
+    entry ("Preset file will not open", "GapFill only accepts valid .gapfill parameter-state files up to "
+                                         "1 MB. A rejected file leaves the current sound unchanged and the "
+                                         "error dialog explains the reason.");
     entry ("MIDI learn", "right-click a parameter and choose MIDI learn, then move a controller. "
                          "The status line shows the armed parameter and countdown. Learn cancels "
                          "automatically after 10 seconds, or right-click the same control again to cancel.");
