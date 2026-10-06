@@ -35,7 +35,7 @@ GapFill uses `docs/standards/CDL_PLUGIN_BASELINE.md` as the required common Circ
 | CLAP host smoke test | Planned | CLAP builds are configured; real-host opening remains a manual validation item. |
 | Standalone device UI manual pass | Planned | Requires interactive validation on a desktop audio system. |
 | Keyboard navigation | Exception / planned improvement | The current editor deliberately avoids stealing host keyboard focus for most controls. A focused accessibility pass is still required to reconcile host-keyboard safety with baseline navigation guidance. |
-| Reduced motion | Exception / planned improvement | Motion is currently limited to meters, value easing, and brief action flashes. A global reduced-motion option is still to be evaluated. |
+| Reduced motion | Implemented | Options includes a persisted Reduced Motion preference that disables knob/value easing, hover fades and brief action flashes while retaining live signal meters and the gap visualizer. |
 
 ## Validation
 
