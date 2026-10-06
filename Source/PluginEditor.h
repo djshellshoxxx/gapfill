@@ -1,3 +1,8 @@
+// GapFill
+// Copyright © 2026 Sheldon Davidson.
+// Licensed under AGPL-3.0-or-later. See LICENSE.
+// SPDX-License-Identifier: AGPL-3.0-or-later
+
 #pragma once
 
 #include "PluginProcessor.h"
