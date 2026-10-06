@@ -279,6 +279,56 @@ GF_TEST (Plugin, state_with_unknown_and_missing_parameters_is_tolerated)
     }
 }
 
+GF_TEST (Plugin, invalid_saved_program_index_restores_as_custom)
+{
+    GapFillAudioProcessor source;
+    juce::MemoryBlock block;
+    source.getStateInformation (block);
+
+    auto xml = juce::AudioProcessor::getXmlFromBinary (block.getData(), (int) block.getSize());
+    GF_EXPECT (xml != nullptr);
+
+    if (xml != nullptr)
+    {
+        auto root = juce::ValueTree::fromXml (*xml);
+        root.setProperty ("program", 9999, nullptr);
+
+        juce::MemoryBlock modified;
+        if (auto rewritten = root.createXml())
+            juce::AudioProcessor::copyXmlToBinary (*rewritten, modified);
+
+        GapFillAudioProcessor restored;
+        restored.setStateInformation (modified.getData(), (int) modified.getSize());
+
+        GF_EXPECT_MSG (restored.getCurrentPresetName() == "Custom",
+                       "invalid saved program should restore as Custom, got "
+                         + restored.getCurrentPresetName());
+        GF_EXPECT_MSG (restored.getCurrentProgram() >= 0
+                         && restored.getCurrentProgram() < restored.getNumPrograms(),
+                       "host-visible program index escaped the valid program range");
+    }
+}
+
+GF_TEST (Plugin, editing_or_randomising_a_factory_preset_marks_it_custom)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    proc.selectPreset (juce::jmin (1, proc.getNumPrograms() - 1));
+    GF_EXPECT (proc.getCurrentPresetName() != "Custom");
+
+    configure (proc, { { "fill", 73.0f } });
+    GF_EXPECT_MSG (proc.getCurrentPresetName() == "Custom",
+                   "editing a factory preset did not mark the state Custom");
+
+    proc.selectPreset (0);
+    GF_EXPECT (proc.getCurrentPresetName() != "Custom");
+
+    proc.randomise (false);
+    GF_EXPECT_MSG (proc.getCurrentPresetName() == "Custom",
+                   "randomising a factory preset did not mark the state Custom");
+}
+
 GF_TEST (Plugin, factory_presets_all_load_and_produce_valid_audio)
 {
     constexpr double sr = 48000.0;
@@ -1102,6 +1152,33 @@ GF_TEST (Editor, midi_mappings_survive_a_state_round_trip)
                    "legacy state wiped the mappings: out -> "
                      + juce::String (learn.getMappedCC ("output"))
                      + ", total mappings " + juce::String (learn.getNumMappings()));
+}
+
+GF_TEST (Editor, midi_cc_flood_keeps_the_latest_controller_value)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    auto& learn = proc.getMidiLearnManager();
+    learn.setMapping ("wet", 21);
+
+    juce::MidiBuffer midi;
+    constexpr int messageCount = 400;
+
+    for (int i = 0; i < messageCount; ++i)
+        midi.addEvent (juce::MidiMessage::controllerEvent (1, 21, i % 128), i);
+
+    learn.processMidi (midi);
+    learn.applyPendingChanges();
+
+    auto* wet = proc.getValueTreeState().getParameter ("wet");
+    GF_EXPECT (wet != nullptr);
+
+    if (wet != nullptr)
+    {
+        const auto expected = (float) ((messageCount - 1) % 128) / 127.0f;
+        GF_EXPECT_NEAR (wet->getValue(), expected, 1.0e-5f);
+    }
 }
 
 GF_TEST (Editor, reset_and_randomise_behave)
