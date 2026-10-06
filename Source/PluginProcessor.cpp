@@ -778,9 +778,9 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     juce::ValueTree root ("GAPFILL_STATE");
     root.setProperty ("version", 1, nullptr);
     root.setProperty ("program", currentProgram.load (std::memory_order_relaxed), nullptr);
-    root.setProperty ("editorWidth", savedEditorSize.x, nullptr);
-    root.setProperty ("editorHeight", savedEditorSize.y, nullptr);
-    root.setProperty ("tooltips", tooltipsEnabled, nullptr);
+    root.setProperty ("editorWidth", savedEditorWidth.load (std::memory_order_relaxed), nullptr);
+    root.setProperty ("editorHeight", savedEditorHeight.load (std::memory_order_relaxed), nullptr);
+    root.setProperty ("tooltips", tooltipsEnabled.load (std::memory_order_relaxed), nullptr);
     root.appendChild (apvts.copyState(), nullptr);
     root.appendChild (midiLearn.toValueTree(), nullptr);
 
@@ -809,9 +809,9 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         currentProgram.store (juce::isPositiveAndBelow (savedProgram, presetCount) || savedProgram == 0
                                 ? savedProgram : -1,
                               std::memory_order_relaxed);
-        savedEditorSize = { (int) root.getProperty ("editorWidth", 1100),
-                            (int) root.getProperty ("editorHeight", 700) };
-        tooltipsEnabled = (bool) root.getProperty ("tooltips", true);
+        savedEditorWidth.store ((int) root.getProperty ("editorWidth", 1100), std::memory_order_relaxed);
+        savedEditorHeight.store ((int) root.getProperty ("editorHeight", 700), std::memory_order_relaxed);
+        tooltipsEnabled.store ((bool) root.getProperty ("tooltips", true), std::memory_order_relaxed);
 
         if (root.getNumChildren() > 0)
             paramState = root.getChild (0);
@@ -837,8 +837,10 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     apvts.replaceState (paramState);
     programChangeInProgress.store (false, std::memory_order_relaxed);
 
-    savedEditorSize = { juce::jlimit (860, 3200, savedEditorSize.x),
-                        juce::jlimit (560, 2200, savedEditorSize.y) };
+    savedEditorWidth.store (juce::jlimit (860, 3200,
+        savedEditorWidth.load (std::memory_order_relaxed)), std::memory_order_relaxed);
+    savedEditorHeight.store (juce::jlimit (560, 2200,
+        savedEditorHeight.load (std::memory_order_relaxed)), std::memory_order_relaxed);
 }
 
 //==============================================================================
