@@ -36,6 +36,19 @@ OptionsView::OptionsView()
                        "change how anything sounds.");
     addAndMakeVisible (tooltipHint);
 
+    reducedMotionToggle.setColour (juce::ToggleButton::textColourId, colours::text);
+    reducedMotionToggle.setColour (juce::ToggleButton::tickColourId, colours::accent);
+    reducedMotionToggle.onClick = [this]
+    {
+        if (onReducedMotionChanged != nullptr)
+            onReducedMotionChanged (reducedMotionToggle.getToggleState());
+    };
+    addAndMakeVisible (reducedMotionToggle);
+
+    hint (reducedMotionHint, "Disables knob/value easing, hover fades and short action flashes. "
+                             "Signal meters and the gap visualizer stay live.");
+    addAndMakeVisible (reducedMotionHint);
+
     deviceButton.onClick = [this]
     {
         if (onShowDeviceSettings != nullptr)
@@ -52,9 +65,10 @@ OptionsView::OptionsView()
     updateDeviceRow();
 }
 
-void OptionsView::refresh (bool tooltipsEnabled)
+void OptionsView::refresh (bool tooltipsEnabled, bool reducedMotionEnabled)
 {
     tooltipToggle.setToggleState (tooltipsEnabled, juce::dontSendNotification);
+    reducedMotionToggle.setToggleState (reducedMotionEnabled, juce::dontSendNotification);
     updateDeviceRow();
 }
 
@@ -108,6 +122,11 @@ void OptionsView::resized()
 
     tooltipToggle.setBounds (b.removeFromTop (kRowHeight));
     tooltipHint.setBounds (b.removeFromTop (kRowHeight + metrics::grid).withTrimmedLeft (metrics::grid * 3));
+
+    b.removeFromTop (metrics::grid);
+
+    reducedMotionToggle.setBounds (b.removeFromTop (kRowHeight));
+    reducedMotionHint.setBounds (b.removeFromTop (kRowHeight + metrics::grid).withTrimmedLeft (metrics::grid * 3));
 
     b.removeFromTop (metrics::grid * 2);
 
