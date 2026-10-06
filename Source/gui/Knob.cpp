@@ -351,6 +351,8 @@ GapKnob::GapKnob (juce::AudioProcessorValueTreeState& s,
     parameter = state.getParameter (parameterID);
 
     addAndMakeVisible (slider);
+    slider.setName (displayName);
+    slider.setDescription (tooltip);
     slider.setColour (juce::Slider::thumbColourId, accent);
     slider.setTooltip (tooltip);
 
@@ -472,6 +474,8 @@ GapCombo::GapCombo (juce::AudioProcessorValueTreeState& state,
     nameLabel.setJustificationType (juce::Justification::centredLeft);
     addAndMakeVisible (nameLabel);
 
+    combo.setName (displayName);
+    combo.setDescription (tooltip);
     combo.setTooltip (tooltip);
     combo.setWantsKeyboardFocus (false);
     combo.onRightClick = [this, &state, parameterID]
@@ -501,6 +505,8 @@ GapToggle::GapToggle (juce::AudioProcessorValueTreeState& state,
                       juce::Colour accent)
 {
     button.setButtonText (displayName);
+    button.setName (displayName);
+    button.setDescription (tooltip);
     button.setClickingTogglesState (true);
     button.setTooltip (tooltip);
     button.setWantsKeyboardFocus (false);
@@ -532,6 +538,8 @@ GapBar::GapBar (juce::AudioProcessorValueTreeState& s,
 
     slider.setSliderStyle (juce::Slider::LinearHorizontal);
     slider.setTextBoxStyle (juce::Slider::NoTextBox, true, 0, 0);
+    slider.setName (displayName);
+    slider.setDescription (tooltip);
     slider.setColour (juce::Slider::thumbColourId, accent);
     slider.setTooltip (tooltip);
     slider.onValueChange = [this] { refreshValueText(); };
