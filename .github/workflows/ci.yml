@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - master
-      - audit-fixes-20261005
   pull_request:
   workflow_dispatch:
 
