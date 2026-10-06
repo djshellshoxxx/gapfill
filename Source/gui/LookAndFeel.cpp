@@ -73,6 +73,21 @@ juce::Font value (float height)
 }
 } // namespace fonts
 
+namespace
+{
+    void drawKeyboardFocusRing (juce::Graphics& g,
+                                const juce::Component& component,
+                                juce::Rectangle<float> bounds,
+                                float radius)
+    {
+        if (! component.hasKeyboardFocus (false))
+            return;
+
+        g.setColour (colours::primary.withAlpha (0.95f));
+        g.drawRoundedRectangle (bounds.reduced (1.0f), radius, 2.0f);
+    }
+}
+
 //==============================================================================
 GapFillLookAndFeel::GapFillLookAndFeel()
 {
@@ -226,6 +241,8 @@ void GapFillLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int 
                                             : accent.brighter (lift));
         g.fillEllipse (juce::Rectangle<float> (dotSize, dotSize).withCentre (centre));
     }
+
+    drawKeyboardFocusRing (g, slider, area, juce::jmin (8.0f, full * 0.18f));
 }
 
 void GapFillLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int width, int height,
@@ -307,6 +324,11 @@ void GapFillLookAndFeel::drawLinearSlider (juce::Graphics& g, int x, int y, int 
         g.setColour (accent.brighter (lift));
         g.drawRoundedRectangle (thumb.reduced (0.5f), metrics::controlRadius, 1.0f);
     }
+
+    drawKeyboardFocusRing (g, slider,
+                           juce::Rectangle<float> ((float) x, (float) y,
+                                                   (float) width, (float) height),
+                           metrics::controlRadius);
 }
 
 //==============================================================================
@@ -320,6 +342,7 @@ void GapFillLookAndFeel::drawComboBox (juce::Graphics& g, int width, int height,
     g.fillRoundedRectangle (bounds.reduced (0.5f), metrics::panelRadius);
     g.setColour (box.findColour (juce::ComboBox::outlineColourId));
     g.drawRoundedRectangle (bounds.reduced (0.5f), metrics::panelRadius, 1.0f);
+    drawKeyboardFocusRing (g, box, bounds, metrics::panelRadius);
 
     juce::Path arrow;
     const auto cx = (float) width - 12.0f;
@@ -376,6 +399,8 @@ void GapFillLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& 
         g.setColour (down || flashing ? accent : colours::edge);
         g.drawRoundedRectangle (bounds, metrics::panelRadius, 1.0f);
     }
+
+    drawKeyboardFocusRing (g, button, bounds, metrics::panelRadius);
 }
 
 void GapFillLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton& button,
@@ -417,6 +442,8 @@ void GapFillLookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton
         g.strokePath (tick, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved,
                                                   juce::PathStrokeType::rounded));
     }
+
+    drawKeyboardFocusRing (g, button, bounds, metrics::controlRadius);
 
     g.setColour (on ? colours::primary : colours::textMuted);
     g.setFont (fonts::label());
