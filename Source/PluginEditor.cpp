@@ -304,6 +304,9 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     slotA = proc.getValueTreeState().copyState().createCopy();
     slotB = slotA.createCopy();
 
+    // Start every editor session with a clean visual history. Production is
+    // disabled while no editor exists, so resetting here cannot race a writer.
+    proc.getVisualisationFifo().reset();
     proc.getVisualisationFifo().setEnabled (true);
 
     const auto saved = proc.getSavedEditorSize();
