@@ -792,6 +792,7 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     root.setProperty ("editorHeight", savedEditorHeight.load (std::memory_order_relaxed), nullptr);
     root.setProperty ("tooltips", tooltipsEnabled.load (std::memory_order_relaxed), nullptr);
     root.setProperty ("reducedMotion", reducedMotionEnabled.load (std::memory_order_relaxed), nullptr);
+    root.setProperty ("keyboardNavigation", keyboardNavigationEnabled.load (std::memory_order_relaxed), nullptr);
     root.appendChild (apvts.copyState(), nullptr);
     root.appendChild (midiLearn.toValueTree(), nullptr);
 
@@ -912,6 +913,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     int restoredEditorHeight = savedEditorHeight.load (std::memory_order_relaxed);
     bool restoredTooltips = tooltipsEnabled.load (std::memory_order_relaxed);
     bool restoredReducedMotion = reducedMotionEnabled.load (std::memory_order_relaxed);
+    bool restoredKeyboardNavigation = keyboardNavigationEnabled.load (std::memory_order_relaxed);
     bool wrappedState = false;
 
     if (root.hasType ("GAPFILL_STATE"))
@@ -925,6 +927,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         restoredEditorHeight = (int) root.getProperty ("editorHeight", 700);
         restoredTooltips = (bool) root.getProperty ("tooltips", true);
         restoredReducedMotion = (bool) root.getProperty ("reducedMotion", false);
+        restoredKeyboardNavigation = (bool) root.getProperty ("keyboardNavigation", false);
 
         if (root.getNumChildren() > 0)
             paramState = root.getChild (0);
@@ -956,6 +959,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
                                  std::memory_order_relaxed);
         tooltipsEnabled.store (restoredTooltips, std::memory_order_relaxed);
         reducedMotionEnabled.store (restoredReducedMotion, std::memory_order_relaxed);
+        keyboardNavigationEnabled.store (restoredKeyboardNavigation, std::memory_order_relaxed);
 
         // Absent in state written before MIDI learn existed; leave the current
         // mappings alone in that case rather than wiping them.
