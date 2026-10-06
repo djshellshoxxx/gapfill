@@ -352,7 +352,9 @@ GapKnob::GapKnob (juce::AudioProcessorValueTreeState& s,
 
     addAndMakeVisible (slider);
     slider.setName (displayName);
+    slider.setTitle (displayName);
     slider.setDescription (tooltip);
+    slider.setHelpText (tooltip);
     slider.setColour (juce::Slider::thumbColourId, accent);
     slider.setTooltip (tooltip);
 
@@ -475,7 +477,9 @@ GapCombo::GapCombo (juce::AudioProcessorValueTreeState& state,
     addAndMakeVisible (nameLabel);
 
     combo.setName (displayName);
+    combo.setTitle (displayName);
     combo.setDescription (tooltip);
+    combo.setHelpText (tooltip);
     combo.setTooltip (tooltip);
     combo.setWantsKeyboardFocus (false);
     combo.onRightClick = [this, &state, parameterID]
@@ -506,7 +510,9 @@ GapToggle::GapToggle (juce::AudioProcessorValueTreeState& state,
 {
     button.setButtonText (displayName);
     button.setName (displayName);
+    button.setTitle (displayName);
     button.setDescription (tooltip);
+    button.setHelpText (tooltip);
     button.setClickingTogglesState (true);
     button.setTooltip (tooltip);
     button.setWantsKeyboardFocus (false);
