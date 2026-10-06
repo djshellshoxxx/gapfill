@@ -32,6 +32,45 @@ namespace
 
     constexpr int kFactoryOffset = 1;
     constexpr int kUserOffset    = 1000;
+
+    bool isKeyboardInteractive (juce::Component& component)
+    {
+        return dynamic_cast<juce::Button*> (&component) != nullptr
+            || dynamic_cast<juce::Slider*> (&component) != nullptr
+            || dynamic_cast<juce::ComboBox*> (&component) != nullptr;
+    }
+
+    void setKeyboardFocusRecursively (juce::Component& root, bool enabled)
+    {
+        for (int i = 0; i < root.getNumChildComponents(); ++i)
+        {
+            if (auto* child = root.getChildComponent (i))
+            {
+                if (isKeyboardInteractive (*child))
+                    child->setWantsKeyboardFocus (enabled);
+
+                setKeyboardFocusRecursively (*child, enabled);
+            }
+        }
+    }
+
+    int countKeyboardFocusableRecursively (const juce::Component& root)
+    {
+        int count = 0;
+
+        for (int i = 0; i < root.getNumChildComponents(); ++i)
+        {
+            if (auto* child = root.getChildComponent (i))
+            {
+                if (isKeyboardInteractive (*child) && child->getWantsKeyboardFocus())
+                    ++count;
+
+                count += countKeyboardFocusableRecursively (*child);
+            }
+        }
+
+        return count;
+    }
 }
 
 //==============================================================================
@@ -214,10 +253,17 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
         gapfill::setReducedMotionEnabled (on);
     };
 
+    optionsView.onKeyboardNavigationChanged = [this] (bool on)
+    {
+        proc.setKeyboardNavigationEnabled (on);
+        applyKeyboardNavigationSetting();
+    };
+
     addChildComponent (optionsView);
 
     applyTooltipSetting();
     gapfill::setReducedMotionEnabled (proc.isReducedMotionEnabled());
+    applyKeyboardNavigationSetting();
 
     // ---- A/B snapshots -----------------------------------------------------
     slotA = proc.getValueTreeState().copyState().createCopy();
@@ -486,7 +532,9 @@ void GapFillAudioProcessorEditor::doOpen()
 
 void GapFillAudioProcessorEditor::showOptions()
 {
-    optionsView.refresh (proc.isTooltipsEnabled(), proc.isReducedMotionEnabled());
+    optionsView.refresh (proc.isTooltipsEnabled(),
+                         proc.isReducedMotionEnabled(),
+                         proc.isKeyboardNavigationEnabled());
     optionsView.setVisible (true);
     optionsView.toFront (false);
     optionsView.resized();
@@ -504,6 +552,25 @@ void GapFillAudioProcessorEditor::applyTooltipSetting()
         tooltips.reset();
     }
 }
+
+void GapFillAudioProcessorEditor::applyKeyboardNavigationSetting()
+{
+    // The editor itself deliberately remains non-focusable so opening the
+    // plugin cannot steal DAW shortcuts. Users who opt in get focus traversal
+    // only across actual interactive controls.
+    setWantsKeyboardFocus (false);
+    setKeyboardFocusRecursively (*this, proc.isKeyboardNavigationEnabled());
+
+    // Overlay controls are included by the recursive pass even when hidden;
+    // once an overlay is shown JUCE's normal Tab traversal can reach them.
+}
+
+#ifdef GAPFILL_UNIT_TESTS
+int GapFillAudioProcessorEditor::getKeyboardFocusableControlCountForTests() const
+{
+    return countKeyboardFocusableRecursively (*this);
+}
+#endif
 
 //==============================================================================
 void GapFillAudioProcessorEditor::toggleAB()
@@ -593,6 +660,7 @@ void GapFillAudioProcessorEditor::timerCallback()
     // Keep the control animation policy in sync with project-state restores
     // that may occur while this editor is already open.
     gapfill::setReducedMotionEnabled (proc.isReducedMotionEnabled());
+    applyKeyboardNavigationSetting();
 }
 
 //==============================================================================
@@ -699,7 +767,7 @@ void GapFillAudioProcessorEditor::resized()
         helpView.resized();
 
     // The options page is a small panel rather than a full overlay.
-    optionsView.setBounds (juce::Rectangle<int> (500, 380)
+    optionsView.setBounds (juce::Rectangle<int> (520, 440)
                              .withCentre (getLocalBounds().getCentre()));
 }
 
