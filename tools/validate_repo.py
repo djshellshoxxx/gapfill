@@ -14,7 +14,7 @@ from pathlib import Path
 
 
 PARAM_RE = re.compile(r'X\s*\([^,]+,\s*"([^"]+)"\s*\)')
-PRESET_PARAM_RE = re.compile(r'\{\s*"([A-Za-z][A-Za-z0-9]*)"\s*,\s*(?!")')
+PRESET_PARAM_RE = re.compile(r'\{\s*"([A-Za-z][A-Za-z0-9]*)"\s*,\s*([^"\s])')
 
 
 def extract_parameter_ids(text: str) -> list[str]:
@@ -22,7 +22,7 @@ def extract_parameter_ids(text: str) -> list[str]:
 
 
 def extract_preset_parameter_ids(text: str) -> list[str]:
-    return [match[0] for match in PRESET_PARAM_RE.findall(text)]
+    return [parameter_id for parameter_id, _ in PRESET_PARAM_RE.findall(text)]
 
 
 def duplicates(values: list[str]) -> list[str]:
@@ -95,6 +95,10 @@ def validate(root: Path) -> list[str]:
         "GapFillTests",
         "GapFill_VST3",
         "GapFill_CLAP",
+        "GapFill_Standalone",
+        "clap-validator validate",
+        "--strictness-level 10",
+        "Smoke-launch standalone",
     ]
     for marker in required_ci_markers:
         if marker not in ci:
