@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import validate_repo
+from tools import validate_repo
 
 
 class ValidateRepoTests(unittest.TestCase):
