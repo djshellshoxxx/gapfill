@@ -24,7 +24,7 @@ GapFill uses `docs/standards/CDL_PLUGIN_BASELINE.md` as the required common Circ
 | Latency | Implemented | Lookahead latency is reported to the host and the dry/bypass paths remain aligned. |
 | Bypass | Implemented | Click-controlled internal bypass plus host bypass path coverage. |
 | State migration | Implemented | Older/missing parameters are tolerated; unknown future parameters are ignored. Malformed known values are rejected atomically. |
-| Preset files | Implemented | Save/Open uses `.gapfill` APVTS state. External files are validated before replacing the current sound. |
+| Preset files | Implemented | Save/Open uses `.gapfill` APVTS state. Loads are capped at 1 MB, XML/type/known values are validated atomically, and failures preserve the current sound with a visible reason. |
 | Factory presets | Implemented | Descriptive factory bank; preflight checks every referenced parameter ID. |
 | MIDI Learn | Implemented | Visible learn state, explicit cancel, mapping removal, deterministic conflict handling, and 10-second timeout. |
 | Tooltips | Implemented | Global toggle persists in plugin state. |
