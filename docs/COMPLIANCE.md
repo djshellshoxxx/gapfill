@@ -30,11 +30,11 @@ GapFill uses `docs/standards/CDL_PLUGIN_BASELINE.md` as the required common Circ
 | Tooltips | Implemented | Global toggle persists in plugin state. |
 | Help/About | Implemented | In-plugin Help covers operation, troubleshooting, version, MIDI Learn, and Circuit Drift Labs link. |
 | Privacy/network disclosure | Implemented | No telemetry, analytics, background updater, licensing server, or audio/project-data transmission. Documented in README. |
-| Linux VST3 build | Planned validation | Workflow is defined; GitHub-hosted runners are currently terminating before step 1. |
-| Windows VST3 build | Planned validation | Workflow is defined; GitHub-hosted runners are currently terminating before step 1. |
-| CLAP host smoke test | Planned | CLAP builds are configured; real-host opening remains a manual validation item. |
-| Standalone device UI manual pass | Planned | Requires interactive validation on a desktop audio system. |
-| Keyboard navigation | Exception / planned improvement | The current editor deliberately avoids stealing host keyboard focus for most controls. A focused accessibility pass is still required to reconcile host-keyboard safety with baseline navigation guidance. |
+| Linux VST3 build | Automated gate implemented | CI builds VST3 and runs pluginval at strictness 10. Current GitHub-hosted runner infrastructure must execute successfully before a release is marked validated. |
+| Windows VST3 build | Automated gate implemented | CI builds VST3 and runs pluginval at strictness 10. Current GitHub-hosted runner infrastructure must execute successfully before a release is marked validated. |
+| CLAP host validation | Automated gate implemented | Linux and Windows CI build the CLAP target and run free-audio clap-validator. |
+| Standalone validation | Automated + hardware acceptance | CI builds and smoke-launches the real Standalone target; unit tests construct the JUCE device selector. Physical-device acceptance steps are defined in `docs/VALIDATION.md`. |
+| Keyboard navigation | Implemented | Off by default for DAW-shortcut safety. Users can opt in to Tab/Shift+Tab traversal and standard keyboard operation for interactive controls while the editor itself remains non-focusable. |
 | Reduced motion | Implemented | Options includes a persisted Reduced Motion preference that disables knob/value easing, hover fades and brief action flashes while retaining live signal meters and the gap visualizer. |
 
 ## Validation
@@ -46,7 +46,7 @@ python tools/validate_repo.py
 python -m unittest tools/test_validate_repo.py
 ```
 
-Full validation remains the JUCE test suite plus VST3 validation in `.github/workflows/ci.yml`. The preflight stage is intentionally dependency-free so repository/spec wiring failures are reported before JUCE is cloned or a compiler is started.
+Full validation is defined in `docs/VALIDATION.md` and enforced by the JUCE test suite plus VST3, CLAP and Standalone gates in `.github/workflows/ci.yml`. The preflight stage is intentionally dependency-free so repository/spec wiring failures are reported before JUCE is cloned or a compiler is started.
 
 ## Known infrastructure issue
 
