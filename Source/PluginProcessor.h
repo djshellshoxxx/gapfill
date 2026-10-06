@@ -69,6 +69,10 @@ public:
 
     static constexpr std::int64_t maxPresetFileBytes = 1024 * 1024;
 
+    /** Saves a portable .gapfill parameter tree. Returns false and a
+        user-facing reason on failure. */
+    bool saveParameterStateToFile (const juce::File& file, juce::String& error) const;
+
     /** Loads a portable .gapfill parameter tree with bounded file size and
         atomic validation. Returns false and a user-facing reason on failure. */
     bool loadParameterStateFromFile (const juce::File& file, juce::String& error);
