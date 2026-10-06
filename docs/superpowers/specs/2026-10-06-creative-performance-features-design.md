@@ -186,3 +186,94 @@ Cross-feature tests must cover: feature combinations with transient protection; 
 ## 7. Completion criteria
 
 The spec is implemented only when every feature has an explicit implementation status, focused regression coverage, Help/tooltips, state compatibility, and a verified build path. The visualizer audit may conclude that no code change is necessary if its current behavior fully meets the requirements above and tests confirm the mapping. Hardware/DAW acceptance remains a separate release-validation activity as defined in docs/VALIDATION.md.
+
+
+## 8. Parameter defaults and cross-feature behavior
+
+The following IDs are proposed and become permanent once implemented. Append them after existing parameter declarations; never rename them after release. Action parameters are rising-edge triggers that self-clear in the processor and are serialized as false.
+
+| Feature | Proposed IDs | Default |
+|---|---|---|
+| Macros | `macroActivity`, `macroChaos`, `macroSpace`, `macroDestruction` | 50%, 25%, 25%, 15% |
+| Personality | `personality` | Off |
+| Capture | `captureHold`, `captureLength`, `captureRecapture` | Off, 1000 ms (250–2000 ms), trigger false |
+| Like | `moreLikeThat` | Trigger false |
+| Intensity envelope | `fillShape`, `fillShapeAmount` | Flat, 0% |
+| Lock | `fillLock` | Off |
+| Audition | `fillAudition` | Trigger false |
+| Density breathing | `densityBreath`, `densityBreathBars`, `densityBreathDepth`, `densityBreathCurve` | Off, 4 bars (1/2/4/8), 0%, Sine |
+| Phrase awareness | `phraseBars`, `phraseBias` | Off, 0% |
+| Controlled mistakes | `mistakes` | 0% |
+
+Action IDs may be omitted if JUCE/host parameter semantics make momentary automation unreliable; in that case, use the existing MIDI-learn/action routing with an explicit rising-edge command. The externally observable behavior remains the same: no stale trigger on preset load, and a single press yields one action.
+
+Personality choices are Off, Subtle, Percussive, Glitchy, Psychedelic, Dub, Aggressive, Ambient, and Unhinged. Off is required to preserve the current sound when loading older sessions. DensityBreathCurve choices are Sine, Rise/Fall, and Pulse. Capture length and all percentages are clamped to their listed ranges.
+
+### Macro defaults and combination rule
+
+Only continuous creative parameters can be macro targets in version 1. Detection, routing, mix/output, latency, protection, bypass, and trigger parameters are never assignable. A target can belong to only one macro at a time. Each macro supports up to eight targets. At macro value 0, targets use their configured minimum; at 100, their configured maximum; intermediate values use the selected linear, ease-in, ease-out, or S-curve response. Default target ranges are:
+
+| Macro | Default targets |
+|---|---|
+| Activity | Density 25–90%; Fill 20–75% |
+| Chaos | Chaos 0–75%; Complexity 20–85%; Weight Scramble 10–70% |
+| Space | Wet Width 60–150%; Weight Delay 20–75%; Weight Spectral 10–55% |
+| Destruction | Intensity 20–90%; Weight Crush 0–65%; Weight Distort 0–65% |
+
+A mapped macro target's effective value is the macro curve result; its base APVTS value remains intact and is restored when the target is unassigned. Macro mappings are plugin-state data. A host automation lane can automate both the macro value and the unmapped/base parameters; for a mapped target, the mapping owns the effective value until unassigned. The GUI must show the effective value and identify mapped controls. This avoids ambiguous additive stacking and makes automation repeatable.
+
+### Effective-value order
+
+Compute effective creative settings in this order:
+
+1. Read base APVTS values.
+2. Apply the selected personality's documented multipliers/limits without changing base values.
+3. Apply macro assignments to their unique targets.
+4. Apply PPQ-based density breathing and phrase bias when valid.
+5. Make the deterministic gap/fill decision.
+6. Apply More Like That weighting, unless Fill Lock supplies the selection recipe.
+7. Apply at most one Controlled Mistake variation to the selected recipe.
+8. Render the recipe and evaluate its per-fill Intensity Envelope.
+9. Apply the existing protection, wet/dry, bypass, and output stages as the final authority.
+
+Macros cannot target protection or detector controls. Personality and macro changes affect only effective creative settings. Phrase awareness changes the chance that an already eligible gap is selected; it cannot create a gap. Density Breathing modulates effective density before gap selection. Fill Lock pins recipe characteristics but never bypasses gap eligibility or protection.
+
+### Capture, queue, and history bounds
+
+Capture storage is capped at two seconds per channel and allocated in prepareToPlay. On capture or recapture, the audio thread copies the requested recent interval incrementally, at no more than 4096 source samples per process block. Until the copy completes, the live source remains active and the UI reports Capture Pending. The completed snapshot becomes active at a block boundary with a short source crossfade. A second recapture replaces the pending request; Release cancels a pending request and fades back to live history. Sample-rate changes clear the latch and pending copy. This bounds callback work and prevents the editor from reading or writing audio history.
+
+The fill-to-editor queue stores at most 32 fixed-size recipe records. It is disabled when no editor is attached. The editor maintains the eight-entry visible history. Plugin state persists those eight compact recipes, the lock recipe/state, and macro mappings, within a total serialized feature-state budget of 32 KiB. If the audio queue is full, drop its oldest record and increment a non-audio-thread diagnostic counter; never block the producer.
+
+### Phrase and density phase
+
+Use the host's PPQ position and time-signature numerator/denominator to derive quarter-note beats per bar. If either value is unavailable or invalid, phrase awareness and Density Breathing are neutral. Phrase phase is anchored at PPQ zero modulo the configured phrase length; loops and seeks therefore reproduce the same shape. Phrase bias ramps over the final bar of each phrase, reaching the configured maximum at the phrase boundary. Density Breathing applies its selected curve across the requested number of bars and is centered around the unmodulated density; clamp the result to the legal density range.
+
+### History recipe definition
+
+A recipe contains only bounded decision data: algorithm, band, planned duration class, rhythmic division, pitch direction/range, modifier family, stereo behavior, and mistake type/amount. It contains no sample pointers, source offsets, or PCM. The latest completed natural recipe is the default target of More Like That and Lock. If the user selects an older history row first, those actions target that row. A selected preview recipe may be auditioned, but never becomes the default Like/Lock target unless the user explicitly selects it.
+
+### Preview behavior
+
+A preview uses the existing audio callback and a dedicated voice slot reserved from the fixed voice pool; it never steals an active natural fill. If no preview slot or sufficient SourceHistory is available, the request is rejected with a UI status. In a stopped host that does not call processBlock, the button reports that playback must be started; it does not hold a trigger that could fire later unexpectedly. Standalone uses its normal device callback. Preview has a 5-second maximum, is faded out on bypass/reset/release, and is excluded from natural-fill counters, gap indices, Like bias counts, and natural history.
+
+### Controlled-mistake bounds
+
+At 0%, no mistake roll occurs. Above 0%, use a deterministic per-fill probability that rises linearly to 20% at 100%. Choose exactly one type from the enabled safe set. Wobble is limited to ±2 semitones or ±3% playback rate; octave displacement is limited to one octave and only when the available source length supports it; tape-stop is a short, faded rate ramp; stereo bounce cannot change mono output to stereo. The scheduler still clips recipe duration to the current gap and maximum-fill ceiling. A recipe is skipped when an effect cannot fit those bounds.
+
+## 9. Proposed easy-first implementation order
+
+This order uses dependencies as well as estimated effort. Reorder only if repository inspection during planning reveals a concrete blocker.
+
+1. Audit and complete the existing activity visualizer, since most data and drawing are already present.
+2. Implement Surprise Me with a small curated profile set and preserve the current safety parameters.
+3. Implement Fill Lock using the recipe representation and lock-state validation.
+4. Implement the Fill Intensity Envelope with a neutral default and deterministic shapes.
+5. Implement Density Breathing, then Phrase Awareness, sharing host PPQ/meter helpers.
+6. Implement Performance Macros with bounded mapping persistence and effective-value display.
+7. Implement Fill Personalities on top of the effective-value snapshot.
+8. Implement Fill History, then More Like That, which depends on recipe capture and history selection.
+9. Implement Fill Audition using its isolated voice slot and preview status.
+10. Implement Freeze/Capture after the source-history snapshot lifecycle is verified.
+11. Implement Controlled Mistakes after recipe/lock/history serialization is stable.
+
+After each two or three features, run the focused and full regression suites. The implementation plan will break these into reviewable vertical slices and may shift order based on actual code dependencies.
