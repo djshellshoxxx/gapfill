@@ -395,6 +395,8 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     const auto inChannels = juce::jmax (1, mainBus.getNumChannels());
 
     // ---- copy the main input somewhere stable ---------------------------
+    float liveInputPeak = 0.0f;
+
     {
         const auto* inL = mainBus.getReadPointer (0, startSample);
         const auto* inR = inChannels > 1 ? mainBus.getReadPointer (1, startSample) : inL;
@@ -406,6 +408,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         {
             dstL[i] = sanitise (inL[i], 32.0f);
             dstR[i] = sanitise (inR[i], 32.0f);
+            liveInputPeak = juce::jmax (liveInputPeak, std::abs (dstL[i]), std::abs (dstR[i]));
         }
     }
 
@@ -632,7 +635,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     const auto* wetL = wetBuffer.getReadPointer (0);
     const auto* wetR = wetBuffer.getReadPointer (1);
 
-    float peakIn = 0.0f, peakOut = 0.0f, peakWet = 0.0f;
+    float peakOut = 0.0f, peakWet = 0.0f;
 
     for (int i = 0; i < numSamples; ++i)
     {
@@ -658,7 +661,6 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         l = sanitise (l * o, 16.0f);
         r = sanitise (r * o, 16.0f);
 
-        peakIn  = juce::jmax (peakIn,  std::abs (dryL[i]), std::abs (dryR[i]));
         peakWet = juce::jmax (peakWet, std::abs (wetL[i] * w), std::abs (wetR[i] * w));
         peakOut = juce::jmax (peakOut, std::abs (l), std::abs (r));
 
@@ -683,24 +685,31 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
             soloSplitter.setCrossovers (lm, mh);
         }
 
+        peakOut = 0.0f;
+
         for (int i = 0; i < numSamples; ++i)
         {
             float lo, mi, hi;
             soloSplitter.processStereo (0, outL[i], lo, mi, hi);
             outL[i] = solo == 1 ? lo : (solo == 2 ? mi : hi);
 
+            auto finalR = outL[i];
+
             if (outR != nullptr)
             {
                 soloSplitter.processStereo (1, outR[i], lo, mi, hi);
                 outR[i] = solo == 1 ? lo : (solo == 2 ? mi : hi);
+                finalR = outR[i];
             }
+
+            peakOut = juce::jmax (peakOut, std::abs (outL[i]), std::abs (finalR));
         }
     }
 
     // ---- metering --------------------------------------------------------
     {
         constexpr float decay = 0.82f;
-        meterIn  = juce::jmax (peakIn,  meterIn  * decay);
+        meterIn  = juce::jmax (liveInputPeak, meterIn * decay);
         meterOut = juce::jmax (peakOut, meterOut * decay);
         meterWet = juce::jmax (peakWet, meterWet * decay);
 
