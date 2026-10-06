@@ -34,6 +34,16 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 
 ## Session log
 
+### 2026-10-06 - reduced motion accessibility option
+
+- Added test-first persistence coverage for a Reduced Motion UI preference.
+- Added a Reduced Motion toggle to Options and persisted it in the plugin's project state.
+- Reduced Motion disables nonessential knob/slider easing, hover-value fades and 100 ms momentary action flashes.
+- Live level meters and the gap visualizer remain active because they communicate signal state.
+- Added direct regression coverage that verifies a FineSlider stops easing immediately when Reduced Motion is enabled.
+- Updated Help and the shared-baseline compliance matrix.
+
+
 ### 2026-10-06 - preset loader hardening
 
 - Added test-first coverage for oversized and malformed external preset files.

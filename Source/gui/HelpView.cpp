@@ -241,6 +241,13 @@ HelpContent::HelpContent()
                                    "Treat this as a creative effect rather than a mastering tool.");
 
     //--------------------------------------------------------------------------
+    heading ("Options");
+    entry ("Reduced Motion", "disables knob/value easing, hover fades and short action flashes. "
+                             "Meters and the gap visualizer remain live because they communicate "
+                             "signal state.");
+    entry ("Hover Tooltips", "can be turned off globally without changing the sound.");
+
+    //--------------------------------------------------------------------------
     heading ("Troubleshooting");
     entry ("No fills at all", "Fill is above 0%? Are any algorithms enabled in the weights panel? Is "
                               "Minimum Gap longer than the actual spaces? Try raising Sensitivity "

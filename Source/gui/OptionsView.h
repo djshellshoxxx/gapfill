@@ -23,6 +23,9 @@ public:
     /** Called with the new state whenever the tooltip switch is used. */
     std::function<void (bool)> onTooltipsChanged;
 
+    /** Called with the new state whenever reduced motion is toggled. */
+    std::function<void (bool)> onReducedMotionChanged;
+
     /** Called when the user asks for the audio/MIDI device panel. Left unset by
         the plugin builds, where the host owns the devices - the button then
         explains that rather than disappearing. */
@@ -31,13 +34,16 @@ public:
     std::function<void()> onClose;
 
     /** Pushes the current values in without firing the callbacks. */
-    void refresh (bool tooltipsEnabled);
+    void refresh (bool tooltipsEnabled, bool reducedMotionEnabled);
 
 private:
     void updateDeviceRow();
 
     juce::ToggleButton tooltipToggle { "Show hover tooltips" };
     juce::Label        tooltipHint;
+
+    juce::ToggleButton reducedMotionToggle { "Reduce nonessential motion" };
+    juce::Label        reducedMotionHint;
 
     juce::TextButton   deviceButton { "AUDIO / MIDI SETTINGS..." };
     juce::Label        deviceHint;
