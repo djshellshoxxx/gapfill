@@ -648,7 +648,7 @@ GF_TEST (AnalysisEngine, protect_hold_delays_gap_confidence_after_a_hit)
     constexpr double sr = 48000.0;
     constexpr int hop = AnalysisEngine::hopSize;
 
-    auto confidenceAfter80ms = [] (float protectHoldMs)
+    auto confidenceAfter80ms = [=] (float protectHoldMs)
     {
         LaneDetector lane;
         lane.prepare (sr, hop);
@@ -692,7 +692,7 @@ GF_TEST (AnalysisEngine, retrigger_guard_suppresses_close_transients)
     constexpr int hop = AnalysisEngine::hopSize;
     constexpr int secondHitSample = 1440; // 30 ms at 48 kHz
 
-    auto countEvents = [] (float retrigGuardMs)
+    auto countEvents = [=] (float retrigGuardMs)
     {
         LaneDetector lane;
         lane.prepare (sr, hop);
