@@ -45,11 +45,11 @@
 - Produces: a verified mapping from event, eligible-gap, active-fill, protected, lookahead, and spectral-band state to the existing view; if rejection status is missing and can be shown without changing scheduling, a bounded `GapReason` enum carried in `VizFrame`.
 
 - [ ] **Step 1: Add a focused FIFO/state regression test** named `visualisation_fifo_preserves_activity_flags`. Push a frame with all five flags and representative band/confidence values through an enabled FIFO; assert the popped frame preserves all bits and values. Also assert a disabled FIFO emits no frame.
-- [ ] **Step 2: Run the focused/full test target before changing rendering.** Configure/build as in Task 4; run `xvfb-run -a build-ci/artefacts/GapFillTests`. Record whether the test exposes a current defect.
+- [ ] **Step 2: Run the focused/full test target before changing rendering.** Configure/build as in Task 5; run `xvfb-run -a build-ci/artefacts/GapFillTests`. Record whether the test exposes a current defect.
 - [ ] **Step 3: Compare each state in the spec against the producer and paint path.** Confirm that signal, event, usable gap, protected region, fill lane, lookahead, and spectral lanes have distinct visual explanations. Add a rejection label only for an actual recorded scheduler outcome (for example too-short gap or no free voice); do not infer a reason in the GUI. Rejection display must be decimated/bounded and must not add per-sample work.
 - [ ] **Step 4: Implement only the missing visual state or label.** If the current rendering already satisfies the approved spec, make no production-code change and record the audit result in `PROGRESS.md`. If a new `GapReason` is needed, define it in `VisualisationState.h`, set it in `FillEngine::trySchedule`, and render it as a short-lived status label in `WaveformGapView::paint`.
 - [ ] **Step 5: Add focused assertions for any new reason mapping.** Cover every enum value, the no-reason state, FIFO transport, and editor-disabled behavior. Ensure the visualizer does not read processor-owned mutable state from the paint thread.
-- [ ] **Step 6: Run the full JUCE test executable and repository validation.** Commands are listed in Task 4.
+- [ ] **Step 6: Run the full JUCE test executable and repository validation.** Commands are listed in Task 5.
 
 **Dependencies:** None.
 
@@ -79,7 +79,7 @@
 - [ ] **Step 2: Run the tests and confirm they fail** because the profile selector/application functions are not yet defined.
 - [ ] **Step 3: Define a fixed set of at least 12 named profiles** in `CreativeProfiles.cpp`. Profiles use only creative targets allowed by the spec. Keep current detector, protection, mix, output, routing, latency, and maximum-fill settings untouched. Profile identity and values are immutable data; selection uses no heap work in DSP.
 - [ ] **Step 4: Implement `chooseSurpriseProfileIndex`** using a small deterministic integer PRNG seeded from the current seed and request sequence. Exclude `previousIndex` from the candidate range. Handle profile counts of 0 and 1 without out-of-range access.
-- [ ] **Step 5: Implement `applySurpriseProfile` and `GapFillAudioProcessor::surpriseMe`.** Validate every profile override against the named parameter and its legal range before changing anything. Apply all values on the message thread using begin/set/end host gesture notifications. Keep the processor-local sequence and previous profile index; do not write a new seed or alter preset state outside the changed creative controls.
+- [ ] **Step 5: Implement `applySurpriseProfile` and `GapFillAudioProcessor::surpriseMe`.** Validate every profile override against the named parameter and its legal range before changing anything. Apply all values on the message thread using begin/set/end host gesture notifications as one profile application transaction where the host supports grouping. Keep the processor-local sequence and previous profile index; do not write a new seed or alter preset state outside the changed creative controls.
 - [ ] **Step 6: Run the profile tests** and verify old serialized states load unchanged.
 
 **Dependencies:** None.
@@ -102,7 +102,7 @@
 - Consumes: the bounded profile application from Task 2 and the existing `MidiLearnManager::processMidi/applyPendingChanges` message/audio-thread split.
 - Produces: `enum class MidiAction : std::uint8_t { SurpriseMe, NumActions };`, `void startLearningAction(MidiAction action);`, `bool setActionMapping(MidiAction action, int cc);`, `int getMappedActionCC(MidiAction action) const;`, and `int popPendingAction() noexcept` (returns -1 when empty; call on the message thread). Add action mappings to the existing `MIDIMAP` subtree without changing existing parameter mappings.
 
-- [ ] **Step 1: Write tests** named `midi_learned_surprise_action_fires_once_per_rising_edge`, `midi_action_mapping_survives_state_round_trip`, and `surprise_action_does_not_replay_after_state_restore`. Use a CC sequence crossing 64 then releasing below 48; assert exactly one action per crossing and no action on restore.
+- [ ] **Step 1: Write tests** named `midi_learned_surprise_action_fires_once_per_rising_edge`, `midi_action_mapping_survives_state_round_trip`, and `surprise_action_does_not_replay_after_state_restore`, plus `midi_action_mapping_loads_legacy_parameter_only_tree`. Use a CC sequence crossing 64 then releasing below 48; assert exactly one action per crossing and no action on restore.
 - [ ] **Step 2: Run the focused tests and confirm they fail** before the action mapping exists.
 - [ ] **Step 3: Add the action mapping table and bounded queue** to `MidiLearnManager`. Audio thread detects only threshold crossings and enqueues the fixed action ID; it does not call the processor, editor, or APVTS. Message thread drains and dispatches actions. Persist action-to-CC assignments as named action IDs in `MIDIMAP`, validate CC range 0–127, and retain compatibility with old trees that contain no action child.
 - [ ] **Step 4: Add the editor button** with a distinct `SURPRISE` label, tooltip, accessible name, Help entry, keyboard focus support, and a right-click MIDI Learn menu. Place it where it fits the current minimum editor size; adjust responsive layout only as needed. The button calls the same `proc.surpriseMe()` method as the MIDI action.
