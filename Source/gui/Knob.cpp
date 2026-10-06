@@ -18,6 +18,8 @@ namespace
     constexpr int kMenuMidiClear  = 4;
     constexpr int kMenuMidiClearAll = 5;
 
+    std::atomic<bool> reducedMotion { false };
+
     /** Asks the user for a value and applies it to the parameter.
 
         The parameter is captured by pointer: it is owned by the processor and
@@ -63,10 +65,28 @@ void applyPaletteTo (juce::AlertWindow& window)
     window.setColour (juce::AlertWindow::outlineColourId,    colours::edge);
 }
 
+void setReducedMotionEnabled (bool enabled) noexcept
+{
+    reducedMotion.store (enabled, std::memory_order_relaxed);
+}
+
+bool isReducedMotionEnabled() noexcept
+{
+    return reducedMotion.load (std::memory_order_relaxed);
+}
+
 //==============================================================================
 void FlashButton::clicked()
 {
     juce::TextButton::clicked();
+
+    if (isReducedMotionEnabled())
+    {
+        stopTimer();
+        getProperties().set (flashProperty, false);
+        repaint();
+        return;
+    }
 
     getProperties().set (flashProperty, true);
     repaint();
@@ -244,6 +264,12 @@ void FineSlider::valueChanged()
         return;
     }
 
+    if (isReducedMotionEnabled())
+    {
+        snapToValue();
+        return;
+    }
+
     // Dragging should track the mouse exactly; everything else eases in.
     if (isMouseButtonDown())
     {
@@ -366,10 +392,16 @@ void GapKnob::setReadoutVisible (bool shouldBeVisible)
 
     readoutVisible = shouldBeVisible;
 
-    // 80ms fade, matching the rest of the interaction feel. Cancelling first
-    // stops a half-finished fade from fighting the new one.
     auto& animator = juce::Desktop::getInstance().getAnimator();
     animator.cancelAnimation (&valueLabel, false);
+
+    if (isReducedMotionEnabled())
+    {
+        valueLabel.setAlpha (shouldBeVisible ? 1.0f : 0.0f);
+        return;
+    }
+
+    // 80ms fade, matching the rest of the interaction feel.
     animator.animateComponent (&valueLabel, valueLabel.getBounds(),
                                shouldBeVisible ? 1.0f : 0.0f,
                                (int) metrics::animationMs, false, 1.0, 0.0);
