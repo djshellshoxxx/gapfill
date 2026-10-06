@@ -123,7 +123,6 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     latencyToReport.store (currentLatency);
     meters.latencySamples.store (currentLatency);
 
-    viz.reset();
     prepared.store (true);
 }
 
