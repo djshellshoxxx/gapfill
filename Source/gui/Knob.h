@@ -25,6 +25,10 @@ void showParameterMenu (juce::Component& owner,
 /** Applies the GapFill palette to a transient window by colour id. */
 void applyPaletteTo (juce::AlertWindow& window);
 
+/** Global editor preference for suppressing nonessential UI animation. */
+void setReducedMotionEnabled (bool enabled) noexcept;
+bool isReducedMotionEnabled() noexcept;
+
 //==============================================================================
 /** Rotary/linear slider with the house feel:
       - vertical drag, shift for coarse, ctrl/cmd for ultra-fine
