@@ -73,7 +73,7 @@
   - `bool applySurpriseProfile (juce::AudioProcessorValueTreeState&, const CreativeProfile&);`
   - `void GapFillAudioProcessor::surpriseMe();`
 
-- [ ] **Step 1: Write tests** named `surprise_profile_selection_is_deterministic_and_avoids_immediate_repeat` and `surprise_profiles_only_modify_allowed_creative_parameters`. Verify identical seed/sequence inputs select the same profile; adjacent requests do not; all values are within APVTS ranges; excluded IDs remain unchanged.
+- [ ] **Step 1: Write tests** named `surprise_profile_selection_is_deterministic_and_avoids_immediate_repeat` and `surprise_profiles_only_modify_allowed_creative_parameters`. Verify identical seed/sequence inputs select the same profile; adjacent requests do not; seed values 0 and 9999 and a wrapping sequence stay in range; every profile has at least one selectable fill algorithm; all values are within APVTS ranges; excluded IDs remain unchanged.
 - [ ] **Step 2: Run the tests and confirm they fail** because the profile selector/application functions are not yet defined.
 - [ ] **Step 3: Define a fixed set of at least 12 named profiles** in `CreativeProfiles.cpp`. Profiles use only creative targets allowed by the spec. Keep current detector, protection, mix, output, routing, latency, and maximum-fill settings untouched. Profile identity and values are immutable data; selection uses no heap work in DSP.
 - [ ] **Step 4: Implement `chooseSurpriseProfileIndex`** using a small deterministic integer PRNG seeded from the current seed and request sequence. Exclude `previousIndex` from the candidate range. Handle profile counts of 0 and 1 without out-of-range access.
@@ -104,7 +104,7 @@
 - [ ] **Step 2: Run the focused tests and confirm they fail** before the action mapping exists.
 - [ ] **Step 3: Add the action mapping table and bounded queue** to `MidiLearnManager`. Audio thread detects only threshold crossings and enqueues the fixed action ID; it does not call the processor, editor, or APVTS. Message thread drains and dispatches actions. Persist action-to-CC assignments as named action IDs in `MIDIMAP`, validate CC range 0–127, and retain compatibility with old trees that contain no action child.
 - [ ] **Step 4: Add the editor button** with a distinct `SURPRISE` label, tooltip, accessible name, Help entry, keyboard focus support, and a right-click MIDI Learn menu. Place it where it fits the current minimum editor size; adjust responsive layout only as needed. The button calls the same `proc.surpriseMe()` method as the MIDI action.
-- [ ] **Step 5: Add UI tests** asserting the action is visible, named, keyboard-reachable when the option is on, and its tooltip/Help text describes constrained creative randomization.
+- [ ] **Step 5: Add UI tests** asserting the action is visible, named, keyboard-reachable when the option is on, and its tooltip/Help text describes constrained creative randomization. Resize the editor to its minimum supported dimensions and assert the button remains within the editor and does not overlap adjacent top-bar controls.
 - [ ] **Step 6: Run the full JUCE test executable** and verify MIDI CC delivery through `processBlock()`, message-thread action dispatch, and a save/load round trip.
 
 **Dependencies:** Task 2.
