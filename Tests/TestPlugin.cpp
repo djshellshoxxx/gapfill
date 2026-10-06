@@ -1176,8 +1176,9 @@ GF_TEST (Editor, midi_cc_flood_keeps_the_latest_controller_value)
 
     if (wet != nullptr)
     {
-        const auto expected = (float) ((messageCount - 1) % 128) / 127.0f;
-        GF_EXPECT_NEAR (wet->getValue(), expected, 1.0e-5f);
+        const auto rawExpected = (float) ((messageCount - 1) % 128) / 127.0f;
+        const auto expected = wet->convertTo0to1 (wet->convertFrom0to1 (rawExpected));
+        GF_EXPECT_NEAR (wet->getValue(), expected, 1.0e-6f);
     }
 }
 
@@ -1267,7 +1268,9 @@ GF_TEST (Plugin, runtime_lookahead_change_updates_reported_host_latency)
     juce::MidiBuffer midi;
     proc.processBlock (work, midi);
 
-    // The processor deliberately reports latency from its message-thread timer.
+    // The processor deliberately reports latency from its 15 Hz message-thread
+    // timer. Let that timer become due, then dispatch pending callbacks.
+    juce::Thread::sleep (80);
     juce::Timer::callPendingTimersSynchronously();
 
     const auto expected = (int) std::round (0.120 * sr);
