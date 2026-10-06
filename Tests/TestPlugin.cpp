@@ -1268,10 +1268,10 @@ GF_TEST (Plugin, runtime_lookahead_change_updates_reported_host_latency)
     juce::MidiBuffer midi;
     proc.processBlock (work, midi);
 
-    // The processor deliberately reports latency from its 15 Hz message-thread
-    // timer. Let that timer become due, then dispatch pending callbacks.
-    juce::Thread::sleep (80);
-    juce::Timer::callPendingTimersSynchronously();
+    // The production path reports latency from its 15 Hz message-thread timer.
+    // Invoke the same callback directly in the unit-test build; JUCE timer
+    // scheduling itself is outside GapFill's responsibility.
+    proc.flushLatencyReportForTests();
 
     const auto expected = (int) std::round (0.120 * sr);
     GF_EXPECT_MSG (std::abs (proc.getLatencySamples() - expected) <= 1,
