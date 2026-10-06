@@ -1292,6 +1292,49 @@ GF_TEST (Editor, midi_learn_times_out_and_can_be_cancelled)
     GF_EXPECT (! learn.isLearning());
 }
 
+GF_TEST (Editor, midi_learn_works_through_the_processor_midi_path)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    auto& learn = proc.getMidiLearnManager();
+    learn.startLearning ("wet");
+
+    juce::AudioBuffer<float> audio (2, 512);
+    audio.clear();
+
+    juce::MidiBuffer learnMidi;
+    learnMidi.addEvent (juce::MidiMessage::controllerEvent (1, 74, 96), 12);
+    proc.processBlock (audio, learnMidi);
+
+    // The processor's message-thread timer owns learned mapping/parameter
+    // application. The unit-test hook calls that exact path.
+    proc.flushLatencyReportForTests();
+
+    GF_EXPECT (! learn.isLearning());
+    GF_EXPECT (learn.getMappedCC ("wet") == 74);
+
+    auto* wet = proc.getValueTreeState().getParameter ("wet");
+    GF_EXPECT (wet != nullptr);
+
+    if (wet != nullptr)
+    {
+        const auto before = wet->getValue();
+
+        juce::MidiBuffer controlMidi;
+        controlMidi.addEvent (juce::MidiMessage::controllerEvent (1, 74, 19), 24);
+        audio.clear();
+        proc.processBlock (audio, controlMidi);
+        proc.flushLatencyReportForTests();
+
+        const auto rawExpected = 19.0f / 127.0f;
+        const auto expected = wet->convertTo0to1 (wet->convertFrom0to1 (rawExpected));
+
+        GF_EXPECT (std::abs (wet->getValue() - before) > 1.0e-4f);
+        GF_EXPECT_NEAR (wet->getValue(), expected, 1.0e-6f);
+    }
+}
+
 GF_TEST (Editor, midi_cc_flood_keeps_the_latest_controller_value)
 {
     GapFillAudioProcessor proc;
