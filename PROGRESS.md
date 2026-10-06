@@ -34,6 +34,17 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 
 ## Session log
 
+### 2026-10-06 - CDL baseline follow-through: bounded MIDI learn
+
+- Audited the active development branch against the newly adopted Circuit Drift Labs shared plugin baseline.
+- Found a concrete compliance gap in MIDI Learn: the existing right-click flow could stay armed indefinitely after the menu closed, and the editor gave no persistent indication that it was waiting for a controller.
+- Added a regression test first: `midi_learn_times_out_and_can_be_cancelled`.
+- MIDI Learn now has a 10-second bounded session driven by the processor's existing 15 Hz message-thread timer. Explicit cancellation remains available by right-clicking the same parameter again.
+- The editor status line now takes priority while learning and shows the target parameter, remaining time, and cancellation instruction.
+- Help now documents the bounded learn flow and includes the Circuit Drift Labs project URL.
+- GitHub Actions is currently failing before either Linux or Windows job records any workflow steps. The same immediate failure is present on recent documentation-only `master` commits, so this is an Actions/runner startup problem rather than evidence of a compile/test regression. Local/runner compilation remains required before merging this branch.
+
+
 ### 2026-09-16, session 17 - CLAP, GitHub, and a broken VST3 bundle
 
 - **The VST3 bundle was empty and nobody had noticed.** `GapFill.vst3/Contents`

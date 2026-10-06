@@ -7,8 +7,13 @@ namespace gapfill
 //==============================================================================
 MidiLearnManager::MidiLearnManager()
 {
-    for (auto& slot : ccToParam)
-        slot.store (-1, std::memory_order_relaxed);
+    for (int cc = 0; cc < numCCs; ++cc)
+    {
+        ccToParam[(size_t) cc].store (-1, std::memory_order_relaxed);
+        pendingParamIndex[(size_t) cc].store (-1, std::memory_order_relaxed);
+        pendingValue[(size_t) cc].store (0.0f, std::memory_order_relaxed);
+        pendingDirty[(size_t) cc].store (false, std::memory_order_relaxed);
+    }
 }
 
 void MidiLearnManager::connect (juce::AudioProcessorValueTreeState& state)
@@ -59,6 +64,7 @@ void MidiLearnManager::processMidi (const juce::MidiBuffer& midi) noexcept
             // The CAS makes sure only one CC can win the learn.
             if (learnTarget.compare_exchange_strong (learning, -1))
             {
+                learnTicksRemaining.store (0, std::memory_order_relaxed);
                 int start1, size1, start2, size2;
                 fifo.prepareToWrite (1, start1, size1, start2, size2);
 
@@ -76,13 +82,12 @@ void MidiLearnManager::processMidi (const juce::MidiBuffer& midi) noexcept
         if (target < 0)
             continue;
 
-        int start1, size1, start2, size2;
-        fifo.prepareToWrite (1, start1, size1, start2, size2);
-
-        if (size1 > 0)
-            events[(size_t) start1] = { target, -1, cc, value };
-
-        fifo.finishedWrite (size1 + size2);
+        // Coalesce normal mapped CC traffic. The message thread only needs the
+        // newest value for each controller; retaining every intermediate value
+        // would make dense automation depend on FIFO capacity.
+        pendingParamIndex[(size_t) cc].store (target, std::memory_order_relaxed);
+        pendingValue[(size_t) cc].store (value, std::memory_order_relaxed);
+        pendingDirty[(size_t) cc].store (true, std::memory_order_release);
     }
 }
 
@@ -129,6 +134,24 @@ bool MidiLearnManager::applyPendingChanges()
 
     fifo.finishedRead (size1 + size2);
 
+    // Apply the latest mapped CC value per controller. exchange(false) makes
+    // each pending update single-consumer while acquire pairs with the audio
+    // thread's release store above.
+    for (int cc = 0; cc < numCCs; ++cc)
+    {
+        if (! pendingDirty[(size_t) cc].exchange (false, std::memory_order_acquire))
+            continue;
+
+        const auto target = pendingParamIndex[(size_t) cc].load (std::memory_order_relaxed);
+
+        if (! juce::isPositiveAndBelow (target, (int) parameters.size()))
+            continue;
+
+        if (auto* p = parameters[(size_t) target])
+            p->setValueNotifyingHost (juce::jlimit (0.0f, 1.0f,
+                pendingValue[(size_t) cc].load (std::memory_order_relaxed)));
+    }
+
     return learnCompleted;
 }
 
@@ -138,12 +161,33 @@ void MidiLearnManager::startLearning (const juce::String& parameterID)
     const auto index = indexOf (parameterID);
 
     if (index >= 0)
-        learnTarget.store (index, std::memory_order_relaxed);
+    {
+        learnTicksRemaining.store (learningTimeoutTicks, std::memory_order_relaxed);
+        learnTarget.store (index, std::memory_order_release);
+    }
 }
 
 void MidiLearnManager::stopLearning()
 {
-    learnTarget.store (-1, std::memory_order_relaxed);
+    learnTarget.store (-1, std::memory_order_release);
+    learnTicksRemaining.store (0, std::memory_order_relaxed);
+}
+
+bool MidiLearnManager::advanceLearningTimeout() noexcept
+{
+    if (learnTarget.load (std::memory_order_acquire) < 0)
+        return false;
+
+    const auto remaining = learnTicksRemaining.load (std::memory_order_relaxed);
+
+    if (remaining > 1)
+    {
+        learnTicksRemaining.store (remaining - 1, std::memory_order_relaxed);
+        return false;
+    }
+
+    stopLearning();
+    return true;
 }
 
 juce::String MidiLearnManager::getLearningParameterID() const
@@ -174,10 +218,14 @@ void MidiLearnManager::setMapping (const juce::String& parameterID, int cc)
     if (index < 0 || ! juce::isPositiveAndBelow (cc, numCCs))
         return;
 
-    for (auto& slot : ccToParam)
-        if (slot.load (std::memory_order_relaxed) == index)
-            slot.store (-1, std::memory_order_relaxed);
+    for (int i = 0; i < numCCs; ++i)
+        if (ccToParam[(size_t) i].load (std::memory_order_relaxed) == index)
+        {
+            ccToParam[(size_t) i].store (-1, std::memory_order_relaxed);
+            pendingDirty[(size_t) i].store (false, std::memory_order_relaxed);
+        }
 
+    pendingDirty[(size_t) cc].store (false, std::memory_order_relaxed);
     ccToParam[(size_t) cc].store (index, std::memory_order_relaxed);
 }
 
@@ -188,17 +236,24 @@ void MidiLearnManager::clearMapping (const juce::String& parameterID)
     if (index < 0)
         return;
 
-    for (auto& slot : ccToParam)
-        if (slot.load (std::memory_order_relaxed) == index)
-            slot.store (-1, std::memory_order_relaxed);
+    for (int cc = 0; cc < numCCs; ++cc)
+        if (ccToParam[(size_t) cc].load (std::memory_order_relaxed) == index)
+        {
+            ccToParam[(size_t) cc].store (-1, std::memory_order_relaxed);
+            pendingDirty[(size_t) cc].store (false, std::memory_order_relaxed);
+        }
 }
 
 void MidiLearnManager::clearAllMappings()
 {
-    learnTarget.store (-1, std::memory_order_relaxed);
+    stopLearning();
 
-    for (auto& slot : ccToParam)
-        slot.store (-1, std::memory_order_relaxed);
+    for (int cc = 0; cc < numCCs; ++cc)
+    {
+        ccToParam[(size_t) cc].store (-1, std::memory_order_relaxed);
+        pendingDirty[(size_t) cc].store (false, std::memory_order_relaxed);
+        pendingParamIndex[(size_t) cc].store (-1, std::memory_order_relaxed);
+    }
 }
 
 int MidiLearnManager::getNumMappings() const

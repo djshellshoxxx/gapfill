@@ -279,6 +279,56 @@ GF_TEST (Plugin, state_with_unknown_and_missing_parameters_is_tolerated)
     }
 }
 
+GF_TEST (Plugin, invalid_saved_program_index_restores_as_custom)
+{
+    GapFillAudioProcessor source;
+    juce::MemoryBlock block;
+    source.getStateInformation (block);
+
+    auto xml = juce::AudioProcessor::getXmlFromBinary (block.getData(), (int) block.getSize());
+    GF_EXPECT (xml != nullptr);
+
+    if (xml != nullptr)
+    {
+        auto root = juce::ValueTree::fromXml (*xml);
+        root.setProperty ("program", 9999, nullptr);
+
+        juce::MemoryBlock modified;
+        if (auto rewritten = root.createXml())
+            juce::AudioProcessor::copyXmlToBinary (*rewritten, modified);
+
+        GapFillAudioProcessor restored;
+        restored.setStateInformation (modified.getData(), (int) modified.getSize());
+
+        GF_EXPECT_MSG (restored.getCurrentPresetName() == "Custom",
+                       "invalid saved program should restore as Custom, got "
+                         + restored.getCurrentPresetName());
+        GF_EXPECT_MSG (restored.getCurrentProgram() >= 0
+                         && restored.getCurrentProgram() < restored.getNumPrograms(),
+                       "host-visible program index escaped the valid program range");
+    }
+}
+
+GF_TEST (Plugin, editing_or_randomising_a_factory_preset_marks_it_custom)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    proc.selectPreset (juce::jmin (1, proc.getNumPrograms() - 1));
+    GF_EXPECT (proc.getCurrentPresetName() != "Custom");
+
+    configure (proc, { { "fill", 73.0f } });
+    GF_EXPECT_MSG (proc.getCurrentPresetName() == "Custom",
+                   "editing a factory preset did not mark the state Custom");
+
+    proc.selectPreset (0);
+    GF_EXPECT (proc.getCurrentPresetName() != "Custom");
+
+    proc.randomise (false);
+    GF_EXPECT_MSG (proc.getCurrentPresetName() == "Custom",
+                   "randomising a factory preset did not mark the state Custom");
+}
+
 GF_TEST (Plugin, factory_presets_all_load_and_produce_valid_audio)
 {
     constexpr double sr = 48000.0;
@@ -1104,6 +1154,59 @@ GF_TEST (Editor, midi_mappings_survive_a_state_round_trip)
                      + ", total mappings " + juce::String (learn.getNumMappings()));
 }
 
+GF_TEST (Editor, midi_learn_times_out_and_can_be_cancelled)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    auto& learn = proc.getMidiLearnManager();
+
+    learn.startLearning ("wet");
+    GF_EXPECT (learn.isLearning());
+    GF_EXPECT (learn.getLearningParameterID() == "wet");
+
+    for (int i = 0; i < MidiLearnManager::learningTimeoutTicks - 1; ++i)
+        GF_EXPECT (! learn.advanceLearningTimeout());
+
+    GF_EXPECT (learn.isLearning());
+    GF_EXPECT (learn.advanceLearningTimeout());
+    GF_EXPECT (! learn.isLearning());
+    GF_EXPECT (learn.getLearningParameterID().isEmpty());
+
+    learn.startLearning ("dry");
+    GF_EXPECT (learn.isLearning());
+    learn.stopLearning();
+    GF_EXPECT (! learn.isLearning());
+}
+
+GF_TEST (Editor, midi_cc_flood_keeps_the_latest_controller_value)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    auto& learn = proc.getMidiLearnManager();
+    learn.setMapping ("wet", 21);
+
+    juce::MidiBuffer midi;
+    constexpr int messageCount = 400;
+
+    for (int i = 0; i < messageCount; ++i)
+        midi.addEvent (juce::MidiMessage::controllerEvent (1, 21, i % 128), i);
+
+    learn.processMidi (midi);
+    learn.applyPendingChanges();
+
+    auto* wet = proc.getValueTreeState().getParameter ("wet");
+    GF_EXPECT (wet != nullptr);
+
+    if (wet != nullptr)
+    {
+        const auto rawExpected = (float) ((messageCount - 1) % 128) / 127.0f;
+        const auto expected = wet->convertTo0to1 (wet->convertFrom0to1 (rawExpected));
+        GF_EXPECT_NEAR (wet->getValue(), expected, 1.0e-6f);
+    }
+}
+
 GF_TEST (Editor, reset_and_randomise_behave)
 {
     GapFillAudioProcessor proc;
@@ -1135,4 +1238,145 @@ GF_TEST (Editor, reset_and_randomise_behave)
         if (auto* p = state.getParameter (id))
             GF_EXPECT_MSG (std::abs (p->getValue() - p->getDefaultValue()) < 1.0e-5f,
                            "parameter " + id + " was not reset to its default");
+}
+
+
+//==============================================================================
+GF_TEST (Plugin, persisted_ui_metadata_round_trips_and_clamps)
+{
+    GapFillAudioProcessor source;
+    source.setSavedEditorSize ({ 1450, 910 });
+    source.setTooltipsEnabled (false);
+
+    juce::MemoryBlock saved;
+    source.getStateInformation (saved);
+
+    GapFillAudioProcessor restored;
+    restored.setStateInformation (saved.getData(), (int) saved.getSize());
+
+    GF_EXPECT (restored.getSavedEditorSize() == juce::Point<int> (1450, 910));
+    GF_EXPECT (! restored.isTooltipsEnabled());
+
+    auto xml = juce::AudioProcessor::getXmlFromBinary (saved.getData(), (int) saved.getSize());
+    GF_EXPECT (xml != nullptr);
+
+    if (xml != nullptr)
+    {
+        auto root = juce::ValueTree::fromXml (*xml);
+        root.setProperty ("editorWidth", 100000, nullptr);
+        root.setProperty ("editorHeight", -100, nullptr);
+
+        juce::MemoryBlock malformed;
+        if (auto rewritten = root.createXml())
+            juce::AudioProcessor::copyXmlToBinary (*rewritten, malformed);
+
+        restored.setStateInformation (malformed.getData(), (int) malformed.getSize());
+        GF_EXPECT (restored.getSavedEditorSize() == juce::Point<int> (3200, 560));
+    }
+}
+
+GF_TEST (Plugin, runtime_lookahead_change_updates_reported_host_latency)
+{
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 256;
+
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, sr, blockSize, false);
+    configure (proc, { { "lookahead", 0.0f }, { "fill", 0.0f } });
+    proc.prepareToPlay (sr, blockSize);
+    GF_EXPECT (proc.getLatencySamples() == 0);
+
+    configure (proc, { { "lookahead", 120.0f } });
+
+    juce::AudioBuffer<float> work (2, blockSize);
+    work.clear();
+    juce::MidiBuffer midi;
+    proc.processBlock (work, midi);
+
+    // The production path reports latency from its 15 Hz message-thread timer.
+    // Invoke the same callback directly in the unit-test build; JUCE timer
+    // scheduling itself is outside GapFill's responsibility.
+    proc.flushLatencyReportForTests();
+
+    const auto expected = (int) std::round (0.120 * sr);
+    GF_EXPECT_MSG (std::abs (proc.getLatencySamples() - expected) <= 1,
+                   "runtime lookahead reported " + juce::String (proc.getLatencySamples())
+                     + " samples instead of " + juce::String (expected));
+}
+
+GF_TEST (Plugin, spectral_band_probability_can_fully_disable_an_enabled_lane)
+{
+    constexpr double sr = 48000.0;
+    auto input = makeDrumLoop (sr, 4.0, 110.0, 2);
+
+    auto countFills = [&] (float highProbability)
+    {
+        GapFillAudioProcessor proc;
+        prepareProcessor (proc, sr, 512, false);
+
+        configure (proc, {
+            { "detMode", (float) DetMode::Spectral },
+            { "fill", 100.0f }, { "density", 100.0f },
+            { "sensitivity", 75.0f }, { "gapThresh", 75.0f },
+            { "minGap", 35.0f }, { "maxFill", 350.0f },
+            { "bandLowOn", 0.0f }, { "bandMidOn", 0.0f }, { "bandHighOn", 1.0f },
+            { "bandHighProb", highProbability }, { "bandHighAmt", 100.0f },
+            { "dry", 0.0f }, { "wet", 100.0f }, { "seed", 41.0f }
+        });
+
+        auto output = renderThroughPlugin (proc, input, nullptr, 512);
+        GF_EXPECT (allFinite (output));
+        return proc.getFillEngine().getFillsStarted();
+    };
+
+    const auto disabled = countFills (0.0f);
+    const auto enabled = countFills (100.0f);
+
+    GF_EXPECT_MSG (disabled == 0,
+                   "0% high-band probability still scheduled " + juce::String (disabled) + " fills");
+    GF_EXPECT_MSG (enabled > 0,
+                   "100% high-band probability did not schedule any fills");
+}
+
+GF_TEST (Plugin, spectral_band_intensity_changes_generated_audio)
+{
+    constexpr double sr = 48000.0;
+    auto input = makeDrumLoop (sr, 4.0, 105.0, 2);
+
+    auto renderAtIntensity = [&] (float intensity)
+    {
+        GapFillAudioProcessor proc;
+        prepareProcessor (proc, sr, 512, false);
+
+        configure (proc, {
+            { "detMode", (float) DetMode::Spectral },
+            { "fillType", (float) ((int) Algo::Distort + 1) },
+            { "fill", 100.0f }, { "density", 100.0f },
+            { "sensitivity", 80.0f }, { "gapThresh", 80.0f },
+            { "minGap", 35.0f }, { "maxFill", 350.0f },
+            { "bandLowOn", 0.0f }, { "bandMidOn", 0.0f }, { "bandHighOn", 1.0f },
+            { "bandHighProb", 100.0f }, { "bandHighAmt", 100.0f },
+            { "bandHighInt", intensity },
+            { "dry", 0.0f }, { "wet", 100.0f }, { "seed", 77.0f }
+        });
+
+        auto output = renderThroughPlugin (proc, input, nullptr, 512);
+        GF_EXPECT (allFinite (output));
+        GF_EXPECT_MSG (proc.getFillEngine().getFillsStarted() > 0,
+                       "spectral intensity comparison produced no fills");
+        return output;
+    };
+
+    auto low = renderAtIntensity (0.0f);
+    auto high = renderAtIntensity (100.0f);
+
+    float maxDifference = 0.0f;
+
+    for (int ch = 0; ch < low.getNumChannels(); ++ch)
+        for (int i = 0; i < low.getNumSamples(); ++i)
+            maxDifference = juce::jmax (maxDifference,
+                std::abs (low.getSample (ch, i) - high.getSample (ch, i)));
+
+    GF_EXPECT_MSG (maxDifference > 1.0e-4f,
+                   "band intensity was wired but did not alter generated audio");
 }

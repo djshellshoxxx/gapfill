@@ -19,7 +19,8 @@ namespace gapfill
 
 //==============================================================================
 class GapFillAudioProcessor  : public juce::AudioProcessor,
-                               private juce::Timer
+                               private juce::Timer,
+                               private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     GapFillAudioProcessor();
@@ -49,7 +50,11 @@ public:
 
     //==========================================================================
     int getNumPrograms() override;
-    int getCurrentProgram() override                     { return currentProgram; }
+    int getCurrentProgram() override
+    {
+        const auto maxProgram = juce::jmax (0, getNumPrograms() - 1);
+        return juce::jlimit (0, maxProgram, currentProgram.load (std::memory_order_relaxed));
+    }
     void setCurrentProgram (int index) override;
     const juce::String getProgramName (int index) override;
     void changeProgramName (int, const juce::String&) override {}
@@ -74,21 +79,39 @@ public:
 
     /** Options-page settings. These are UI preferences rather than
         parameters, so they live in the plugin state but are not automatable. */
-    bool isTooltipsEnabled() const noexcept              { return tooltipsEnabled; }
-    void setTooltipsEnabled (bool shouldBeOn) noexcept   { tooltipsEnabled = shouldBeOn; }
+    bool isTooltipsEnabled() const noexcept
+    {
+        return tooltipsEnabled.load (std::memory_order_relaxed);
+    }
+    void setTooltipsEnabled (bool shouldBeOn) noexcept
+    {
+        tooltipsEnabled.store (shouldBeOn, std::memory_order_relaxed);
+    }
 
     /** Editor size persistence. */
-    juce::Point<int> getSavedEditorSize() const noexcept { return savedEditorSize; }
-    void setSavedEditorSize (juce::Point<int> size) noexcept { savedEditorSize = size; }
+    juce::Point<int> getSavedEditorSize() const noexcept
+    {
+        return { savedEditorWidth.load (std::memory_order_relaxed),
+                 savedEditorHeight.load (std::memory_order_relaxed) };
+    }
+    void setSavedEditorSize (juce::Point<int> size) noexcept
+    {
+        savedEditorWidth.store (size.x, std::memory_order_relaxed);
+        savedEditorHeight.store (size.y, std::memory_order_relaxed);
+    }
 
     //==========================================================================
     // Test-facing accessors
     const FillEngine& getFillEngine() const noexcept  { return engine; }
     const AnalysisEngine& getAnalysis() const noexcept { return analysis; }
     int getActiveLatencySamples() const noexcept { return meters.latencySamples.load(); }
+   #ifdef GAPFILL_UNIT_TESTS
+    void flushLatencyReportForTests() { timerCallback(); }
+   #endif
 
 private:
     void timerCallback() override;
+    void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
     EngineSettings gatherEngineSettings() const;
     AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
@@ -144,9 +167,11 @@ private:
     bool  sidechainHasSignal = false;
     float lastSoloXoverLM = -1.0f, lastSoloXoverMH = -1.0f;
 
-    int currentProgram = 0;
-    juce::Point<int> savedEditorSize { 1100, 700 };
-    bool tooltipsEnabled = true;
+    std::atomic<int> currentProgram { 0 };
+    std::atomic<bool> programChangeInProgress { false };
+    std::atomic<int> savedEditorWidth { 1100 };
+    std::atomic<int> savedEditorHeight { 700 };
+    std::atomic<bool> tooltipsEnabled { true };
 
     juce::Random randomSource;
     std::atomic<int> latencyToReport { 0 };

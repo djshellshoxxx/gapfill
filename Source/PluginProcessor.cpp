@@ -27,6 +27,10 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     params.connect (apvts);
     bypassParameter = apvts.getParameter ("bypass");
     midiLearn.connect (apvts);
+
+    for (const auto& id : allParameterIDs())
+        apvts.addParameterListener (id, this);
+
     randomSource.setSeedRandomly();
     startTimerHz (15);
 }
@@ -34,6 +38,9 @@ GapFillAudioProcessor::GapFillAudioProcessor()
 GapFillAudioProcessor::~GapFillAudioProcessor()
 {
     stopTimer();
+
+    for (const auto& id : allParameterIDs())
+        apvts.removeParameterListener (id, this);
 }
 
 //==============================================================================
@@ -162,8 +169,19 @@ void GapFillAudioProcessor::timerCallback()
         setLatencySamples (wanted);
 
     // Applies CC moves and completed learns on the thread that owns them.
-    if (midiLearn.applyPendingChanges())
+    // MIDI learn is intentionally bounded so the plugin cannot stay armed
+    // indefinitely after the context menu closes.
+    const bool learnChanged = midiLearn.applyPendingChanges();
+    const bool learnTimedOut = midiLearn.advanceLearningTimeout();
+
+    if (learnChanged || learnTimedOut)
         updateHostDisplay();
+}
+
+void GapFillAudioProcessor::parameterChanged (const juce::String&, float)
+{
+    if (! programChangeInProgress.load (std::memory_order_relaxed))
+        currentProgram.store (-1, std::memory_order_relaxed);
 }
 
 //==============================================================================
@@ -715,8 +733,10 @@ void GapFillAudioProcessor::setCurrentProgram (int index)
     if (index < 0 || index >= (int) presets.size())
         return;
 
-    currentProgram = index;
+    programChangeInProgress.store (true, std::memory_order_relaxed);
     applyPreset (apvts, index);
+    currentProgram.store (index, std::memory_order_relaxed);
+    programChangeInProgress.store (false, std::memory_order_relaxed);
 }
 
 const juce::String GapFillAudioProcessor::getProgramName (int index)
@@ -733,10 +753,12 @@ juce::String GapFillAudioProcessor::getCurrentPresetName() const
 {
     const auto& presets = getFactoryPresets();
 
-    if (currentProgram < 0 || currentProgram >= (int) presets.size())
+    const auto program = currentProgram.load (std::memory_order_relaxed);
+
+    if (program < 0 || program >= (int) presets.size())
         return "Custom";
 
-    return presets[(size_t) currentProgram].name;
+    return presets[(size_t) program].name;
 }
 
 void GapFillAudioProcessor::selectPreset (int index)
@@ -747,8 +769,10 @@ void GapFillAudioProcessor::selectPreset (int index)
 
 void GapFillAudioProcessor::resetAllParameters()
 {
+    programChangeInProgress.store (true, std::memory_order_relaxed);
     resetToDefaults (apvts);
-    currentProgram = 0;
+    currentProgram.store (0, std::memory_order_relaxed);
+    programChangeInProgress.store (false, std::memory_order_relaxed);
     updateHostDisplay();
 }
 
@@ -763,10 +787,10 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     juce::ValueTree root ("GAPFILL_STATE");
     root.setProperty ("version", 1, nullptr);
-    root.setProperty ("program", currentProgram, nullptr);
-    root.setProperty ("editorWidth", savedEditorSize.x, nullptr);
-    root.setProperty ("editorHeight", savedEditorSize.y, nullptr);
-    root.setProperty ("tooltips", tooltipsEnabled, nullptr);
+    root.setProperty ("program", currentProgram.load (std::memory_order_relaxed), nullptr);
+    root.setProperty ("editorWidth", savedEditorWidth.load (std::memory_order_relaxed), nullptr);
+    root.setProperty ("editorHeight", savedEditorHeight.load (std::memory_order_relaxed), nullptr);
+    root.setProperty ("tooltips", tooltipsEnabled.load (std::memory_order_relaxed), nullptr);
     root.appendChild (apvts.copyState(), nullptr);
     root.appendChild (midiLearn.toValueTree(), nullptr);
 
@@ -787,13 +811,16 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         return;
 
     juce::ValueTree paramState;
+    int restoredProgram = -1;
 
     if (root.hasType ("GAPFILL_STATE"))
     {
-        currentProgram = (int) root.getProperty ("program", 0);
-        savedEditorSize = { (int) root.getProperty ("editorWidth", 1100),
-                            (int) root.getProperty ("editorHeight", 700) };
-        tooltipsEnabled = (bool) root.getProperty ("tooltips", true);
+        const auto savedProgram = (int) root.getProperty ("program", 0);
+        const auto presetCount = (int) getFactoryPresets().size();
+        restoredProgram = (savedProgram >= 0 && savedProgram < presetCount) ? savedProgram : -1;
+        savedEditorWidth.store ((int) root.getProperty ("editorWidth", 1100), std::memory_order_relaxed);
+        savedEditorHeight.store ((int) root.getProperty ("editorHeight", 700), std::memory_order_relaxed);
+        tooltipsEnabled.store ((bool) root.getProperty ("tooltips", true), std::memory_order_relaxed);
 
         if (root.getNumChildren() > 0)
             paramState = root.getChild (0);
@@ -813,11 +840,17 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         return;
 
     // Missing parameters keep their current value, so state written by an older
-    // version still loads.
+    // version still loads. Suppress the parameter listener while replacing the
+    // whole tree so the restored program identity is preserved.
+    programChangeInProgress.store (true, std::memory_order_relaxed);
     apvts.replaceState (paramState);
+    currentProgram.store (restoredProgram, std::memory_order_relaxed);
+    programChangeInProgress.store (false, std::memory_order_relaxed);
 
-    savedEditorSize = { juce::jlimit (860, 3200, savedEditorSize.x),
-                        juce::jlimit (560, 2200, savedEditorSize.y) };
+    savedEditorWidth.store (juce::jlimit (860, 3200,
+        savedEditorWidth.load (std::memory_order_relaxed)), std::memory_order_relaxed);
+    savedEditorHeight.store (juce::jlimit (560, 2200,
+        savedEditorHeight.load (std::memory_order_relaxed)), std::memory_order_relaxed);
 }
 
 //==============================================================================

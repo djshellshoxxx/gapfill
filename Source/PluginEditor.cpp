@@ -222,7 +222,15 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     setResizeLimits (kMinWidth, kMinHeight, 2600, 1800);
     setSize (juce::jmax (kMinWidth, saved.x), juce::jmax (kMinHeight, saved.y));
 
-    presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
+    if (proc.getCurrentPresetName() == "Custom")
+    {
+        presetBox.setSelectedId (0, juce::dontSendNotification);
+        presetBox.setText ("Custom", juce::dontSendNotification);
+    }
+    else
+    {
+        presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
+    }
 
     startTimerHz (24);
 }
@@ -542,20 +550,41 @@ void GapFillAudioProcessorEditor::timerCallback()
     const auto latency = meters.latencySamples.load();
     latencyLabel.setText ("latency " + juce::String (latency) + " smp", juce::dontSendNotification);
 
-    // Status line: what the detector is doing right now.
+    // Status line: MIDI learn takes priority while armed so the user always
+    // knows the plugin is waiting for a controller, even after the popup closes.
     juce::String status;
+    auto& midiLearn = proc.getMidiLearnManager();
 
-    if (meters.sidechainRequested.load() && ! meters.sidechainConnected.load())
-        status = "Sidechain selected but not connected - using main detection";
-    else if (meters.sidechainConnected.load() && meters.sidechainRequested.load())
-        status = "Sidechain detection active";
+    if (midiLearn.isLearning())
+    {
+        const auto parameterID = midiLearn.getLearningParameterID();
+        auto displayName = parameterID;
+
+        if (auto* parameter = state.getParameter (parameterID))
+            displayName = parameter->getName (32);
+
+        const auto ticks = juce::jmax (0, midiLearn.getLearningTicksRemaining());
+        const auto seconds = (ticks + MidiLearnManager::learningTimerHz - 1)
+                           / MidiLearnManager::learningTimerHz;
+
+        status = "MIDI LEARN  |  " + displayName
+               + "  |  move a controller  |  " + juce::String (seconds)
+               + "s  |  right-click again to cancel";
+    }
     else
-        status = "Main detection";
+    {
+        if (meters.sidechainRequested.load() && ! meters.sidechainConnected.load())
+            status = "Sidechain selected but not connected - using main detection";
+        else if (meters.sidechainConnected.load() && meters.sidechainRequested.load())
+            status = "Sidechain detection active";
+        else
+            status = "Main detection";
 
-    const auto algo = meters.currentAlgo.load();
+        const auto algo = meters.currentAlgo.load();
 
-    if (algo >= 0 && algo < numAlgos)
-        status += juce::String ("  |  filling: ") + algoName ((Algo) algo);
+        if (algo >= 0 && algo < numAlgos)
+            status += juce::String ("  |  filling: ") + algoName ((Algo) algo);
+    }
 
     mixPanel.setStatusText (status);
 }

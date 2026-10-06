@@ -43,9 +43,19 @@ public:
         true if a learn completed, so the UI can refresh. */
     bool applyPendingChanges();
 
+    static constexpr int learningTimerHz = 15;
+    static constexpr int learningTimeoutSeconds = 10;
+    static constexpr int learningTimeoutTicks = learningTimerHz * learningTimeoutSeconds;
+
     void startLearning (const juce::String& parameterID);
     void stopLearning();
+
+    /** Advances the bounded learn session by one processor timer tick.
+        Returns true only when an active learn expires on this call. */
+    bool advanceLearningTimeout() noexcept;
+
     bool isLearning() const noexcept                  { return learnTarget.load() >= 0; }
+    int getLearningTicksRemaining() const noexcept    { return learnTicksRemaining.load(); }
     juce::String getLearningParameterID() const;
 
     /** The CC currently mapped to this parameter, or -1. */
@@ -85,8 +95,15 @@ private:
     std::vector<juce::RangedAudioParameter*> parameters;
 
     std::array<std::atomic<int>, numCCs> ccToParam;
+    std::array<std::atomic<int>, numCCs> pendingParamIndex;
+    std::array<std::atomic<float>, numCCs> pendingValue;
+    std::array<std::atomic<bool>, numCCs> pendingDirty;
     std::atomic<int> learnTarget { -1 };
+    std::atomic<int> learnTicksRemaining { 0 };
 
+    // The FIFO is only for completed learn events. Normal mapped CC traffic is
+    // coalesced per controller above, so a dense automation burst cannot lose
+    // the newest value merely because the message thread has not drained yet.
     juce::AbstractFifo fifo { fifoSize };
     std::array<Event, fifoSize> events {};
 
