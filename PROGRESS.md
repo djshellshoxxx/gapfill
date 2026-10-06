@@ -34,6 +34,21 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 
 ## Session log
 
+### 2026-10-06 - state validation, compliance and CI preflight
+
+- Continued from merged PR #1 on a fresh branch.
+- Added atomic validation for external `.gapfill` parameter trees and saved project state. Known parameter values must be numeric, finite, unique, and normalised to 0..1 before anything is applied.
+- File Open now uses the processor's validated state path instead of calling `APVTS::replaceState()` directly.
+- Reordered project-state restore so malformed sound state cannot partially change editor preferences or MIDI mappings before being rejected.
+- Added regression coverage for malformed parameter state and for metadata/MIDI atomicity.
+- Added `tools/validate_repo.py` plus unit tests. It checks stable parameter IDs, duplicate IDs, factory-preset references, shared-standard/compliance files, and expected CMake/CI wiring without needing JUCE or a compiler.
+- Added a dependency-free CI preflight job before the Linux and Windows builds.
+- Added `docs/COMPLIANCE.md` with the applicable CDL profiles, implemented areas, exceptions and remaining manual validation.
+- README now explicitly documents privacy/network behavior and links the shared standard/compliance matrix.
+- Connector-level execution of the same structural preflight logic passes: 64 stable IDs, 52 unique preset parameter references, zero errors.
+- GitHub-hosted Actions runners remain an external infrastructure issue: jobs are still being terminated before step 1, including documentation-only commits on master.
+
+
 ### 2026-10-06 - CDL baseline follow-through: bounded MIDI learn
 
 - Audited the active development branch against the newly adopted Circuit Drift Labs shared plugin baseline.

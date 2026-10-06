@@ -798,6 +798,57 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
         copyXmlToBinary (*xml, destData);
 }
 
+bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state) const
+{
+    if (! state.isValid() || ! state.hasType (apvts.state.getType()))
+        return false;
+
+    juce::StringArray seenKnownParameters;
+
+    for (int i = 0; i < state.getNumChildren(); ++i)
+    {
+        const auto child = state.getChild (i);
+        const auto id = child.getProperty ("id").toString();
+
+        if (id.isEmpty() || apvts.getParameter (id) == nullptr)
+            continue; // forward-compatible unknown metadata/parameters
+
+        if (seenKnownParameters.contains (id))
+            return false;
+
+        seenKnownParameters.add (id);
+
+        if (! child.hasProperty ("value"))
+            return false;
+
+        const auto value = child.getProperty ("value");
+
+        if (! (value.isDouble() || value.isInt() || value.isInt64() || value.isBool()))
+            return false;
+
+        const auto normalised = (double) value;
+
+        if (! std::isfinite (normalised) || normalised < 0.0 || normalised > 1.0)
+            return false;
+    }
+
+    return true;
+}
+
+bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state)
+{
+    if (! isParameterStateValid (state))
+        return false;
+
+    programChangeInProgress.store (true, std::memory_order_relaxed);
+    apvts.replaceState (state.createCopy());
+    currentProgram.store (-1, std::memory_order_relaxed);
+    programChangeInProgress.store (false, std::memory_order_relaxed);
+    updateHostDisplay();
+    return true;
+}
+
+//==============================================================================
 void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     auto xml = getXmlFromBinary (data, sizeInBytes);
@@ -811,24 +862,28 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         return;
 
     juce::ValueTree paramState;
+    juce::ValueTree mapState;
     int restoredProgram = -1;
+    int restoredEditorWidth = savedEditorWidth.load (std::memory_order_relaxed);
+    int restoredEditorHeight = savedEditorHeight.load (std::memory_order_relaxed);
+    bool restoredTooltips = tooltipsEnabled.load (std::memory_order_relaxed);
+    bool wrappedState = false;
 
     if (root.hasType ("GAPFILL_STATE"))
     {
+        wrappedState = true;
+
         const auto savedProgram = (int) root.getProperty ("program", 0);
         const auto presetCount = (int) getFactoryPresets().size();
         restoredProgram = (savedProgram >= 0 && savedProgram < presetCount) ? savedProgram : -1;
-        savedEditorWidth.store ((int) root.getProperty ("editorWidth", 1100), std::memory_order_relaxed);
-        savedEditorHeight.store ((int) root.getProperty ("editorHeight", 700), std::memory_order_relaxed);
-        tooltipsEnabled.store ((bool) root.getProperty ("tooltips", true), std::memory_order_relaxed);
+        restoredEditorWidth = (int) root.getProperty ("editorWidth", 1100);
+        restoredEditorHeight = (int) root.getProperty ("editorHeight", 700);
+        restoredTooltips = (bool) root.getProperty ("tooltips", true);
 
         if (root.getNumChildren() > 0)
             paramState = root.getChild (0);
 
-        // Absent in state written before MIDI learn existed; leave the current
-        // mappings alone in that case rather than wiping them.
-        if (const auto mapState = root.getChildWithName (MidiLearnManager::stateType); mapState.isValid())
-            midiLearn.restoreFromValueTree (mapState);
+        mapState = root.getChildWithName (MidiLearnManager::stateType);
     }
     else if (root.hasType (apvts.state.getType()))
     {
@@ -836,21 +891,30 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         paramState = root;
     }
 
-    if (! paramState.isValid() || ! paramState.hasType (apvts.state.getType()))
+    // Validate every sound-affecting value before mutating any part of the
+    // current instance. This keeps a malformed preset/project load atomic:
+    // parameters, UI metadata and MIDI mappings all remain untouched on error.
+    if (! isParameterStateValid (paramState))
         return;
 
-    // Missing parameters keep their current value, so state written by an older
-    // version still loads. Suppress the parameter listener while replacing the
-    // whole tree so the restored program identity is preserved.
     programChangeInProgress.store (true, std::memory_order_relaxed);
-    apvts.replaceState (paramState);
+    apvts.replaceState (paramState.createCopy());
     currentProgram.store (restoredProgram, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
 
-    savedEditorWidth.store (juce::jlimit (860, 3200,
-        savedEditorWidth.load (std::memory_order_relaxed)), std::memory_order_relaxed);
-    savedEditorHeight.store (juce::jlimit (560, 2200,
-        savedEditorHeight.load (std::memory_order_relaxed)), std::memory_order_relaxed);
+    if (wrappedState)
+    {
+        savedEditorWidth.store (juce::jlimit (860, 3200, restoredEditorWidth),
+                                std::memory_order_relaxed);
+        savedEditorHeight.store (juce::jlimit (560, 2200, restoredEditorHeight),
+                                 std::memory_order_relaxed);
+        tooltipsEnabled.store (restoredTooltips, std::memory_order_relaxed);
+
+        // Absent in state written before MIDI learn existed; leave the current
+        // mappings alone in that case rather than wiping them.
+        if (mapState.isValid())
+            midiLearn.restoreFromValueTree (mapState);
+    }
 }
 
 //==============================================================================

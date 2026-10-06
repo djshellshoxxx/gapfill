@@ -279,6 +279,84 @@ GF_TEST (Plugin, state_with_unknown_and_missing_parameters_is_tolerated)
     }
 }
 
+GF_TEST (Plugin, malformed_known_parameter_state_is_rejected_atomically)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+    configure (proc, { { "fill", 73.0f }, { "wet", 41.0f } });
+
+    auto malformed = proc.getValueTreeState().copyState().createCopy();
+    bool changedKnownValue = false;
+
+    for (int i = 0; i < malformed.getNumChildren(); ++i)
+    {
+        auto child = malformed.getChild (i);
+
+        if (child.getProperty ("id").toString() == "fill")
+        {
+            child.setProperty ("value", 2.0, nullptr); // APVTS state is normalised 0..1.
+            changedKnownValue = true;
+            break;
+        }
+    }
+
+    GF_EXPECT (changedKnownValue);
+    GF_EXPECT (! proc.applyParameterState (malformed));
+
+    auto* fill = proc.getValueTreeState().getParameter ("fill");
+    auto* wet = proc.getValueTreeState().getParameter ("wet");
+    GF_EXPECT (fill != nullptr && wet != nullptr);
+
+    if (fill != nullptr && wet != nullptr)
+    {
+        GF_EXPECT_NEAR (fill->convertFrom0to1 (fill->getValue()), 73.0f, 0.05f);
+        GF_EXPECT_NEAR (wet->convertFrom0to1 (wet->getValue()), 41.0f, 0.05f);
+    }
+}
+
+GF_TEST (Plugin, rejected_saved_state_does_not_partially_apply_metadata_or_midi)
+{
+    GapFillAudioProcessor current;
+    prepareProcessor (current, 48000.0, 512, false);
+    current.setTooltipsEnabled (true);
+    current.getMidiLearnManager().setMapping ("wet", 21);
+
+    GapFillAudioProcessor source;
+    prepareProcessor (source, 48000.0, 512, false);
+    source.setTooltipsEnabled (false);
+    source.getMidiLearnManager().setMapping ("wet", 74);
+
+    juce::MemoryBlock block;
+    source.getStateInformation (block);
+    auto xml = juce::AudioProcessor::getXmlFromBinary (block.getData(), (int) block.getSize());
+    GF_EXPECT (xml != nullptr);
+
+    if (xml != nullptr)
+    {
+        auto root = juce::ValueTree::fromXml (*xml);
+        auto params = root.getChild (0);
+
+        for (int i = 0; i < params.getNumChildren(); ++i)
+        {
+            auto child = params.getChild (i);
+            if (child.getProperty ("id").toString() == "fill")
+            {
+                child.setProperty ("value", 9.0, nullptr);
+                break;
+            }
+        }
+
+        juce::MemoryBlock malformed;
+        if (auto rewritten = root.createXml())
+            juce::AudioProcessor::copyXmlToBinary (*rewritten, malformed);
+
+        current.setStateInformation (malformed.getData(), (int) malformed.getSize());
+    }
+
+    GF_EXPECT (current.isTooltipsEnabled());
+    GF_EXPECT (current.getMidiLearnManager().getMappedCC ("wet") == 21);
+}
+
 GF_TEST (Plugin, invalid_saved_program_index_restores_as_custom)
 {
     GapFillAudioProcessor source;

@@ -173,3 +173,12 @@ as-is.
 ## Required shared plug-in standard
 
 This project follows the [Circuit Drift Labs Shared Audio Plugin Standard](docs/standards/CDL_PLUGIN_BASELINE.md). It is required for the plug-in target; standalone-only requirements apply only when a standalone target is included. The product-specific specification supplements the shared standard and records the applicable profiles, compliance status, and any exceptions.
+
+
+## Privacy and network behavior
+
+GapFill does not send audio, presets, project data, diagnostics, analytics, or telemetry over the network. The plugin has no licensing server or background update checker. Network access is not part of audio processing. Links shown in documentation or Help are informational and are opened only through normal user interaction outside the audio thread.
+
+## Shared plugin standard
+
+GapFill follows the required Circuit Drift Labs shared plugin baseline in [`docs/standards/CDL_PLUGIN_BASELINE.md`](docs/standards/CDL_PLUGIN_BASELINE.md). Product-specific compliance and exceptions are tracked in [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md).
