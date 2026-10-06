@@ -34,7 +34,7 @@ GapFill uses `docs/standards/CDL_PLUGIN_BASELINE.md` as the required common Circ
 | Windows VST3 build | Automated gate implemented | CI builds VST3 and runs pluginval at strictness 10. Current GitHub-hosted runner infrastructure must execute successfully before a release is marked validated. |
 | CLAP host validation | Automated gate implemented | Linux and Windows CI build the CLAP target and run free-audio clap-validator. |
 | Standalone validation | Automated + hardware acceptance | CI builds and smoke-launches the real Standalone target; unit tests construct the JUCE device selector. Physical-device acceptance steps are defined in `docs/VALIDATION.md`. |
-| Keyboard navigation | Implemented | Off by default for DAW-shortcut safety. Users can opt in to Tab/Shift+Tab traversal and standard keyboard operation for interactive controls while the editor itself remains non-focusable. |
+| Keyboard navigation | Implemented | Interactive controls are non-focusable by default. Users can opt in to Tab/Shift+Tab traversal and standard keyboard operation; the editor root remains non-focusable, focus has a visible 2 px accent ring, and parameter controls expose explicit accessibility titles/descriptions. |
 | Reduced motion | Implemented | Options includes a persisted Reduced Motion preference that disables knob/value easing, hover fades and brief action flashes while retaining live signal meters and the gap visualizer. |
 
 ## Validation
