@@ -75,9 +75,11 @@ namespace
     bool hasAccessibleControlName (const juce::Component& component)
     {
         if (auto* button = dynamic_cast<const juce::Button*> (&component))
-            return button->getButtonText().isNotEmpty() || component.getName().isNotEmpty();
+            return button->getButtonText().isNotEmpty()
+                || component.getTitle().isNotEmpty()
+                || component.getName().isNotEmpty();
 
-        return component.getName().isNotEmpty();
+        return component.getTitle().isNotEmpty();
     }
 
     int countUnnamedKeyboardFocusableRecursively (const juce::Component& root)
@@ -137,7 +139,9 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     addAndMakeVisible (latencyLabel);
 
     presetBox.setName ("Preset");
+    presetBox.setTitle ("Preset");
     presetBox.setDescription ("Factory and user preset selector");
+    presetBox.setHelpText ("Choose a factory or user preset.");
     presetBox.setTooltip ("Factory and user presets. Use < and > to step through them.");
     presetBox.setWantsKeyboardFocus (false);
     presetBox.onChange = [this] { presetSelected(); };
