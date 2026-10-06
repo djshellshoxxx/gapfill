@@ -1316,6 +1316,30 @@ GF_TEST (Editor, standalone_audio_midi_device_selector_constructs)
     GF_EXPECT (selector.getNumChildComponents() > 0);
 }
 
+GF_TEST (Editor, reopening_editor_discards_stale_visualisation_frames)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    auto& fifo = proc.getVisualisationFifo();
+    fifo.setEnabled (true);
+
+    VizFrame stale;
+    stale.peak = 0.9f;
+    stale.conf = 0.8f;
+    fifo.push (stale);
+    fifo.setEnabled (false);
+
+    {
+        GapFillAudioProcessorEditor editor (proc);
+
+        VizFrame drained[4] {};
+        const auto count = fifo.pop (drained, 4);
+        GF_EXPECT_MSG (count == 0,
+                       "new editor inherited stale visualisation frames from a prior UI session");
+    }
+}
+
 GF_TEST (Editor, opens_and_closes_repeatedly_without_leaking_state)
 {
     GapFillAudioProcessor proc;
