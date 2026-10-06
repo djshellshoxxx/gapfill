@@ -14,7 +14,8 @@ namespace gapfill
 
 //==============================================================================
 class GapFillAudioProcessor  : public juce::AudioProcessor,
-                               private juce::Timer
+                               private juce::Timer,
+                               private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     GapFillAudioProcessor();
@@ -44,7 +45,11 @@ public:
 
     //==========================================================================
     int getNumPrograms() override;
-    int getCurrentProgram() override                     { return currentProgram; }
+    int getCurrentProgram() override
+    {
+        const auto maxProgram = juce::jmax (0, getNumPrograms() - 1);
+        return juce::jlimit (0, maxProgram, currentProgram.load (std::memory_order_relaxed));
+    }
     void setCurrentProgram (int index) override;
     const juce::String getProgramName (int index) override;
     void changeProgramName (int, const juce::String&) override {}
@@ -84,6 +89,7 @@ public:
 
 private:
     void timerCallback() override;
+    void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
     EngineSettings gatherEngineSettings() const;
     AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
@@ -139,7 +145,8 @@ private:
     bool  sidechainHasSignal = false;
     float lastSoloXoverLM = -1.0f, lastSoloXoverMH = -1.0f;
 
-    int currentProgram = 0;
+    std::atomic<int> currentProgram { 0 }; 
+    std::atomic<bool> programChangeInProgress { false };
     juce::Point<int> savedEditorSize { 1100, 700 };
     bool tooltipsEnabled = true;
 
