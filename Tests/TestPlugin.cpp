@@ -505,6 +505,40 @@ GF_TEST (Plugin, rejected_saved_state_does_not_partially_apply_metadata_or_midi)
     GF_EXPECT (current.getMidiLearnManager().getMappedCC ("wet") == 21);
 }
 
+GF_TEST (Plugin, external_preset_save_reports_failure_and_round_trips_on_success)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+    configure (proc, { { "fill", 63.0f }, { "wet", 47.0f } });
+
+    juce::String error;
+
+    // A directory is not a writable preset file target.
+    auto dir = juce::File::getSpecialLocation (juce::File::tempDirectory);
+    GF_EXPECT (! proc.saveParameterStateToFile (dir, error));
+    GF_EXPECT (error.isNotEmpty());
+
+    juce::TemporaryFile temp (".gapfill");
+    error.clear();
+    GF_EXPECT (proc.saveParameterStateToFile (temp.getFile(), error));
+    GF_EXPECT (error.isEmpty());
+    GF_EXPECT (temp.getFile().existsAsFile());
+    GF_EXPECT (temp.getFile().getSize() > 0);
+
+    configure (proc, { { "fill", 5.0f }, { "wet", 5.0f } });
+    GF_EXPECT (proc.loadParameterStateFromFile (temp.getFile(), error));
+
+    auto* fill = proc.getValueTreeState().getParameter ("fill");
+    auto* wet = proc.getValueTreeState().getParameter ("wet");
+    GF_EXPECT (fill != nullptr && wet != nullptr);
+
+    if (fill != nullptr && wet != nullptr)
+    {
+        GF_EXPECT_NEAR (fill->convertFrom0to1 (fill->getValue()), 63.0f, 0.05f);
+        GF_EXPECT_NEAR (wet->convertFrom0to1 (wet->getValue()), 47.0f, 0.05f);
+    }
+}
+
 GF_TEST (Plugin, external_preset_loader_rejects_oversized_and_malformed_files)
 {
     GapFillAudioProcessor proc;
