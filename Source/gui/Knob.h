@@ -58,6 +58,10 @@ public:
     /** Skips the animation - used when the whole UI jumps, e.g. preset loads. */
     void snapToValue();
 
+   #ifdef GAPFILL_UNIT_TESTS
+    bool isAnimatingForTests() const noexcept { return isTimerRunning(); }
+   #endif
+
 private:
     void timerCallback() override;
     float targetProportion() const;
