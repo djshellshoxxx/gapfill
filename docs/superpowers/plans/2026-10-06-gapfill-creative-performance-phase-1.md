@@ -98,7 +98,7 @@
 
 **Interfaces:**
 - Consumes: the bounded profile application from Task 2 and the existing `MidiLearnManager::processMidi/applyPendingChanges` message/audio-thread split.
-- Produces: a stable internal `MidiAction::SurpriseMe` identifier, `startLearningAction(MidiAction)`, `setActionMapping(MidiAction, int cc)`, `getMappedActionCC(MidiAction)`, and a bounded message-thread drain of pending action events. Add action mappings to the existing `MIDIMAP` subtree without changing existing parameter mappings.
+- Produces: `enum class MidiAction : std::uint8_t { SurpriseMe, NumActions };`, `void startLearningAction(MidiAction action);`, `bool setActionMapping(MidiAction action, int cc);`, `int getMappedActionCC(MidiAction action) const;`, and `int popPendingAction() noexcept` (returns -1 when empty; call on the message thread). Add action mappings to the existing `MIDIMAP` subtree without changing existing parameter mappings.
 
 - [ ] **Step 1: Write tests** named `midi_learned_surprise_action_fires_once_per_rising_edge`, `midi_action_mapping_survives_state_round_trip`, and `surprise_action_does_not_replay_after_state_restore`. Use a CC sequence crossing 64 then releasing below 48; assert exactly one action per crossing and no action on restore.
 - [ ] **Step 2: Run the focused tests and confirm they fail** before the action mapping exists.
