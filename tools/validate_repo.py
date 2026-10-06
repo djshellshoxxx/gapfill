@@ -77,6 +77,7 @@ def validate(root: Path) -> list[str]:
         "GapFillTests",
         "juce_add_plugin(GapFill",
         "clap_juce_extensions_plugin",
+        "EDITOR_WANTS_KEYBOARD_FOCUS TRUE",
     ]
     for marker in required_cmake_markers:
         if marker not in cmake:
