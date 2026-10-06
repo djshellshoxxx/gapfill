@@ -43,7 +43,7 @@ private:
     void presetSelected();
     void saveUserPreset();
     void showFileMenu();
-    void savePresetToFile (const juce::File&);
+    bool savePresetToFile (const juce::File&);
     void loadPresetFromFile (const juce::File&);
     void doSave();
     void doSaveAs();
