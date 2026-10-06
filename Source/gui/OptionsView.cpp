@@ -49,6 +49,19 @@ OptionsView::OptionsView()
                              "Signal meters and the gap visualizer stay live.");
     addAndMakeVisible (reducedMotionHint);
 
+    keyboardNavigationToggle.setColour (juce::ToggleButton::textColourId, colours::text);
+    keyboardNavigationToggle.setColour (juce::ToggleButton::tickColourId, colours::accent);
+    keyboardNavigationToggle.onClick = [this]
+    {
+        if (onKeyboardNavigationChanged != nullptr)
+            onKeyboardNavigationChanged (keyboardNavigationToggle.getToggleState());
+    };
+    addAndMakeVisible (keyboardNavigationToggle);
+
+    hint (keyboardNavigationHint, "Opt in to Tab/Shift+Tab traversal and standard keyboard control "
+                                  "for interactive controls. Off by default so DAW shortcuts remain untouched.");
+    addAndMakeVisible (keyboardNavigationHint);
+
     deviceButton.onClick = [this]
     {
         if (onShowDeviceSettings != nullptr)
@@ -65,10 +78,11 @@ OptionsView::OptionsView()
     updateDeviceRow();
 }
 
-void OptionsView::refresh (bool tooltipsEnabled, bool reducedMotionEnabled)
+void OptionsView::refresh (bool tooltipsEnabled, bool reducedMotionEnabled, bool keyboardNavigationEnabled)
 {
     tooltipToggle.setToggleState (tooltipsEnabled, juce::dontSendNotification);
     reducedMotionToggle.setToggleState (reducedMotionEnabled, juce::dontSendNotification);
+    keyboardNavigationToggle.setToggleState (keyboardNavigationEnabled, juce::dontSendNotification);
     updateDeviceRow();
 }
 
@@ -127,6 +141,11 @@ void OptionsView::resized()
 
     reducedMotionToggle.setBounds (b.removeFromTop (kRowHeight));
     reducedMotionHint.setBounds (b.removeFromTop (kRowHeight + metrics::grid).withTrimmedLeft (metrics::grid * 3));
+
+    b.removeFromTop (metrics::grid);
+
+    keyboardNavigationToggle.setBounds (b.removeFromTop (kRowHeight));
+    keyboardNavigationHint.setBounds (b.removeFromTop (kRowHeight + metrics::grid).withTrimmedLeft (metrics::grid * 3));
 
     b.removeFromTop (metrics::grid * 2);
 
