@@ -683,12 +683,17 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         r = sanitise (r * o, 16.0f);
 
         peakWet = juce::jmax (peakWet, std::abs (wetL[i] * w), std::abs (wetR[i] * w));
-        peakOut = juce::jmax (peakOut, std::abs (l), std::abs (r));
-
         outL[i] = l;
 
         if (outR != nullptr)
+        {
             outR[i] = r;
+            peakOut = juce::jmax (peakOut, std::abs (l), std::abs (r));
+        }
+        else
+        {
+            peakOut = juce::jmax (peakOut, std::abs (l));
+        }
     }
 
     // ---- band solo / audition of the spectral lanes ----------------------
