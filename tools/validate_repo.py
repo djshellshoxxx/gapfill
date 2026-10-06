@@ -22,7 +22,7 @@ def extract_parameter_ids(text: str) -> list[str]:
 
 
 def extract_preset_parameter_ids(text: str) -> list[str]:
-    return PRESET_PARAM_RE.findall(text)
+    return [match[0] for match in PRESET_PARAM_RE.findall(text)]
 
 
 def duplicates(values: list[str]) -> list[str]:
@@ -74,7 +74,7 @@ def validate(root: Path) -> list[str]:
         "VST3",
         "Standalone",
         "GapFillTests",
-        "GapFill_VST3",
+        "juce_add_plugin(GapFill",
         "clap_juce_extensions_plugin",
     ]
     for marker in required_cmake_markers:
