@@ -34,6 +34,16 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 
 ## Session log
 
+### 2026-10-06 - preset loader hardening
+
+- Added test-first coverage for oversized and malformed external preset files.
+- Added a single bounded preset loader in the processor with a 1 MB maximum file size.
+- Empty, missing, malformed XML, wrong-state-type, duplicate-known-parameter, non-numeric, non-finite and out-of-range known values are rejected before the current sound is changed.
+- Both FILE -> Open and user-preset dropdown loading now use the same validated path.
+- Rejected preset files show a user-facing reason and the preset browser is restored to the still-active sound instead of visually selecting a file that never loaded.
+- Updated Help and the CDL compliance matrix to document the behavior.
+
+
 ### 2026-10-06 - state validation, compliance and CI preflight
 
 - Continued from merged PR #1 on a fresh branch.

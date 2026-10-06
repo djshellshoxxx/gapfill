@@ -302,18 +302,7 @@ void GapFillAudioProcessorEditor::presetSelected()
         const auto index = id - kUserOffset;
 
         if (juce::isPositiveAndBelow (index, userPresetFiles.size()))
-        {
-            if (auto xml = juce::XmlDocument::parse (userPresetFiles[index]))
-            {
-                auto tree = juce::ValueTree::fromXml (*xml);
-
-                if (tree.isValid() && tree.hasType (proc.getValueTreeState().state.getType()))
-                {
-                    proc.getValueTreeState().replaceState (tree);
-                    currentPresetFile = userPresetFiles[index];
-                }
-            }
-        }
+            loadPresetFromFile (userPresetFiles[index]);
     }
     else if (id >= kFactoryOffset)
     {
@@ -416,15 +405,22 @@ void GapFillAudioProcessorEditor::savePresetToFile (const juce::File& file)
 
 void GapFillAudioProcessorEditor::loadPresetFromFile (const juce::File& file)
 {
-    auto xml = juce::XmlDocument::parse (file);
+    juce::String error;
 
-    if (xml == nullptr)
+    if (! proc.loadParameterStateFromFile (file, error))
+    {
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                "Could not open preset",
+                                                error,
+                                                "OK",
+                                                this);
+
+        // The current sound was deliberately left untouched, so do not leave
+        // the browser visually claiming that the rejected file is active.
+        presetBox.setSelectedId (0, juce::dontSendNotification);
+        presetBox.setText (proc.getCurrentPresetName(), juce::dontSendNotification);
         return;
-
-    auto tree = juce::ValueTree::fromXml (*xml);
-
-    if (! proc.applyParameterState (tree))
-        return;
+    }
 
     currentPresetFile = file;
     presetBox.setSelectedId (0, juce::dontSendNotification);

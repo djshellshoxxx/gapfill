@@ -848,6 +848,49 @@ bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state)
     return true;
 }
 
+bool GapFillAudioProcessor::loadParameterStateFromFile (const juce::File& file, juce::String& error)
+{
+    error.clear();
+
+    if (! file.existsAsFile())
+    {
+        error = "The selected preset file does not exist.";
+        return false;
+    }
+
+    const auto size = file.getSize();
+
+    if (size <= 0)
+    {
+        error = "The selected preset file is empty.";
+        return false;
+    }
+
+    if (size > maxPresetFileBytes)
+    {
+        error = "The selected preset file is too large. GapFill preset files must be 1 MB or smaller.";
+        return false;
+    }
+
+    auto xml = juce::XmlDocument::parse (file);
+
+    if (xml == nullptr)
+    {
+        error = "The selected file is not valid GapFill XML.";
+        return false;
+    }
+
+    auto tree = juce::ValueTree::fromXml (*xml);
+
+    if (! applyParameterState (tree))
+    {
+        error = "The selected file is not a valid GapFill preset or contains invalid parameter values.";
+        return false;
+    }
+
+    return true;
+}
+
 //==============================================================================
 void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {

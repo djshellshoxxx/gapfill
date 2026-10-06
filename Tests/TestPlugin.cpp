@@ -357,6 +357,41 @@ GF_TEST (Plugin, rejected_saved_state_does_not_partially_apply_metadata_or_midi)
     GF_EXPECT (current.getMidiLearnManager().getMappedCC ("wet") == 21);
 }
 
+GF_TEST (Plugin, external_preset_loader_rejects_oversized_and_malformed_files)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+    configure (proc, { { "fill", 67.0f } });
+
+    juce::String error;
+
+    juce::TemporaryFile oversized (".gapfill");
+    {
+        juce::FileOutputStream stream (oversized.getFile());
+        std::vector<char> payload ((size_t) GapFillAudioProcessor::maxPresetFileBytes + 1u, 'x');
+        stream.write (payload.data(), payload.size());
+        stream.flush();
+    }
+
+    GF_EXPECT (! proc.loadParameterStateFromFile (oversized.getFile(), error));
+    GF_EXPECT (error.containsIgnoreCase ("large"));
+
+    auto* fill = proc.getValueTreeState().getParameter ("fill");
+    GF_EXPECT (fill != nullptr);
+    if (fill != nullptr)
+        GF_EXPECT_NEAR (fill->convertFrom0to1 (fill->getValue()), 67.0f, 0.05f);
+
+    juce::TemporaryFile malformed (".gapfill");
+    malformed.getFile().replaceWithText ("this is not GapFill XML");
+
+    error.clear();
+    GF_EXPECT (! proc.loadParameterStateFromFile (malformed.getFile(), error));
+    GF_EXPECT (error.isNotEmpty());
+
+    if (fill != nullptr)
+        GF_EXPECT_NEAR (fill->convertFrom0to1 (fill->getValue()), 67.0f, 0.05f);
+}
+
 GF_TEST (Plugin, invalid_saved_program_index_restores_as_custom)
 {
     GapFillAudioProcessor source;

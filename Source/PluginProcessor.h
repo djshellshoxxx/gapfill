@@ -67,6 +67,12 @@ public:
         values for known parameters reject the whole state. */
     bool applyParameterState (const juce::ValueTree& state);
 
+    static constexpr std::int64_t maxPresetFileBytes = 1024 * 1024;
+
+    /** Loads a portable .gapfill parameter tree with bounded file size and
+        atomic validation. Returns false and a user-facing reason on failure. */
+    bool loadParameterStateFromFile (const juce::File& file, juce::String& error);
+
     //==========================================================================
     // Editor-facing helpers (message thread only)
     juce::AudioProcessorValueTreeState& getValueTreeState() noexcept { return apvts; }
