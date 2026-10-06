@@ -30,6 +30,7 @@ public:
    #ifdef GAPFILL_UNIT_TESTS
     void applyKeyboardNavigationSettingForTests() { applyKeyboardNavigationSetting(); }
     int getKeyboardFocusableControlCountForTests() const;
+    int getUnnamedKeyboardFocusableControlCountForTests() const;
    #endif
 
 private:
