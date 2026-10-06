@@ -708,7 +708,12 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
     // ---- metering --------------------------------------------------------
     {
-        constexpr float decay = 0.82f;
+        // Preserve the original 0.82-per-512-samples-at-48-kHz feel, but make
+        // it a time constant rather than a host-buffer-size-dependent step.
+        constexpr double referenceSeconds = 512.0 / 48000.0;
+        const auto elapsedSeconds = (double) numSamples / currentSampleRate;
+        const auto decay = (float) std::pow (0.82, elapsedSeconds / referenceSeconds);
+
         meterIn  = juce::jmax (liveInputPeak, meterIn * decay);
         meterOut = juce::jmax (peakOut, meterOut * decay);
         meterWet = juce::jmax (peakWet, meterWet * decay);
