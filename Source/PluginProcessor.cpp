@@ -886,6 +886,33 @@ bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state)
     return true;
 }
 
+bool GapFillAudioProcessor::saveParameterStateToFile (const juce::File& file, juce::String& error) const
+{
+    error.clear();
+
+    if (file == juce::File() || file.isDirectory())
+    {
+        error = "The selected preset destination is not a writable file.";
+        return false;
+    }
+
+    auto xml = apvts.copyState().createXml();
+
+    if (xml == nullptr)
+    {
+        error = "GapFill could not create preset data.";
+        return false;
+    }
+
+    if (! xml->writeTo (file))
+    {
+        error = "GapFill could not write the preset file. Check the folder permissions and available disk space.";
+        return false;
+    }
+
+    return true;
+}
+
 bool GapFillAudioProcessor::loadParameterStateFromFile (const juce::File& file, juce::String& error)
 {
     error.clear();
