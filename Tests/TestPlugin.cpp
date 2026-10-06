@@ -183,7 +183,7 @@ GF_TEST (Plugin, meter_decay_is_independent_of_host_block_size)
     constexpr double sr = 48000.0;
     constexpr double decayWindowSeconds = 0.25;
 
-    const auto measure = [] (int blockSize)
+    const auto measure = [=] (int blockSize)
     {
         constexpr double localSr = 48000.0;
         GapFillAudioProcessor proc;
