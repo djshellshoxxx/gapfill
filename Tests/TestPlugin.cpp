@@ -1360,6 +1360,7 @@ GF_TEST (Plugin, persisted_ui_metadata_round_trips_and_clamps)
     GapFillAudioProcessor source;
     source.setSavedEditorSize ({ 1450, 910 });
     source.setTooltipsEnabled (false);
+    source.setReducedMotionEnabled (true);
 
     juce::MemoryBlock saved;
     source.getStateInformation (saved);
@@ -1369,6 +1370,7 @@ GF_TEST (Plugin, persisted_ui_metadata_round_trips_and_clamps)
 
     GF_EXPECT (restored.getSavedEditorSize() == juce::Point<int> (1450, 910));
     GF_EXPECT (! restored.isTooltipsEnabled());
+    GF_EXPECT (restored.isReducedMotionEnabled());
 
     auto xml = juce::AudioProcessor::getXmlFromBinary (saved.getData(), (int) saved.getSize());
     GF_EXPECT (xml != nullptr);
