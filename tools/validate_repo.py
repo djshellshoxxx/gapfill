@@ -53,6 +53,7 @@ def validate(root: Path) -> list[str]:
     readme = _read(root, "README.md", errors)
     baseline = _read(root, "docs/standards/CDL_PLUGIN_BASELINE.md", errors)
     compliance = _read(root, "docs/COMPLIANCE.md", errors)
+    validation = _read(root, "docs/VALIDATION.md", errors)
     ci = _read(root, ".github/workflows/ci.yml", errors)
 
     parameter_ids = extract_parameter_ids(params)
@@ -89,6 +90,10 @@ def validate(root: Path) -> list[str]:
 
     if compliance and "Profiles" not in compliance:
         errors.append("docs/COMPLIANCE.md does not declare applicable profiles")
+
+    for marker in ["pluginval", "clap-validator", "Standalone", "MIDI Learn", "Keyboard navigation"]:
+        if validation and marker not in validation:
+            errors.append(f"docs/VALIDATION.md is missing validation area: {marker}")
 
     required_ci_markers = [
         "python tools/validate_repo.py",
