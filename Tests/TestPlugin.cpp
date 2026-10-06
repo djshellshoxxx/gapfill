@@ -1609,6 +1609,28 @@ GF_TEST (Plugin, persisted_ui_metadata_round_trips_and_clamps)
     }
 }
 
+GF_TEST (Plugin, lookahead_change_updates_host_latency_without_audio_processing)
+{
+    constexpr double sr = 48000.0;
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, sr, 256, false);
+    configure (proc, { { "lookahead", 0.0f }, { "fill", 0.0f } });
+    proc.prepareToPlay (sr, 256);
+    GF_EXPECT (proc.getLatencySamples() == 0);
+
+    // Simulate a DAW restoring/changing the parameter while transport is
+    // stopped. No processBlock call should be required for PDC to refresh.
+    configure (proc, { { "lookahead", 150.0f } });
+    proc.flushLatencyReportForTests();
+
+    const auto expected = (int) std::round (0.150 * sr);
+    GF_EXPECT_MSG (std::abs (proc.getLatencySamples() - expected) <= 1,
+                   "stopped-transport lookahead left host latency stale at "
+                     + juce::String (proc.getLatencySamples()) + " samples");
+    GF_EXPECT_MSG (std::abs (proc.getMeterState().latencySamples.load() - expected) <= 1,
+                   "latency display did not follow the stopped-transport parameter change");
+}
+
 GF_TEST (Plugin, runtime_lookahead_change_updates_reported_host_latency)
 {
     constexpr double sr = 48000.0;
