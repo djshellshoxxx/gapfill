@@ -40,11 +40,11 @@ All existing parameter IDs are permanent. New parameters must be appended with n
 
 **Goal:** Make it clear why GapFill accepted or rejected a candidate region and what it did there.
 
-**Required display:** Show incoming activity, detected events, gap-eligible intervals, scheduled/active fills, protected intervals, and lookahead information. Keep spectral-band confidence available in spectral mode. Provide a compact legend or equivalent labels; distinguish a region that is merely quiet from a region accepted as fillable.
+**Required display:** Show incoming activity, detected events, gap-eligible intervals, scheduled/active fills, protected intervals, and lookahead information. Keep spectral-band confidence available in spectral mode. Provide a compact legend or equivalent labels; distinguish a region that is merely quiet from a region accepted as fillable. When practical, show the primary rejection reason for a candidate (too short, next-event/protection guard, density roll, missing source history, or no free voice) as a short-lived overlay or status label; these reasons must not require new per-sample work.
 
 **Current baseline:** VizFrame already carries event, fill-active, protected, gap-eligible, and lookahead flags, plus energy/confidence/band-confidence/duck values. WaveformGapView already renders this stream. First audit each displayed state against the flag producer and existing tests. Add only missing legend, visual distinction, or status explanation. Do not add another visualization pipeline or increase audio-thread work when the editor is closed.
 
-**Acceptance:** Each state has a visible, distinguishable indication; disabling/closing the editor disables visualization production as it does now; the visualizer remains correct after resizing and spectral-mode changes; a focused test covers every flag/state mapping.
+**Acceptance:** Each state has a visible, distinguishable indication; candidate rejection reasons are accurate where shown; disabling/closing the editor disables visualization production as it does now; the visualizer remains correct after resizing and spectral-mode changes; focused tests cover every flag/state and any rejection-reason mapping.
 
 ### 4.2 Surprise Me, But Safely
 
@@ -196,16 +196,14 @@ The following IDs are proposed and become permanent once implemented. Append the
 |---|---|---|
 | Macros | `macroActivity`, `macroChaos`, `macroSpace`, `macroDestruction` | 50%, 25%, 25%, 15% |
 | Personality | `personality` | Off |
-| Capture | `captureHold`, `captureLength`, `captureRecapture` | Off, 1000 ms (250–2000 ms), trigger false |
-| Like | `moreLikeThat` | Trigger false |
+| Capture | `captureHold`, `captureLength` | Off, 1000 ms (250–2000 ms) |
 | Intensity envelope | `fillShape`, `fillShapeAmount` | Flat, 0% |
 | Lock | `fillLock` | Off |
-| Audition | `fillAudition` | Trigger false |
 | Density breathing | `densityBreath`, `densityBreathBars`, `densityBreathDepth`, `densityBreathCurve` | Off, 4 bars (1/2/4/8), 0%, Sine |
 | Phrase awareness | `phraseBars`, `phraseBias` | Off, 0% |
 | Controlled mistakes | `mistakes` | 0% |
 
-Action IDs may be omitted if JUCE/host parameter semantics make momentary automation unreliable; in that case, use the existing MIDI-learn/action routing with an explicit rising-edge command. The externally observable behavior remains the same: no stale trigger on preset load, and a single press yields one action.
+Surprise Me, More Like That, Capture Recapture, and Fill Audition are commands, not persistent APVTS settings. Their buttons send one command through a bounded lock-free queue. Right-click MIDI Learn binds a CC to the command identifier in versioned plugin state; a CC rising edge above 64 triggers once, and the mapping rearms below 48. These commands are not host-automatable in version 1. Capture Hold and Fill Lock are persistent settings and remain host-automatable. This avoids action replay on state restore and avoids trying to self-reset an automatable parameter on the audio thread.
 
 Personality choices are Off, Subtle, Percussive, Glitchy, Psychedelic, Dub, Aggressive, Ambient, and Unhinged. Off is required to preserve the current sound when loading older sessions. DensityBreathCurve choices are Sine, Rise/Fall, and Pulse. Capture length and all percentages are clamped to their listed ranges.
 
