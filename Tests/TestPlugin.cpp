@@ -279,6 +279,41 @@ GF_TEST (Plugin, state_with_unknown_and_missing_parameters_is_tolerated)
     }
 }
 
+GF_TEST (Plugin, malformed_known_parameter_state_is_rejected_atomically)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+    configure (proc, { { "fill", 73.0f }, { "wet", 41.0f } });
+
+    auto malformed = proc.getValueTreeState().copyState().createCopy();
+    bool changedKnownValue = false;
+
+    for (int i = 0; i < malformed.getNumChildren(); ++i)
+    {
+        auto child = malformed.getChild (i);
+
+        if (child.getProperty ("id").toString() == "fill")
+        {
+            child.setProperty ("value", 2.0, nullptr); // APVTS state is normalised 0..1.
+            changedKnownValue = true;
+            break;
+        }
+    }
+
+    GF_EXPECT (changedKnownValue);
+    GF_EXPECT (! proc.applyParameterState (malformed));
+
+    auto* fill = proc.getValueTreeState().getParameter ("fill");
+    auto* wet = proc.getValueTreeState().getParameter ("wet");
+    GF_EXPECT (fill != nullptr && wet != nullptr);
+
+    if (fill != nullptr && wet != nullptr)
+    {
+        GF_EXPECT_NEAR (fill->convertFrom0to1 (fill->getValue()), 73.0f, 0.05f);
+        GF_EXPECT_NEAR (wet->convertFrom0to1 (wet->getValue()), 41.0f, 0.05f);
+    }
+}
+
 GF_TEST (Plugin, invalid_saved_program_index_restores_as_custom)
 {
     GapFillAudioProcessor source;
