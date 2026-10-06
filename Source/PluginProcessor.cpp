@@ -155,9 +155,22 @@ void GapFillAudioProcessor::reset()
     soloSplitter.reset();
     lastLowProtectHz = -1.0f;
     meterIn = meterOut = meterWet = 0.0f;
+    meters.inputLevel.store (0.0f);
+    meters.outputLevel.store (0.0f);
+    meters.wetLevel.store (0.0f);
+    meters.confidence.store (0.0f);
+    meters.bandConf0.store (0.0f);
+    meters.bandConf1.store (0.0f);
+    meters.bandConf2.store (0.0f);
+    meters.activeVoices.store (0);
+    meters.currentAlgo.store (-1);
+    meters.sidechainConnected.store (false);
+    meters.sidechainRequested.store (false);
+
     lastPpqPosition = 0.0;
     lastTransportPlaying = false;
     sidechainSilentSamples = kSidechainSilenceSeconds * (int) currentSampleRate;
+    sidechainHasSignal = false;
 }
 
 //==============================================================================
