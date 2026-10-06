@@ -276,6 +276,11 @@ HelpContent::HelpContent()
     heading ("About");
     body ("GapFill is a Circuit Drift Labs audio effect. Project documentation, source and release "
           "information live in the repository.");
+    entry ("Formats", "VST3, CLAP and Standalone.");
+    entry ("Build platforms", "Windows x64 and Linux x86_64. Release validation status is tracked "
+                              "in docs/VALIDATION.md in the repository.");
+    entry ("Issue reports", "use the GitHub repository issue tracker. It is a project issue queue, "
+                            "not a staffed support service.");
     body ("Circuit Drift Labs: https://djshellshoxxx.github.io/circuitdriftlabs/");
 
     text.append ("\n", bodyFont(), colours::text);
