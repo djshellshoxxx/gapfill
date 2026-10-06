@@ -1,5 +1,8 @@
 # GapFill
 
+> **Free/open Circuit Drift Labs plugin.** GapFill is maintained as a useful experimental creative effect and community tool rather than a premium paid product.
+
+
 **An intelligent creative effect that finds the spaces between musical events and turns them into controlled ear candy — while protecting the original hits.**
 
 GapFill is not a delay, a glitcher, a gate or a random multi-FX. It listens to the
