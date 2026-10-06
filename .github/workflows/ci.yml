@@ -25,7 +25,9 @@ jobs:
       - name: Fetch JUCE and CLAP support
         run: |
           git clone --depth 1 --branch 8.0.15 https://github.com/juce-framework/JUCE JUCE
-          git clone --recurse-submodules --depth 1 https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
+          git clone --filter=blob:none --no-checkout https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
+          git -C clap-juce-extensions checkout 55525c9858d4b25687be7759a5e0f70eccef218e
+          git -C clap-juce-extensions submodule update --init --recursive --depth 1
 
       - name: Configure
         run: cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -55,7 +57,9 @@ jobs:
         shell: pwsh
         run: |
           git clone --depth 1 --branch 8.0.15 https://github.com/juce-framework/JUCE JUCE
-          git clone --recurse-submodules --depth 1 https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
+          git clone --filter=blob:none --no-checkout https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
+          git -C clap-juce-extensions checkout 55525c9858d4b25687be7759a5e0f70eccef218e
+          git -C clap-juce-extensions submodule update --init --recursive --depth 1
 
       - name: Configure
         shell: pwsh
