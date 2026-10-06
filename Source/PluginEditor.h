@@ -103,6 +103,9 @@ private:
     std::unique_ptr<juce::FileChooser> chooser;
     juce::String pendingPresetName;
 
+    bool keyboardNavigationApplied = false;
+    bool lastKeyboardNavigationState = false;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GapFillAudioProcessorEditor)
 };
 
