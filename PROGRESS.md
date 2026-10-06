@@ -36,8 +36,9 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 
 ### 2026-10-06 - keyboard navigation and host validation completion
 
-- Added opt-in keyboard navigation that preserves the existing host-safe default: the editor itself still does not request keyboard focus, while buttons, sliders and combo boxes become Tab-focusable only when the user enables the preference.
+- Added opt-in keyboard navigation: controls are non-focusable by default, while buttons, sliders and combo boxes become Tab-focusable only when the user enables the preference. The JUCE wrapper now permits keyboard events so the opt-in mode can actually function in VST3 hosts; the editor root itself remains non-focusable.
 - Keyboard Navigation is persisted in project state, exposed in Options, documented in Help, and regression-tested. The test requires at least 20 interactive descendants to become focusable while the editor root remains non-focusable.
+- Added a visible 2 px keyboard-focus ring to custom sliders, combos, buttons and toggles, plus explicit JUCE accessibility titles/descriptions/help text for parameter controls. Regression coverage rejects unnamed focusable controls.
 - Added a full processor-path MIDI Learn regression: a CC enters through processBlock(), completes learning through the processor timer path, and a later CC drives the learned parameter.
 - Added a JUCE AudioDeviceManager/AudioDeviceSelectorComponent smoke test to exercise the standalone device-settings UI construction without requiring physical hardware.
 - CI now builds VST3, CLAP and Standalone on Linux and Windows, validates VST3 with pluginval strictness 10, validates CLAP with clap-validator, and smoke-launches the real standalone process for five seconds.
