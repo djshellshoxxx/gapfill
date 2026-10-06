@@ -164,7 +164,12 @@ void GapFillAudioProcessor::timerCallback()
         setLatencySamples (wanted);
 
     // Applies CC moves and completed learns on the thread that owns them.
-    if (midiLearn.applyPendingChanges())
+    // MIDI learn is intentionally bounded so the plugin cannot stay armed
+    // indefinitely after the context menu closes.
+    const bool learnChanged = midiLearn.applyPendingChanges();
+    const bool learnTimedOut = midiLearn.advanceLearningTimeout();
+
+    if (learnChanged || learnTimedOut)
         updateHostDisplay();
 }
 
