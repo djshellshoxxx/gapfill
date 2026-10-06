@@ -113,6 +113,39 @@ GF_TEST (Plugin, silence_in_stays_finite_and_silent)
 }
 
 //==============================================================================
+GF_TEST (Plugin, reset_clears_published_meter_and_status_state)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, true);
+
+    auto& meters = proc.getMeterState();
+    meters.inputLevel.store (0.8f);
+    meters.outputLevel.store (0.7f);
+    meters.wetLevel.store (0.6f);
+    meters.confidence.store (0.9f);
+    meters.bandConf0.store (0.5f);
+    meters.bandConf1.store (0.4f);
+    meters.bandConf2.store (0.3f);
+    meters.activeVoices.store (2);
+    meters.currentAlgo.store ((int) Algo::Granular);
+    meters.sidechainConnected.store (true);
+    meters.sidechainRequested.store (true);
+
+    proc.reset();
+
+    GF_EXPECT_NEAR (meters.inputLevel.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.outputLevel.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.wetLevel.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.confidence.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.bandConf0.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.bandConf1.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.bandConf2.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT (meters.activeVoices.load() == 0);
+    GF_EXPECT (meters.currentAlgo.load() == -1);
+    GF_EXPECT (! meters.sidechainConnected.load());
+    GF_EXPECT (! meters.sidechainRequested.load());
+}
+
 GF_TEST (Plugin, input_meter_measures_live_input_before_lookahead_delay)
 {
     constexpr double sr = 48000.0;
