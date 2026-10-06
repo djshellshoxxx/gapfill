@@ -74,12 +74,26 @@ public:
 
     /** Options-page settings. These are UI preferences rather than
         parameters, so they live in the plugin state but are not automatable. */
-    bool isTooltipsEnabled() const noexcept              { return tooltipsEnabled; }
-    void setTooltipsEnabled (bool shouldBeOn) noexcept   { tooltipsEnabled = shouldBeOn; }
+    bool isTooltipsEnabled() const noexcept
+    {
+        return tooltipsEnabled.load (std::memory_order_relaxed);
+    }
+    void setTooltipsEnabled (bool shouldBeOn) noexcept
+    {
+        tooltipsEnabled.store (shouldBeOn, std::memory_order_relaxed);
+    }
 
     /** Editor size persistence. */
-    juce::Point<int> getSavedEditorSize() const noexcept { return savedEditorSize; }
-    void setSavedEditorSize (juce::Point<int> size) noexcept { savedEditorSize = size; }
+    juce::Point<int> getSavedEditorSize() const noexcept
+    {
+        return { savedEditorWidth.load (std::memory_order_relaxed),
+                 savedEditorHeight.load (std::memory_order_relaxed) };
+    }
+    void setSavedEditorSize (juce::Point<int> size) noexcept
+    {
+        savedEditorWidth.store (size.x, std::memory_order_relaxed);
+        savedEditorHeight.store (size.y, std::memory_order_relaxed);
+    }
 
     //==========================================================================
     // Test-facing accessors
@@ -147,8 +161,9 @@ private:
 
     std::atomic<int> currentProgram { 0 }; 
     std::atomic<bool> programChangeInProgress { false };
-    juce::Point<int> savedEditorSize { 1100, 700 };
-    bool tooltipsEnabled = true;
+    std::atomic<int> savedEditorWidth { 1100 };
+    std::atomic<int> savedEditorHeight { 700 };
+    std::atomic<bool> tooltipsEnabled { true };
 
     juce::Random randomSource;
     std::atomic<int> latencyToReport { 0 };
