@@ -100,6 +100,9 @@ public:
     const FillEngine& getFillEngine() const noexcept  { return engine; }
     const AnalysisEngine& getAnalysis() const noexcept { return analysis; }
     int getActiveLatencySamples() const noexcept { return meters.latencySamples.load(); }
+   #ifdef GAPFILL_UNIT_TESTS
+    void flushLatencyReportForTests() { timerCallback(); }
+   #endif
 
 private:
     void timerCallback() override;
