@@ -798,6 +798,57 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
         copyXmlToBinary (*xml, destData);
 }
 
+bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state) const
+{
+    if (! state.isValid() || ! state.hasType (apvts.state.getType()))
+        return false;
+
+    juce::StringArray seenKnownParameters;
+
+    for (int i = 0; i < state.getNumChildren(); ++i)
+    {
+        const auto child = state.getChild (i);
+        const auto id = child.getProperty ("id").toString();
+
+        if (id.isEmpty() || apvts.getParameter (id) == nullptr)
+            continue; // forward-compatible unknown metadata/parameters
+
+        if (seenKnownParameters.contains (id))
+            return false;
+
+        seenKnownParameters.add (id);
+
+        if (! child.hasProperty ("value"))
+            return false;
+
+        const auto value = child.getProperty ("value");
+
+        if (! (value.isDouble() || value.isInt() || value.isInt64() || value.isBool()))
+            return false;
+
+        const auto normalised = (double) value;
+
+        if (! std::isfinite (normalised) || normalised < 0.0 || normalised > 1.0)
+            return false;
+    }
+
+    return true;
+}
+
+bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state)
+{
+    if (! isParameterStateValid (state))
+        return false;
+
+    programChangeInProgress.store (true, std::memory_order_relaxed);
+    apvts.replaceState (state.createCopy());
+    currentProgram.store (-1, std::memory_order_relaxed);
+    programChangeInProgress.store (false, std::memory_order_relaxed);
+    updateHostDisplay();
+    return true;
+}
+
+//==============================================================================
 void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     auto xml = getXmlFromBinary (data, sizeInBytes);
@@ -836,14 +887,14 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         paramState = root;
     }
 
-    if (! paramState.isValid() || ! paramState.hasType (apvts.state.getType()))
+    if (! isParameterStateValid (paramState))
         return;
 
     // Missing parameters keep their current value, so state written by an older
     // version still loads. Suppress the parameter listener while replacing the
     // whole tree so the restored program identity is preserved.
     programChangeInProgress.store (true, std::memory_order_relaxed);
-    apvts.replaceState (paramState);
+    apvts.replaceState (paramState.createCopy());
     currentProgram.store (restoredProgram, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
 
