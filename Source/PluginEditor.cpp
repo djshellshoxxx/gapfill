@@ -207,9 +207,17 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
         proc.setTooltipsEnabled (on);
         applyTooltipSetting();
     };
+
+    optionsView.onReducedMotionChanged = [this] (bool on)
+    {
+        proc.setReducedMotionEnabled (on);
+        gapfill::setReducedMotionEnabled (on);
+    };
+
     addChildComponent (optionsView);
 
     applyTooltipSetting();
+    gapfill::setReducedMotionEnabled (proc.isReducedMotionEnabled());
 
     // ---- A/B snapshots -----------------------------------------------------
     slotA = proc.getValueTreeState().copyState().createCopy();
@@ -478,7 +486,7 @@ void GapFillAudioProcessorEditor::doOpen()
 
 void GapFillAudioProcessorEditor::showOptions()
 {
-    optionsView.refresh (proc.isTooltipsEnabled());
+    optionsView.refresh (proc.isTooltipsEnabled(), proc.isReducedMotionEnabled());
     optionsView.setVisible (true);
     optionsView.toFront (false);
     optionsView.resized();
@@ -581,6 +589,10 @@ void GapFillAudioProcessorEditor::timerCallback()
     }
 
     mixPanel.setStatusText (status);
+
+    // Keep the control animation policy in sync with project-state restores
+    // that may occur while this editor is already open.
+    gapfill::setReducedMotionEnabled (proc.isReducedMotionEnabled());
 }
 
 //==============================================================================
@@ -687,7 +699,7 @@ void GapFillAudioProcessorEditor::resized()
         helpView.resized();
 
     // The options page is a small panel rather than a full overlay.
-    optionsView.setBounds (juce::Rectangle<int> (480, 300)
+    optionsView.setBounds (juce::Rectangle<int> (500, 380)
                              .withCentre (getLocalBounds().getCentre()));
 }
 
