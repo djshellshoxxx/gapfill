@@ -245,6 +245,9 @@ HelpContent::HelpContent()
     entry ("Reduced Motion", "disables knob/value easing, hover fades and short action flashes. "
                              "Meters and the gap visualizer remain live because they communicate "
                              "signal state.");
+    entry ("Keyboard Navigation", "is off by default so opening GapFill does not capture DAW shortcuts. "
+                                  "Enable it to use Tab / Shift+Tab between controls, arrow keys on "
+                                  "sliders and menus, and Space/Return on buttons.");
     entry ("Hover Tooltips", "can be turned off globally without changing the sound.");
 
     //--------------------------------------------------------------------------
