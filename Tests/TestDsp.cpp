@@ -640,3 +640,99 @@ GF_TEST (FillEngine, minimum_gap_prevents_fills_in_short_spaces)
                    "a 300 ms minimum gap must block every 60 ms space, got "
                      + juce::String (withLongMinGap) + " fills");
 }
+
+
+//==============================================================================
+GF_TEST (AnalysisEngine, protect_hold_delays_gap_confidence_after_a_hit)
+{
+    constexpr double sr = 48000.0;
+    constexpr int hop = AnalysisEngine::hopSize;
+
+    auto confidenceAfter80ms = [] (float protectHoldMs)
+    {
+        LaneDetector lane;
+        lane.prepare (sr, hop);
+        lane.configure (DetMode::Transient);
+
+        AnalysisSettings settings;
+        settings.mode = DetMode::Transient;
+        settings.sensitivity01 = 1.0f;
+        settings.gapThresh01 = 1.0f;
+        settings.protectHoldMs = protectHoldMs;
+        settings.retrigGuardMs = 5.0f;
+        settings.gapReleaseMs = 5.0f;
+
+        bool sawEvent = false;
+        const int hops = (int) std::ceil (0.080 * sr / hop);
+
+        for (int h = 0; h < hops; ++h)
+        {
+            for (int i = 0; i < hop; ++i)
+                lane.pushSample (h == 0 && i == 0 ? 1.0f : 0.0f);
+
+            lane.updateHop (settings, 0.0f);
+            sawEvent = sawEvent || lane.eventThisHop;
+        }
+
+        GF_EXPECT (sawEvent);
+        return lane.conf;
+    };
+
+    const auto noHold = confidenceAfter80ms (0.0f);
+    const auto longHold = confidenceAfter80ms (200.0f);
+
+    GF_EXPECT_MSG (noHold > longHold + 0.30f,
+                   "protectHold did not materially delay gap confidence: "
+                     + juce::String (noHold) + " vs " + juce::String (longHold));
+}
+
+GF_TEST (AnalysisEngine, retrigger_guard_suppresses_close_transients)
+{
+    constexpr double sr = 48000.0;
+    constexpr int hop = AnalysisEngine::hopSize;
+    constexpr int secondHitSample = 1440; // 30 ms at 48 kHz
+
+    auto countEvents = [] (float retrigGuardMs)
+    {
+        LaneDetector lane;
+        lane.prepare (sr, hop);
+        lane.configure (DetMode::Transient);
+
+        AnalysisSettings settings;
+        settings.mode = DetMode::Transient;
+        settings.sensitivity01 = 1.0f;
+        settings.gapThresh01 = 0.6f;
+        settings.protectHoldMs = 0.0f;
+        settings.retrigGuardMs = retrigGuardMs;
+        settings.gapReleaseMs = 10.0f;
+
+        int eventCount = 0;
+        constexpr int totalSamples = 3200;
+
+        for (int base = 0; base < totalSamples; base += hop)
+        {
+            for (int i = 0; i < hop; ++i)
+            {
+                const auto sample = base + i;
+                lane.pushSample (sample == 0 || sample == secondHitSample ? 1.0f : 0.0f);
+            }
+
+            lane.updateHop (settings, 0.0f);
+
+            if (lane.eventThisHop)
+                ++eventCount;
+        }
+
+        return eventCount;
+    };
+
+    const auto shortGuard = countEvents (5.0f);
+    const auto longGuard = countEvents (100.0f);
+
+    GF_EXPECT_MSG (shortGuard >= 2,
+                   "short retrigger guard missed the second transient: "
+                     + juce::String (shortGuard));
+    GF_EXPECT_MSG (longGuard == 1,
+                   "long retrigger guard should suppress the second transient: "
+                     + juce::String (longGuard));
+}
