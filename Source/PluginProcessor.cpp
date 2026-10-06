@@ -178,8 +178,17 @@ void GapFillAudioProcessor::timerCallback()
         updateHostDisplay();
 }
 
-void GapFillAudioProcessor::parameterChanged (const juce::String&, float)
+void GapFillAudioProcessor::parameterChanged (const juce::String& parameterID, float newValue)
 {
+    if (parameterID == "lookahead")
+    {
+        const auto wanted = juce::jlimit (0, maxLookaheadSamples > 0 ? maxLookaheadSamples
+                                                                     : (int) std::ceil (kMaxLookaheadSeconds * currentSampleRate) + 8,
+                                           (int) std::round ((double) newValue * 0.001 * currentSampleRate));
+        latencyToReport.store (wanted, std::memory_order_relaxed);
+        meters.latencySamples.store (wanted, std::memory_order_relaxed);
+    }
+
     if (! programChangeInProgress.load (std::memory_order_relaxed))
         currentProgram.store (-1, std::memory_order_relaxed);
 }
