@@ -1130,10 +1130,8 @@ GF_TEST (Editor, standalone_audio_midi_device_selector_constructs)
     GF_EXPECT (selector.getHeight() == 420);
 
     // Enumeration is environment dependent (CI commonly has no physical
-    // device), but constructing the selector exercises the exact JUCE device
-    // UI class used by the standalone wrapper.
-    auto deviceTypes = devices.getAvailableDeviceTypes();
-    GF_EXPECT (deviceTypes.size() >= 0);
+    // device), but the selector must build its actual interactive device UI.
+    GF_EXPECT (selector.getNumChildComponents() > 0);
 }
 
 GF_TEST (Editor, opens_and_closes_repeatedly_without_leaking_state)
