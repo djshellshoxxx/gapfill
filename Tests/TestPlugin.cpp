@@ -1154,6 +1154,31 @@ GF_TEST (Editor, midi_mappings_survive_a_state_round_trip)
                      + ", total mappings " + juce::String (learn.getNumMappings()));
 }
 
+GF_TEST (Editor, midi_learn_times_out_and_can_be_cancelled)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    auto& learn = proc.getMidiLearnManager();
+
+    learn.startLearning ("wet");
+    GF_EXPECT (learn.isLearning());
+    GF_EXPECT (learn.getLearningParameterID() == "wet");
+
+    for (int i = 0; i < MidiLearnManager::learningTimeoutTicks - 1; ++i)
+        GF_EXPECT (! learn.advanceLearningTimeout());
+
+    GF_EXPECT (learn.isLearning());
+    GF_EXPECT (learn.advanceLearningTimeout());
+    GF_EXPECT (! learn.isLearning());
+    GF_EXPECT (learn.getLearningParameterID().isEmpty());
+
+    learn.startLearning ("dry");
+    GF_EXPECT (learn.isLearning());
+    learn.stopLearning();
+    GF_EXPECT (! learn.isLearning());
+}
+
 GF_TEST (Editor, midi_cc_flood_keeps_the_latest_controller_value)
 {
     GapFillAudioProcessor proc;
