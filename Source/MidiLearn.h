@@ -85,8 +85,14 @@ private:
     std::vector<juce::RangedAudioParameter*> parameters;
 
     std::array<std::atomic<int>, numCCs> ccToParam;
+    std::array<std::atomic<int>, numCCs> pendingParamIndex;
+    std::array<std::atomic<float>, numCCs> pendingValue;
+    std::array<std::atomic<bool>, numCCs> pendingDirty;
     std::atomic<int> learnTarget { -1 };
 
+    // The FIFO is only for completed learn events. Normal mapped CC traffic is
+    // coalesced per controller above, so a dense automation burst cannot lose
+    // the newest value merely because the message thread has not drained yet.
     juce::AbstractFifo fifo { fifoSize };
     std::array<Event, fifoSize> events {};
 
