@@ -42,8 +42,8 @@ jobs:
       - name: Configure
         run: cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build tests, VST3 and CLAP
-        run: cmake --build build-ci --target GapFillTests GapFill_VST3 GapFill_CLAP -- -j2
+      - name: Build tests, VST3, CLAP and Standalone
+        run: cmake --build build-ci --target GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone -- -j2
 
       - name: Run tests
         run: xvfb-run -a build-ci/artefacts/GapFillTests
@@ -55,7 +55,29 @@ jobs:
           PLUGINVAL=$(find pluginval-bin -type f -name pluginval | head -n 1)
           test -n "$PLUGINVAL"
           chmod +x "$PLUGINVAL"
-          xvfb-run -a "$PLUGINVAL" --strictness-level 5 --validate build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3
+          VST3=$(find build-ci -type d -name 'GapFill.vst3' | head -n 1)
+          test -n "$VST3"
+          xvfb-run -a "$PLUGINVAL" --strictness-level 10 --validate "$VST3"
+
+      - name: Validate CLAP with clap-validator
+        run: |
+          cargo install clap-validator --locked
+          CLAP=$(find build-ci -type f -name 'GapFill.clap' | head -n 1)
+          test -n "$CLAP"
+          clap-validator validate --only-failed "$CLAP"
+
+      - name: Smoke-launch standalone
+        run: |
+          STANDALONE=$(find build-ci/artefacts -type f -name 'GapFill' -perm -111 | head -n 1)
+          test -n "$STANDALONE"
+          set +e
+          timeout 5s xvfb-run -a "$STANDALONE"
+          code=$?
+          set -e
+          if [ "$code" -ne 124 ]; then
+            echo "Standalone exited before the 5-second smoke window (exit $code)"
+            exit 1
+          fi
 
   windows:
     needs: preflight
@@ -76,10 +98,43 @@ jobs:
         shell: pwsh
         run: cmake -S . -B build-ci -G "Visual Studio 17 2022" -A x64
 
-      - name: Build tests, VST3 and CLAP
+      - name: Build tests, VST3, CLAP and Standalone
         shell: pwsh
-        run: cmake --build build-ci --config Release --target GapFillTests GapFill_VST3 GapFill_CLAP -- /m:2
+        run: cmake --build build-ci --config Release --target GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone -- /m:2
 
       - name: Run tests
         shell: pwsh
         run: .\build-ci\artefacts\Release\GapFillTests.exe
+
+      - name: Validate VST3 with pluginval
+        shell: pwsh
+        run: |
+          Invoke-WebRequest "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip" -OutFile pluginval.zip
+          Expand-Archive pluginval.zip -DestinationPath pluginval-bin
+          $pluginval = Get-ChildItem pluginval-bin -Recurse -Filter pluginval.exe | Select-Object -First 1
+          if (-not $pluginval) { throw "pluginval.exe not found" }
+          $vst3 = Get-ChildItem build-ci -Recurse -Directory -Filter GapFill.vst3 | Select-Object -First 1
+          if (-not $vst3) { throw "GapFill.vst3 not found" }
+          & $pluginval.FullName --strictness-level 10 --validate $vst3.FullName
+          if ($LASTEXITCODE -ne 0) { throw "pluginval failed with exit code $LASTEXITCODE" }
+
+      - name: Validate CLAP with clap-validator
+        shell: pwsh
+        run: |
+          cargo install clap-validator --locked
+          $clap = Get-ChildItem build-ci -Recurse -File -Filter GapFill.clap | Select-Object -First 1
+          if (-not $clap) { throw "GapFill.clap not found" }
+          clap-validator validate --only-failed $clap.FullName
+          if ($LASTEXITCODE -ne 0) { throw "clap-validator failed with exit code $LASTEXITCODE" }
+
+      - name: Smoke-launch standalone
+        shell: pwsh
+        run: |
+          $standalone = Get-ChildItem build-ci\artefacts -Recurse -File -Filter GapFill.exe | Select-Object -First 1
+          if (-not $standalone) { throw "GapFill.exe not found" }
+          $process = Start-Process $standalone.FullName -PassThru
+          Start-Sleep -Seconds 5
+          if ($process.HasExited) {
+            throw "Standalone exited before the 5-second smoke window with code $($process.ExitCode)"
+          }
+          Stop-Process -Id $process.Id -Force
