@@ -217,7 +217,15 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     setResizeLimits (kMinWidth, kMinHeight, 2600, 1800);
     setSize (juce::jmax (kMinWidth, saved.x), juce::jmax (kMinHeight, saved.y));
 
-    presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
+    if (proc.getCurrentPresetName() == "Custom")
+    {
+        presetBox.setSelectedId (0, juce::dontSendNotification);
+        presetBox.setText ("Custom", juce::dontSendNotification);
+    }
+    else
+    {
+        presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
+    }
 
     startTimerHz (24);
 }
