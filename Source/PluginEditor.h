@@ -27,6 +27,12 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
 
+   #ifdef GAPFILL_UNIT_TESTS
+    void applyKeyboardNavigationSettingForTests() { applyKeyboardNavigationSetting(); }
+    int getKeyboardFocusableControlCountForTests() const;
+    int getUnnamedKeyboardFocusableControlCountForTests() const;
+   #endif
+
 private:
     enum class Tab { Creative = 0, Weights, Spectral };
 
@@ -44,6 +50,7 @@ private:
     void doOpen();
     void showOptions();
     void applyTooltipSetting();
+    void applyKeyboardNavigationSetting();
     void toggleAB();
     void copyToOtherSlot();
     static juce::File userPresetDirectory();
@@ -96,6 +103,9 @@ private:
     juce::File currentPresetFile;
     std::unique_ptr<juce::FileChooser> chooser;
     juce::String pendingPresetName;
+
+    bool keyboardNavigationApplied = false;
+    bool lastKeyboardNavigationState = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GapFillAudioProcessorEditor)
 };

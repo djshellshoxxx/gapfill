@@ -4,6 +4,9 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+#include <juce_audio_devices/juce_audio_devices.h>
+#include <juce_audio_utils/juce_audio_utils.h>
+
 using namespace gapfill;
 using namespace gftest;
 
@@ -1113,6 +1116,27 @@ GF_TEST (Plugin, sample_rate_and_block_size_changes_are_safe)
 }
 
 //==============================================================================
+GF_TEST (Editor, standalone_audio_midi_device_selector_constructs)
+{
+    juce::AudioDeviceManager devices;
+
+    juce::AudioDeviceSelectorComponent selector (devices,
+                                                 0, 2,
+                                                 0, 2,
+                                                 true,
+                                                 true,
+                                                 true,
+                                                 false);
+    selector.setSize (640, 420);
+
+    GF_EXPECT (selector.getWidth() == 640);
+    GF_EXPECT (selector.getHeight() == 420);
+
+    // Enumeration is environment dependent (CI commonly has no physical
+    // device), but the selector must build its actual interactive device UI.
+    GF_EXPECT (selector.getNumChildComponents() > 0);
+}
+
 GF_TEST (Editor, opens_and_closes_repeatedly_without_leaking_state)
 {
     GapFillAudioProcessor proc;
@@ -1292,6 +1316,49 @@ GF_TEST (Editor, midi_learn_times_out_and_can_be_cancelled)
     GF_EXPECT (! learn.isLearning());
 }
 
+GF_TEST (Editor, midi_learn_works_through_the_processor_midi_path)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    auto& learn = proc.getMidiLearnManager();
+    learn.startLearning ("wet");
+
+    juce::AudioBuffer<float> audio (2, 512);
+    audio.clear();
+
+    juce::MidiBuffer learnMidi;
+    learnMidi.addEvent (juce::MidiMessage::controllerEvent (1, 74, 96), 12);
+    proc.processBlock (audio, learnMidi);
+
+    // The processor's message-thread timer owns learned mapping/parameter
+    // application. The unit-test hook calls that exact path.
+    proc.flushLatencyReportForTests();
+
+    GF_EXPECT (! learn.isLearning());
+    GF_EXPECT (learn.getMappedCC ("wet") == 74);
+
+    auto* wet = proc.getValueTreeState().getParameter ("wet");
+    GF_EXPECT (wet != nullptr);
+
+    if (wet != nullptr)
+    {
+        const auto before = wet->getValue();
+
+        juce::MidiBuffer controlMidi;
+        controlMidi.addEvent (juce::MidiMessage::controllerEvent (1, 74, 19), 24);
+        audio.clear();
+        proc.processBlock (audio, controlMidi);
+        proc.flushLatencyReportForTests();
+
+        const auto rawExpected = 19.0f / 127.0f;
+        const auto expected = wet->convertTo0to1 (wet->convertFrom0to1 (rawExpected));
+
+        GF_EXPECT (std::abs (wet->getValue() - before) > 1.0e-4f);
+        GF_EXPECT_NEAR (wet->getValue(), expected, 1.0e-6f);
+    }
+}
+
 GF_TEST (Editor, midi_cc_flood_keeps_the_latest_controller_value)
 {
     GapFillAudioProcessor proc;
@@ -1338,6 +1405,26 @@ GF_TEST (Editor, reduced_motion_disables_nonessential_slider_easing)
     setReducedMotionEnabled (false);
 }
 
+GF_TEST (Editor, keyboard_navigation_is_opt_in_and_reaches_interactive_controls)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    GF_EXPECT (! proc.isKeyboardNavigationEnabled());
+
+    GapFillAudioProcessorEditor editor (proc);
+    GF_EXPECT (editor.getKeyboardFocusableControlCountForTests() == 0);
+
+    proc.setKeyboardNavigationEnabled (true);
+    editor.applyKeyboardNavigationSettingForTests();
+
+    GF_EXPECT_MSG (editor.getKeyboardFocusableControlCountForTests() >= 20,
+                   "too few controls participate in keyboard traversal");
+    GF_EXPECT_MSG (editor.getUnnamedKeyboardFocusableControlCountForTests() == 0,
+                   "one or more keyboard-focusable controls have no accessible name");
+    GF_EXPECT (! editor.getWantsKeyboardFocus());
+}
+
 GF_TEST (Editor, reset_and_randomise_behave)
 {
     GapFillAudioProcessor proc;
@@ -1379,6 +1466,7 @@ GF_TEST (Plugin, persisted_ui_metadata_round_trips_and_clamps)
     source.setSavedEditorSize ({ 1450, 910 });
     source.setTooltipsEnabled (false);
     source.setReducedMotionEnabled (true);
+    source.setKeyboardNavigationEnabled (true);
 
     juce::MemoryBlock saved;
     source.getStateInformation (saved);
@@ -1389,6 +1477,7 @@ GF_TEST (Plugin, persisted_ui_metadata_round_trips_and_clamps)
     GF_EXPECT (restored.getSavedEditorSize() == juce::Point<int> (1450, 910));
     GF_EXPECT (! restored.isTooltipsEnabled());
     GF_EXPECT (restored.isReducedMotionEnabled());
+    GF_EXPECT (restored.isKeyboardNavigationEnabled());
 
     auto xml = juce::AudioProcessor::getXmlFromBinary (saved.getData(), (int) saved.getSize());
     GF_EXPECT (xml != nullptr);

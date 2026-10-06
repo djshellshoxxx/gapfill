@@ -26,6 +26,9 @@ public:
     /** Called with the new state whenever reduced motion is toggled. */
     std::function<void (bool)> onReducedMotionChanged;
 
+    /** Called when keyboard navigation is enabled or disabled. */
+    std::function<void (bool)> onKeyboardNavigationChanged;
+
     /** Called when the user asks for the audio/MIDI device panel. Left unset by
         the plugin builds, where the host owns the devices - the button then
         explains that rather than disappearing. */
@@ -34,7 +37,7 @@ public:
     std::function<void()> onClose;
 
     /** Pushes the current values in without firing the callbacks. */
-    void refresh (bool tooltipsEnabled, bool reducedMotionEnabled);
+    void refresh (bool tooltipsEnabled, bool reducedMotionEnabled, bool keyboardNavigationEnabled);
 
 private:
     void updateDeviceRow();
@@ -44,6 +47,9 @@ private:
 
     juce::ToggleButton reducedMotionToggle { "Reduce nonessential motion" };
     juce::Label        reducedMotionHint;
+
+    juce::ToggleButton keyboardNavigationToggle { "Enable keyboard navigation" };
+    juce::Label        keyboardNavigationHint;
 
     juce::TextButton   deviceButton { "AUDIO / MIDI SETTINGS..." };
     juce::Label        deviceHint;

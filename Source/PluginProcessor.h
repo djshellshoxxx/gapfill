@@ -108,6 +108,15 @@ public:
         reducedMotionEnabled.store (shouldReduce, std::memory_order_relaxed);
     }
 
+    bool isKeyboardNavigationEnabled() const noexcept
+    {
+        return keyboardNavigationEnabled.load (std::memory_order_relaxed);
+    }
+    void setKeyboardNavigationEnabled (bool shouldEnable) noexcept
+    {
+        keyboardNavigationEnabled.store (shouldEnable, std::memory_order_relaxed);
+    }
+
     /** Editor size persistence. */
     juce::Point<int> getSavedEditorSize() const noexcept
     {
@@ -194,6 +203,7 @@ private:
     std::atomic<int> savedEditorHeight { 700 };
     std::atomic<bool> tooltipsEnabled { true };
     std::atomic<bool> reducedMotionEnabled { false };
+    std::atomic<bool> keyboardNavigationEnabled { false };
 
     juce::Random randomSource;
     std::atomic<int> latencyToReport { 0 };

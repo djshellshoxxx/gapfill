@@ -91,7 +91,10 @@ juce_add_plugin(GapFill
     NEEDS_MIDI_INPUT        TRUE
     NEEDS_MIDI_OUTPUT       FALSE
     IS_MIDI_EFFECT          FALSE
-    EDITOR_WANTS_KEYBOARD_FOCUS FALSE
+    # The wrapper must allow keyboard events so the persisted opt-in
+    # Keyboard Navigation mode can function. The editor and every interactive
+    # child remain non-focusable by default until the user enables that mode.
+    EDITOR_WANTS_KEYBOARD_FOCUS TRUE
     COPY_PLUGIN_AFTER_BUILD FALSE
     ICON_BIG                "${CMAKE_CURRENT_SOURCE_DIR}/Resources/icon.png"
     ICON_SMALL              "${CMAKE_CURRENT_SOURCE_DIR}/Resources/icon_small.png"

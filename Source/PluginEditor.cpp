@@ -32,6 +32,75 @@ namespace
 
     constexpr int kFactoryOffset = 1;
     constexpr int kUserOffset    = 1000;
+
+    bool isKeyboardInteractive (const juce::Component& component)
+    {
+        return dynamic_cast<const juce::Button*> (&component) != nullptr
+            || dynamic_cast<const juce::Slider*> (&component) != nullptr
+            || dynamic_cast<const juce::ComboBox*> (&component) != nullptr;
+    }
+
+    void setKeyboardFocusRecursively (juce::Component& root, bool enabled)
+    {
+        for (int i = 0; i < root.getNumChildComponents(); ++i)
+        {
+            if (auto* child = root.getChildComponent (i))
+            {
+                if (isKeyboardInteractive (*child))
+                    child->setWantsKeyboardFocus (enabled);
+
+                setKeyboardFocusRecursively (*child, enabled);
+            }
+        }
+    }
+
+    int countKeyboardFocusableRecursively (const juce::Component& root)
+    {
+        int count = 0;
+
+        for (int i = 0; i < root.getNumChildComponents(); ++i)
+        {
+            if (auto* child = root.getChildComponent (i))
+            {
+                if (isKeyboardInteractive (*child) && child->getWantsKeyboardFocus())
+                    ++count;
+
+                count += countKeyboardFocusableRecursively (*child);
+            }
+        }
+
+        return count;
+    }
+
+    bool hasAccessibleControlName (const juce::Component& component)
+    {
+        if (auto* button = dynamic_cast<const juce::Button*> (&component))
+            return button->getButtonText().isNotEmpty()
+                || component.getTitle().isNotEmpty()
+                || component.getName().isNotEmpty();
+
+        return component.getTitle().isNotEmpty();
+    }
+
+    int countUnnamedKeyboardFocusableRecursively (const juce::Component& root)
+    {
+        int count = 0;
+
+        for (int i = 0; i < root.getNumChildComponents(); ++i)
+        {
+            if (auto* child = root.getChildComponent (i))
+            {
+                if (isKeyboardInteractive (*child)
+                    && child->getWantsKeyboardFocus()
+                    && ! hasAccessibleControlName (*child))
+                    ++count;
+
+                count += countUnnamedKeyboardFocusableRecursively (*child);
+            }
+        }
+
+        return count;
+    }
 }
 
 //==============================================================================
@@ -48,6 +117,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 {
     setLookAndFeel (&lookAndFeel);
     setWantsKeyboardFocus (false);
+    setFocusContainerType (juce::Component::FocusContainerType::keyboardFocusContainer);
 
     // ---- top bar ----------------------------------------------------------
     logo.setText ("GAPFILL", juce::dontSendNotification);
@@ -68,6 +138,10 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     latencyLabel.setInterceptsMouseClicks (false, false);
     addAndMakeVisible (latencyLabel);
 
+    presetBox.setName ("Preset");
+    presetBox.setTitle ("Preset");
+    presetBox.setDescription ("Factory and user preset selector");
+    presetBox.setHelpText ("Choose a factory or user preset.");
     presetBox.setTooltip ("Factory and user presets. Use < and > to step through them.");
     presetBox.setWantsKeyboardFocus (false);
     presetBox.onChange = [this] { presetSelected(); };
@@ -214,10 +288,17 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
         gapfill::setReducedMotionEnabled (on);
     };
 
+    optionsView.onKeyboardNavigationChanged = [this] (bool on)
+    {
+        proc.setKeyboardNavigationEnabled (on);
+        applyKeyboardNavigationSetting();
+    };
+
     addChildComponent (optionsView);
 
     applyTooltipSetting();
     gapfill::setReducedMotionEnabled (proc.isReducedMotionEnabled());
+    applyKeyboardNavigationSetting();
 
     // ---- A/B snapshots -----------------------------------------------------
     slotA = proc.getValueTreeState().copyState().createCopy();
@@ -486,7 +567,9 @@ void GapFillAudioProcessorEditor::doOpen()
 
 void GapFillAudioProcessorEditor::showOptions()
 {
-    optionsView.refresh (proc.isTooltipsEnabled(), proc.isReducedMotionEnabled());
+    optionsView.refresh (proc.isTooltipsEnabled(),
+                         proc.isReducedMotionEnabled(),
+                         proc.isKeyboardNavigationEnabled());
     optionsView.setVisible (true);
     optionsView.toFront (false);
     optionsView.resized();
@@ -504,6 +587,38 @@ void GapFillAudioProcessorEditor::applyTooltipSetting()
         tooltips.reset();
     }
 }
+
+void GapFillAudioProcessorEditor::applyKeyboardNavigationSetting()
+{
+    const auto enabled = proc.isKeyboardNavigationEnabled();
+
+    if (keyboardNavigationApplied && enabled == lastKeyboardNavigationState)
+        return;
+
+    keyboardNavigationApplied = true;
+    lastKeyboardNavigationState = enabled;
+
+    // The editor itself deliberately remains non-focusable so opening the
+    // plugin cannot steal DAW shortcuts. Users who opt in get focus traversal
+    // only across actual interactive controls.
+    setWantsKeyboardFocus (false);
+    setKeyboardFocusRecursively (*this, enabled);
+
+    // Overlay controls are included by the recursive pass even when hidden;
+    // once an overlay is shown JUCE's normal Tab traversal can reach them.
+}
+
+#ifdef GAPFILL_UNIT_TESTS
+int GapFillAudioProcessorEditor::getKeyboardFocusableControlCountForTests() const
+{
+    return countKeyboardFocusableRecursively (*this);
+}
+
+int GapFillAudioProcessorEditor::getUnnamedKeyboardFocusableControlCountForTests() const
+{
+    return countUnnamedKeyboardFocusableRecursively (*this);
+}
+#endif
 
 //==============================================================================
 void GapFillAudioProcessorEditor::toggleAB()
@@ -593,6 +708,7 @@ void GapFillAudioProcessorEditor::timerCallback()
     // Keep the control animation policy in sync with project-state restores
     // that may occur while this editor is already open.
     gapfill::setReducedMotionEnabled (proc.isReducedMotionEnabled());
+    applyKeyboardNavigationSetting();
 }
 
 //==============================================================================
@@ -699,7 +815,7 @@ void GapFillAudioProcessorEditor::resized()
         helpView.resized();
 
     // The options page is a small panel rather than a full overlay.
-    optionsView.setBounds (juce::Rectangle<int> (500, 380)
+    optionsView.setBounds (juce::Rectangle<int> (520, 440)
                              .withCentre (getLocalBounds().getCentre()));
 }
 
