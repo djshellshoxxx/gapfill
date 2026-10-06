@@ -113,6 +113,71 @@ GF_TEST (Plugin, silence_in_stays_finite_and_silent)
 }
 
 //==============================================================================
+GF_TEST (Plugin, input_meter_measures_live_input_before_lookahead_delay)
+{
+    constexpr double sr = 48000.0;
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, sr, 512, false);
+    configure (proc, { { "lookahead", 100.0f }, { "fill", 0.0f },
+                       { "dry", 100.0f }, { "wet", 0.0f } });
+    proc.prepareToPlay (sr, 512);
+
+    juce::AudioBuffer<float> block (2, 512);
+    block.clear();
+    block.setSample (0, 0, 1.0f);
+    block.setSample (1, 0, 1.0f);
+
+    juce::MidiBuffer midi;
+    proc.processBlock (block, midi);
+
+    GF_EXPECT_MSG (proc.getMeterState().inputLevel.load() > 0.9f,
+                   "input meter followed the delayed dry path instead of the live input");
+    GF_EXPECT_MSG (maxAbs (block) < 1.0e-5f,
+                   "100 ms lookahead should keep the first block silent on the dry output");
+}
+
+GF_TEST (Plugin, output_meter_measures_signal_after_spectral_solo)
+{
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 512;
+
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, sr, blockSize, false);
+    configure (proc, { { "lookahead", 0.0f }, { "fill", 0.0f },
+                       { "dry", 100.0f }, { "wet", 0.0f },
+                       { "bandSolo", 1.0f },
+                       { "xoverLM", 250.0f }, { "xoverMH", 2500.0f } });
+    proc.prepareToPlay (sr, blockSize);
+
+    juce::AudioBuffer<float> block (2, blockSize);
+    juce::MidiBuffer midi;
+    double phase = 0.0;
+    float finalPeak = 0.0f;
+
+    for (int pass = 0; pass < 24; ++pass)
+    {
+        for (int i = 0; i < blockSize; ++i)
+        {
+            const auto v = 0.5f * std::sin ((float) phase);
+            phase += juce::MathConstants<double>::twoPi * 8000.0 / sr;
+            block.setSample (0, i, v);
+            block.setSample (1, i, v);
+        }
+
+        proc.processBlock (block, midi);
+
+        if (pass == 23)
+            finalPeak = maxAbs (block);
+    }
+
+    const auto metered = proc.getMeterState().outputLevel.load();
+    GF_EXPECT_MSG (finalPeak < 0.12f,
+                   "low-band solo did not sufficiently reject the 8 kHz test tone");
+    GF_EXPECT_MSG (std::abs (metered - finalPeak) < 0.08f,
+                   "output meter did not measure the post-solo signal: meter "
+                     + juce::String (metered) + ", actual " + juce::String (finalPeak));
+}
+
 GF_TEST (Plugin, reported_latency_matches_the_actual_dry_delay)
 {
     constexpr double sr = 48000.0;
