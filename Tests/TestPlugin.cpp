@@ -1420,6 +1420,8 @@ GF_TEST (Editor, keyboard_navigation_is_opt_in_and_reaches_interactive_controls)
 
     GF_EXPECT_MSG (editor.getKeyboardFocusableControlCountForTests() >= 20,
                    "too few controls participate in keyboard traversal");
+    GF_EXPECT_MSG (editor.getUnnamedKeyboardFocusableControlCountForTests() == 0,
+                   "one or more keyboard-focusable controls have no accessible name");
     GF_EXPECT (! editor.getWantsKeyboardFocus());
 }
 
