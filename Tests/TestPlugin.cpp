@@ -1338,6 +1338,24 @@ GF_TEST (Editor, reduced_motion_disables_nonessential_slider_easing)
     setReducedMotionEnabled (false);
 }
 
+GF_TEST (Editor, keyboard_navigation_is_opt_in_and_reaches_interactive_controls)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    GF_EXPECT (! proc.isKeyboardNavigationEnabled());
+
+    GapFillAudioProcessorEditor editor (proc);
+    GF_EXPECT (editor.getKeyboardFocusableControlCountForTests() == 0);
+
+    proc.setKeyboardNavigationEnabled (true);
+    editor.applyKeyboardNavigationSettingForTests();
+
+    GF_EXPECT_MSG (editor.getKeyboardFocusableControlCountForTests() >= 20,
+                   "too few controls participate in keyboard traversal");
+    GF_EXPECT (! editor.getWantsKeyboardFocus());
+}
+
 GF_TEST (Editor, reset_and_randomise_behave)
 {
     GapFillAudioProcessor proc;
@@ -1379,6 +1397,7 @@ GF_TEST (Plugin, persisted_ui_metadata_round_trips_and_clamps)
     source.setSavedEditorSize ({ 1450, 910 });
     source.setTooltipsEnabled (false);
     source.setReducedMotionEnabled (true);
+    source.setKeyboardNavigationEnabled (true);
 
     juce::MemoryBlock saved;
     source.getStateInformation (saved);
@@ -1389,6 +1408,7 @@ GF_TEST (Plugin, persisted_ui_metadata_round_trips_and_clamps)
     GF_EXPECT (restored.getSavedEditorSize() == juce::Point<int> (1450, 910));
     GF_EXPECT (! restored.isTooltipsEnabled());
     GF_EXPECT (restored.isReducedMotionEnabled());
+    GF_EXPECT (restored.isKeyboardNavigationEnabled());
 
     auto xml = juce::AudioProcessor::getXmlFromBinary (saved.getData(), (int) saved.getSize());
     GF_EXPECT (xml != nullptr);
