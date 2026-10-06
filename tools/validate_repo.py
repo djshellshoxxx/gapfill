@@ -75,7 +75,7 @@ def validate(root: Path) -> list[str]:
         "Standalone",
         "GapFillTests",
         "GapFill_VST3",
-        "GapFill_CLAP",
+        "clap_juce_extensions_plugin",
     ]
     for marker in required_cmake_markers:
         if marker not in cmake:
@@ -94,6 +94,7 @@ def validate(root: Path) -> list[str]:
         "python tools/validate_repo.py",
         "GapFillTests",
         "GapFill_VST3",
+        "GapFill_CLAP",
     ]
     for marker in required_ci_markers:
         if marker not in ci:
