@@ -178,6 +178,53 @@ GF_TEST (Plugin, output_meter_measures_signal_after_spectral_solo)
                      + juce::String (metered) + ", actual " + juce::String (finalPeak));
 }
 
+GF_TEST (Plugin, meter_decay_is_independent_of_host_block_size)
+{
+    constexpr double sr = 48000.0;
+    constexpr double decayWindowSeconds = 0.25;
+
+    const auto measure = [] (int blockSize)
+    {
+        constexpr double localSr = 48000.0;
+        GapFillAudioProcessor proc;
+        prepareProcessor (proc, localSr, blockSize, false);
+        configure (proc, { { "lookahead", 0.0f }, { "fill", 0.0f },
+                           { "dry", 100.0f }, { "wet", 0.0f } });
+        proc.prepareToPlay (localSr, blockSize);
+
+        juce::AudioBuffer<float> block (2, blockSize);
+        juce::MidiBuffer midi;
+
+        block.clear();
+        block.setSample (0, 0, 1.0f);
+        block.setSample (1, 0, 1.0f);
+        proc.processBlock (block, midi);
+
+        const auto silenceSamples = (int) std::round (decayWindowSeconds * localSr);
+        int processed = 0;
+
+        while (processed < silenceSamples)
+        {
+            const auto n = juce::jmin (blockSize, silenceSamples - processed);
+            juce::AudioBuffer<float> slice (2, n);
+            slice.clear();
+            proc.processBlock (slice, midi);
+            processed += n;
+        }
+
+        return proc.getMeterState().inputLevel.load();
+    };
+
+    const auto small = measure (64);
+    const auto large = measure (1024);
+
+    GF_EXPECT_MSG (small > 0.0f && large > 0.0f,
+                   "meter decayed to zero instead of following a smooth time constant");
+    GF_EXPECT_MSG (std::abs (small - large) < 0.03f,
+                   "equal elapsed time produced block-size-dependent meter decay: 64="
+                     + juce::String (small) + ", 1024=" + juce::String (large));
+}
+
 GF_TEST (Plugin, reported_latency_matches_the_actual_dry_delay)
 {
     constexpr double sr = 48000.0;
