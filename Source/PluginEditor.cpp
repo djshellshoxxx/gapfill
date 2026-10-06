@@ -33,11 +33,11 @@ namespace
     constexpr int kFactoryOffset = 1;
     constexpr int kUserOffset    = 1000;
 
-    bool isKeyboardInteractive (juce::Component& component)
+    bool isKeyboardInteractive (const juce::Component& component)
     {
-        return dynamic_cast<juce::Button*> (&component) != nullptr
-            || dynamic_cast<juce::Slider*> (&component) != nullptr
-            || dynamic_cast<juce::ComboBox*> (&component) != nullptr;
+        return dynamic_cast<const juce::Button*> (&component) != nullptr
+            || dynamic_cast<const juce::Slider*> (&component) != nullptr
+            || dynamic_cast<const juce::ComboBox*> (&component) != nullptr;
     }
 
     void setKeyboardFocusRecursively (juce::Component& root, bool enabled)
@@ -555,11 +555,19 @@ void GapFillAudioProcessorEditor::applyTooltipSetting()
 
 void GapFillAudioProcessorEditor::applyKeyboardNavigationSetting()
 {
+    const auto enabled = proc.isKeyboardNavigationEnabled();
+
+    if (keyboardNavigationApplied && enabled == lastKeyboardNavigationState)
+        return;
+
+    keyboardNavigationApplied = true;
+    lastKeyboardNavigationState = enabled;
+
     // The editor itself deliberately remains non-focusable so opening the
     // plugin cannot steal DAW shortcuts. Users who opt in get focus traversal
     // only across actual interactive controls.
     setWantsKeyboardFocus (false);
-    setKeyboardFocusRecursively (*this, proc.isKeyboardNavigationEnabled());
+    setKeyboardFocusRecursively (*this, enabled);
 
     // Overlay controls are included by the recursive pass even when hidden;
     // once an overlay is shown JUCE's normal Tab traversal can reach them.
