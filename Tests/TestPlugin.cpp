@@ -1320,6 +1320,24 @@ GF_TEST (Editor, midi_cc_flood_keeps_the_latest_controller_value)
     }
 }
 
+GF_TEST (Editor, reduced_motion_disables_nonessential_slider_easing)
+{
+    FineSlider slider;
+    slider.setRange (0.0, 1.0, 0.0);
+
+    setReducedMotionEnabled (false);
+    slider.setValue (0.25, juce::sendNotificationSync);
+    slider.snapToValue();
+    slider.setValue (0.75, juce::sendNotificationSync);
+    GF_EXPECT (slider.isAnimatingForTests());
+
+    setReducedMotionEnabled (true);
+    slider.setValue (0.10, juce::sendNotificationSync);
+    GF_EXPECT (! slider.isAnimatingForTests());
+
+    setReducedMotionEnabled (false);
+}
+
 GF_TEST (Editor, reset_and_randomise_behave)
 {
     GapFillAudioProcessor proc;
