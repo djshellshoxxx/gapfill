@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - audit-fixes-20261005
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install JUCE build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build xvfb libasound2-dev libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev \
+            libxrandr-dev libxrender-dev
+
+      - name: Fetch JUCE and CLAP support
+        run: |
+          git clone --depth 1 --branch 8.0.15 https://github.com/juce-framework/JUCE JUCE
+          git clone --filter=blob:none --no-checkout https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
+          git -C clap-juce-extensions checkout 55525c9858d4b25687be7759a5e0f70eccef218e
+          git -C clap-juce-extensions submodule update --init --recursive --depth 1
+
+      - name: Configure
+        run: cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build tests, VST3 and CLAP
+        run: cmake --build build-ci --target GapFillTests GapFill_VST3 GapFill_CLAP -- -j2
+
+      - name: Run tests
+        run: xvfb-run -a build-ci/artefacts/GapFillTests
+
+      - name: Validate VST3 with pluginval
+        run: |
+          curl -L "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Linux.zip" -o pluginval.zip
+          unzip -q pluginval.zip -d pluginval-bin
+          PLUGINVAL=$(find pluginval-bin -type f -name pluginval | head -n 1)
+          test -n "$PLUGINVAL"
+          chmod +x "$PLUGINVAL"
+          xvfb-run -a "$PLUGINVAL" --strictness-level 5 --validate build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch JUCE and CLAP support
+        shell: pwsh
+        run: |
+          git clone --depth 1 --branch 8.0.15 https://github.com/juce-framework/JUCE JUCE
+          git clone --filter=blob:none --no-checkout https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
+          git -C clap-juce-extensions checkout 55525c9858d4b25687be7759a5e0f70eccef218e
+          git -C clap-juce-extensions submodule update --init --recursive --depth 1
+
+      - name: Configure
+        shell: pwsh
+        run: cmake -S . -B build-ci -G "Visual Studio 17 2022" -A x64
+
+      - name: Build tests, VST3 and CLAP
+        shell: pwsh
+        run: cmake --build build-ci --config Release --target GapFillTests GapFill_VST3 GapFill_CLAP -- /m:2
+
+      - name: Run tests
+        shell: pwsh
+        run: .\build-ci\artefacts\Release\GapFillTests.exe
