@@ -304,10 +304,18 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     slotA = proc.getValueTreeState().copyState().createCopy();
     slotB = slotA.createCopy();
 
-    // Start every editor session with a clean visual history. Production is
-    // disabled while no editor exists, so resetting here cannot race a writer.
-    proc.getVisualisationFifo().reset();
-    proc.getVisualisationFifo().setEnabled (true);
+    // Start every editor session with a clean visual history. Drain through
+    // the FIFO's consumer API rather than resetting its indices: an audio
+    // callback that observed the previous enabled state may still be finishing
+    // one producer write while the old editor is being destroyed.
+    {
+        auto& fifo = proc.getVisualisationFifo();
+        VizFrame stale[64];
+
+        while (fifo.pop (stale, 64) > 0) {}
+
+        fifo.setEnabled (true);
+    }
 
     const auto saved = proc.getSavedEditorSize();
     setResizable (true, true);
