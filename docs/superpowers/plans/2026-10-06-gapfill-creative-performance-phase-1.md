@@ -68,8 +68,10 @@
 **Interfaces:**
 - Consumes: `creativeParameterIDs()`, `ParamCache`/APVTS ranges, current `seed` parameter.
 - Produces:
-  - `struct CreativeProfile { const char* name; std::array<ProfileOverride, N> values; int valueCount; };`
-  - `int chooseSurpriseProfileIndex (int seed, std::uint32_t sequence, int previousIndex, int profileCount) noexcept;`
+  - `inline constexpr int surpriseProfileCount = 12;`
+  - `struct CreativeProfile { const char* name; std::array<ProfileOverride, 24> values; std::uint8_t valueCount; };`
+  - `const std::array<CreativeProfile, surpriseProfileCount>& surpriseProfiles() noexcept;`
+  - `int chooseSurpriseProfileIndex (int seed, std::uint32_t sequence, int previousIndex) noexcept;`
   - `bool applySurpriseProfile (juce::AudioProcessorValueTreeState&, const CreativeProfile&);`
   - `void GapFillAudioProcessor::surpriseMe();`
 
