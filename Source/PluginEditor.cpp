@@ -71,6 +71,34 @@ namespace
 
         return count;
     }
+
+    bool hasAccessibleControlName (const juce::Component& component)
+    {
+        if (auto* button = dynamic_cast<const juce::Button*> (&component))
+            return button->getButtonText().isNotEmpty() || component.getName().isNotEmpty();
+
+        return component.getName().isNotEmpty();
+    }
+
+    int countUnnamedKeyboardFocusableRecursively (const juce::Component& root)
+    {
+        int count = 0;
+
+        for (int i = 0; i < root.getNumChildComponents(); ++i)
+        {
+            if (auto* child = root.getChildComponent (i))
+            {
+                if (isKeyboardInteractive (*child)
+                    && child->getWantsKeyboardFocus()
+                    && ! hasAccessibleControlName (*child))
+                    ++count;
+
+                count += countUnnamedKeyboardFocusableRecursively (*child);
+            }
+        }
+
+        return count;
+    }
 }
 
 //==============================================================================
@@ -108,6 +136,8 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     latencyLabel.setInterceptsMouseClicks (false, false);
     addAndMakeVisible (latencyLabel);
 
+    presetBox.setName ("Preset");
+    presetBox.setDescription ("Factory and user preset selector");
     presetBox.setTooltip ("Factory and user presets. Use < and > to step through them.");
     presetBox.setWantsKeyboardFocus (false);
     presetBox.onChange = [this] { presetSelected(); };
@@ -578,6 +608,11 @@ void GapFillAudioProcessorEditor::applyKeyboardNavigationSetting()
 int GapFillAudioProcessorEditor::getKeyboardFocusableControlCountForTests() const
 {
     return countKeyboardFocusableRecursively (*this);
+}
+
+int GapFillAudioProcessorEditor::getUnnamedKeyboardFocusableControlCountForTests() const
+{
+    return countUnnamedKeyboardFocusableRecursively (*this);
 }
 #endif
 
