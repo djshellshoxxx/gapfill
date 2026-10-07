@@ -3,7 +3,7 @@
 ;   VERSION  - display version, e.g. "0.0.1 beta"
 ;   SRCDIR   - folder holding GapFill.exe, GapFill.clap and GapFill.vst3/
 ;   OUTFILE  - installer path to write
-Unicode true
+Target amd64-unicode
 SetCompressor /SOLID lzma
 RequestExecutionLevel admin
 
