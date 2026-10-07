@@ -125,11 +125,14 @@ CreativePanel::CreativePanel (juce::AudioProcessorValueTreeState& s)
              colours::accentGreen),
       sync (s, "syncEnable", "TEMPO SYNC", "Derive stutter and delay timings from the host tempo."),
       pingPong (s, "pingPong", "PING PONG", "Alternate delay taps between left and right."),
-      monoWet (s, "wetMono", "MONO WET", "Collapse the generated material to mono for maximum mono compatibility.")
+      monoWet (s, "wetMono", "MONO WET", "Collapse the generated material to mono for maximum mono compatibility."),
+      capture (s, "capture", "CAPTURE",
+               "Freeze the source: fills keep using the audio heard when Capture was switched on, "
+               "while detection, protection and the dry signal follow the live input. Switch off to release.")
 {
     for (auto* c : std::initializer_list<juce::Component*> { &fill, &intensity, &complexity, &chaos, &density,
                                                              &fillType, &stutterDiv, &delayDiv, &seed, &width,
-                                                             &sync, &pingPong, &monoWet })
+                                                             &sync, &pingPong, &monoWet, &capture })
         addAndMakeVisible (c);
 }
 
@@ -137,7 +140,7 @@ void CreativePanel::resized()
 {
     auto b = contentArea();
 
-    layoutRow (b.removeFromBottom (24), { &sync, &pingPong, &monoWet });
+    layoutRow (b.removeFromBottom (24), { &sync, &pingPong, &monoWet, &capture });
     b.removeFromBottom (5);
 
     layoutRow (b.removeFromBottom (34), { &fillType, &stutterDiv, &delayDiv });
@@ -155,15 +158,9 @@ void CreativePanel::resized()
 WeightsPanel::WeightsPanel (juce::AudioProcessorValueTreeState& s)
     : PanelBase ("Auto Algorithm Weights", colours::accentWarm), state (s)
 {
-    static const char* ids[numAlgos] =
-    {
-        "wReverse", "wStutter", "wDelay", "wGranular", "wFreeze", "wPitchRise", "wPitchFall",
-        "wFilter", "wTexture", "wCrush", "wDistort", "wScramble", "wSpectral", "wComb"
-    };
-
     for (int i = 0; i < numAlgos; ++i)
     {
-        auto* bar = bars.add (new GapBar (s, ids[i], algoName ((Algo) i),
+        auto* bar = bars.add (new GapBar (s, algoWeightID ((Algo) i), algoName ((Algo) i),
                                           juce::String ("How often AUTO may choose ") + algoName ((Algo) i)
                                             + ". Set to 0 to disable it completely.",
                                           colours::accentWarm));
@@ -186,20 +183,20 @@ WeightsPanel::WeightsPanel (juce::AudioProcessorValueTreeState& s)
     allOn.onClick = [this]
     {
         for (int i = 0; i < numAlgos; ++i)
-            if (auto* p = state.getParameter (juce::String (ids[i])))
+            if (auto* p = state.getParameter (algoWeightID ((Algo) i)))
                 p->setValueNotifyingHost (0.6f);
     };
 
     allOff.onClick = [this]
     {
         for (int i = 0; i < numAlgos; ++i)
-            if (auto* p = state.getParameter (juce::String (ids[i])))
+            if (auto* p = state.getParameter (algoWeightID ((Algo) i)))
                 p->setValueNotifyingHost (0.0f);
     };
 
     drumsOnly.onClick = [this]
     {
-        applySet ({ "wReverse", "wStutter", "wDelay", "wCrush", "wDistort", "wScramble" });
+        applySet ({ "wReverse", "wStutter", "wDelay", "wCrush", "wDistort", "wScramble", "wTapeStop" });
     };
 
     texturesOnly.onClick = [this]
@@ -210,15 +207,9 @@ WeightsPanel::WeightsPanel (juce::AudioProcessorValueTreeState& s)
 
 void WeightsPanel::applySet (const juce::StringArray& enabled)
 {
-    static const char* ids[numAlgos] =
-    {
-        "wReverse", "wStutter", "wDelay", "wGranular", "wFreeze", "wPitchRise", "wPitchFall",
-        "wFilter", "wTexture", "wCrush", "wDistort", "wScramble", "wSpectral", "wComb"
-    };
-
     for (int i = 0; i < numAlgos; ++i)
-        if (auto* p = state.getParameter (juce::String (ids[i])))
-            p->setValueNotifyingHost (enabled.contains (ids[i]) ? 0.75f : 0.0f);
+        if (auto* p = state.getParameter (algoWeightID ((Algo) i)))
+            p->setValueNotifyingHost (enabled.contains (algoWeightID ((Algo) i)) ? 0.75f : 0.0f);
 }
 
 void WeightsPanel::resized()

@@ -3,7 +3,7 @@
 Tracks where the project stands against `include.md` (required features) and
 `theme.md` (visual identity spec). Update this at the end of every work session.
 
-Version: 1.0.0 · Type: audio **effect** (not an instrument)
+Version: 0.0.1 beta · Type: audio **effect** (not an instrument)
 
 ## include.md checklist
 
@@ -33,6 +33,19 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 | Version in 9px muted mono, bottom-right | **Done** — `footerBounds()` reserves a 12px strip. |
 
 ## Session log
+
+### 2026-10-07 - full audit, four new features, v0.0.1 beta release
+
+- Merged the two unmerged branches (`full-audit-fixes-20261006`, `codex/gapfill-creative-features-spec`) and removed every stale branch.
+- **Bugs fixed:** `saveParameterStateToFile()` was `const` but called non-const `copyState()` - the merged audit branch did not compile. `isParameterStateValid()` required 0..1 values, but APVTS stores real units and XML returns strings, so almost every saved session and `.gapfill` file was rejected; it now parses numbers and checks each parameter's real range. The 15 weight sliders had no accessible title. CI installed `clap-validator` from crates.io, where it does not exist; it now installs from git. Removed the obsolete `JUCE_DISPLAY_SPLASH_SCREEN` define and a sign-conversion warning.
+- **Usability - UNDO:** 32-step undo for Random, Random All, Surprise, Reset, preset changes and file loads.
+- **Value - CAPTURE:** new automatable `capture` parameter latches the fill source history while detection, protection and the dry path stay live. Engages only after 0.5 s of history; `EngineSettings::historyOffset` keeps source anchors aligned after release.
+- **Fun - SURPRISE:** eight curated creative profiles with seeded variation; never repeats the previous profile; never touches detector, protection, lanes, latency or mix.
+- **Random effect - Tape Stop:** new algorithm (index 14, `wTapeStop` weight appended), decelerating replay with speed-tracking low-pass and chaos wow.
+- Weight IDs now come from one `algoWeightID()` table instead of four hand-copied lists.
+- Tests: 88 (3 new), all passing on Linux. pluginval strictness 10 and clap-validator run against the Linux builds.
+- Windows binaries cross-compiled with clang-cl 22 + lld-link and the MSVC static CRT; installer built with NSIS. GitHub Actions on this repository has been failing within seconds with no logs since 2026-10-06 (an account-level Actions problem), so CI could not produce them.
+
 
 ### 2026-10-06 - creative performance Phase 1 started
 

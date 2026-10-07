@@ -72,6 +72,7 @@ private:
     FlashButton copyButton { "COPY" };
     FlashButton randomButton { "RANDOM" }, randomAllButton { "RANDOM ALL" };
     FlashButton resetButton { "RESET" }, helpButton { "HELP" };
+    FlashButton surpriseButton { "SURPRISE" }, undoButton { "UNDO" };
     // A ParamButton rather than a TextButton so bypass gets the same
     // right-click menu - and so it can be mapped to a CC - as every other
     // parameter-backed control.

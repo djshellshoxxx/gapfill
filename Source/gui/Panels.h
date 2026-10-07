@@ -50,7 +50,7 @@ private:
     GapKnob fill, intensity, complexity, chaos, density;
     GapCombo fillType, stutterDiv, delayDiv;
     GapKnob seed, width;
-    GapToggle sync, pingPong, monoWet;
+    GapToggle sync, pingPong, monoWet, capture;
 };
 
 //==============================================================================

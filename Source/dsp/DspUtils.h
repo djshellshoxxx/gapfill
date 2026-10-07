@@ -403,7 +403,7 @@ public:
     bool isEmpty() const noexcept { return head == tail; }
 
 private:
-    std::int64_t data[Capacity] {};
+    std::int64_t data[(std::size_t) Capacity] {};
     int head = 0, tail = 0;
 };
 

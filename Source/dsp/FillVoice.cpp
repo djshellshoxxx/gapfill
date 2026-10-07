@@ -222,6 +222,9 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
         // The resonator is excited by the hit that opened the gap, so its slice
         // has to reach back far enough to still contain that hit.
         case Algo::Comb:     needed = setup.sinceEventSamples + (int) (sr * 0.05); break;
+        // Tape Stop plays forward from the hit; it travels at most one
+        // fill-length of material while decelerating.
+        case Algo::TapeStop: needed = juce::jmax (setup.sinceEventSamples, totalLength) + (int) (sr * 0.01); break;
         case Algo::Granular: needed = 256; break;            // grains read the history directly
         case Algo::Texture:  needed = 256; break;            // synthesised, no source slice
         default: break;
@@ -584,6 +587,22 @@ void FillVoice::configureAlgorithm()
             break;
         }
 
+        case Algo::TapeStop:
+        {
+            // Higher intensity brakes harder: the platter loses speed early.
+            tapeCurve = lerp (0.7f, 2.6f, intensity) * (1.0f + chaos * rng.nextBipolar() * 0.2f);
+            tapeWow = chaos * 0.012f;
+            tapeWowPhase = rng.nextFloat();
+
+            // Average speed over the fill is 1 / (curve + 1); start where that
+            // much material still lies ahead, preferring the opening hit.
+            const auto travel = (double) totalLength / (1.0 + (double) tapeCurve);
+            tapePos = juce::jlimit (0.0, juce::jmax (0.0, (double) captureLength - 2.0),
+                                    juce::jmin ((double) sliceOffset, (double) captureLength - travel));
+            tapeLpL = tapeLpR = 0.0f;
+            break;
+        }
+
         case Algo::NumAlgos:
         default:
             break;
@@ -640,6 +659,7 @@ void FillVoice::generateSample (float& left, float& right, const SourceHistory& 
         case Algo::Scramble:  genScramble (l, r); break;
         case Algo::Spectral:  genSpectral (l, r); break;
         case Algo::Comb:      genComb (l, r); break;
+        case Algo::TapeStop:  genTapeStop (l, r); break;
         case Algo::NumAlgos:
         default: break;
     }
@@ -875,6 +895,29 @@ void FillVoice::genPitch (float& l, float& r) noexcept
 
     while (playPos >= (double) freezeLen)
         playPos -= (double) freezeLen;
+}
+
+void FillVoice::genTapeStop (float& l, float& r) noexcept
+{
+    const auto t = totalLength > 1 ? (float) elapsed / (float) (totalLength - 1) : 1.0f;
+    const auto speed = std::pow (juce::jmax (0.0f, 1.0f - t), tapeCurve);
+
+    l = readCapture (0, tapePos);
+    r = readCapture (1, tapePos);
+
+    // The capstan loses high end as it slows, like a real deck running down.
+    const auto cutoff = juce::jlimit (60.0f, (float) (sr * 0.45), 180.0f + 17000.0f * speed * speed);
+    const auto a = 1.0f - std::exp (-juce::MathConstants<float>::twoPi * cutoff / (float) sr);
+    tapeLpL += a * (l - tapeLpL);
+    tapeLpR += a * (r - tapeLpR);
+    l = tapeLpL;
+    r = tapeLpR;
+
+    tapeWowPhase += 5.5f / (float) sr;
+    tapeWowPhase -= std::floor (tapeWowPhase);
+    const auto wow = 1.0f + tapeWow * std::sin (juce::MathConstants<float>::twoPi * tapeWowPhase);
+
+    tapePos = juce::jmin ((double) (captureLength - 1), tapePos + (double) (speed * wow));
 }
 
 void FillVoice::genFilter (float& l, float& r) noexcept

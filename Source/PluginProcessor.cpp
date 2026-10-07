@@ -14,6 +14,7 @@ namespace
     constexpr double kMaxLookaheadSeconds = 0.25;
     constexpr double kHistorySeconds      = 6.0;
     constexpr int    kSidechainSilenceSeconds = 3;
+    constexpr double kCaptureMinSeconds = 0.5;   // history needed before Capture can latch
 }
 
 //==============================================================================
@@ -165,6 +166,7 @@ void GapFillAudioProcessor::reset()
     meters.currentAlgo.store (-1);
     meters.sidechainConnected.store (false);
     meters.sidechainRequested.store (false);
+    meters.captureActive.store (false);
 
     lastPpqPosition = 0.0;
     lastTransportPlaying = false;
@@ -492,7 +494,16 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     }
 
     // ---- history + analysis ---------------------------------------------
-    history.write (mainBuffer, 0, numSamples);
+    // Capture latches the fill source by pausing the history writer. It only
+    // engages once enough material exists, so a restored or early latch can
+    // never leave the fills reading silence.
+    const auto captureReady = history.getWritePosition() >= (std::int64_t) (kCaptureMinSeconds * currentSampleRate);
+    const bool captureHeld = pb (params.capture) && captureReady;
+
+    if (! captureHeld)
+        history.write (mainBuffer, 0, numSamples);
+
+    meters.captureActive.store (captureHeld, std::memory_order_relaxed);
 
     const auto analysisSettings = gatherAnalysisSettings (sidechainActive);
     analysis.processBlock (monoMain.data(), sidechainActive ? monoSide.data() : nullptr,
@@ -517,6 +528,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
     auto engineSettings = gatherEngineSettings();
     engineSettings.sidechainActive = sidechainActive;
+    engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
 
     if (bypassed)
@@ -803,12 +815,14 @@ juce::String GapFillAudioProcessor::getCurrentPresetName() const
 
 void GapFillAudioProcessor::selectPreset (int index)
 {
+    pushUndoSnapshot();
     setCurrentProgram (index);
     updateHostDisplay();
 }
 
 void GapFillAudioProcessor::resetAllParameters()
 {
+    pushUndoSnapshot();
     programChangeInProgress.store (true, std::memory_order_relaxed);
     resetToDefaults (apvts);
     currentProgram.store (0, std::memory_order_relaxed);
@@ -818,8 +832,38 @@ void GapFillAudioProcessor::resetAllParameters()
 
 void GapFillAudioProcessor::randomise (bool everything)
 {
+    pushUndoSnapshot();
     randomiseParameters (apvts, everything, randomSource);
+    currentProgram.store (-1, std::memory_order_relaxed);
     updateHostDisplay();
+}
+
+juce::String GapFillAudioProcessor::surprise()
+{
+    pushUndoSnapshot();
+    juce::String name;
+    lastSurpriseProfile = surpriseParameters (apvts, randomSource, lastSurpriseProfile, name);
+    currentProgram.store (-1, std::memory_order_relaxed);
+    updateHostDisplay();
+    return name;
+}
+
+void GapFillAudioProcessor::pushUndoSnapshot()
+{
+    undoStack.push_back (apvts.copyState().createCopy());
+
+    if ((int) undoStack.size() > maxUndoSteps)
+        undoStack.erase (undoStack.begin());
+}
+
+bool GapFillAudioProcessor::undo()
+{
+    if (undoStack.empty())
+        return false;
+
+    auto snapshot = std::move (undoStack.back());
+    undoStack.pop_back();
+    return applyParameterState (snapshot);
 }
 
 //==============================================================================
@@ -863,15 +907,40 @@ bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state)
         if (! child.hasProperty ("value"))
             return false;
 
+        // APVTS stores real-unit (denormalised) values, and values that have
+        // been through XML come back as strings, so parse rather than type-check.
         const auto value = child.getProperty ("value");
+        double real = 0.0;
 
-        if (! (value.isDouble() || value.isInt() || value.isInt64() || value.isBool()))
+        if (value.isDouble() || value.isInt() || value.isInt64() || value.isBool())
+        {
+            real = (double) value;
+        }
+        else if (value.isString())
+        {
+            const auto text = value.toString().trim();
+
+            if (text.isEmpty() || ! text.containsOnly ("0123456789+-.eE"))
+                return false;
+
+            real = text.getDoubleValue();
+        }
+        else
+        {
+            return false;
+        }
+
+        if (! std::isfinite (real))
             return false;
 
-        const auto normalised = (double) value;
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (apvts.getParameter (id)))
+        {
+            const auto& range = ranged->getNormalisableRange();
+            const auto tolerance = 1.0e-4 * juce::jmax (1.0, (double) (range.end - range.start));
 
-        if (! std::isfinite (normalised) || normalised < 0.0 || normalised > 1.0)
-            return false;
+            if (real < (double) range.start - tolerance || real > (double) range.end + tolerance)
+                return false;
+        }
     }
 
     return true;
@@ -890,7 +959,7 @@ bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state)
     return true;
 }
 
-bool GapFillAudioProcessor::saveParameterStateToFile (const juce::File& file, juce::String& error) const
+bool GapFillAudioProcessor::saveParameterStateToFile (const juce::File& file, juce::String& error)
 {
     error.clear();
 
@@ -950,6 +1019,9 @@ bool GapFillAudioProcessor::loadParameterStateFromFile (const juce::File& file, 
     }
 
     auto tree = juce::ValueTree::fromXml (*xml);
+
+    if (isParameterStateValid (tree))
+        pushUndoSnapshot();
 
     if (! applyParameterState (tree))
     {

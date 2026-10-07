@@ -106,6 +106,7 @@ struct MeterState
     std::atomic<int>   latencySamples { 0 };
     std::atomic<bool>  sidechainConnected { false };
     std::atomic<bool>  sidechainRequested { false };
+    std::atomic<bool>  captureActive { false };
 };
 
 } // namespace gapfill

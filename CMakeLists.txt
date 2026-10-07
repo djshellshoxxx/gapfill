@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(GapFill VERSION 1.0.0 LANGUAGES C CXX)
+project(GapFill VERSION 0.0.1 LANGUAGES C CXX)
+set(GAPFILL_RELEASE_STAGE "beta")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -67,13 +68,20 @@ set(GAPFILL_DEFS
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
-    JUCE_DISPLAY_SPLASH_SCREEN=0
     JUCE_REPORT_APP_USAGE=0
     JUCE_STRICT_REFCOUNTEDPOINTER=1
     JUCE_MODAL_LOOPS_PERMITTED=0
     _USE_MATH_DEFINES=1
-    GAPFILL_VERSION="${PROJECT_VERSION}"
+    GAPFILL_VERSION="${PROJECT_VERSION} ${GAPFILL_RELEASE_STAGE}"
 )
+
+# A cross-compiled build cannot run the VST3 manifest helper on the build
+# machine. moduleinfo.json is optional for hosts, so it is skipped there only.
+if (CMAKE_CROSSCOMPILING)
+    set(GAPFILL_VST3_AUTO_MANIFEST FALSE)
+else()
+    set(GAPFILL_VST3_AUTO_MANIFEST TRUE)
+endif()
 
 # ---------------------------------------------------------------------------
 # Plugin target
@@ -96,6 +104,7 @@ juce_add_plugin(GapFill
     # child remain non-focusable by default until the user enables that mode.
     EDITOR_WANTS_KEYBOARD_FOCUS TRUE
     COPY_PLUGIN_AFTER_BUILD FALSE
+    VST3_AUTO_MANIFEST      ${GAPFILL_VST3_AUTO_MANIFEST}
     ICON_BIG                "${CMAKE_CURRENT_SOURCE_DIR}/Resources/icon.png"
     ICON_SMALL              "${CMAKE_CURRENT_SOURCE_DIR}/Resources/icon_small.png"
 )

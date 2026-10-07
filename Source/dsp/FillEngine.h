@@ -52,6 +52,11 @@ struct EngineSettings
     double samplesPerBeat  = 0.0;
     bool   transportValid  = false;
     bool   sidechainActive = false;
+
+    /** Output position minus source-history position. Zero while the history
+        follows the input; it grows while Capture holds the history frozen so
+        fills keep reading the latched material. */
+    std::int64_t historyOffset = 0;
 };
 
 //==============================================================================

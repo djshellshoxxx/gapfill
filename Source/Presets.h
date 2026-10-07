@@ -36,4 +36,17 @@ int randomiseParameters (juce::AudioProcessorValueTreeState& state,
                          bool everything,
                          juce::Random& random);
 
+/** Number of curated "Surprise Me" profiles. */
+int getNumSurpriseProfiles() noexcept;
+
+/** Applies one curated, coherent creative profile with seeded variation.
+    Only creative settings change: detector, protection, latency, spectral
+    lanes and mix are preserved. Never picks `previousProfile` again, so
+    consecutive presses always change character. Returns the profile index
+    and writes its display name into `name`. */
+int surpriseParameters (juce::AudioProcessorValueTreeState& state,
+                        juce::Random& random,
+                        int previousProfile,
+                        juce::String& name);
+
 } // namespace gapfill

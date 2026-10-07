@@ -1,4 +1,5 @@
 #include "Presets.h"
+#include <algorithm>
 
 namespace gapfill
 {
@@ -246,13 +247,8 @@ int randomiseParameters (juce::AudioProcessorValueTreeState& state,
         {
             int enabled = 0;
 
-            static const char* weightIDs[] = { "wReverse", "wStutter", "wDelay", "wGranular",
-                                               "wFreeze", "wPitchRise", "wPitchFall", "wFilter",
-                                               "wTexture", "wCrush", "wDistort", "wScramble",
-                                               "wSpectral", "wComb" };
-
-            for (const char* weightID : weightIDs)
-                if (auto* w = state.getParameter (weightID))
+            for (int i = 0; i < numAlgos; ++i)
+                if (auto* w = state.getParameter (algoWeightID ((Algo) i)))
                     if (w->getValue() > 0.05f)
                         ++enabled;
 
@@ -279,6 +275,121 @@ int randomiseParameters (juce::AudioProcessorValueTreeState& state,
     }
 
     return newSeed;
+}
+
+//==============================================================================
+namespace
+{
+    struct Range { float lo, hi; };
+
+    /** A coherent creative direction: macro windows plus the algorithms that
+        carry it. Everything not listed gets a low background weight so Auto
+        always has a fallback for gaps the core algorithms do not fit. */
+    struct SurpriseProfile
+    {
+        const char* name;
+        Range fill, intensity, complexity, chaos, density;
+        std::vector<Algo> core;
+        std::vector<int> divisions;   // candidate stutter/delay divisions
+        Range width;
+    };
+
+    const std::vector<SurpriseProfile>& surpriseProfiles()
+    {
+        using D = Division;
+        static const std::vector<SurpriseProfile> profiles =
+        {
+            { "Subtle Sparkle",  { 0.30f, 0.50f }, { 0.25f, 0.45f }, { 0.20f, 0.40f }, { 0.05f, 0.25f }, { 0.40f, 0.60f },
+              { Algo::Reverse, Algo::Delay, Algo::Filter },
+              { (int) D::Eighth, (int) D::Sixteenth, (int) D::EighthD }, { 110.0f, 150.0f } },
+            { "Drum Edits",      { 0.55f, 0.80f }, { 0.45f, 0.70f }, { 0.35f, 0.60f }, { 0.20f, 0.45f }, { 0.60f, 0.85f },
+              { Algo::Stutter, Algo::Reverse, Algo::Scramble, Algo::TapeStop },
+              { (int) D::Sixteenth, (int) D::ThirtySecond, (int) D::SixteenthT }, { 80.0f, 120.0f } },
+            { "Glitch Storm",    { 0.70f, 0.95f }, { 0.65f, 0.90f }, { 0.60f, 0.90f }, { 0.55f, 0.85f }, { 0.75f, 1.00f },
+              { Algo::Stutter, Algo::Crush, Algo::Scramble, Algo::Distort },
+              { (int) D::ThirtySecond, (int) D::SixteenthT, (int) D::Sixteenth }, { 100.0f, 180.0f } },
+            { "Dub Echoes",      { 0.40f, 0.65f }, { 0.35f, 0.60f }, { 0.25f, 0.50f }, { 0.10f, 0.35f }, { 0.45f, 0.70f },
+              { Algo::Delay, Algo::Filter, Algo::Comb },
+              { (int) D::EighthD, (int) D::QuarterT, (int) D::Eighth }, { 130.0f, 190.0f } },
+            { "Ambient Haze",    { 0.40f, 0.70f }, { 0.30f, 0.55f }, { 0.55f, 0.85f }, { 0.20f, 0.45f }, { 0.40f, 0.65f },
+              { Algo::Granular, Algo::Freeze, Algo::Spectral, Algo::Texture },
+              { (int) D::Quarter, (int) D::Eighth, (int) D::QuarterD }, { 140.0f, 200.0f } },
+            { "Pitch Bender",    { 0.45f, 0.75f }, { 0.50f, 0.80f }, { 0.35f, 0.65f }, { 0.25f, 0.55f }, { 0.50f, 0.75f },
+              { Algo::PitchRise, Algo::PitchFall, Algo::TapeStop, Algo::Reverse },
+              { (int) D::Sixteenth, (int) D::Eighth }, { 90.0f, 140.0f } },
+            { "Industrial Grit", { 0.55f, 0.85f }, { 0.70f, 0.95f }, { 0.40f, 0.70f }, { 0.30f, 0.60f }, { 0.60f, 0.90f },
+              { Algo::Distort, Algo::Crush, Algo::Comb, Algo::Stutter },
+              { (int) D::Sixteenth, (int) D::ThirtySecond }, { 70.0f, 110.0f } },
+            { "Tape Breakdown",  { 0.50f, 0.80f }, { 0.45f, 0.75f }, { 0.30f, 0.55f }, { 0.15f, 0.40f }, { 0.55f, 0.80f },
+              { Algo::TapeStop, Algo::Reverse, Algo::Filter, Algo::Delay },
+              { (int) D::Eighth, (int) D::Sixteenth, (int) D::EighthT }, { 90.0f, 130.0f } },
+        };
+
+        return profiles;
+    }
+
+    void setReal (juce::AudioProcessorValueTreeState& state, const juce::String& id, float value)
+    {
+        if (auto* p = state.getParameter (id))
+            p->setValueNotifyingHost (p->convertTo0to1 (value));
+    }
+
+    float pick (juce::Random& random, Range r) { return r.lo + random.nextFloat() * (r.hi - r.lo); }
+}
+
+int getNumSurpriseProfiles() noexcept
+{
+    return (int) surpriseProfiles().size();
+}
+
+int surpriseParameters (juce::AudioProcessorValueTreeState& state,
+                        juce::Random& random,
+                        int previousProfile,
+                        juce::String& name)
+{
+    const auto& profiles = surpriseProfiles();
+    const auto count = (int) profiles.size();
+
+    auto index = random.nextInt (count);
+
+    if (index == previousProfile)
+        index = (index + 1 + random.nextInt (count - 1)) % count;
+
+    const auto& prof = profiles[(size_t) index];
+    name = prof.name;
+
+    setReal (state, "fill",       100.0f * pick (random, prof.fill));
+    setReal (state, "intensity",  100.0f * pick (random, prof.intensity));
+    setReal (state, "complexity", 100.0f * pick (random, prof.complexity));
+    setReal (state, "chaos",      100.0f * pick (random, prof.chaos));
+    setReal (state, "density",    100.0f * pick (random, prof.density));
+    setReal (state, "width",      pick (random, prof.width));
+    setReal (state, "fillType",   kAuto);
+
+    for (int i = 0; i < numAlgos; ++i)
+    {
+        const auto isCore = std::find (prof.core.begin(), prof.core.end(), (Algo) i) != prof.core.end();
+        setReal (state, algoWeightID ((Algo) i),
+                 isCore ? 65.0f + random.nextFloat() * 35.0f : random.nextFloat() * 12.0f);
+    }
+
+    const auto div = [&] { return (float) prof.divisions[(size_t) random.nextInt ((int) prof.divisions.size())]; };
+    setReal (state, "stutterDiv", div());
+    setReal (state, "delayDiv",   div());
+    setReal (state, "pingPong",   random.nextBool() ? 1.0f : 0.0f);
+
+    if (auto* seedParam = state.getParameter ("seed"))
+    {
+        const auto current = (int) std::lround (seedParam->convertFrom0to1 (seedParam->getValue()));
+        int newSeed;
+
+        do { newSeed = random.nextInt ({ 0, 10000 }); }
+        while (newSeed == current);
+
+        seedParam->setValueNotifyingHost (seedParam->convertTo0to1 ((float) newSeed));
+    }
+
+    return index;
 }
 
 } // namespace gapfill

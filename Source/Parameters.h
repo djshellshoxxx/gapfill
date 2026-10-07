@@ -18,12 +18,15 @@ enum class DetSource { Main = 0, Sidechain, Hybrid, NumSources };
 enum class Algo
 {
     Reverse = 0, Stutter, Delay, Granular, Freeze, PitchRise, PitchFall,
-    Filter, Texture, Crush, Distort, Scramble, Spectral, Comb, NumAlgos
+    Filter, Texture, Crush, Distort, Scramble, Spectral, Comb, TapeStop, NumAlgos
 };
 
 inline constexpr int numAlgos = (int) Algo::NumAlgos;
 
 const char* algoName (Algo a) noexcept;
+
+/** The stable auto-weight parameter id for an algorithm. */
+const char* algoWeightID (Algo a) noexcept;
 
 /** Tempo divisions used by the sync options. */
 enum class Division
@@ -86,6 +89,7 @@ juce::StringArray divisionNames();
     X (wScramble,     "wScramble") \
     X (wSpectral,     "wSpectral") \
     X (wComb,         "wComb") \
+    X (wTapeStop,     "wTapeStop") \
     /* ---- protection ---- */ \
     X (protTrans,     "protTrans") \
     X (protLow,       "protLow") \
@@ -112,7 +116,9 @@ juce::StringArray divisionNames();
     X (dry,           "dry") \
     X (wet,           "wet") \
     X (output,        "output") \
-    X (bypass,        "bypass")
+    X (bypass,        "bypass") \
+    /* ---- performance (appended; ids are permanent) ---- */ \
+    X (capture,       "capture")
 
 //==============================================================================
 /** Cached raw-value pointers so the audio thread never touches the ValueTree. */
@@ -142,6 +148,7 @@ struct ParamCache
         algoWeights[(int) Algo::Scramble]  = wScramble;
         algoWeights[(int) Algo::Spectral]  = wSpectral;
         algoWeights[(int) Algo::Comb]      = wComb;
+        algoWeights[(int) Algo::TapeStop]  = wTapeStop;
     }
 
     std::atomic<float>* algoWeights[numAlgos] {};

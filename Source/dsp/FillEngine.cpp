@@ -32,6 +32,7 @@ namespace
         /* Scramble  */ {  55.0f, 250.0f, 0.65f, 0.80f },
         /* Spectral  */ { 180.0f, 700.0f, 0.85f, 0.15f },
         /* Comb      */ {  80.0f, 400.0f, 0.60f, 0.50f },
+        /* TapeStop  */ {  90.0f, 350.0f, 0.30f, 0.75f },
     };
 
     constexpr float kEnterGapConf = 0.55f;
@@ -442,7 +443,8 @@ bool FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blockStartPos
     setup.intensity01  = s.intensity01;
     setup.complexity01 = s.complexity01;
     setup.chaos01      = s.chaos01;
-    setup.sourceAnchor = history.getWritePosition() > 0 ? outputPos : 0;
+    setup.sourceAnchor = juce::jlimit ((std::int64_t) 0, history.getWritePosition(),
+                                       outputPos - s.historyOffset);
     setup.sinceEventSamples = (int) juce::jlimit ((std::int64_t) 0, (std::int64_t) (sr * 0.3),
                                                   outputPos - lastEventPos);
     setup.band = band;

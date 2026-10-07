@@ -154,6 +154,14 @@ HelpContent::HelpContent()
                              "material. Only one spectral fill runs at a time to bound CPU use.");
     entry ("Comb", "a short tuned resonance excited by the captured audio. It decays inside the gap "
                    "instead of ringing forever.");
+    entry ("Tape Stop", "replays the hit that opened the gap while the virtual tape deck brakes to a "
+                        "halt, losing speed, pitch and top end. Intensity sets how hard it brakes; "
+                        "Chaos adds a little wow.");
+    entry ("CAPTURE", "(Creative panel) freezes the fill source. While it is on, every fill is "
+                      "built from the audio heard at the moment you pressed it, even as the track "
+                      "moves on - detection, protection and the dry signal keep following the live "
+                      "input. Turn it off to release. It needs half a second of audio before it can "
+                      "latch, and it is automatable and MIDI-learnable for live performance.");
 
     //--------------------------------------------------------------------------
     heading ("Auto algorithm weights");
@@ -212,6 +220,13 @@ HelpContent::HelpContent()
                      "algorithm weights and a new seed that is guaranteed to differ from the "
                      "previous one. Detector settings and mix levels are left alone.");
     entry ("RANDOM ALL", "also randomises detection and protection within safe musical ranges.");
+    entry ("SURPRISE", "jumps to one of eight curated creative profiles - Subtle Sparkle, Drum "
+                       "Edits, Glitch Storm, Dub Echoes, Ambient Haze, Pitch Bender, Industrial Grit "
+                       "or Tape Breakdown - with fresh variation each time and never the same profile "
+                       "twice in a row. Unlike RANDOM, the result is always coherent; detector, "
+                       "protection and mix are untouched.");
+    entry ("UNDO", "steps back through the last 32 whole-sound changes: RANDOM, RANDOM ALL, "
+                   "SURPRISE, RESET, preset changes and file loads.");
     entry ("RESET", "returns every parameter to its default value.");
     body ("Randomising never touches Dry, Wet, Output, Lookahead or Bypass, so it cannot produce a "
           "dangerous level or an unexpected latency change.");

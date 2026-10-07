@@ -71,7 +71,7 @@ public:
 
     /** Saves a portable .gapfill parameter tree. Returns false and a
         user-facing reason on failure. */
-    bool saveParameterStateToFile (const juce::File& file, juce::String& error) const;
+    bool saveParameterStateToFile (const juce::File& file, juce::String& error);
 
     /** Loads a portable .gapfill parameter tree with bounded file size and
         atomic validation. Returns false and a user-facing reason on failure. */
@@ -88,6 +88,22 @@ public:
     /** Randomises creative (or, with `everything`, a wider) parameter set.
         Always produces a different result from the previous press. */
     void randomise (bool everything);
+
+    /** Applies a curated "Surprise Me" profile (see surpriseParameters) and
+        returns its name. Never repeats the previous profile. */
+    juce::String surprise();
+
+    //==========================================================================
+    // Undo history for whole-sound actions (Random, Surprise, Reset, preset
+    // changes and file loads). Message thread only.
+    static constexpr int maxUndoSteps = 32;
+
+    /** Records the current sound so the next big action can be undone. */
+    void pushUndoSnapshot();
+    bool canUndo() const noexcept { return ! undoStack.empty(); }
+    int  getUndoDepth() const noexcept { return (int) undoStack.size(); }
+    /** Restores the sound from before the most recent big action. */
+    bool undo();
 
     juce::String getCurrentPresetName() const;
     void selectPreset (int index);
@@ -138,6 +154,7 @@ public:
     const FillEngine& getFillEngine() const noexcept  { return engine; }
     const AnalysisEngine& getAnalysis() const noexcept { return analysis; }
     int getActiveLatencySamples() const noexcept { return meters.latencySamples.load(); }
+    std::int64_t getSourceHistoryWritePosition() const noexcept { return history.getWritePosition(); }
    #ifdef GAPFILL_UNIT_TESTS
     void flushLatencyReportForTests() { timerCallback(); }
    #endif
@@ -210,6 +227,8 @@ private:
     std::atomic<bool> keyboardNavigationEnabled { false };
 
     juce::Random randomSource;
+    int lastSurpriseProfile = -1;
+    std::vector<juce::ValueTree> undoStack;
     std::atomic<int> latencyToReport { 0 };
     std::atomic<bool> prepared { false };
 
