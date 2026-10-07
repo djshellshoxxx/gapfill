@@ -545,6 +545,8 @@ GapBar::GapBar (juce::AudioProcessorValueTreeState& s,
     slider.setSliderStyle (juce::Slider::LinearHorizontal);
     slider.setTextBoxStyle (juce::Slider::NoTextBox, true, 0, 0);
     slider.setName (displayName);
+    slider.setTitle (displayName);
+    slider.setHelpText (tooltip);
     slider.setDescription (tooltip);
     slider.setColour (juce::Slider::thumbColourId, accent);
     slider.setTooltip (tooltip);

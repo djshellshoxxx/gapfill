@@ -61,7 +61,7 @@ jobs:
 
       - name: Validate CLAP with clap-validator
         run: |
-          cargo install clap-validator --locked
+          cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
           CLAP=$(find build-ci -type f -name 'GapFill.clap' | head -n 1)
           test -n "$CLAP"
           clap-validator validate --only-failed "$CLAP"
@@ -121,7 +121,7 @@ jobs:
       - name: Validate CLAP with clap-validator
         shell: pwsh
         run: |
-          cargo install clap-validator --locked
+          cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
           $clap = Get-ChildItem build-ci -Recurse -File -Filter GapFill.clap | Select-Object -First 1
           if (-not $clap) { throw "GapFill.clap not found" }
           clap-validator validate --only-failed $clap.FullName

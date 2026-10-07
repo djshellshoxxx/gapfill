@@ -3,7 +3,7 @@
 Tracks where the project stands against `include.md` (required features) and
 `theme.md` (visual identity spec). Update this at the end of every work session.
 
-Version: 1.0.0 · Type: audio **effect** (not an instrument)
+Version: 0.0.1 beta · Type: audio **effect** (not an instrument)
 
 ## include.md checklist
 
@@ -33,6 +33,27 @@ Version: 1.0.0 · Type: audio **effect** (not an instrument)
 | Version in 9px muted mono, bottom-right | **Done** — `footerBounds()` reserves a 12px strip. |
 
 ## Session log
+
+### 2026-10-07 - full audit, four new features, v0.0.1 beta release
+
+- Merged the two unmerged branches (`full-audit-fixes-20261006`, `codex/gapfill-creative-features-spec`) and removed every stale branch.
+- **Bugs fixed:** `saveParameterStateToFile()` was `const` but called non-const `copyState()` - the merged audit branch did not compile. `isParameterStateValid()` required 0..1 values, but APVTS stores real units and XML returns strings, so almost every saved session and `.gapfill` file was rejected; it now parses numbers and checks each parameter's real range. The 15 weight sliders had no accessible title. CI installed `clap-validator` from crates.io, where it does not exist; it now installs from git. Removed the obsolete `JUCE_DISPLAY_SPLASH_SCREEN` define and a sign-conversion warning.
+- **Usability - UNDO:** 32-step undo for Random, Random All, Surprise, Reset, preset changes and file loads.
+- **Value - CAPTURE:** new automatable `capture` parameter latches the fill source history while detection, protection and the dry path stay live. Engages only after 0.5 s of history; `EngineSettings::historyOffset` keeps source anchors aligned after release.
+- **Fun - SURPRISE:** eight curated creative profiles with seeded variation; never repeats the previous profile; never touches detector, protection, lanes, latency or mix.
+- **Random effect - Tape Stop:** new algorithm (index 14, `wTapeStop` weight appended), decelerating replay with speed-tracking low-pass and chaos wow.
+- Weight IDs now come from one `algoWeightID()` table instead of four hand-copied lists.
+- Host-validation fixes: discrete parameters left at off-grid normalised values (a bool at 0.78) were not re-applied by `replaceState()`, failing pluginval's restore test - every load now snaps parameters to the restored state. A state load now reports a program change so CLAP hosts get a parameter-value rescan (clap-validator state-reproducibility tests). Hz parameters displayed "1.00 kHz" but parsed it back as 1 Hz - added a matching value-from-text function.
+- Results: 87 tests (5 new) pass on Linux; pluginval strictness 10 passes on the Linux VST3; clap-validator 34 passed / 0 failed on the Linux CLAP; Windows pluginval (strictness 5, run under Wine) passes on the cross-compiled Windows VST3; Windows and Linux standalones smoke-launch.
+- Windows binaries cross-compiled with clang-cl 22 + lld-link and the MSVC static CRT; installer built with NSIS. GitHub Actions on this repository has been failing within seconds with no logs since 2026-10-06 (an account-level Actions problem), so CI could not produce them.
+
+
+### 2026-10-06 - creative performance Phase 1 started
+
+- Audited the activity visualizer producer, FIFO, and paint path against the approved feature spec. The existing frame flags already distinguish event, usable gap, active fill, protected region, and lookahead; the view also labels the signal and spectral-band lanes. No inferred rejection reason is shown, so no scheduler change was needed.
+- Added `visualisation_fifo_preserves_activity_flags` to cover enabled/disabled transport and preservation of flags and representative frame values.
+- JUCE test execution is pending: this workspace has no project checkout, the GitHub shell proxy is unavailable, and the JUCE submodule is not present locally. CI evidence will be recorded separately.
+
 
 ### 2026-10-06 - keyboard navigation and host validation completion
 

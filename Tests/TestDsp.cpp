@@ -48,6 +48,43 @@ namespace
 }
 
 //==============================================================================
+GF_TEST (VisualisationFifo, visualisation_fifo_preserves_activity_flags)
+{
+    VisualisationFifo fifo;
+    VizFrame frame;
+    frame.peak = 0.91f;
+    frame.conf = 0.73f;
+    frame.energy = 0.42f;
+    frame.bandConf[0] = 0.11f;
+    frame.bandConf[1] = 0.52f;
+    frame.bandConf[2] = 0.94f;
+    frame.duck = 0.67f;
+    frame.flags = VizFrame::flagEvent | VizFrame::flagFillActive
+                 | VizFrame::flagProtected | VizFrame::flagGapEligible
+                 | VizFrame::flagLookahead;
+    frame.algo = 3;
+    frame.band = 2;
+
+    VizFrame received;
+    fifo.push (frame);
+    GF_EXPECT (fifo.pop (&received, 1) == 0);
+
+    fifo.setEnabled (true);
+    fifo.push (frame);
+    GF_EXPECT (fifo.pop (&received, 1) == 1);
+    GF_EXPECT (received.flags == frame.flags);
+    GF_EXPECT_NEAR (received.peak, frame.peak, 0.0001);
+    GF_EXPECT_NEAR (received.conf, frame.conf, 0.0001);
+    GF_EXPECT_NEAR (received.energy, frame.energy, 0.0001);
+    GF_EXPECT_NEAR (received.bandConf[0], frame.bandConf[0], 0.0001);
+    GF_EXPECT_NEAR (received.bandConf[1], frame.bandConf[1], 0.0001);
+    GF_EXPECT_NEAR (received.bandConf[2], frame.bandConf[2], 0.0001);
+    GF_EXPECT_NEAR (received.duck, frame.duck, 0.0001);
+    GF_EXPECT (received.algo == frame.algo);
+    GF_EXPECT (received.band == frame.band);
+}
+
+//==============================================================================
 GF_TEST (SourceHistory, ramp_read_is_exact_inside_window)
 {
     SourceHistory history;

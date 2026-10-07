@@ -447,12 +447,6 @@ GF_TEST (Combinatorial, algorithm_weight_pairs_in_auto_mode)
 
     auto input = makeDrumLoop (sr, 0.7, 115.0, 2);
 
-    static const char* weightIDs[numAlgos] =
-    {
-        "wReverse", "wStutter", "wDelay", "wGranular", "wFreeze", "wPitchRise", "wPitchFall",
-        "wFilter", "wTexture", "wCrush", "wDistort", "wScramble", "wSpectral", "wComb"
-    };
-
     Harness h;
     h.ensurePrepared (sr, block, false);
 
@@ -470,7 +464,7 @@ GF_TEST (Combinatorial, algorithm_weight_pairs_in_auto_mode)
             h.set ("complexity", 70.0f);
 
             for (int i = 0; i < numAlgos; ++i)
-                h.set (weightIDs[i], (i == a || i == b) ? 100.0f : 0.0f);
+                h.set (algoWeightID ((Algo) i), (i == a || i == b) ? 100.0f : 0.0f);
 
             checkRun (h, input, nullptr,
                       juce::String ("weights ") + algoName ((Algo) a) + " + " + algoName ((Algo) b));
@@ -487,7 +481,7 @@ GF_TEST (Combinatorial, algorithm_weight_pairs_in_auto_mode)
     h.set ("density", 100.0f);
 
     for (int i = 0; i < numAlgos; ++i)
-        h.set (weightIDs[i], 0.0f);
+        h.set (algoWeightID ((Algo) i), 0.0f);
 
     h.set ("dry", 0.0f);
     h.set ("wet", 100.0f);

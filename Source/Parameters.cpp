@@ -21,9 +21,22 @@ const char* algoName (Algo a) noexcept
         case Algo::Scramble:  return "Scramble";
         case Algo::Spectral:  return "Spectral Smear";
         case Algo::Comb:      return "Comb";
+        case Algo::TapeStop:  return "Tape Stop";
         case Algo::NumAlgos:
         default:              return "-";
     }
+}
+
+const char* algoWeightID (Algo a) noexcept
+{
+    static constexpr const char* ids[numAlgos] =
+    {
+        "wReverse", "wStutter", "wDelay", "wGranular", "wFreeze", "wPitchRise", "wPitchFall",
+        "wFilter", "wTexture", "wCrush", "wDistort", "wScramble", "wSpectral", "wComb", "wTapeStop"
+    };
+
+    const auto i = (int) a;
+    return i >= 0 && i < numAlgos ? ids[i] : "";
 }
 
 double divisionInBeats (int index) noexcept
@@ -98,6 +111,16 @@ namespace
                                                 if (offAtMinimum && v < 20.5f) return juce::String ("Off");
                                                 if (v >= 1000.0f)              return juce::String (v / 1000.0f, 2) + " kHz";
                                                 return juce::String (v, 0) + " Hz";
+                                            })
+                                            .withValueFromStringFunction ([offAtMinimum, lo] (const juce::String& text)
+                                            {
+                                                const auto t = text.trim();
+
+                                                if (offAtMinimum && t.equalsIgnoreCase ("off"))
+                                                    return lo;
+
+                                                const auto v = t.getFloatValue();
+                                                return t.containsIgnoreCase ("k") ? v * 1000.0f : v;
                                             }));
     }
 }
@@ -169,6 +192,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
         { "wScramble",  "Weight Scramble",   40.0f },
         { "wSpectral",  "Weight Spectral",   30.0f },
         { "wComb",      "Weight Comb",       20.0f },
+        { "wTapeStop",  "Weight Tape Stop",  30.0f },
     };
     static_assert (sizeof (weights) / sizeof (weights[0]) == (size_t) numAlgos,
                    "weight table must cover every algorithm");
@@ -213,6 +237,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
                                           { return juce::String (v, 1) + " dB"; })));
     add (std::make_unique<APB> (makeID ("bypass"), "Bypass", false));
 
+    // ---------------- performance ----------------
+    add (std::make_unique<APB> (makeID ("capture"), "Capture", false));
+
     return layout;
 }
 
@@ -230,10 +257,8 @@ juce::StringArray creativeParameterIDs()
     juce::StringArray ids { "fill", "intensity", "complexity", "chaos", "density",
                             "fillType", "seed", "stutterDiv", "delayDiv", "pingPong", "width" };
 
-    for (const char* w : { "wReverse", "wStutter", "wDelay", "wGranular", "wFreeze",
-                           "wPitchRise", "wPitchFall", "wFilter", "wTexture", "wCrush",
-                           "wDistort", "wScramble", "wSpectral", "wComb" })
-        ids.add (w);
+    for (int i = 0; i < numAlgos; ++i)
+        ids.add (algoWeightID ((Algo) i));
 
     return ids;
 }

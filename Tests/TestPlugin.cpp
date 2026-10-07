@@ -1,4 +1,6 @@
 #include "TestFramework.h"
+
+#include <map>
 #include "TestSignals.h"
 
 #include "PluginProcessor.h"
@@ -113,6 +115,151 @@ GF_TEST (Plugin, silence_in_stays_finite_and_silent)
 }
 
 //==============================================================================
+GF_TEST (Plugin, reset_clears_published_meter_and_status_state)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, true);
+
+    auto& meters = proc.getMeterState();
+    meters.inputLevel.store (0.8f);
+    meters.outputLevel.store (0.7f);
+    meters.wetLevel.store (0.6f);
+    meters.confidence.store (0.9f);
+    meters.bandConf0.store (0.5f);
+    meters.bandConf1.store (0.4f);
+    meters.bandConf2.store (0.3f);
+    meters.activeVoices.store (2);
+    meters.currentAlgo.store ((int) Algo::Granular);
+    meters.sidechainConnected.store (true);
+    meters.sidechainRequested.store (true);
+
+    proc.reset();
+
+    GF_EXPECT_NEAR (meters.inputLevel.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.outputLevel.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.wetLevel.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.confidence.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.bandConf0.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.bandConf1.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT_NEAR (meters.bandConf2.load(), 0.0f, 1.0e-7f);
+    GF_EXPECT (meters.activeVoices.load() == 0);
+    GF_EXPECT (meters.currentAlgo.load() == -1);
+    GF_EXPECT (! meters.sidechainConnected.load());
+    GF_EXPECT (! meters.sidechainRequested.load());
+}
+
+GF_TEST (Plugin, input_meter_measures_live_input_before_lookahead_delay)
+{
+    constexpr double sr = 48000.0;
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, sr, 512, false);
+    configure (proc, { { "lookahead", 100.0f }, { "fill", 0.0f },
+                       { "dry", 100.0f }, { "wet", 0.0f } });
+    proc.prepareToPlay (sr, 512);
+
+    juce::AudioBuffer<float> block (2, 512);
+    block.clear();
+    block.setSample (0, 0, 1.0f);
+    block.setSample (1, 0, 1.0f);
+
+    juce::MidiBuffer midi;
+    proc.processBlock (block, midi);
+
+    GF_EXPECT_MSG (proc.getMeterState().inputLevel.load() > 0.9f,
+                   "input meter followed the delayed dry path instead of the live input");
+    GF_EXPECT_MSG (maxAbs (block) < 1.0e-5f,
+                   "100 ms lookahead should keep the first block silent on the dry output");
+}
+
+GF_TEST (Plugin, output_meter_measures_signal_after_spectral_solo)
+{
+    constexpr double sr = 48000.0;
+    constexpr int blockSize = 512;
+
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, sr, blockSize, false);
+    configure (proc, { { "lookahead", 0.0f }, { "fill", 0.0f },
+                       { "dry", 100.0f }, { "wet", 0.0f },
+                       { "bandSolo", 1.0f },
+                       { "xoverLM", 250.0f }, { "xoverMH", 2500.0f } });
+    proc.prepareToPlay (sr, blockSize);
+
+    juce::AudioBuffer<float> block (2, blockSize);
+    juce::MidiBuffer midi;
+    double phase = 0.0;
+    float finalPeak = 0.0f;
+
+    for (int pass = 0; pass < 24; ++pass)
+    {
+        for (int i = 0; i < blockSize; ++i)
+        {
+            const auto v = 0.5f * std::sin ((float) phase);
+            phase += juce::MathConstants<double>::twoPi * 8000.0 / sr;
+            block.setSample (0, i, v);
+            block.setSample (1, i, v);
+        }
+
+        proc.processBlock (block, midi);
+
+        if (pass == 23)
+            finalPeak = maxAbs (block);
+    }
+
+    const auto metered = proc.getMeterState().outputLevel.load();
+    GF_EXPECT_MSG (finalPeak < 0.12f,
+                   "low-band solo did not sufficiently reject the 8 kHz test tone");
+    GF_EXPECT_MSG (std::abs (metered - finalPeak) < 0.08f,
+                   "output meter did not measure the post-solo signal: meter "
+                     + juce::String (metered) + ", actual " + juce::String (finalPeak));
+}
+
+GF_TEST (Plugin, meter_decay_is_independent_of_host_block_size)
+{
+    constexpr double sr = 48000.0;
+    constexpr double decayWindowSeconds = 0.25;
+
+    const auto measure = [=] (int blockSize)
+    {
+        constexpr double localSr = 48000.0;
+        GapFillAudioProcessor proc;
+        prepareProcessor (proc, localSr, blockSize, false);
+        configure (proc, { { "lookahead", 0.0f }, { "fill", 0.0f },
+                           { "dry", 100.0f }, { "wet", 0.0f } });
+        proc.prepareToPlay (localSr, blockSize);
+
+        juce::AudioBuffer<float> block (2, blockSize);
+        juce::MidiBuffer midi;
+
+        block.clear();
+        block.setSample (0, 0, 1.0f);
+        block.setSample (1, 0, 1.0f);
+        proc.processBlock (block, midi);
+
+        const auto silenceSamples = (int) std::round (decayWindowSeconds * localSr);
+        int processed = 0;
+
+        while (processed < silenceSamples)
+        {
+            const auto n = juce::jmin (blockSize, silenceSamples - processed);
+            juce::AudioBuffer<float> slice (2, n);
+            slice.clear();
+            proc.processBlock (slice, midi);
+            processed += n;
+        }
+
+        return proc.getMeterState().inputLevel.load();
+    };
+
+    const auto small = measure (64);
+    const auto large = measure (1024);
+
+    GF_EXPECT_MSG (small > 0.0f && large > 0.0f,
+                   "meter decayed to zero instead of following a smooth time constant");
+    GF_EXPECT_MSG (std::abs (small - large) < 0.03f,
+                   "equal elapsed time produced block-size-dependent meter decay: 64="
+                     + juce::String (small) + ", 1024=" + juce::String (large));
+}
+
 GF_TEST (Plugin, reported_latency_matches_the_actual_dry_delay)
 {
     constexpr double sr = 48000.0;
@@ -297,7 +444,7 @@ GF_TEST (Plugin, malformed_known_parameter_state_is_rejected_atomically)
 
         if (child.getProperty ("id").toString() == "fill")
         {
-            child.setProperty ("value", 2.0, nullptr); // APVTS state is normalised 0..1.
+            child.setProperty ("value", 250.0, nullptr); // APVTS stores real units; Fill is 0..100.
             changedKnownValue = true;
             break;
         }
@@ -344,7 +491,7 @@ GF_TEST (Plugin, rejected_saved_state_does_not_partially_apply_metadata_or_midi)
             auto child = params.getChild (i);
             if (child.getProperty ("id").toString() == "fill")
             {
-                child.setProperty ("value", 9.0, nullptr);
+                child.setProperty ("value", 900.0, nullptr);   // outside Fill's 0..100 range
                 break;
             }
         }
@@ -358,6 +505,40 @@ GF_TEST (Plugin, rejected_saved_state_does_not_partially_apply_metadata_or_midi)
 
     GF_EXPECT (current.isTooltipsEnabled());
     GF_EXPECT (current.getMidiLearnManager().getMappedCC ("wet") == 21);
+}
+
+GF_TEST (Plugin, external_preset_save_reports_failure_and_round_trips_on_success)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+    configure (proc, { { "fill", 63.0f }, { "wet", 47.0f } });
+
+    juce::String error;
+
+    // A directory is not a writable preset file target.
+    auto dir = juce::File::getSpecialLocation (juce::File::tempDirectory);
+    GF_EXPECT (! proc.saveParameterStateToFile (dir, error));
+    GF_EXPECT (error.isNotEmpty());
+
+    juce::TemporaryFile temp (".gapfill");
+    error.clear();
+    GF_EXPECT (proc.saveParameterStateToFile (temp.getFile(), error));
+    GF_EXPECT (error.isEmpty());
+    GF_EXPECT (temp.getFile().existsAsFile());
+    GF_EXPECT (temp.getFile().getSize() > 0);
+
+    configure (proc, { { "fill", 5.0f }, { "wet", 5.0f } });
+    GF_EXPECT (proc.loadParameterStateFromFile (temp.getFile(), error));
+
+    auto* fill = proc.getValueTreeState().getParameter ("fill");
+    auto* wet = proc.getValueTreeState().getParameter ("wet");
+    GF_EXPECT (fill != nullptr && wet != nullptr);
+
+    if (fill != nullptr && wet != nullptr)
+    {
+        GF_EXPECT_NEAR (fill->convertFrom0to1 (fill->getValue()), 63.0f, 0.05f);
+        GF_EXPECT_NEAR (wet->convertFrom0to1 (wet->getValue()), 47.0f, 0.05f);
+    }
 }
 
 GF_TEST (Plugin, external_preset_loader_rejects_oversized_and_malformed_files)
@@ -1130,11 +1311,35 @@ GF_TEST (Editor, standalone_audio_midi_device_selector_constructs)
     selector.setSize (640, 420);
 
     GF_EXPECT (selector.getWidth() == 640);
-    GF_EXPECT (selector.getHeight() == 420);
+    GF_EXPECT (selector.getHeight() > 0);   // the selector may resize itself to fit its rows
 
     // Enumeration is environment dependent (CI commonly has no physical
     // device), but the selector must build its actual interactive device UI.
     GF_EXPECT (selector.getNumChildComponents() > 0);
+}
+
+GF_TEST (Editor, reopening_editor_discards_stale_visualisation_frames)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    auto& fifo = proc.getVisualisationFifo();
+    fifo.setEnabled (true);
+
+    VizFrame stale;
+    stale.peak = 0.9f;
+    stale.conf = 0.8f;
+    fifo.push (stale);
+    fifo.setEnabled (false);
+
+    {
+        GapFillAudioProcessorEditor editor (proc);
+
+        VizFrame drained[4] {};
+        const auto count = fifo.pop (drained, 4);
+        GF_EXPECT_MSG (count == 0,
+                       "new editor inherited stale visualisation frames from a prior UI session");
+    }
 }
 
 GF_TEST (Editor, opens_and_closes_repeatedly_without_leaking_state)
@@ -1497,6 +1702,28 @@ GF_TEST (Plugin, persisted_ui_metadata_round_trips_and_clamps)
     }
 }
 
+GF_TEST (Plugin, lookahead_change_updates_host_latency_without_audio_processing)
+{
+    constexpr double sr = 48000.0;
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, sr, 256, false);
+    configure (proc, { { "lookahead", 0.0f }, { "fill", 0.0f } });
+    proc.prepareToPlay (sr, 256);
+    GF_EXPECT (proc.getLatencySamples() == 0);
+
+    // Simulate a DAW restoring/changing the parameter while transport is
+    // stopped. No processBlock call should be required for PDC to refresh.
+    configure (proc, { { "lookahead", 150.0f } });
+    proc.flushLatencyReportForTests();
+
+    const auto expected = (int) std::round (0.150 * sr);
+    GF_EXPECT_MSG (std::abs (proc.getLatencySamples() - expected) <= 1,
+                   "stopped-transport lookahead left host latency stale at "
+                     + juce::String (proc.getLatencySamples()) + " samples");
+    GF_EXPECT_MSG (std::abs (proc.getMeterState().latencySamples.load() - expected) <= 1,
+                   "latency display did not follow the stopped-transport parameter change");
+}
+
 GF_TEST (Plugin, runtime_lookahead_change_updates_reported_host_latency)
 {
     constexpr double sr = 48000.0;
@@ -1601,4 +1828,195 @@ GF_TEST (Plugin, spectral_band_intensity_changes_generated_audio)
 
     GF_EXPECT_MSG (maxDifference > 1.0e-4f,
                    "band intensity was wired but did not alter generated audio");
+}
+
+
+//==============================================================================
+GF_TEST (Editor, surprise_changes_only_creative_settings_and_never_repeats_a_profile)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+    auto& state = proc.getValueTreeState();
+
+    configure (proc, { { "detMode", 1.0f }, { "sensitivity", 71.0f }, { "protTrans", 33.0f },
+                       { "lookahead", 90.0f }, { "dry", 80.0f }, { "wet", 60.0f }, { "output", -3.0f },
+                       { "bandHighProb", 20.0f } });
+
+    const char* preserved[] = { "detMode", "detSource", "sensitivity", "gapThresh", "minGap", "maxFill",
+                                "protectHold", "lookahead", "protTrans", "protLow", "protNext",
+                                "bandHighProb", "dry", "wet", "output", "bypass", "capture" };
+    std::map<juce::String, float> before;
+
+    for (auto* id : preserved)
+        before[id] = state.getParameter (id)->getValue();
+
+    juce::String previousName, previousSig;
+
+    for (int i = 0; i < 12; ++i)
+    {
+        const auto name = proc.surprise();
+        GF_EXPECT_MSG (name.isNotEmpty(), "Surprise returned no profile name");
+        GF_EXPECT_MSG (name != previousName, "Surprise repeated profile " + name);
+        previousName = name;
+
+        for (auto* id : preserved)
+            GF_EXPECT_MSG (std::abs (state.getParameter (id)->getValue() - before[id]) < 1.0e-6f,
+                           juce::String ("Surprise changed protected setting ") + id);
+
+        GF_EXPECT_MSG (pi (state.getRawParameterValue ("fillType")) == 0, "Surprise must use AUTO");
+
+        int strong = 0;
+
+        for (int a = 0; a < numAlgos; ++a)
+            if (state.getRawParameterValue (algoWeightID ((Algo) a))->load() >= 65.0f)
+                ++strong;
+
+        GF_EXPECT_MSG (strong >= 3, "Surprise profile left too few usable algorithms");
+
+        juce::String sig;
+
+        for (const auto& id : creativeParameterIDs())
+            sig << juce::String (state.getParameter (id)->getValue(), 5) << ",";
+
+        GF_EXPECT_MSG (sig != previousSig, "Surprise did not change the creative settings");
+        previousSig = sig;
+    }
+
+    // A surprised setup must still generate fills on a drum loop.
+    auto wet = renderWetOnly (proc, makeDrumLoop (48000.0, 4.0, 100.0, 2), 512);
+    GF_EXPECT (allFinite (wet));
+    GF_EXPECT (maxAbs (wet) < 8.0f);
+}
+
+GF_TEST (Editor, undo_restores_the_sound_before_big_actions)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+    auto& state = proc.getValueTreeState();
+
+    const auto signature = [&state]
+    {
+        juce::String sig;
+
+        // Real units: the stored state snaps to each parameter's interval.
+        for (const auto& id : allParameterIDs())
+            if (auto* p = dynamic_cast<juce::RangedAudioParameter*> (state.getParameter (id)))
+                sig << juce::String (p->convertFrom0to1 (p->getValue()), 3) << ",";
+
+        return sig;
+    };
+
+    GF_EXPECT (! proc.canUndo());
+    GF_EXPECT (! proc.undo());
+
+    configure (proc, { { "fill", 77.0f }, { "chaos", 12.0f } });
+    const auto original = signature();
+
+    proc.randomise (false);
+    const auto afterRandom = signature();
+    proc.surprise();
+    proc.resetAllParameters();
+    proc.selectPreset (2);
+    GF_EXPECT (proc.getUndoDepth() == 4);
+
+    GF_EXPECT (proc.undo());   // back to reset
+    GF_EXPECT (proc.undo());   // back to surprise
+    GF_EXPECT (proc.undo());   // back to random
+    GF_EXPECT_MSG (signature() == afterRandom, "undo did not restore the randomised sound");
+    GF_EXPECT (proc.undo());
+    GF_EXPECT_MSG (signature() == original, "undo did not restore the original sound");
+    GF_EXPECT (! proc.canUndo());
+
+    for (int i = 0; i < GapFillAudioProcessor::maxUndoSteps + 10; ++i)
+        proc.randomise (true);
+
+    GF_EXPECT (proc.getUndoDepth() == GapFillAudioProcessor::maxUndoSteps);
+}
+
+GF_TEST (Plugin, capture_freezes_the_fill_source_while_live_audio_continues)
+{
+    constexpr double sr = 48000.0;
+    constexpr int block = 512;
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, sr, block, false);
+    configure (proc, { { "fill", 100.0f }, { "density", 100.0f }, { "minGap", 40.0f },
+                       { "dry", 0.0f }, { "wet", 100.0f }, { "seed", 7.0f } });
+
+    // Capture switched on before any audio exists must not latch silence.
+    configure (proc, { { "capture", 1.0f } });
+    auto loop = makeDrumLoop (sr, 1.0, 110.0, 2);
+    renderThroughPlugin (proc, loop, nullptr, block);
+    const auto latched = proc.getSourceHistoryWritePosition();
+    GF_EXPECT_MSG (latched >= (std::int64_t) (0.5 * sr), "Capture latched before enough history existed");
+
+    // Now latched: the history must stop moving while fills keep sounding.
+    const auto startedBefore = proc.getFillEngine().getFillsStarted();
+    auto wet = renderThroughPlugin (proc, makeDrumLoop (sr, 3.0, 110.0, 2), nullptr, block);
+    GF_EXPECT_MSG (proc.getSourceHistoryWritePosition() == latched, "history advanced while captured");
+    GF_EXPECT_MSG (proc.getFillEngine().getFillsStarted() > startedBefore, "no fills while captured");
+    GF_EXPECT (allFinite (wet));
+    GF_EXPECT_MSG (rmsLevel (wet) > 1.0e-5f, "captured fills were silent");
+    GF_EXPECT (maxAbs (wet) < 8.0f);
+
+    // Release: the history follows the live input again.
+    configure (proc, { { "capture", 0.0f } });
+    renderThroughPlugin (proc, loop, nullptr, block);
+    GF_EXPECT_MSG (proc.getSourceHistoryWritePosition() > latched, "history did not resume after release");
+}
+
+GF_TEST (Plugin, random_normalised_values_survive_a_state_round_trip)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+    juce::Random random (1234);
+
+    for (int round = 0; round < 20; ++round)
+    {
+        juce::Array<float> expected;
+
+        for (auto* p : proc.getParameters())
+        {
+            p->setValueNotifyingHost (random.nextFloat());
+
+            // Discrete parameters restore to their snapped value.
+            auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p);
+            expected.add (ranged != nullptr ? ranged->convertTo0to1 (ranged->convertFrom0to1 (p->getValue()))
+                                            : p->getValue());
+        }
+
+        juce::MemoryBlock saved;
+        proc.getStateInformation (saved);
+
+        for (auto* p : proc.getParameters())
+            p->setValueNotifyingHost (random.nextFloat());
+
+        proc.setStateInformation (saved.getData(), (int) saved.getSize());
+
+        for (int i = 0; i < proc.getParameters().size(); ++i)
+        {
+            auto* p = proc.getParameters()[i];
+            GF_EXPECT_MSG (std::abs (p->getValue() - expected[i]) < 1.0e-3f,
+                           p->getName (32) + " not restored: " + juce::String (p->getValue())
+                               + " vs " + juce::String (expected[i]));
+        }
+    }
+}
+
+GF_TEST (Plugin, state_restores_into_a_fresh_unprepared_instance)
+{
+    juce::MemoryBlock saved;
+    {
+        GapFillAudioProcessor source;
+        prepareProcessor (source, 48000.0, 512, false);
+        configure (source, { { "dry", 5.6f }, { "fill", 54.5f } });
+        source.getStateInformation (saved);
+    }
+
+    GapFillAudioProcessor fresh;
+    fresh.setStateInformation (saved.getData(), (int) saved.getSize());
+    prepareProcessor (fresh, 44100.0, 256, false);
+    renderThroughPlugin (fresh, makeDrumLoop (44100.0, 0.5, 120.0, 2), nullptr, 256);
+    auto& s = fresh.getValueTreeState();
+    GF_EXPECT_NEAR (s.getRawParameterValue ("dry")->load(), 5.6f, 0.05f);
+    GF_EXPECT_NEAR (s.getParameter ("fill")->getValue(), 0.545f, 0.002f);
 }

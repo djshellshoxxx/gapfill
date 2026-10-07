@@ -16,6 +16,36 @@ KICK ——[granular reverse]—— SNARE ——[stutter]—— KICK ——[pitc
 
 ---
 
+## Download (v0.0.1 beta)
+
+Grab the latest build from the GitHub **Releases** page:
+
+| Asset | What it is |
+|---|---|
+| `GapFill-0.0.1-beta-Windows-x64-Setup.exe` | Installer: VST3, CLAP and the standalone app (each optional) |
+| `GapFill-0.0.1-beta-Windows-x64-Portable.zip` | No-install: standalone `GapFill.exe` plus both plugin formats |
+| `GapFill-0.0.1-beta-Windows-x64-VST3.zip` | `GapFill.vst3` only - copy to `C:\Program Files\Common Files\VST3` |
+| `GapFill-0.0.1-beta-Windows-x64-CLAP.zip` | `GapFill.clap` only - copy to `C:\Program Files\Common Files\CLAP` |
+| `GapFill-0.0.1-beta-Linux-x64-*.zip` | The same three formats for Linux (`~/.vst3`, `~/.clap`) |
+
+## What's new in 0.0.1 beta
+
+- **SURPRISE** (top bar) - one press jumps to one of eight curated, always-coherent creative
+  profiles (Drum Edits, Dub Echoes, Glitch Storm, Tape Breakdown...). Detector, protection and
+  mix are never touched, and the same profile never comes up twice in a row.
+- **UNDO** (top bar) - steps back through the last 32 whole-sound changes: Random, Random All,
+  Surprise, Reset, preset changes and file loads.
+- **CAPTURE** (Creative panel) - latches the fill source. Fills keep being built from the audio
+  heard when you pressed it while detection, protection and the dry signal follow the live track.
+  Automatable and MIDI-learnable for performance.
+- **Tape Stop** fill algorithm - the hit that opened the gap brakes to a halt, losing speed,
+  pitch and top end. Available in AUTO (with its own weight) or as a forced Fill Type.
+- Fixes: saved sessions and `.gapfill` presets were rejected on load by an over-strict
+  validator; boolean parameters not restoring exactly (pluginval); CLAP hosts not told to
+  refresh values after a state load (clap-validator); Hz fields parsing "1.00 kHz" as 1 Hz;
+  a compile error in preset saving; unnamed weight sliders for screen readers; the CI
+  `clap-validator` install step.
+
 ## Building
 
 Requirements: CMake 3.22+, a C++20 compiler (MSVC 2022 on Windows), and the JUCE
@@ -70,6 +100,15 @@ cmake --build build-linux
 
 Linux artefacts follow the same layout, with `x86_64-linux` as the bundle
 architecture directory and no extension on the standalone binary.
+
+### Release packaging
+
+`packaging/package_release.sh <windows-build> [<linux-build>]` turns finished
+builds into the release assets in `dist/`: the NSIS installer
+(`packaging/GapFill.nsi`), portable/VST3/CLAP zips and a SHA-256 list. The
+0.0.1 beta Windows binaries were cross-compiled from Linux with clang-cl 22 and
+lld-link against the MSVC static runtime (`CMAKE_CROSSCOMPILING` skips only the
+VST3 `moduleinfo.json` helper, which cannot run on the build machine).
 
 On a machine with little free RAM, cap the compiler as well as MSBuild — JUCE's
 recommended flags add `/MP`, which starts one `cl.exe` per core:

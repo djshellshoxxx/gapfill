@@ -111,6 +111,7 @@ private:
     void genScramble (float& l, float& r) noexcept;
     void genSpectral (float& l, float& r) noexcept;
     void genComb (float& l, float& r) noexcept;
+    void genTapeStop (float& l, float& r) noexcept;
 
     //--------------------------------------------------------------------------
     VoiceSetup setupData;
@@ -233,6 +234,12 @@ private:
     float combDamp = 0.3f;
     float combStateL = 0.0f, combStateR = 0.0f;
     int   combExcite = 0;
+
+    // --- tape stop ---
+    double tapePos = 0.0;
+    float  tapeCurve = 1.5f;
+    float  tapeWow = 0.0f, tapeWowPhase = 0.0f;
+    float  tapeLpL = 0.0f, tapeLpR = 0.0f;
 
     // --- spectral ---
     SpectralSmear* spectralProcessor = nullptr;
