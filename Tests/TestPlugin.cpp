@@ -1963,3 +1963,60 @@ GF_TEST (Plugin, capture_freezes_the_fill_source_while_live_audio_continues)
     renderThroughPlugin (proc, loop, nullptr, block);
     GF_EXPECT_MSG (proc.getSourceHistoryWritePosition() > latched, "history did not resume after release");
 }
+
+GF_TEST (Plugin, random_normalised_values_survive_a_state_round_trip)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+    juce::Random random (1234);
+
+    for (int round = 0; round < 20; ++round)
+    {
+        juce::Array<float> expected;
+
+        for (auto* p : proc.getParameters())
+        {
+            p->setValueNotifyingHost (random.nextFloat());
+
+            // Discrete parameters restore to their snapped value.
+            auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p);
+            expected.add (ranged != nullptr ? ranged->convertTo0to1 (ranged->convertFrom0to1 (p->getValue()))
+                                            : p->getValue());
+        }
+
+        juce::MemoryBlock saved;
+        proc.getStateInformation (saved);
+
+        for (auto* p : proc.getParameters())
+            p->setValueNotifyingHost (random.nextFloat());
+
+        proc.setStateInformation (saved.getData(), (int) saved.getSize());
+
+        for (int i = 0; i < proc.getParameters().size(); ++i)
+        {
+            auto* p = proc.getParameters()[i];
+            GF_EXPECT_MSG (std::abs (p->getValue() - expected[i]) < 1.0e-3f,
+                           p->getName (32) + " not restored: " + juce::String (p->getValue())
+                               + " vs " + juce::String (expected[i]));
+        }
+    }
+}
+
+GF_TEST (Plugin, state_restores_into_a_fresh_unprepared_instance)
+{
+    juce::MemoryBlock saved;
+    {
+        GapFillAudioProcessor source;
+        prepareProcessor (source, 48000.0, 512, false);
+        configure (source, { { "dry", 5.6f }, { "fill", 54.5f } });
+        source.getStateInformation (saved);
+    }
+
+    GapFillAudioProcessor fresh;
+    fresh.setStateInformation (saved.getData(), (int) saved.getSize());
+    prepareProcessor (fresh, 44100.0, 256, false);
+    renderThroughPlugin (fresh, makeDrumLoop (44100.0, 0.5, 120.0, 2), nullptr, 256);
+    auto& s = fresh.getValueTreeState();
+    GF_EXPECT_NEAR (s.getRawParameterValue ("dry")->load(), 5.6f, 0.05f);
+    GF_EXPECT_NEAR (s.getParameter ("fill")->getValue(), 0.545f, 0.002f);
+}

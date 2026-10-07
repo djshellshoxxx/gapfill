@@ -946,6 +946,30 @@ bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state)
     return true;
 }
 
+void GapFillAudioProcessor::snapParametersToState()
+{
+    // replaceState() only touches a parameter whose real value differs. A
+    // discrete parameter left at an off-grid normalised value (a bool at 0.78
+    // is already "on") would keep that raw value, so hosts that compare
+    // normalised values after a restore see a mismatch. Snap every parameter
+    // to exactly the restored state.
+    for (auto* p : getParameters())
+    {
+        auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p);
+
+        if (ranged == nullptr)
+            continue;
+
+        if (auto* raw = apvts.getRawParameterValue (ranged->getParameterID()))
+        {
+            const auto target = ranged->convertTo0to1 (raw->load());
+
+            if (std::abs (ranged->getValue() - target) > 1.0e-6f)
+                ranged->setValueNotifyingHost (target);
+        }
+    }
+}
+
 bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state)
 {
     if (! isParameterStateValid (state))
@@ -953,6 +977,7 @@ bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state)
 
     programChangeInProgress.store (true, std::memory_order_relaxed);
     apvts.replaceState (state.createCopy());
+    snapParametersToState();
     currentProgram.store (-1, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
     updateHostDisplay();
@@ -1087,6 +1112,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
 
     programChangeInProgress.store (true, std::memory_order_relaxed);
     apvts.replaceState (paramState.createCopy());
+    snapParametersToState();
     currentProgram.store (restoredProgram, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
 
@@ -1105,6 +1131,10 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         if (mapState.isValid())
             midiLearn.restoreFromValueTree (mapState);
     }
+
+    // Every parameter may have moved: CLAP hosts need a value rescan and VST3
+    // hosts refresh their displayed values.
+    updateHostDisplay (ChangeDetails().withProgramChanged (true));
 }
 
 //==============================================================================

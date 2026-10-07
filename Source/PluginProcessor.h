@@ -167,6 +167,7 @@ private:
     AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
     bool isParameterStateValid (const juce::ValueTree& state) const;
+    void snapParametersToState();
 
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;

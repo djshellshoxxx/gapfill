@@ -43,7 +43,8 @@ Version: 0.0.1 beta · Type: audio **effect** (not an instrument)
 - **Fun - SURPRISE:** eight curated creative profiles with seeded variation; never repeats the previous profile; never touches detector, protection, lanes, latency or mix.
 - **Random effect - Tape Stop:** new algorithm (index 14, `wTapeStop` weight appended), decelerating replay with speed-tracking low-pass and chaos wow.
 - Weight IDs now come from one `algoWeightID()` table instead of four hand-copied lists.
-- Tests: 88 (3 new), all passing on Linux. pluginval strictness 10 and clap-validator run against the Linux builds.
+- Host-validation fixes: discrete parameters left at off-grid normalised values (a bool at 0.78) were not re-applied by `replaceState()`, failing pluginval's restore test - every load now snaps parameters to the restored state. A state load now reports a program change so CLAP hosts get a parameter-value rescan (clap-validator state-reproducibility tests). Hz parameters displayed "1.00 kHz" but parsed it back as 1 Hz - added a matching value-from-text function.
+- Results: 87 tests (5 new) pass on Linux; pluginval strictness 10 passes on the Linux VST3; clap-validator 34 passed / 0 failed on the Linux CLAP; Windows pluginval (strictness 5, run under Wine) passes on the cross-compiled Windows VST3; Windows and Linux standalones smoke-launch.
 - Windows binaries cross-compiled with clang-cl 22 + lld-link and the MSVC static CRT; installer built with NSIS. GitHub Actions on this repository has been failing within seconds with no logs since 2026-10-06 (an account-level Actions problem), so CI could not produce them.
 
 

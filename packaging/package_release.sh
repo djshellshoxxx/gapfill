@@ -8,7 +8,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 WIN="${1:?windows build dir}"
 LIN="${2:-}"
-OUT="${3:-$ROOT/dist}"
+OUT="$(mkdir -p "${3:-$ROOT/dist}" && cd "${3:-$ROOT/dist}" && pwd)"
 
 VERSION_NUM="$(sed -n 's/^project(GapFill VERSION \([0-9.]*\).*/\1/p' "$ROOT/CMakeLists.txt")"
 STAGE="$(sed -n 's/^set(GAPFILL_RELEASE_STAGE "\(.*\)")/\1/p' "$ROOT/CMakeLists.txt")"

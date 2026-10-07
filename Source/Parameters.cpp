@@ -111,6 +111,16 @@ namespace
                                                 if (offAtMinimum && v < 20.5f) return juce::String ("Off");
                                                 if (v >= 1000.0f)              return juce::String (v / 1000.0f, 2) + " kHz";
                                                 return juce::String (v, 0) + " Hz";
+                                            })
+                                            .withValueFromStringFunction ([offAtMinimum, lo] (const juce::String& text)
+                                            {
+                                                const auto t = text.trim();
+
+                                                if (offAtMinimum && t.equalsIgnoreCase ("off"))
+                                                    return lo;
+
+                                                const auto v = t.getFloatValue();
+                                                return t.containsIgnoreCase ("k") ? v * 1000.0f : v;
                                             }));
     }
 }

@@ -41,8 +41,10 @@ Grab the latest build from the GitHub **Releases** page:
 - **Tape Stop** fill algorithm - the hit that opened the gap brakes to a halt, losing speed,
   pitch and top end. Available in AUTO (with its own weight) or as a forced Fill Type.
 - Fixes: saved sessions and `.gapfill` presets were rejected on load by an over-strict
-  validator; a compile error in preset saving; unnamed weight sliders for screen readers;
-  the CI `clap-validator` install step.
+  validator; boolean parameters not restoring exactly (pluginval); CLAP hosts not told to
+  refresh values after a state load (clap-validator); Hz fields parsing "1.00 kHz" as 1 Hz;
+  a compile error in preset saving; unnamed weight sliders for screen readers; the CI
+  `clap-validator` install step.
 
 ## Building
 
