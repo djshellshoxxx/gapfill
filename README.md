@@ -223,6 +223,10 @@ GapFill does not send audio, presets, project data, diagnostics, analytics, or t
 GapFill follows the required Circuit Drift Labs shared plugin baseline in [`docs/standards/CDL_PLUGIN_BASELINE.md`](docs/standards/CDL_PLUGIN_BASELINE.md). Product-specific compliance and exceptions are tracked in [`docs/COMPLIANCE.md`](docs/COMPLIANCE.md).
 
 
+## Developer documentation
+
+The feature roadmap, development plan, engineering standards and QA process live in [`docs/dev/`](docs/dev/README.md).
+
 ## Validation
 
 Release validation is defined in [`docs/VALIDATION.md`](docs/VALIDATION.md). CI builds VST3, CLAP and Standalone on Linux and Windows, runs the JUCE regression suite, validates VST3 with pluginval at strictness 10, validates CLAP with clap-validator, and smoke-launches the standalone application.
