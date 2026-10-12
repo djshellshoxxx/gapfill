@@ -215,7 +215,6 @@ GF_TEST (Plugin, output_meter_measures_signal_after_spectral_solo)
 
 GF_TEST (Plugin, meter_decay_is_independent_of_host_block_size)
 {
-    constexpr double sr = 48000.0;
     constexpr double decayWindowSeconds = 0.25;
 
     const auto measure = [=] (int blockSize)
