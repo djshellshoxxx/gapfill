@@ -104,6 +104,18 @@ jobs:
         shell: pwsh
         run: cmake --build build-ci --config Release --target GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone -- /m:2
 
+      - name: Upload compiled Windows binaries for QA (validation follows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gapfill-windows-binaries
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
+            build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
+            build-ci/GapFill_artefacts/JuceLibraryCode/icon.ico
+            build-ci/artefacts/Release/GapFill.exe
+
       - name: Run tests
         shell: pwsh
         run: .\build-ci\artefacts\Release\GapFillTests.exe
@@ -143,21 +155,10 @@ jobs:
           }
           Stop-Process -Id $process.Id -Force
 
-      - name: Upload validated Windows binaries
-        uses: actions/upload-artifact@v4
-        with:
-          name: gapfill-windows-binaries
-          if-no-files-found: error
-          retention-days: 14
-          path: |
-            build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
-            build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
-            build-ci/GapFill_artefacts/JuceLibraryCode/icon.ico
-            build-ci/artefacts/Release/GapFill.exe
-
   package-windows:
     name: Package Windows beta
     needs: [preflight, linux, windows]
+    if: always() && needs.preflight.result == 'success' && needs.windows.result != 'cancelled'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -195,15 +196,15 @@ jobs:
       - name: Upload packaged beta candidate
         uses: actions/upload-artifact@v4
         with:
-          name: gapfill-windows-beta-candidate
+          name: gapfill-windows-beta-candidate-qa
           if-no-files-found: error
           retention-days: 30
           path: dist/GapFill-0.0.1-beta-*
 
   publish-windows-beta:
     name: Publish Windows beta prerelease
-    needs: [package-windows]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: [package-windows, preflight, linux, windows]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.package-windows.result == 'success' && needs.preflight.result == 'success' && needs.linux.result == 'success' && needs.windows.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -211,7 +212,7 @@ jobs:
       - name: Download validated beta packages
         uses: actions/download-artifact@v4
         with:
-          name: gapfill-windows-beta-candidate
+          name: gapfill-windows-beta-candidate-qa
           path: dist
 
       - name: Publish exactly once for version 0.0.1-beta
