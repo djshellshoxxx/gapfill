@@ -140,3 +140,102 @@ jobs:
             throw "Standalone exited before the 5-second smoke window with code $($process.ExitCode)"
           }
           Stop-Process -Id $process.Id -Force
+
+      - name: Upload validated Windows binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: gapfill-windows-binaries
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
+            build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
+            build-ci/GapFill_artefacts/JuceLibraryCode/icon.ico
+            build-ci/artefacts/Release/GapFill.exe
+
+  package-windows:
+    name: Package Windows beta
+    needs: [preflight, linux, windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Windows installer packaging dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nsis zip unzip file
+
+      - name: Download validated Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: gapfill-windows-binaries
+          path: windows-build
+
+      - name: Package installer and plugin ZIPs
+        run: |
+          bash packaging/package_release.sh windows-build "" dist
+
+      - name: Verify release packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum -c GapFill-0.0.1-beta-SHA256SUMS.txt
+          for kind in Setup.exe Portable.zip VST3.zip CLAP.zip; do
+            test -s "GapFill-0.0.1-beta-Windows-x64-$kind"
+          done
+          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-Portable.zip | grep -qx 'GapFill.exe'
+          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-VST3.zip | grep -q 'GapFill.vst3/Contents/'
+          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-CLAP.zip | grep -qx 'GapFill.clap'
+          file GapFill-0.0.1-beta-Windows-x64-Setup.exe | grep -qi 'PE32'
+
+      - name: Upload packaged beta candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: gapfill-windows-beta-candidate
+          if-no-files-found: error
+          retention-days: 30
+          path: dist/GapFill-0.0.1-beta-*
+
+  publish-windows-beta:
+    name: Publish Windows beta prerelease
+    needs: [package-windows]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download validated beta packages
+        uses: actions/download-artifact@v4
+        with:
+          name: gapfill-windows-beta-candidate
+          path: dist
+
+      - name: Publish exactly once for version 0.0.1-beta
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v0.0.1-beta"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Existing $tag release found; will not overwrite it automatically."
+            exit 0
+          fi
+          cat > beta-notes.md <<'NOTES'
+          GapFill 0.0.1 beta for Windows x64.
+
+          Includes standalone, VST3 and CLAP binaries and an NSIS installer.
+          Built by GitHub Actions after preflight, JUCE tests, Linux/Windows
+          builds, pluginval, clap-validator, standalone smoke tests and package
+          checksum/archive checks succeeded.
+
+          This is an unsigned beta. Real-DAW, physical MIDI and audio-interface
+          compatibility require additional user testing. Please report issues.
+          NOTES
+          gh release create "$tag" dist/GapFill-0.0.1-beta-* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "GapFill 0.0.1 beta (Windows x64)" \
+            --notes-file beta-notes.md --prerelease
