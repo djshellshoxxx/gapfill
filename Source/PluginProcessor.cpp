@@ -943,6 +943,8 @@ bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state)
 
             // std::from_chars accepts a leading minus but not a leading plus.
             const auto* numericBegin = *begin == '+' ? begin + 1 : begin;
+            if (numericBegin == end || (*begin == '+' && (*numericBegin == '-' || *numericBegin == '+')))
+                return false;
             const auto result = std::from_chars (numericBegin, end, real, std::chars_format::general);
             if (numericBegin == end || result.ec != std::errc {} || result.ptr != end)
                 return false;
