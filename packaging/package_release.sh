@@ -39,7 +39,7 @@ W="$STAGING/win"; mkdir -p "$W"
 cp -r "$WIN/GapFill_artefacts/Release/VST3/GapFill.vst3" "$W/"
 rm -f "$W/GapFill.vst3/desktop.ini" "$W/GapFill.vst3/Plugin.ico"
 cp "$WIN/GapFill_artefacts/Release/CLAP/GapFill.clap" "$W/"
-cp "$WIN/artefacts/GapFill.exe" "$W/"
+cp "$WIN/artefacts/Release/GapFill.exe" "$W/"
 cp "$WIN/GapFill_artefacts/JuceLibraryCode/icon.ico" "$W/GapFill.ico"
 docs "$W"
 
