@@ -4,6 +4,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "PluginProcessor.h"
+
+#include <charconv>
+#include <cstring>
 #include "PluginEditor.h"
 
 namespace gapfill
@@ -931,10 +934,18 @@ bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state)
         {
             const auto text = value.toString().trim();
 
-            if (text.isEmpty() || ! text.containsOnly ("0123456789+-.eE"))
+            // A character whitelist alone accepts incomplete numbers such as
+            // "1e", "++2" and "1-2". Parse the entire string, locale-independently.
+            const auto* begin = text.toRawUTF8();
+            const auto* end = begin + std::strlen (begin);
+            if (begin == end)
                 return false;
 
-            real = text.getDoubleValue();
+            // std::from_chars accepts a leading minus but not a leading plus.
+            const auto* numericBegin = *begin == '+' ? begin + 1 : begin;
+            const auto result = std::from_chars (numericBegin, end, real, std::chars_format::general);
+            if (numericBegin == end || result.ec != std::errc {} || result.ptr != end)
+                return false;
         }
         else
         {
