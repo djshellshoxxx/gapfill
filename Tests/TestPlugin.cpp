@@ -435,7 +435,7 @@ GF_TEST (Plugin, invalid_numeric_state_strings_are_rejected_atomically)
     prepareProcessor (proc, 48000.0, 512, false);
     configure (proc, { { "fill", 73.0f }, { "wet", 41.0f } });
 
-    for (const char* invalid : { "1e", "++2", "1-2", ".", "--1", "1e+", "1.2.3", "+" })
+    for (const char* invalid : { "1e", "++2", "1-2", ".", "--1", "1e+", "1.2.3", "+", "+-2" })
     {
         auto malformed = proc.getValueTreeState().copyState().createCopy();
         bool found = false;
