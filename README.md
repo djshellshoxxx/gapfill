@@ -18,7 +18,7 @@ KICK ——[granular reverse]—— SNARE ——[stutter]—— KICK ——[pitc
 
 ## Download (v0.0.1 beta)
 
-Grab the latest build from the GitHub **Releases** page:
+The Windows beta release has not been published yet. The assets listed below are the planned release deliverables. Release packaging is under validation:
 
 | Asset | What it is |
 |---|---|
