@@ -429,6 +429,13 @@ GF_TEST (Plugin, state_with_unknown_and_missing_parameters_is_tolerated)
     }
 }
 
+GF_TEST (Plugin, unrecognized_test_filter_is_a_failure)
+{
+    // A typo in a filtered CI invocation must not silently report green.
+    GF_EXPECT (gftest::Registry::get().run ("__gapfill_nonexistent_test_filter__") != 0);
+}
+
+//==============================================================================
 GF_TEST (Plugin, invalid_numeric_state_strings_are_rejected_atomically)
 {
     GapFillAudioProcessor proc;
