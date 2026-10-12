@@ -276,7 +276,7 @@ EngineSettings GapFillAudioProcessor::gatherEngineSettings() const
     return s;
 }
 
-void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample, int numSamples)
+void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample, int /*numSamples*/)
 {
     double bpm = 120.0;
     bool tempoValid = false;
