@@ -170,6 +170,10 @@ void GapFillAudioProcessor::reset()
 
     lastPpqPosition = 0.0;
     lastTransportPlaying = false;
+    lastTransportPositionValid = false;
+   #ifdef GAPFILL_UNIT_TESTS
+    transportJumpCountForTests = 0;
+   #endif
     sidechainSilentSamples = kSidechainSilenceSeconds * (int) currentSampleRate;
     sidechainHasSignal = false;
 }
@@ -308,18 +312,23 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
     s.ppqAtBlockStart = ppq + (double) startSample / samplesPerBeat;
     s.transportValid = playing && ppqValid && tempoValid;
 
-    // A transport jump (or a fresh start) restarts the deterministic sequence.
+    // Compare this callback's position with the end predicted by the PREVIOUS
+    // complete host callback. Using the current chunk length is wrong when a
+    // DAW changes buffer sizes or processBlock splits oversized host buffers.
     if (playing && startSample == 0)
     {
-        const auto expected = lastPpqPosition + (double) numSamples / samplesPerBeat;
-
-        if (! lastTransportPlaying || ! ppqValid || std::abs (ppq - expected) > 0.25)
+        if (! lastTransportPlaying || ! lastTransportPositionValid || ! ppqValid
+             || std::abs (ppq - lastPpqPosition) > 0.25)
         {
             engine.noteTransportJump();
             engine.panic();
+           #ifdef GAPFILL_UNIT_TESTS
+            ++transportJumpCountForTests;
+           #endif
         }
 
-        lastPpqPosition = ppq;
+        lastPpqPosition = ppqValid ? ppq + (double) hostBlockSamples / samplesPerBeat : 0.0;
+        lastTransportPositionValid = ppqValid;
     }
     else if (lastTransportPlaying && ! playing && startSample == 0)
     {
@@ -369,6 +378,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     if (! prepared.load() || numSamples <= 0)
         return;
 
+    hostBlockSamples = numSamples;
     const bool bypassed = pb (params.bypass);
 
     int offset = 0;
@@ -395,6 +405,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     if (! prepared.load() || numSamples <= 0)
         return;
 
+    hostBlockSamples = numSamples;
     int offset = 0;
 
     while (offset < numSamples)
