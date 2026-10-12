@@ -113,26 +113,28 @@ jobs:
           Expand-Archive pluginval.zip -DestinationPath pluginval-bin
           $pluginval = Get-ChildItem pluginval-bin -Recurse -Filter pluginval.exe | Select-Object -First 1
           if (-not $pluginval) { throw "pluginval.exe not found" }
-          $vst3 = Get-ChildItem build-ci -Recurse -Directory -Filter GapFill.vst3 | Select-Object -First 1
-          if (-not $vst3) { throw "GapFill.vst3 not found" }
-          & $pluginval.FullName --strictness-level 10 --validate $vst3.FullName
+          $vst3 = Join-Path $PWD 'build-ci\GapFill_artefacts\Release\VST3\GapFill.vst3'
+          if (-not (Test-Path $vst3 -PathType Container)) { throw "Release VST3 bundle not found at $vst3" }
+          $vst3Binary = Get-ChildItem $vst3 -Recurse -File -Filter GapFill.vst3 | Select-Object -First 1
+          if (-not $vst3Binary) { throw "Release VST3 binary missing from $vst3" }
+          & $pluginval.FullName --strictness-level 10 --validate $vst3
           if ($LASTEXITCODE -ne 0) { throw "pluginval failed with exit code $LASTEXITCODE" }
 
       - name: Validate CLAP with clap-validator
         shell: pwsh
         run: |
           cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
-          $clap = Get-ChildItem build-ci -Recurse -File -Filter GapFill.clap | Select-Object -First 1
-          if (-not $clap) { throw "GapFill.clap not found" }
-          clap-validator validate --only-failed $clap.FullName
+          $clap = Join-Path $PWD 'build-ci\GapFill_artefacts\Release\CLAP\GapFill.clap'
+          if (-not (Test-Path $clap -PathType Leaf)) { throw "Release CLAP binary not found at $clap" }
+          clap-validator validate --only-failed $clap
           if ($LASTEXITCODE -ne 0) { throw "clap-validator failed with exit code $LASTEXITCODE" }
 
       - name: Smoke-launch standalone
         shell: pwsh
         run: |
-          $standalone = Get-ChildItem build-ci\artefacts -Recurse -File -Filter GapFill.exe | Select-Object -First 1
-          if (-not $standalone) { throw "GapFill.exe not found" }
-          $process = Start-Process $standalone.FullName -PassThru
+          $standalone = Join-Path $PWD 'build-ci\artefacts\Release\GapFill.exe'
+          if (-not (Test-Path $standalone -PathType Leaf)) { throw "Release standalone missing at $standalone" }
+          $process = Start-Process $standalone -PassThru
           Start-Sleep -Seconds 5
           if ($process.HasExited) {
             throw "Standalone exited before the 5-second smoke window with code $($process.ExitCode)"
