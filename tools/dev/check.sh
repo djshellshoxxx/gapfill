@@ -40,20 +40,16 @@ fi
 if [ -n "${FILTER}" ]; then
     "${TEST_BIN}" "${FILTER}"
 else
-    # Everything except the ~13 minute Combinatorial group. If the runner has no
-    # exclusion syntax yet (see 03-SPEC-ESSENTIALS E-4), run the groups explicitly.
-    if "${TEST_BIN}" "-Combinatorial" >/dev/null 2>&1; then
-        "${TEST_BIN}" "-Combinatorial"
-    else
-        echo "(runner has no '-' exclusion yet: running full suite, this can take a long time)"
-        "${TEST_BIN}"
-    fi
+    # Requires the -Combinatorial exclusion implemented in the test runner.
+    # Do not probe by executing the suite first: that runs tests twice and can
+    # silently mask an invalid filter on older runners.
+    "${TEST_BIN}" "-Combinatorial"
 fi
 
 step "4/4 Plugin validation (optional)"
 if [ -n "${PLUGINVAL:-}" ]; then
     VST3="$(find "${BUILD_DIR}" -type d -name 'GapFill.vst3' | head -n 1)"
-    "${PLUGINVAL}" --strictness-level 5 --validate "${VST3}"
+    "${PLUGINVAL}" --strictness-level 10 --validate "${VST3}"
 else
     echo "PLUGINVAL not set - skipped (CI runs strictness 10)."
 fi
