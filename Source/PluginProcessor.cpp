@@ -4,6 +4,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "PluginProcessor.h"
+
+#include <charconv>
+#include <cstring>
 #include "PluginEditor.h"
 
 namespace gapfill
@@ -170,6 +173,10 @@ void GapFillAudioProcessor::reset()
 
     lastPpqPosition = 0.0;
     lastTransportPlaying = false;
+    lastTransportPositionValid = false;
+   #ifdef GAPFILL_UNIT_TESTS
+    transportJumpCountForTests = 0;
+   #endif
     sidechainSilentSamples = kSidechainSilenceSeconds * (int) currentSampleRate;
     sidechainHasSignal = false;
 }
@@ -269,7 +276,7 @@ EngineSettings GapFillAudioProcessor::gatherEngineSettings() const
     return s;
 }
 
-void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample, int numSamples)
+void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample, int /*numSamples*/)
 {
     double bpm = 120.0;
     bool tempoValid = false;
@@ -308,18 +315,23 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
     s.ppqAtBlockStart = ppq + (double) startSample / samplesPerBeat;
     s.transportValid = playing && ppqValid && tempoValid;
 
-    // A transport jump (or a fresh start) restarts the deterministic sequence.
+    // Compare this callback's position with the end predicted by the PREVIOUS
+    // complete host callback. Using the current chunk length is wrong when a
+    // DAW changes buffer sizes or processBlock splits oversized host buffers.
     if (playing && startSample == 0)
     {
-        const auto expected = lastPpqPosition + (double) numSamples / samplesPerBeat;
-
-        if (! lastTransportPlaying || ! ppqValid || std::abs (ppq - expected) > 0.25)
+        if (! lastTransportPlaying || ! lastTransportPositionValid || ! ppqValid
+             || std::abs (ppq - lastPpqPosition) > 0.25)
         {
             engine.noteTransportJump();
             engine.panic();
+           #ifdef GAPFILL_UNIT_TESTS
+            ++transportJumpCountForTests;
+           #endif
         }
 
-        lastPpqPosition = ppq;
+        lastPpqPosition = ppqValid ? ppq + (double) hostBlockSamples / samplesPerBeat : 0.0;
+        lastTransportPositionValid = ppqValid;
     }
     else if (lastTransportPlaying && ! playing && startSample == 0)
     {
@@ -369,6 +381,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     if (! prepared.load() || numSamples <= 0)
         return;
 
+    hostBlockSamples = numSamples;
     const bool bypassed = pb (params.bypass);
 
     int offset = 0;
@@ -395,6 +408,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     if (! prepared.load() || numSamples <= 0)
         return;
 
+    hostBlockSamples = numSamples;
     int offset = 0;
 
     while (offset < numSamples)
@@ -920,10 +934,20 @@ bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state)
         {
             const auto text = value.toString().trim();
 
-            if (text.isEmpty() || ! text.containsOnly ("0123456789+-.eE"))
+            // A character whitelist alone accepts incomplete numbers such as
+            // "1e", "++2" and "1-2". Parse the entire string, locale-independently.
+            const auto* begin = text.toRawUTF8();
+            const auto* end = begin + std::strlen (begin);
+            if (begin == end)
                 return false;
 
-            real = text.getDoubleValue();
+            // std::from_chars accepts a leading minus but not a leading plus.
+            const auto* numericBegin = *begin == '+' ? begin + 1 : begin;
+            if (numericBegin == end || (*begin == '+' && (*numericBegin == '-' || *numericBegin == '+')))
+                return false;
+            const auto result = std::from_chars (numericBegin, end, real, std::chars_format::general);
+            if (numericBegin == end || result.ec != std::errc {} || result.ptr != end)
+                return false;
         }
         else
         {
