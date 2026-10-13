@@ -17,6 +17,8 @@ jobs:
         run: python tools/validate_repo.py
       - name: Preflight unit tests
         run: python -m unittest tools/test_validate_repo.py
+      - name: Release packaging regression test
+        run: bash tools/test_package_release.sh
 
   linux:
     needs: preflight
@@ -102,6 +104,18 @@ jobs:
         shell: pwsh
         run: cmake --build build-ci --config Release --target GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone -- /m:2
 
+      - name: Upload compiled Windows binaries for QA (validation follows)
+        uses: actions/upload-artifact@v4
+        with:
+          name: gapfill-windows-binaries
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
+            build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
+            build-ci/GapFill_artefacts/JuceLibraryCode/icon.ico
+            build-ci/artefacts/Release/GapFill.exe
+
       - name: Run tests
         shell: pwsh
         run: .\build-ci\artefacts\Release\GapFillTests.exe
@@ -113,28 +127,118 @@ jobs:
           Expand-Archive pluginval.zip -DestinationPath pluginval-bin
           $pluginval = Get-ChildItem pluginval-bin -Recurse -Filter pluginval.exe | Select-Object -First 1
           if (-not $pluginval) { throw "pluginval.exe not found" }
-          $vst3 = Get-ChildItem build-ci -Recurse -Directory -Filter GapFill.vst3 | Select-Object -First 1
-          if (-not $vst3) { throw "GapFill.vst3 not found" }
-          & $pluginval.FullName --strictness-level 10 --validate $vst3.FullName
+          $vst3 = Join-Path $PWD 'build-ci\GapFill_artefacts\Release\VST3\GapFill.vst3'
+          if (-not (Test-Path $vst3 -PathType Container)) { throw "Release VST3 bundle not found at $vst3" }
+          $vst3Binary = Get-ChildItem $vst3 -Recurse -File -Filter GapFill.vst3 | Select-Object -First 1
+          if (-not $vst3Binary) { throw "Release VST3 binary missing from $vst3" }
+          & $pluginval.FullName --strictness-level 10 --validate $vst3
           if ($LASTEXITCODE -ne 0) { throw "pluginval failed with exit code $LASTEXITCODE" }
 
       - name: Validate CLAP with clap-validator
         shell: pwsh
         run: |
           cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
-          $clap = Get-ChildItem build-ci -Recurse -File -Filter GapFill.clap | Select-Object -First 1
-          if (-not $clap) { throw "GapFill.clap not found" }
-          clap-validator validate --only-failed $clap.FullName
+          $clap = Join-Path $PWD 'build-ci\GapFill_artefacts\Release\CLAP\GapFill.clap'
+          if (-not (Test-Path $clap -PathType Leaf)) { throw "Release CLAP binary not found at $clap" }
+          clap-validator validate --only-failed $clap
           if ($LASTEXITCODE -ne 0) { throw "clap-validator failed with exit code $LASTEXITCODE" }
 
       - name: Smoke-launch standalone
         shell: pwsh
         run: |
-          $standalone = Get-ChildItem build-ci\artefacts -Recurse -File -Filter GapFill.exe | Select-Object -First 1
-          if (-not $standalone) { throw "GapFill.exe not found" }
-          $process = Start-Process $standalone.FullName -PassThru
+          $standalone = Join-Path $PWD 'build-ci\artefacts\Release\GapFill.exe'
+          if (-not (Test-Path $standalone -PathType Leaf)) { throw "Release standalone missing at $standalone" }
+          $process = Start-Process $standalone -PassThru
           Start-Sleep -Seconds 5
           if ($process.HasExited) {
             throw "Standalone exited before the 5-second smoke window with code $($process.ExitCode)"
           }
           Stop-Process -Id $process.Id -Force
+
+  package-windows:
+    name: Package Windows beta
+    needs: [preflight, linux, windows]
+    if: always() && needs.preflight.result == 'success' && needs.windows.result != 'cancelled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Windows installer packaging dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nsis zip unzip file
+
+      - name: Download validated Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: gapfill-windows-binaries
+          path: windows-build
+
+      - name: Package installer and plugin ZIPs
+        run: |
+          bash packaging/package_release.sh windows-build "" dist
+
+      - name: Verify release packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum -c GapFill-0.0.1-beta-SHA256SUMS.txt
+          for kind in Setup.exe Portable.zip VST3.zip CLAP.zip; do
+            test -s "GapFill-0.0.1-beta-Windows-x64-$kind"
+          done
+          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-Portable.zip | grep -qx 'GapFill.exe'
+          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-VST3.zip | grep -q 'GapFill.vst3/Contents/'
+          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-CLAP.zip | grep -qx 'GapFill.clap'
+          file GapFill-0.0.1-beta-Windows-x64-Setup.exe | grep -qi 'PE32'
+
+      - name: Upload packaged beta candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: gapfill-windows-beta-candidate-qa
+          if-no-files-found: error
+          retention-days: 30
+          path: dist/GapFill-0.0.1-beta-*
+
+  publish-windows-beta:
+    name: Publish Windows beta prerelease
+    needs: [package-windows, preflight, linux, windows]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master' && needs.package-windows.result == 'success' && needs.preflight.result == 'success' && needs.linux.result == 'success' && needs.windows.result == 'success'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download validated beta packages
+        uses: actions/download-artifact@v4
+        with:
+          name: gapfill-windows-beta-candidate-qa
+          path: dist
+
+      - name: Publish exactly once for version 0.0.1-beta
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="v0.0.1-beta"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Existing $tag release found; will not overwrite it automatically."
+            exit 0
+          fi
+          cat > beta-notes.md <<'NOTES'
+          GapFill 0.0.1 beta for Windows x64.
+
+          Includes standalone, VST3 and CLAP binaries and an NSIS installer.
+          Built by GitHub Actions after preflight, JUCE tests, Linux/Windows
+          builds, pluginval, clap-validator, standalone smoke tests and package
+          checksum/archive checks succeeded.
+
+          This is an unsigned beta. Real-DAW, physical MIDI and audio-interface
+          compatibility require additional user testing. Please report issues.
+          NOTES
+          gh release create "$tag" dist/GapFill-0.0.1-beta-* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "GapFill 0.0.1 beta (Windows x64)" \
+            --notes-file beta-notes.md --prerelease
