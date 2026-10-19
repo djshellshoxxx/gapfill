@@ -430,8 +430,7 @@ void GapKnob::resized()
     // rather than pinning them we cap growth at the same 1.6x the LookAndFeel
     // stops scaling the arc and indicator at - past that the dial would keep
     // growing while its details did not, and the proportions would drift.
-    const auto maxDial = (int) std::lround ((large ? metrics::knobLarge
-                                                   : metrics::knobDefault) * 1.6f);
+    const auto maxDial = large ? metrics::knobLarge : metrics::knobDefault;
     const auto size = juce::jmin (b.getWidth(), b.getHeight(), maxDial);
     slider.setBounds (b.withSizeKeepingCentre (size, size));
 
