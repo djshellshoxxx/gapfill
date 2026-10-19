@@ -228,13 +228,13 @@ jobs:
           for bundle in "$vst3" "$au" "$app"; do
             binary="$bundle/Contents/MacOS/GapFill"
             test -f "$binary"
-            lipo -verify_arch "${{ matrix.arch }}" "$binary"
+            lipo "$binary" -verify_arch "${{ matrix.arch }}"
           done
           if [ -f "$clap" ]; then
-            lipo -verify_arch "${{ matrix.arch }}" "$clap"
+            lipo "$clap" -verify_arch "${{ matrix.arch }}"
           else
             test -f "$clap/Contents/MacOS/GapFill"
-            lipo -verify_arch "${{ matrix.arch }}" "$clap/Contents/MacOS/GapFill"
+            lipo "$clap/Contents/MacOS/GapFill" -verify_arch "${{ matrix.arch }}"
           fi
 
       - name: Validate macOS VST3 with pluginval
