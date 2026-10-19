@@ -275,6 +275,27 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     addAndMakeVisible (protectionPanel);
     addAndMakeVisible (mixPanel);
 
+    // Independent editor-only disclosure controls; no DSP state is modified.
+    for (auto* button : { &detectionToggle, &protectionToggle, &mixToggle,
+                          &leftDrawerToggle, &rightDrawerToggle })
+    {
+        button->setColour (juce::TextButton::textColourOffId, colours::clip);
+        addAndMakeVisible (button);
+    }
+    for (auto* label : { &leftDrawerNote, &rightDrawerNote })
+    {
+        label->setText ("FUTURE CONTROLS", juce::dontSendNotification);
+        label->setJustificationType (juce::Justification::centred);
+        label->setColour (juce::Label::textColourId, colours::textMuted);
+        addAndMakeVisible (label);
+    }
+    detectionToggle.onClick = [this] { detectionExpanded = ! detectionExpanded; resized(); };
+    protectionToggle.onClick = [this] { protectionExpanded = ! protectionExpanded; resized(); };
+    mixToggle.onClick = [this] { mixExpanded = ! mixExpanded; resized(); };
+    leftDrawerToggle.onClick = [this] { leftDrawerExpanded = ! leftDrawerExpanded; resized(); };
+    rightDrawerToggle.onClick = [this] { rightDrawerExpanded = ! rightDrawerExpanded; resized(); };
+
+
     for (auto* b : { &tabCreative, &tabWeights, &tabSpectral })
     {
         b->setClickingTogglesState (true);
@@ -851,24 +872,55 @@ void GapFillAudioProcessorEditor::resized()
     b.reduce (10, 8);
     b.removeFromBottom (kFooterHeight);
 
-    // ---- mix strip --------------------------------------------------------
-    mixPanel.setBounds (b.removeFromBottom (kMixHeight));
+    // Reserve the same vertical area in both states: collapsing Mix does not
+    // cause the waveform or central controls to jump or grow.
+    auto mixArea = b.removeFromBottom (kMixHeight);
+    mixToggle.setBounds (mixArea.removeFromTop (18));
+    mixToggle.setButtonText (mixExpanded ? "MIX / OUTPUT  ^" : "MIX / OUTPUT  v");
+    mixPanel.setVisible (mixExpanded);
+    mixPanel.setBounds (mixExpanded ? mixArea : juce::Rectangle<int>());
     b.removeFromBottom (8);
 
-    // ---- control row ------------------------------------------------------
     const auto controlHeight = juce::jlimit (250, 360, (int) ((float) b.getHeight() * 0.54f));
     auto controls = b.removeFromBottom (controlHeight);
     b.removeFromBottom (8);
 
-    const auto sideWidth = juce::jlimit (230, 320, controls.getWidth() / 4);
-    detectionPanel.setBounds (controls.removeFromLeft (sideWidth));
-    controls.removeFromLeft (8);
-    protectionPanel.setBounds (controls.removeFromRight (juce::jlimit (215, 290, sideWidth - 20)));
-    controls.removeFromRight (8);
+    // Future control drawers occupy the upper ~2/5 of the GUI. Their handles
+    // remain available while closed; future controls are deliberately absent.
+    auto upper = b;
+    leftDrawerToggle.setBounds (upper.removeFromLeft (20));
+    rightDrawerToggle.setBounds (upper.removeFromRight (20));
+    leftDrawerToggle.setButtonText (leftDrawerExpanded ? "<" : ">");
+    rightDrawerToggle.setButtonText (rightDrawerExpanded ? ">" : "<");
+    const int futureWidth = juce::jmin (150, juce::jmax (100, upper.getWidth() / 5));
+    leftDrawerNote.setVisible (leftDrawerExpanded);
+    rightDrawerNote.setVisible (rightDrawerExpanded);
+    leftDrawerNote.setBounds (leftDrawerExpanded ? upper.removeFromLeft (futureWidth)
+                                                : juce::Rectangle<int>());
+    rightDrawerNote.setBounds (rightDrawerExpanded ? upper.removeFromRight (futureWidth)
+                                                   : juce::Rectangle<int>());
 
-    // Tabs sit above the middle panel.
+    // Narrow edge affordances keep the side panels discoverable.
+    detectionToggle.setBounds (controls.removeFromLeft (22));
+    protectionToggle.setBounds (controls.removeFromRight (22));
+    detectionToggle.setButtonText (detectionExpanded ? "<" : ">");
+    protectionToggle.setButtonText (protectionExpanded ? ">" : "<");
+    detectionToggle.setTooltip (detectionExpanded ? "Collapse Detection" : "Expand Detection");
+    protectionToggle.setTooltip (protectionExpanded ? "Collapse Protection" : "Expand Protection");
+
+    const int sideWidth = juce::jlimit (230, 320, controls.getWidth() / 4);
+    detectionPanel.setVisible (detectionExpanded);
+    protectionPanel.setVisible (protectionExpanded);
+    detectionPanel.setBounds (detectionExpanded ? controls.removeFromLeft (sideWidth)
+                                                : juce::Rectangle<int>());
+    if (detectionExpanded) controls.removeFromLeft (8);
+    protectionPanel.setBounds (protectionExpanded
+                                  ? controls.removeFromRight (juce::jlimit (215, 290, sideWidth - 20))
+                                  : juce::Rectangle<int>());
+    if (protectionExpanded) controls.removeFromRight (8);
+
     auto tabs = controls.removeFromTop (kTabHeight);
-    const auto tabWidth = juce::jmin (130, tabs.getWidth() / 3);
+    const int tabWidth = juce::jmin (130, tabs.getWidth() / 3);
     tabCreative.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
     tabWeights.setBounds (tabs.removeFromLeft (tabWidth + 20).reduced (1));
     tabSpectral.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
@@ -876,9 +928,7 @@ void GapFillAudioProcessorEditor::resized()
     creativePanel.setBounds (controls);
     weightsPanel.setBounds (controls);
     spectralPanel.setBounds (controls);
-
-    // ---- visualiser takes whatever is left --------------------------------
-    visualiser.setBounds (b);
+    visualiser.setBounds (upper);
 
     helpView.setBounds (getLocalBounds().withTrimmedTop (kTopBarHeight).reduced (24, 16));
 
