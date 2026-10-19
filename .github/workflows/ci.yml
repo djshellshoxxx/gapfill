@@ -18,6 +18,9 @@ jobs:
       - name: Preflight unit tests
         run: python -m unittest tools/test_validate_repo.py
 
+      - name: Windows packaging regression (synthetic Release fixtures)
+        run: bash tools/test_package_release.sh
+
   linux:
     needs: preflight
     runs-on: ubuntu-latest
