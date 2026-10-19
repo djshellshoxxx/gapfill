@@ -160,3 +160,161 @@ jobs:
             throw "Standalone exited before the 5-second smoke window with code $($process.ExitCode)"
           }
           Stop-Process -Id $process.Id -Force
+
+  macos:
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 65
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify native architecture and tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(uname -m)" = "${{ matrix.arch }}"
+          xcodebuild -version
+          cmake --version
+
+      - name: Fetch JUCE and CLAP support
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch 8.0.15 https://github.com/juce-framework/JUCE JUCE
+          git clone --filter=blob:none --no-checkout https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
+          git -C clap-juce-extensions checkout 55525c9858d4b25687be7759a5e0f70eccef218e
+          git -C clap-juce-extensions submodule update --init --recursive --depth 1
+
+      - name: Configure Release for native architecture
+        shell: bash
+        run: cmake -S . -B build-ci -G Xcode -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+
+      - name: Build tests, VST3, AU, CLAP and Standalone
+        shell: bash
+        run: cmake --build build-ci --config Release --target GapFillTests GapFill_VST3 GapFill_AU GapFill_CLAP GapFill_Standalone --parallel 2
+
+      - name: Run unit and combinatorial tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          build-ci/artefacts/Release/GapFillTests
+
+      - name: Verify native bundles and architecture
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=build-ci/GapFill_artefacts/Release
+          for format in VST3 AU CLAP; do
+            test -d "$root/$format" || { echo "Missing $format bundle directory"; exit 1; }
+          done
+          vst3="$root/VST3/GapFill.vst3"
+          au="$root/AU/GapFill.component"
+          clap="$root/CLAP/GapFill.clap"
+          app="build-ci/artefacts/Release/GapFill.app"
+          test -d "$vst3"
+          test -d "$au"
+          test -e "$clap"
+          test -d "$app"
+          find "$vst3" "$au" "$app" -type f -print | head -40
+          # Explicitly fail on missing or wrong-architecture executables.
+          for bundle in "$vst3" "$au" "$app"; do
+            binary="$bundle/Contents/MacOS/GapFill"
+            test -f "$binary"
+            lipo "$binary" -verify_arch "${{ matrix.arch }}"
+          done
+          if [ -f "$clap" ]; then
+            lipo "$clap" -verify_arch "${{ matrix.arch }}"
+          else
+            test -f "$clap/Contents/MacOS/GapFill"
+            lipo "$clap/Contents/MacOS/GapFill" -verify_arch "${{ matrix.arch }}"
+          fi
+
+      - name: Validate macOS VST3 with pluginval
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fL "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip" -o pluginval.zip
+          unzip -q pluginval.zip -d pluginval-bin
+          validator=$(find pluginval-bin -path '*/Contents/MacOS/pluginval' -type f | head -n 1)
+          test -n "$validator"
+          chmod +x "$validator"
+          "$validator" --strictness-level 10 --validate "build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3"
+
+      - name: Validate Audio Unit
+        shell: bash
+        run: |
+          set -euo pipefail
+          component="build-ci/GapFill_artefacts/Release/AU/GapFill.component"
+          plist="$component/Contents/Info.plist"
+          plutil -lint "$plist"
+          /usr/libexec/PlistBuddy -c "Print :AudioComponents" "$plist"
+          codesign --verify --deep --verbose=2 "$component"
+          mkdir -p "$HOME/Library/Audio/Plug-Ins/Components"
+          destination="$HOME/Library/Audio/Plug-Ins/Components/GapFill.component"
+          rm -rf "$destination"
+          ditto "$component" "$destination"
+          touch "$destination"
+          # JUCE declares aumf (music effect) because the plugin accepts MIDI input.\n          # Validate the exact type/subtype/manufacturer from AudioComponents.\n          # The AudioComponentRegistrar scans asynchronously on fresh CI machines.
+          # Collect discovery evidence; retry at most 8 times without weakening auval.
+          killall -9 AudioComponentRegistrar || true
+          for attempt in {1..8}; do
+            echo "Audio Unit registration attempt $attempt"
+            auval -a > auval-components.txt 2>&1 || true
+            cat auval-components.txt
+            if auval -v aumf Gpfl Gfau; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Audio Unit was not discoverable after bounded registration attempts"
+          exit 1
+
+      - name: Validate macOS CLAP
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
+          clap-validator validate --only-failed build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
+
+      - name: Smoke-launch native standalone
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess, time
+          binary = "build-ci/artefacts/Release/GapFill.app/Contents/MacOS/GapFill"
+          p = subprocess.Popen([binary], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+          try:
+              time.sleep(5)
+              if p.poll() is not None:
+                  raise SystemExit(f"GapFill exited early: {p.returncode}")
+          finally:
+              if p.poll() is None:
+                  p.terminate()
+                  try:
+                      p.wait(timeout=5)
+                  except subprocess.TimeoutExpired:
+                      p.kill()
+                      p.wait()
+          PY
+
+      - name: Upload native macOS candidate bundles
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gapfill-macos-${{ matrix.arch }}-verified
+          path: |
+            build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
+            build-ci/GapFill_artefacts/Release/AU/GapFill.component/
+            build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
+            build-ci/artefacts/Release/GapFill.app/
+          if-no-files-found: error
+          retention-days: 14
