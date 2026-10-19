@@ -252,11 +252,30 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          component="build-ci/GapFill_artefacts/Release/AU/GapFill.component"
+          plist="$component/Contents/Info.plist"
+          plutil -lint "$plist"
+          /usr/libexec/PlistBuddy -c "Print :AudioComponents" "$plist"
+          codesign --verify --deep --verbose=2 "$component"
           mkdir -p "$HOME/Library/Audio/Plug-Ins/Components"
-          cp -R "build-ci/GapFill_artefacts/Release/AU/GapFill.component" "$HOME/Library/Audio/Plug-Ins/Components/"
-          # Force the AudioComponentRegistrar to rescan the new component.
+          destination="$HOME/Library/Audio/Plug-Ins/Components/GapFill.component"
+          rm -rf "$destination"
+          ditto "$component" "$destination"
+          touch "$destination"
+          # The AudioComponentRegistrar scans asynchronously on fresh CI machines.
+          # Collect discovery evidence; retry at most 8 times without weakening auval.
           killall -9 AudioComponentRegistrar || true
-          auval -v aufx Gpfl Gfau
+          for attempt in {1..8}; do
+            echo "Audio Unit registration attempt $attempt"
+            auval -a > auval-components.txt 2>&1 || true
+            cat auval-components.txt
+            if auval -v aufx Gpfl Gfau; then
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Audio Unit was not discoverable after bounded registration attempts"
+          exit 1
 
       - name: Validate macOS CLAP
         shell: bash
