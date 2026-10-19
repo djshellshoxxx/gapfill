@@ -164,8 +164,12 @@ WeightsPanel::WeightsPanel (juce::AudioProcessorValueTreeState& s)
                                           juce::String ("How often AUTO may choose ") + algoName ((Algo) i)
                                             + ". Set to 0 to disable it completely.",
                                           colours::accentWarm));
-        addAndMakeVisible (bar);
+        weightContent.addAndMakeVisible (bar);
     }
+
+    weightViewport.setViewedComponent (&weightContent, false);
+    weightViewport.setScrollBarsShown (true, false);
+    addAndMakeVisible (weightViewport);
 
     hint.setText ("Weights only apply when Fill Type is AUTO. 0% disables an algorithm.",
                   juce::dontSendNotification);
@@ -223,17 +227,19 @@ void WeightsPanel::resized()
     layoutRow (buttons, { &allOn, &allOff, &drumsOnly, &texturesOnly });
     b.removeFromBottom (6);
 
-    const auto columnsCount = b.getWidth() > 540 ? 2 : 1;
-    const auto perColumn = (bars.size() + columnsCount - 1) / columnsCount;
-    const auto colWidth = b.getWidth() / columnsCount;
-    const auto rowHeight = juce::jmax (26, b.getHeight() / juce::jmax (1, perColumn));
-
+    weightViewport.setBounds (b);
+    const int viewWidth = juce::jmax (100, b.getWidth() - 14);
+    const int columnsCount = viewWidth >= 540 ? 2 : 1;
+    const int perColumn = (bars.size() + columnsCount - 1) / columnsCount;
+    constexpr int rowHeight = 34;
+    const int colWidth = viewWidth / columnsCount;
+    weightContent.setSize (viewWidth, juce::jmax (b.getHeight(), perColumn * rowHeight));
     for (int i = 0; i < bars.size(); ++i)
     {
-        const auto col = i / perColumn;
-        const auto row = i % perColumn;
-        bars[i]->setBounds (b.getX() + col * colWidth, b.getY() + row * rowHeight,
-                            colWidth - 10, rowHeight - 2);
+        const int col = i / perColumn;
+        const int row = i % perColumn;
+        bars[i]->setBounds (col * colWidth + 2, row * rowHeight,
+                            colWidth - 8, rowHeight - 2);
     }
 }
 
