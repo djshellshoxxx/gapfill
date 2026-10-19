@@ -149,6 +149,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "clap-validator failed with exit code $LASTEXITCODE" }
 
       - name: Smoke-launch standalone
+        if: ${{ success() || failure() }}
         shell: pwsh
         run: |
           $standalone = Join-Path $PWD 'build-ci\artefacts\Release\GapFill.exe'
