@@ -262,14 +262,14 @@ jobs:
           rm -rf "$destination"
           ditto "$component" "$destination"
           touch "$destination"
-          # The AudioComponentRegistrar scans asynchronously on fresh CI machines.
+          # JUCE declares aumf (music effect) because the plugin accepts MIDI input.\n          # Validate the exact type/subtype/manufacturer from AudioComponents.\n          # The AudioComponentRegistrar scans asynchronously on fresh CI machines.
           # Collect discovery evidence; retry at most 8 times without weakening auval.
           killall -9 AudioComponentRegistrar || true
           for attempt in {1..8}; do
             echo "Audio Unit registration attempt $attempt"
             auval -a > auval-components.txt 2>&1 || true
             cat auval-components.txt
-            if auval -v aufx Gpfl Gfau; then
+            if auval -v aumf Gpfl Gfau; then
               exit 0
             fi
             sleep 5
