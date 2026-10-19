@@ -63,6 +63,8 @@ public:
 private:
     juce::AudioProcessorValueTreeState& state;
     juce::OwnedArray<GapBar> bars;
+    juce::Viewport weightViewport;
+    juce::Component weightContent;
     juce::TextButton allOn { "ALL ON" }, allOff { "ALL OFF" }, drumsOnly { "RHYTHMIC" }, texturesOnly { "TEXTURAL" };
     juce::Label hint;
 
