@@ -1,6 +1,6 @@
 # GapFill developer documentation set
 
-Status: proposed roadmap, written against `master` @ `01f2f56` (v0.0.1 beta).
+Status: proposed roadmap originally written against `master` @ `01f2f56` (v0.0.1 beta). The current execution-priority override is `08-STABILIZATION-MODULARITY-FEATURE-BACKLOG.md` (2026-10-19).
 Supersedes nothing: it builds on
 `docs/superpowers/specs/2026-10-06-creative-performance-features-design.md`
 (the "creative spec") and says explicitly where it **revises** it (see
@@ -17,6 +17,7 @@ Supersedes nothing: it builds on
 | 05 | `05-SPEC-USABILITY-VALUE.md` | Fill History, fill export, preset browser, MIDI note trigger, Simple/Advanced view, Auto-Calibrate, first-run, UI scale, status line. |
 | 06 | `06-ENGINEERING-STANDARDS.md` | Always. Real-time rules, determinism, state rules, testing, review checklist, performance budgets. |
 | 07 | `07-QA-AND-RELEASE.md` | Before merging anything big and before every release. Test matrix, manual scripts, risk register. |
+| 08 | `08-STABILIZATION-MODULARITY-FEATURE-BACKLOG.md` | **Current priority override:** Windows, Linux, macOS and CLAP build gates first; modular regression-safe foundation second; all new features deferred and catalogued with descriptions, relative difficulty and value. |
 
 ## Ticket naming
 
