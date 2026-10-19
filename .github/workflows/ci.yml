@@ -82,6 +82,18 @@ jobs:
             exit 1
           fi
 
+      - name: Upload verified Linux release binaries
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gapfill-linux-x64-release-binaries
+          path: |
+            build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
+            build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
+            build-ci/artefacts/GapFill
+          if-no-files-found: error
+          retention-days: 90
+
   windows:
     needs: preflight
     runs-on: windows-2022
@@ -163,6 +175,18 @@ jobs:
             throw "Standalone exited before the 5-second smoke window with code $($process.ExitCode)"
           }
           Stop-Process -Id $process.Id -Force
+
+      - name: Upload verified Windows release binaries
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gapfill-windows-x64-release-binaries
+          path: |
+            build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
+            build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
+            build-ci/artefacts/Release/GapFill.exe
+          if-no-files-found: error
+          retention-days: 90
 
   macos:
     needs: preflight
