@@ -59,6 +59,15 @@ jobs:
           test -n "$VST3"
           xvfb-run -a "$PLUGINVAL" --strictness-level 10 --validate "$VST3"
 
+      - name: Upload Windows pluginval diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-pluginval-diagnostics
+          path: pluginval-diagnostics/
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Validate CLAP with clap-validator
         run: |
           cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
@@ -117,8 +126,17 @@ jobs:
           if (-not (Test-Path $vst3 -PathType Container)) { throw "Release VST3 bundle not found at $vst3" }
           $vst3Binary = Get-ChildItem $vst3 -Recurse -File -Filter GapFill.vst3 | Select-Object -First 1
           if (-not $vst3Binary) { throw "Release VST3 binary missing from $vst3" }
-          & $pluginval.FullName --strictness-level 10 --validate $vst3
-          if ($LASTEXITCODE -ne 0) { throw "pluginval failed with exit code $LASTEXITCODE" }
+          # pluginval is a Windows GUI-subsystem executable: direct invocation can
+          # return before the validator finishes, leaving LASTEXITCODE unset.
+          # Wait explicitly and retain separate output streams for failure triage.
+          New-Item -ItemType Directory -Force -Path pluginval-diagnostics | Out-Null
+          $stdout = Join-Path $PWD 'pluginval-diagnostics/pluginval-stdout.log'
+          $stderr = Join-Path $PWD 'pluginval-diagnostics/pluginval-stderr.log'
+          $arguments = "--strictness-level 10 --validate `"$vst3`""
+          $validation = Start-Process -FilePath $pluginval.FullName -ArgumentList $arguments -Wait -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          if (Test-Path $stdout) { Get-Content $stdout }
+          if (Test-Path $stderr) { Get-Content $stderr }
+          if ($validation.ExitCode -ne 0) { throw "pluginval failed with exit code $($validation.ExitCode); inspect uploaded diagnostics" }
 
       - name: Validate CLAP with clap-validator
         shell: pwsh
