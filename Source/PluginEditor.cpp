@@ -903,8 +903,8 @@ void GapFillAudioProcessorEditor::resized()
     // Narrow edge affordances keep the side panels discoverable.
     detectionToggle.setBounds (controls.removeFromLeft (22));
     protectionToggle.setBounds (controls.removeFromRight (22));
-    detectionToggle.setButtonText (detectionExpanded ? "<" : ">");
-    protectionToggle.setButtonText (protectionExpanded ? ">" : "<");
+    detectionToggle.setExpanded (detectionExpanded);
+    protectionToggle.setExpanded (protectionExpanded);
     detectionToggle.setTooltip (detectionExpanded ? "Collapse Detection" : "Expand Detection");
     protectionToggle.setTooltip (protectionExpanded ? "Collapse Protection" : "Expand Protection");
 
