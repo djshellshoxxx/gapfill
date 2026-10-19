@@ -91,6 +91,14 @@ private:
     juce::TextButton tabCreative { "CREATIVE" }, tabWeights { "AUTO WEIGHTS" }, tabSpectral { "SPECTRAL" };
     Tab currentTab = Tab::Creative;
 
+    bool detectionExpanded = true, protectionExpanded = true, mixExpanded = true;
+    bool leftDrawerExpanded = false, rightDrawerExpanded = false;
+    juce::TextButton detectionToggle { "<" }, protectionToggle { ">" };
+    juce::TextButton mixToggle { "MIX / OUTPUT  v" };
+    juce::TextButton leftDrawerToggle { ">" }, rightDrawerToggle { "<" };
+    juce::Label leftDrawerNote, rightDrawerNote;
+
+
     HelpView helpView;
     OptionsView optionsView;
 
