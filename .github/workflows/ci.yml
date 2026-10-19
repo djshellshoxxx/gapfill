@@ -59,15 +59,6 @@ jobs:
           test -n "$VST3"
           xvfb-run -a "$PLUGINVAL" --strictness-level 10 --validate "$VST3"
 
-      - name: Upload Windows pluginval diagnostic logs
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-pluginval-diagnostics
-          path: pluginval-diagnostics/
-          if-no-files-found: ignore
-          retention-days: 14
-
       - name: Validate CLAP with clap-validator
         run: |
           cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
@@ -138,7 +129,17 @@ jobs:
           if (Test-Path $stderr) { Get-Content $stderr }
           if ($validation.ExitCode -ne 0) { throw "pluginval failed with exit code $($validation.ExitCode); inspect uploaded diagnostics" }
 
+      - name: Upload Windows pluginval diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-pluginval-diagnostics
+          path: pluginval-diagnostics/
+          if-no-files-found: ignore
+          retention-days: 14
+
       - name: Validate CLAP with clap-validator
+        if: ${{ success() || failure() }}
         shell: pwsh
         run: |
           cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
