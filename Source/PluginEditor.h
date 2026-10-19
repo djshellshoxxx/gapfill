@@ -17,6 +17,50 @@ namespace gapfill
 {
 
 //==============================================================================
+// Compact, accessible edge control with vertical name and directional arrow.
+class SideCollapseButton : public juce::TextButton
+{
+public:
+    SideCollapseButton (juce::String label, bool leftSide)
+        : name (std::move (label)), isLeft (leftSide)
+    {
+        setButtonText (name);
+        setTooltip ("Collapse or expand " + name);
+    }
+
+    void setExpanded (bool value) { expanded = value; repaint(); }
+
+    void paintButton (juce::Graphics& g, bool hovered, bool pressed) override
+    {
+        g.setColour (hovered ? colours::panelRaised : colours::panel);
+        g.fillRoundedRectangle (getLocalBounds().toFloat(), 3.0f);
+        g.setColour (colours::clip);
+        g.setFont (juce::Font (juce::FontOptions (14.0f)).boldened());
+        const auto arrow = isLeft ? (expanded ? "<" : ">")
+                                  : (expanded ? ">" : "<");
+        g.drawText (arrow, 0, 4, getWidth(), 24, juce::Justification::centred);
+        g.setColour (colours::text);
+        g.setFont (juce::Font (juce::FontOptions (10.0f)).boldened());
+        const int offset = 34;
+        const int available = juce::jmax (0, getHeight() - offset - 4);
+        if (available > 0)
+        {
+            juce::Graphics::ScopedSaveState save (g);
+            g.addTransform (juce::AffineTransform::rotation (-juce::MathConstants<float>::halfPi,
+                                                              (float) getWidth() / 2.0f,
+                                                              (float) offset + (float) available / 2.0f));
+            g.drawText (name, (getWidth() - available) / 2, offset + (available - getWidth()) / 2,
+                        available, getWidth(), juce::Justification::centred);
+        }
+    }
+
+private:
+    juce::String name;
+    bool isLeft;
+    bool expanded = true;
+};
+
+//==============================================================================
 class GapFillAudioProcessorEditor : public juce::AudioProcessorEditor,
                                     private juce::Timer
 {
@@ -93,7 +137,7 @@ private:
 
     bool detectionExpanded = true, protectionExpanded = true, mixExpanded = true;
     bool leftDrawerExpanded = false, rightDrawerExpanded = false;
-    juce::TextButton detectionToggle { "<" }, protectionToggle { ">" };
+    SideCollapseButton detectionToggle { "DETECTION", true }, protectionToggle { "PROTECTION", false };
     juce::TextButton mixToggle { "MIX / OUTPUT  v" };
     juce::TextButton leftDrawerToggle { ">" }, rightDrawerToggle { "<" };
     juce::Label leftDrawerNote, rightDrawerNote;
