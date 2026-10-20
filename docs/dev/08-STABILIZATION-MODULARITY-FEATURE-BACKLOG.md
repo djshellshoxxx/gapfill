@@ -188,10 +188,20 @@ Value labels: H = high everyday/production utility, M = medium/niche, X = explor
 | F-X06 | Multi-track cooperative GapFill | MUS/VAL M | Coordinate fill decisions across instances/tracks with host-safe communication and explicit synchronization; no networking required. |
 | F-X07 | Adaptive performance/quality modes | LIVE/ESS H | Benchmark-aware DSP quality throttling with deterministic transitions, bounded CPU and no uncontrolled sonic changes. |
 
-### Backlog use and decisions
+### Spec coverage and backlog use
+
+The feature catalogue above is now cross-referenced to developer-ready candidate
+specifications. `docs/dev/10-SPEC-LIVE-AND-WORKFLOW.md` specifies F-S01, F-S06-F-S08,
+F-S10, F-S12, F-M03, F-M10-F-M11, F-M17-F-M19, F-M21-F-M23, F-L07, F-L17,
+F-L23-F-L25, and records the open product decisions previously listed in `05`.
+`docs/dev/11-SPEC-DSP-AND-MUSICAL-FEATURES.md` specifies F-M14-F-M16, F-M20,
+F-L09-F-L15, F-L18-F-L22 and F-X01-F-X07. Candidates already covered by `03`-`05`
+continue to use those specs: F-S02-F-S05, F-S09, F-S11, F-M01-F-M02, F-M04-F-M09,
+F-M12-F-M13, F-L01-F-L06, F-L08 and F-L16. No candidate is thereby selected for
+implementation.
 
 - All suggestions from the 2026-10-19 review are recorded above, plus the earlier planned E/C/U tickets. Existing features **Undo, Capture v1, Surprise and Tape Stop** are foundations for enhancements, not missing features. No candidate is automatically approved.
-- Before selecting any candidate: inspect actual current code to ensure it is not already available; map overlap to its E/C/U spec; draft user-visible behavior, success/quality metric, host/OS impacts, parameters/state design, real-time risks, tests/golden fixtures, value/complexity estimate and rollout toggle. Select one at a time.
+- Before selecting any candidate: inspect actual current code to ensure it is not already available; map overlap to its E/C/U spec; check `10`/`11` for an existing specification; then refresh user-visible behavior, success/quality metric, host/OS impacts, parameters/state design, real-time risks, tests/golden fixtures, value/complexity estimate and rollout toggle. Select one at a time.
 - Re-sort based on measured implementation scope after Gate B. A simple, high-value addition still cannot precede Gate A/B. Some "S" UI tasks have dependencies on larger modules, and *must* wait for those prerequisites.
 - Use a one-way lifecycle: `idea -> selected -> specified -> tests written -> implemented -> verified all platforms -> merged -> shipped`. Maintain unselected entries unchanged so nothing is lost.
 

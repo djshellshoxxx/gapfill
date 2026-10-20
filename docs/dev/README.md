@@ -19,6 +19,14 @@ Supersedes nothing: it builds on
 | 07 | `07-QA-AND-RELEASE.md` | Before merging anything big and before every release. Test matrix, manual scripts, risk register. |
 | 08 | `08-STABILIZATION-MODULARITY-FEATURE-BACKLOG.md` | **Current priority override:** Windows, Linux, macOS and CLAP build gates first; modular regression-safe foundation second; all new features deferred and catalogued with descriptions, relative difficulty and value. |
 | 09 | `09-FAST-MODULAR-BUILDS.md` | Build one configured test/plugin target at a time for faster local iteration; full CI/release validation remains comprehensive. |
+| 10 | `10-SPEC-LIVE-AND-WORKFLOW.md` | Detailed candidate contracts for live performance, workflow, scene recall, controller integration, safety and the previously parked product decisions. |
+| 11 | `11-SPEC-DSP-AND-MUSICAL-FEATURES.md` | Detailed candidate contracts for new DSP modules, MIDI/bus integration, musical analysis and research-heavy features. |
+
+`08` remains the source of truth for priority and candidate status. `10` and `11`
+make the previously catalog-only candidates implementable after the stabilization
+gates; creating a spec does not approve or schedule its implementation. Tickets already
+specified in `03`-`05` stay there, and the supplemental specs explicitly cross-reference
+those owners rather than duplicating them.
 
 The repository/release and toolchain snapshot for the current implementation
 work is [`docs/progress/release-baseline-20261020.md`](../progress/release-baseline-20261020.md).

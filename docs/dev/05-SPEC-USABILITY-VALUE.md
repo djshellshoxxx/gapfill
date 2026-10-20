@@ -279,7 +279,12 @@ are inside targets; `silence_refused` | `cancel_leaves_params_untouched` |
 
 ---
 
-## Backlog (deliberately not specified yet)
+## Deferred product and platform decisions
+
+The following concepts now have bounded developer briefs in
+[`10-SPEC-LIVE-AND-WORKFLOW.md`](10-SPEC-LIVE-AND-WORKFLOW.md). They remain deferred
+until a product/platform decision is made and are not implementation authorization.
+Keep this short list here because these decisions affect the usability roadmap.
 
 Decide before building; each needs a product decision, not just engineering.
 

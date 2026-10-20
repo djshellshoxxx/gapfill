@@ -24,6 +24,11 @@ files (section 3).
 | **5. UI window** | Usability overhaul (serial) | U-9 Param info (M) · U-4 Preset browser (L) · U-5 Simple/Advanced (L) · U-8 UI scale (M) · U-7 First-run (M) | UI only, serial |
 | **6. Reach** | Platforms and polish | E-5 macOS/AU (XL = 5a-5c; **starts in Phase 1, parallel track**) · E-6 Signing (M) · C-8 Evolve (L) · U-10e final preset pass (M) | Infra |
 
+The stabilization override in `08` controls the immediate execution order. Additional
+catalogue candidates remain deferred and are specified in `10` (live/workflow) and `11`
+(DSP/musical features). They are not part of this phase schedule until individually
+selected after Gate B; use the cross-reference in `08` to avoid duplicating E/C/U work.
+
 Approximate effort, using S = 0.5 d, M = 1.5 d, L = 4 d, XL = 8 d (my estimates, not
 measured on this codebase): Phase A ~4 d, Phase 0 ~20 d, Phase 1 ~13 d, Phase 2 ~17 d,
 Phase 3 ~15 d, Phase 4 ~15 d, Phase 5 ~13 d, Phase 6 ~15 d = **about 112 ideal
