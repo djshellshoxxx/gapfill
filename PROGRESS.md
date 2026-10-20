@@ -34,6 +34,27 @@ Version: 0.0.1 beta · Type: audio **effect** (not an instrument)
 
 ## Session log
 
+### 2026-10-20 - selective build slices and zero-test guard
+
+- Added `tools/dev/build.sh` so local builds can target only `GapFillTests`,
+  VST3, CLAP, Standalone, AU, or all configured targets. `check.sh` accepts the
+  same component selector while preserving its existing default command.
+- Added `docs/dev/09-FAST-MODULAR-BUILDS.md`, documented the commands in the
+  developer docs/bootstrap output, and added a synthetic target-selection test
+  to CI preflight.
+- The first full quick-check exposed a false-green path: the default
+  `-Combinatorial` filter selected zero tests because the runner only supported
+  positive substring matching, and zero selected tests returned success. Added
+  leading-dash exclusion, zero-match failure, and regression tests.
+- Linux CMake configure succeeded with JUCE 8.0.15 and the pinned CLAP
+  extension. `GapFillTests`, VST3, CLAP, and Standalone targets built. The local
+  quick suite passed **84 tests, 0 failures**; it intentionally excludes the
+  longer Combinatorial group. Repository preflight, packaging fixture, and
+  developer build-slice tests passed.
+- pluginval and a real CLAP host were not run in this container. GCC reported
+  existing warnings in the plugin/DSP/tests; no warning flags or validation
+  gates were weakened.
+
 ### 2026-10-07 - full audit, four new features, v0.0.1 beta release
 
 - Merged the two unmerged branches (`full-audit-fixes-20261006`, `codex/gapfill-creative-features-spec`) and removed every stale branch.

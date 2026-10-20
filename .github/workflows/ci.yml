@@ -18,6 +18,9 @@ jobs:
       - name: Preflight unit tests
         run: python -m unittest tools/test_validate_repo.py
 
+      - name: Developer build-slice regression
+        run: bash tools/test_dev_build.sh
+
       - name: Windows packaging regression (synthetic Release fixtures)
         run: bash tools/test_package_release.sh
 

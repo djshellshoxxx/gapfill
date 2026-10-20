@@ -153,6 +153,7 @@ target_sources(GapFillTests PRIVATE
     ${GAPFILL_SOURCES}
     Tests/TestMain.cpp
     Tests/TestFramework.cpp
+    Tests/TestFrameworkFilters.cpp
     Tests/TestSignals.cpp
     Tests/TestDsp.cpp
     Tests/TestPlugin.cpp

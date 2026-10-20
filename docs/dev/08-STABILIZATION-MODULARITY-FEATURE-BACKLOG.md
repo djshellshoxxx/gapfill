@@ -1,5 +1,5 @@
 # 08 - Stabilization first, modularity second, features later
-Status: proposed execution plan, 2026-10-19. **No feature implementation is authorized by this document.**
+Status: execution plan proposed 2026-10-19; baseline refreshed 2026-10-20. Creative backlog entries remain candidates until scoped and specified. The repository owner has now authorized implementation work; each selected ticket still requires its own bounded scope, tests, and compatibility evidence.
 
 ## Decision and sequence (overrides sequencing in 01 for the near term)
 
@@ -7,11 +7,13 @@ Status: proposed execution plan, 2026-10-19. **No feature implementation is auth
 
 **Gate B: modular and safe extension surface** is second. Refactor without changing output, parameters, public IDs, state serialization, latency, preset sound or supported host behavior; prove equivalence with tests. Do not implement creative backlog until Gates A and B are explicitly signed off.
 
-**Gate C: deferred feature candidates** is third. The backlog below is a *catalogue for later selection*, not a commitment. Each item needs a design/spec, value and cost reassessment, dependency check and owner before becoming an implementation ticket.
+**Gate C: feature candidates** follows stabilization and safe extension work. The backlog below is a *catalogue for selection*, not a blanket commitment. Each selected item needs a design/spec, value and cost reassessment, dependency check, owner, and regression plan before implementation.
 
 ### Evidence boundaries
 
-At planning time, master `CMakeLists.txt` declares `FORMATS VST3 Standalone`; CLAP is added conditionally using `clap-juce-extensions`. Master `.github/workflows/ci.yml` contains Linux and Windows jobs, not macOS/release jobs. Open PRs #9 (packaging), #12 (transport/state/DSP), #14 (artifact selection and pluginval wait), #15 (modularity policy) overlap the planned work. Issue #13 documents a Windows pluginval editor-automation crash; issue #10 documents variable-buffer transport prediction. Older PR/issue reports describe some 91-test passes and Linux validation, but those are historical claims, not today's green Gate A. Inspect fresh CI logs and release listings before publishing any new status. The current default branch has doc roadmap #8 merged; compare PR status again before any merge.
+At planning time, master `CMakeLists.txt` declared `FORMATS VST3 Standalone`; CLAP was added conditionally using `clap-juce-extensions`. Its workflow did not yet include macOS/release jobs. The status of PRs #9/#12/#14/#15 and issues #10/#11/#13 in this paragraph is a 2026-10-19 planning snapshot; refresh before acting on them.
+
+**2026-10-20 update:** current master is `20e5ffcaada9768f2f037d03be4dfeb0c99c6288`, after release commits for Windows/Linux and macOS assets. See `docs/progress/release-baseline-20261020.md` for the refreshed commit, toolchain, and local verification. Release assets are present; this alone does not establish that all real-host and device acceptance steps have passed. The fast local target workflow is specified in `09-FAST-MODULAR-BUILDS.md`. This work corrects local build iteration and a false-green zero-tests path; it does not mark Gate A or Gate B complete.
 
 ## Operating rules and coordinated work
 
@@ -193,10 +195,10 @@ Value labels: H = high everyday/production utility, M = medium/niche, X = explor
 - Re-sort based on measured implementation scope after Gate B. A simple, high-value addition still cannot precede Gate A/B. Some "S" UI tasks have dependencies on larger modules, and *must* wait for those prerequisites.
 - Use a one-way lifecycle: `idea -> selected -> specified -> tests written -> implemented -> verified all platforms -> merged -> shipped`. Maintain unselected entries unchanged so nothing is lost.
 
-## Immediate first work session
+## Next implementation session
 
-1. Verify PR statuses/runs and current master against A0 evidence. Do not start feature coding.
-2. Merge/reconcile low-risk already-validated CI/packaging changes in an order that does not break tests.
-3. Reproduce Windows editor crash with logs + dump and identify actual stack. This is the first runtime blocker.
-4. Obtain a *real* Release Windows VST3 and Standalone validation, then do Linux, macOS, and complete CLAP gate in that order.
-5. Tag and archive Gate A baseline, then start B0/B1 only. Feature selection meeting occurs *after* Gate B.
+1. Refresh PR, issue, Actions, and release states rather than using the 2026-10-19 snapshot above.
+2. Use target-selective local builds for focused work and retain the full native platform/validator/release matrix as the merge gate.
+3. Continue Gate B with the smallest safe modular seam. Capture unchanged sound/state evidence before moving code between targets.
+4. Select one high-value feature from the specified E/C/U set, update its developer-ready spec to reflect current code, then implement it with a failing regression first.
+5. Update `PROGRESS.md` and the completion register with exact test counts, platform limits, and release impact.

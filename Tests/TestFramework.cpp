@@ -10,6 +10,23 @@ Registry& Registry::get()
     return r;
 }
 
+bool matchesFilter (const TestCase& test, const juce::String& filter)
+{
+    if (filter.isEmpty())
+        return true;
+
+    const auto excluding = filter.startsWithChar ('-');
+    const auto term = (excluding ? filter.substring (1) : filter).trim();
+
+    if (term.isEmpty())
+        return false;
+
+    const auto matched = test.group.containsIgnoreCase (term)
+                      || test.name.containsIgnoreCase (term);
+
+    return excluding ? ! matched : matched;
+}
+
 void Registry::add (const juce::String& group, const juce::String& name, std::function<void()> fn)
 {
     tests.push_back ({ group, name, std::move (fn) });
@@ -22,13 +39,15 @@ void failTest (const juce::String& message, const char* file, int line)
 
 int Registry::run (const juce::String& filter)
 {
-    int passed = 0, failed = 0;
+    int passed = 0, failed = 0, selected = 0;
     juce::String lastGroup;
 
     for (auto& t : tests)
     {
-        if (filter.isNotEmpty() && ! (t.group.containsIgnoreCase (filter) || t.name.containsIgnoreCase (filter)))
+        if (! matchesFilter (t, filter))
             continue;
+
+        ++selected;
 
         if (t.group != lastGroup)
         {
@@ -58,7 +77,13 @@ int Registry::run (const juce::String& filter)
     }
 
     std::cout << "\n--------------------------------------------------\n"
-              << passed << " passed, " << failed << " failed\n" << std::endl;
+              << passed << " passed, " << failed << " failed, " << selected << " selected" << std::endl;
+
+    if (selected == 0)
+    {
+        std::cout << "No tests matched filter: " << filter << std::endl;
+        return failed + 1;
+    }
 
     return failed;
 }

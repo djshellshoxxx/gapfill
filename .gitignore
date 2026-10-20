@@ -1,5 +1,7 @@
 /JUCE/
 /build/
+/build-dev/
+/build-ci/
 /artefacts/
 *.user
 .vs/

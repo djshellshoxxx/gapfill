@@ -12,6 +12,9 @@ struct TestCase
     std::function<void()> fn;
 };
 
+/** A plain term includes matches; one leading '-' excludes matches. */
+bool matchesFilter (const TestCase&, const juce::String& filter);
+
 /** Minimal assertion-based test registry. Tests throw on failure. */
 class Registry
 {

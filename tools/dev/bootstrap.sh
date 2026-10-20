@@ -36,5 +36,7 @@ cmake -S . -B "${BUILD_DIR}" "${GEN[@]}" -DCMAKE_BUILD_TYPE=Release
 cat <<MSG
 
 Done. Next:
-  tools/dev/check.sh ${BUILD_DIR}      # preflight + build + tests (same gates as CI, fast subset)
+  tools/dev/build.sh ${BUILD_DIR} tests   # build only the test runner
+  tools/dev/build.sh ${BUILD_DIR} vst3    # build only the VST3 target
+  tools/dev/check.sh ${BUILD_DIR}        # preflight + default quick test suite
 MSG
