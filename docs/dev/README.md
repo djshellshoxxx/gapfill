@@ -18,6 +18,7 @@ Supersedes nothing: it builds on
 | 06 | `06-ENGINEERING-STANDARDS.md` | Always. Real-time rules, determinism, state rules, testing, review checklist, performance budgets. |
 | 07 | `07-QA-AND-RELEASE.md` | Before merging anything big and before every release. Test matrix, manual scripts, risk register. |
 | 08 | `08-STABILIZATION-MODULARITY-FEATURE-BACKLOG.md` | **Current priority override:** Windows, Linux, macOS and CLAP build gates first; modular regression-safe foundation second; all new features deferred and catalogued with descriptions, relative difficulty and value. |
+| 09 | `09-SPEC-LIVE-CREATIVE-EFFECTS.md` | Candidate specifications for gap timeline/reasons, audition and recipe comparison, live performance scenes and safety, musical context, wet-only export, and eight new fill effects. Read after Gate A/B; canonical E/C/U specs remain authoritative for existing tickets. |
 
 ## Ticket naming
 
