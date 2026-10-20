@@ -24,11 +24,17 @@ int Registry::run (const juce::String& filter)
 {
     int passed = 0, failed = 0;
     juce::String lastGroup;
+    const bool exclude = filter.startsWithChar ('-');
+    const auto term = exclude ? filter.substring (1) : filter;
 
     for (auto& t : tests)
     {
-        if (filter.isNotEmpty() && ! (t.group.containsIgnoreCase (filter) || t.name.containsIgnoreCase (filter)))
-            continue;
+        if (term.isNotEmpty())
+        {
+            const bool matched = t.group.containsIgnoreCase (term) || t.name.containsIgnoreCase (term);
+            if (exclude ? matched : ! matched)
+                continue;
+        }
 
         if (t.group != lastGroup)
         {
@@ -59,6 +65,12 @@ int Registry::run (const juce::String& filter)
 
     std::cout << "\n--------------------------------------------------\n"
               << passed << " passed, " << failed << " failed\n" << std::endl;
+
+    if (passed + failed == 0)
+    {
+        std::cerr << "ERROR: test filter matched zero tests: " << filter << std::endl;
+        return 1;
+    }
 
     return failed;
 }
