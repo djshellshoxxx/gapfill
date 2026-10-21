@@ -8,6 +8,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/scenes/SceneOverlay.cpp
     Source/features/scenes/SceneController.cpp
     Source/features/effective/StageScene.cpp
+    Source/features/bank/BankFile.cpp
     Source/features/live/LiveControl.cpp
     Source/gui/slots/PanicSlot.cpp
 )
