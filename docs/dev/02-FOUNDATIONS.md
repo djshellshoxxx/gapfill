@@ -63,7 +63,7 @@ docs/progress/<ticket>.md           per-ticket session notes (see 01-PLAN)
 * fail if any ID in a `.lock` file is missing, renamed, or reordered;
 * fail if a new ID exists in a group header but not in its `.lock` (the author
   must add the line; this makes "adding a permanent ID" a deliberate act);
-* fail on duplicates across all groups, and on IDs not matching `^[a-z][A-Za-z0-9]*$`;
+* fail on duplicates across all groups, and on IDs not matching `^[a-z][A-Za-z0-9_]*$`;
 * keep checking that every factory preset ID resolves.
 
 Per-group lock files mean two feature PRs never touch the same lock file.

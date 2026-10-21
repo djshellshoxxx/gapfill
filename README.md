@@ -18,7 +18,7 @@ KICK ——[granular reverse]—— SNARE ——[stutter]—— KICK ——[pitc
 
 ## Download (v0.0.1 beta)
 
-Grab the latest build from the GitHub **Releases** page:
+Windows beta builds are packaged and published as GitHub prereleases only after the automated Linux/Windows build, plugin validation and archive checks pass. Until the release appears, binaries in Actions artifacts are beta candidates rather than verified downloads. The expected assets are:
 
 | Asset | What it is |
 |---|---|
