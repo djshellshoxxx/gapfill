@@ -228,6 +228,24 @@ Report: `docs/audits/2026-10-21-completeness-audit.md`. No existing contract cha
 | Effect send | `fx::applyEffectSend` (`features/fx/FxSettings.h`), `ContextState::tensionFxSend`, one call in `PluginProcessor::processChunk` before `fxChain.beginBlock` | Scales every effect Amount by the F-M21 FX lane evaluated at the middle of the block; identity (no write) while Tension is off or the lane depth is 0. Bus and voice cards both read the scaled block settings. |
 | Spectral commands | `fx::FxChain::handleCommand` | `SpectralCapture` / `SpectralRelease` (X-1 24/25) forward to the spectral freeze card's atomic request counters, the same path as the Effects section buttons. |
 
+## Gap-closing pass additions (2026-10-21)
+
+No parameter id, preset format, state subtree or public API was added or changed. Defaults are neutral; `Tests/golden` is untouched.
+
+| Module | Files | Contract and invariants |
+|---|---|---|
+| Curve editing model | `features/tension/CurveEdit.*` | Pure functions over `TensionLane` (`movePoint`, `addPoint`, `removePoint`, `copyShape`, `resetLane`, `nudgePoint`, `nearestPoint`). Every operation ends with `normalise`, so a lane is always valid for `TensionService::publishCurves` (end points pinned at 0 / 1000, x strictly increasing with >= 8 per-mille spacing, y 0..1000, 2..16 points). No JUCE, no allocation. |
+| Curve editor popover | `gui/slots/TensionEditor.*`, launched from `TensionStrip.cpp` (`CallOutBox`) | Message thread only. Owns a copy of the curves; every edit publishes through the seqlock `TensionService` and, once, switches `fm21_shape` to Custom through a parameter gesture. Reads `lastPhase()` for the playhead at 15 Hz. No audio-thread access. |
+| Meter arithmetic | `gui/MeterMath.h` | Header-only: `toDb`, `normalised`, `makeGradient` / `gradientAt`, `PeakHold` (push / tick with an injected clock). `LevelMeter` delegates; constants unchanged (floor -60 dB, top +6 dB, hold 1500 ms, fall 20 dB/s at 30 Hz). |
+| Mix-panel output selector | `gui/Panels.*` (`MixPanel::outputMode`) | A second `GapToggle` on `wetSolo`; `setLevels` (the editor's 24 Hz tick) re-reads the parameter to retitle the button and dim Dry / Wet (alpha 0.45). The parameter stays the only state. |
+| Footer chips | `gui/slots/PanicSlot.cpp` | One footer component draws PANIC (x 0..150) and, while `wetSolo` is on, WET ONLY (x 156..324); `hitTest` covers exactly the drawn chips over the full footer height (22 px). |
+| Preset stepping | `PluginEditor.cpp` (`stepPreset`, `toggleCurrentFavourite`, `keyPressed`), `features/presetbrowser/PresetCatalog.*` (`favouriteIndices`, `stepWithin`) | Scope is the per-user setting `presets.stepScope` (0 all, 1 favourites). Steps within 3 s of each other share one Undo entry via `GapFillAudioProcessor::getUndoPushCount` / `discardNewestUndoSnapshot` (an intervening push by anything else ends the burst). Message thread only. |
+| Battle styles from A/B | `ui::UiState::EditorActions::battleFromHeaderAb` (set by the editor, cleared in its destructor), `gui/slots/BattleSlot.cpp` | Copies the header snapshots into `battle::BattleModel`; session state, never saved. |
+| Recipe SKIP | `features/recipes/RecipeDrawer.cpp` | Posts `SkipRecipe` / `SkipLatest` like the Taste strip; no rating is queued while `fx05_on` is off. |
+| QA harness | `tools/qa/run_matrix.py`, `tools/qa/summarise.py` | Offline tooling (stdlib only). A step that executes zero tests fails; a skipped validator is `unverified`; evidence records SHA, OS, interpreter, command line and raw log paths. |
+| Layout ratchet | `tools/check_layout_literals.py`, `tools/layout_literals_baseline.json` | Fails when `PluginEditor.cpp` / `Panels.cpp` gain spacing literals that are not multiples of 4, or when the baseline is stale. |
+| Transport tracking | `PluginProcessor::updateTempoInfo` | A playing transport without a PPQ is one reset on the transition into that state, not one per callback (W-03). Seek threshold unchanged at 0.25 beat. |
+
 ## Change checklist
 
 - [ ] Update the ownership table and flow diagram if a boundary moves.

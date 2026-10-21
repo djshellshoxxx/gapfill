@@ -1,6 +1,6 @@
 # Implementation status of docs/dev/features tickets
 
-Head: integration branch with work packages WP3-WP11 merged, plus the completeness audit of 2026-10-21
+Head: integration branch with work packages WP3-WP11 merged, plus the completeness audit of 2026-10-21 and the gap-closing pass that followed it
 (`docs/audits/2026-10-21-completeness-audit.md`, `tools/audit/completeness_audit.py`).
 `yes` = implemented, wired and tested in this branch; `partial` = implemented with the stated gap; `no` = not started;
 `out of scope` = deliberately not built (reason given). "Unverified" items (real DAW, hardware, Windows/macOS, audibility) are
@@ -29,7 +29,7 @@ listed in the WP progress files and are never claimed here. The mechanical audit
 | F-L17-mutation-lab | yes | Source/features/mutation/* | TestMutation.cpp; FILE > Mutation Lab...; spec F-L17 (four children), not the doc-12 eight-candidate variant |
 | F-L18-manual-scale-key | yes | Source/features/scale/* (N-MUS), Source/gui/slots/ScaleStrip.cpp | TestScale.cpp; reaches resonator / formant / cloud / harmonic through `scaleMask` |
 | F-L19-frequency-shifted-delays | yes | Source/features/fx/bus/FsDelayCard.*, Source/params/fsdelay.* | TestBusFx.cpp |
-| F-L20-formant-transformations | partial | Source/features/fx/bus/FormantCard.*, Source/params/formant.* | TestBusFx.cpp. Built as the doc-12 BUS card (21.3 ms latency); the per-voice `fl20_*` design (Preserve, Detail, formant pool, ~10.7 ms) is not built |
+| F-L20-formant-transformations | partial | Source/features/fx/bus/FormantCard.*, Source/params/formant.* | TestBusFx.cpp. Built as the doc-12 BUS card (21.3 ms latency); the per-voice `fl20_*` design (Preserve, Detail, formant pool, ~10.7 ms) is a recorded design deviation (audit G1): it needs hot-file engine changes and six ids that duplicate the shipped four, and cannot be judged without listening |
 | F-L21-transient-convolution-reverb | yes | Source/features/fx/bus/ConvoCard.*, Source/params/convo.* | TestBusFx.cpp; IR never saved |
 | F-L22-musical-energy-tracking | yes | Source/features/context/EnergyTracker.*, Source/features/effective/StageEnergy.cpp, EnergyStrip | TestEnergy.cpp |
 | F-L23-recipe-ab-comparison | yes | Source/features/abcompare/RecipeAB.*, recipes drawer SET A / SET B / A/B | TestAbCompare.cpp |
@@ -51,11 +51,11 @@ listed in the WP progress files and are never claimed here. The mechanical audit
 | F-M14-rhythmic-bitcrushing | yes | Source/features/fx/RcrushCard.*, Source/params/rcrush.* | TestVoiceFxCards.cpp |
 | F-M15-comb-filter-resonator | yes | Source/features/fx/bus/ResonatorCard.*, Source/params/resonator.* | TestBusFx.cpp; Scale-degrees mode follows Scale Lock |
 | F-M16-rhythmic-ratcheting | yes | Source/features/fx/RatchetCard.*, Source/params/ratchet.* | TestVoiceFxCards.cpp |
-| F-M17-bit-perfect-wet-only-output | partial | Source/features/wetout/*, `wetSolo`, RoutingSlot WET ONLY | TestWetOut.cpp. Preserve rule (presets, Reset, Undo, file load keep the mode) added by the audit; the Mix-panel OUTPUT selector and the footer "WET ONLY" chip of the feature file are not built (the switch is in Performance > Routing with a status line) |
-| F-M18-beat-battles | yes | Source/features/battle/*, Source/gui/slots/BattleSlot.cpp | TestBattle.cpp; card with STORE A / STORE B / CLEAR added by the audit; header A/B does not feed the styles (own slots, session state) |
+| F-M17-bit-perfect-wet-only-output | yes | Source/features/wetout/*, `wetSolo`, RoutingSlot WET ONLY, `MixPanel` OUTPUT selector, PanicSlot WET ONLY chip | TestWetOut.cpp, TestGapClose.cpp. Preserve rule (presets, Reset, Undo, file load keep the mode) added by the audit; Mix-panel OUTPUT selector (dims Dry / Wet) and the footer WET ONLY chip added by the gap-closing pass |
+| F-M18-beat-battles | yes | Source/features/battle/*, Source/gui/slots/BattleSlot.cpp | TestBattle.cpp; card with STORE A / STORE B / CLEAR added by the audit; FROM A/B copies the header A/B snapshots into the styles (gap-closing pass); styles stay session state |
 | F-M19-freeze-and-scrub | yes | Source/features/scrub/ScrubVoice.*, Source/gui/slots/ScrubStrip.cpp, Source/params/scrub.* | TestScrub.cpp; snapshot length follows `captureLength` (wired by the audit); standalone performance voice, not a F-M10 hold |
 | F-M20-tape-destruction-expansion | yes | Source/features/fx/TapeDestrCard.*, Source/params/tapedestr.* | TestVoiceFxCards.cpp; line 128 ms vs spec 25 ms (documented) |
-| F-M21-tension-release-curves | partial | Source/features/tension/*, Source/gui/slots/TensionStrip.cpp, `ContextState::tensionFxSend` | TestTension.cpp. No curve editor popover (Custom curves come from the saved `<Tension>` subtree). The FX lane now scales the effect Amounts (wired by the audit) |
+| F-M21-tension-release-curves | yes | Source/features/tension/*, Source/gui/slots/TensionStrip.cpp, TensionEditor.*, `ContextState::tensionFxSend` | TestTension.cpp, TestGapClose.cpp. EDIT CURVES... popover (mouse + keyboard, shapes, playhead) added by the gap-closing pass; the FX lane scales the effect Amounts (audit) |
 | F-M22-smart-preset-suggestions | yes | Source/features/suggest/* | TestSuggest.cpp |
 | F-M23-advanced-modulation-macro-targets | yes | Source/features/macros/*, MacroEditorSlot | TestMacros.cpp; per-mapping smoothing and the LFO row are now in the GUI |
 | F-S01-cpu-latency-display | yes | Source/features/telemetry/*, Source/features/health/* | TestTelemetry.cpp, TestHealth.cpp; shown in the status details call-out |
@@ -68,21 +68,21 @@ listed in the WP progress files and are never claimed here. The mechanical audit
 | F-S08-glitch-roulette | yes | Source/features/live/Roulette.* | TestRoulette.cpp |
 | F-S09-first-run-guide | yes | Source/features/tour/* | TestTour.cpp |
 | F-S10-genre-performance-presets | yes | Source/Presets.cpp (41 presets) | TestPresets.cpp |
-| F-S11-preset-favorites-next-previous | partial | Source/features/presetbrowser/* | TestPresetBrowser.cpp. Favourites and `<` `>` stepping work; FILE > Add preset to favourites added by the audit; Ctrl/Cmd+D and the "favourites only" step scope are not built |
+| F-S11-preset-favorites-next-previous | yes | Source/features/presetbrowser/*, PluginEditor (`keyPressed`, `stepPreset`) | TestPresetBrowser.cpp, TestGapClose.cpp. Favourites, `<` `>` stepping, FILE > favourite (audit); Ctrl/Cmd+D, Ctrl/Cmd+Up/Down, "favourites only" scope and one Undo entry per burst (gap-closing pass). The optional MIDI Program Change responder (default off in the spec) is not built |
 | F-S12-safe-return-panic | yes | Source/features/panic/Panic.*, Source/gui/slots/PanicSlot.cpp, LiveSafetySlot.cpp | TestPanic.cpp; footer chip is 22 px high (footer height), the 36 px PANIC button is in the Performance tab; DECISIONS 9 |
 | F-X01-harmonic-granular-resynthesis | yes | Source/features/harmonic/*, Source/params/hgran.* | TestHarmonic.cpp; simplified (no partial tracking), not scene-recallable (128-id cap) |
 | F-X02-spectral-freeze-and-morph | yes | Source/features/fx/bus/SpFreezeCard.*, Source/dsp/spectral/Stft.* | TestBusFx.cpp, TestSpectral.cpp; capture/release also by commands 24/25 (audit) |
 | F-X03-automatic-key-detection | yes | Source/features/keydetect/*, Source/gui/slots/KeyStrip.cpp | TestKey.cpp; Window and Min confidence knobs added by the audit |
 | F-X04-multi-section-arrangement-awareness | yes | Source/features/arrangement/*, ArrangementStrip | TestArrangement.cpp; prediction accuracy +-2 s, not +-1 frame |
-| F-X05-local-preference-learning | partial | Source/features/taste/*, Source/gui/slots/TasteStrip.cpp | TestTaste.cpp. No Skip button in the History drawer (Taste strip has it); M1 +10 points not +15 |
+| F-X05-local-preference-learning | partial | Source/features/taste/*, Source/gui/slots/TasteStrip.cpp, RecipeDrawer SKIP | TestTaste.cpp, TestGapClose.cpp. SKIP in the History drawer added by the gap-closing pass; M1 is +10 points not +15 (model limit) |
 | F-X06-multi-track-cooperative-gapfill | partial | Source/features/coop/* | TestCoop.cpp. Safe in-process subset (32 slots, three modes); rendezvous-hash slots, priority/yield, group scene recall not built |
 | F-X07-adaptive-performance-quality-modes | yes | Source/features/quality/* | TestQuality.cpp (F-D03 modes + Auto) |
 | P-01-free-pro-build-flag | out of scope | - | DECISIONS 4: never implemented, no edition gating anywhere |
-| Q-01-release-qa-matrix-harness | no | - | QA track (`tools/qa/` absent); owned by the robustness audit / release process, not a feature |
-| T-01-meter-peak-hold-verification | no | - | UI test debt: meter arithmetic still inside `LevelMeter` (PROGRESS "Next up") |
-| T-02-top-bar-8px-grid-pass | no | - | needs visual review (the spec forbids doing it blind) |
-| W-01-windows-editor-automation-crash | no | - | Windows-only investigation; cannot be reproduced on Linux CI |
-| W-03-variable-block-transport-prediction | partial | Source/PluginProcessor.cpp updateTempoInfo (master #12) | TestPlugin.cpp variable_host_buffers_do_not_trigger_false_transport_jumps. Full spec matrix not run |
+| Q-01-release-qa-matrix-harness | partial | tools/qa/run_matrix.py, tools/qa/summarise.py | tools/test_qa_matrix.py. Harness, evidence JSON and self-tests exist; not yet a CI job, validators stay `unverified` until their tools run, the dump collection is a hint only |
+| T-01-meter-peak-hold-verification | partial | Source/gui/MeterMath.h, WaveformGapView.h (`LevelMeter`) | TestMeter.cpp. Arithmetic extracted and tested with an injected clock; the pixel golden and the narrow-readout test of the ticket are not done |
+| T-02-top-bar-8px-grid-pass | partial | tools/check_layout_literals.py, tools/layout_literals_baseline.json | tools/test_check_layout_literals.py. Only the ratchet exists (no new off-grid literal); the layout pass needs screenshots at three sizes (the spec forbids doing it blind) |
+| W-01-windows-editor-automation-crash | no | docs/progress/W-01.md | Windows-only investigation (needs a Windows machine, dump and symbols); protocol and code-reading leads recorded, no root cause claimed |
+| W-03-variable-block-transport-prediction | partial | Source/PluginProcessor.cpp updateTempoInfo (master #12) | TestPlugin.cpp variable_host_buffers_do_not_trigger_false_transport_jumps, TestTransport.cpp (block patterns, ramp, step, seek, loop, stop/start, no PPQ). "Playing without a PPQ" is now one reset instead of one per callback. Tolerance stays 0.25 beat: tightening needs jitter measurements in two real hosts |
 
 ## Doc-12 tickets that have no file in `docs/dev/features`
 
@@ -91,7 +91,7 @@ listed in the WP progress files and are never claimed here. The mechanical audit
 | E-1 / E-3 audition, reasons | yes | see F-M01 / F-M02 |
 | E-2 tempo sync audit | yes | Source/features/sync/*, Options row `shaping/Gui.cpp` (fallback BPM), TestSync.cpp; `FreeTimingFallback` health input wired by the audit |
 | C-0..C-11, U-1..U-10 | yes | the doc-12 / doc-04 / doc-05 ids of the rows above (C-1 = F-M06, C-2 = F-L06, C-3 = F-M13, C-4 = F-M05, C-5 = F-L01, C-6 = F-M07, C-7 = F-L08, C-8 = F-L16, C-9 = F-M09, C-10 = F-M08, C-11 = F-L03, U-1 = F-L02, U-2 = F-L04, U-3 = F-S04, U-4 = F-M12, U-5 = F-M04, U-6 = F-L05, U-7 = F-S09, U-8 = F-S03, U-9 = F-S02, U-10 = F-S10) |
-| X-1 MIDI command map | yes | Source/features/commands/CommandMap.* (commands 1-30 bindable; 31/32 Skip are GUI only), TestCommandMap.cpp |
+| X-1 MIDI command map | yes | Source/features/commands/CommandMap.* (commands 1-30 bindable; 31/32 Skip are GUI only: Taste strip and History drawer), TestCommandMap.cpp |
 | FX-0 effect-card framework | yes | see F-FX0 |
 | SP-0 shared spectral processor | yes | Source/dsp/spectral/Stft.*, TestSpectral.cpp (latency N-1) |
 | UI-0 Performance tab / Effects section / status shell | yes | Source/gui/SlotHost.*, SlotPanels.*, TestUi0.cpp, TestSlots.cpp; OptionsExtra is now a scrolling Stack (audit) |
@@ -110,4 +110,4 @@ listed in the WP progress files and are never claimed here. The mechanical audit
 | F-P01 / F-P03 decision ADRs | yes | docs/adr/0001-no-free-pro-split-in-1x.md, 0002-aax-auv3-ios-out-of-scope-in-1x.md (status Proposed until the maintainer accepts) |
 | F-P04 Localisation | no | WP2 (not part of WP3-WP11) |
 
-Totals over the 75 tickets in docs/dev/features: yes 62, partial 8 (F-L20, F-M03, F-M17, F-M21, F-S11, F-X05, F-X06, W-03), no 4 (Q-01, T-01, T-02, W-01), out of scope 1 (P-01). Counted by `tools/audit/completeness_audit.py`.
+Totals over the 75 tickets in docs/dev/features: yes 65, partial 8 (F-L20, F-M03, F-X05, F-X06, Q-01, T-01, T-02, W-03), no 1 (W-01), out of scope 1 (P-01). Counted by `tools/audit/completeness_audit.py`.

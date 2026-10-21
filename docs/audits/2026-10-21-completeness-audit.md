@@ -9,10 +9,11 @@ plus manual reading of the code paths that a script cannot judge. Verified by bu
 
 216 parameter ids (66 core + 150 feature ids in 43 groups), 32 command ids, 14 state subtrees, 75 feature tickets. The engines were complete; the gaps were at the
 edges: controls that did not exist for implemented features, five inputs that nothing fed, two documented behaviours that were not true, and non-deterministic
-UI ordering. Fixes 1-12 below are code and Help text, 13-15 are documents, tooling and tests; 8 script findings are waived with a recorded reason; 14 numbered gaps remain, each with its reason. The ParamInfo allow-list is now empty.
+UI ordering. Fixes 1-12 below are code and Help text, 13-15 are documents, tooling and tests; 8 script findings are waived with a recorded reason; 14 numbered gaps were left, each with its reason. The ParamInfo allow-list is now empty.
+A gap-closing pass followed the same day (section "Closed by the gap-closing pass"): gaps 2, 3 (Skip button), 6, 7, 8 and 10 (Ctrl/Cmd+D and favourites-only stepping) are closed in code, gap 11 is closed as far as the repository can (T-01 extraction and tests, the Q-01 harness, the W-03 test matrix, a T-02 ratchet; W-01 and the T-02 visual pass stay external), and gap 1 (F-L20) is recorded as a design deviation. Table cells below still read as written by the audit; the status of each numbered gap is in the final section.
 `python3 tools/audit/completeness_audit.py` exits 0 and fails if any of these regress.
 
-Totals (`IMPLEMENTATION-STATUS.md`): tickets yes 62, partial 8, no 4, out of scope 1.
+Totals (`IMPLEMENTATION-STATUS.md`): tickets yes 62, partial 8, no 4, out of scope 1 at the audit; yes 65, partial 8, no 1, out of scope 1 after the gap-closing pass (counted by the script).
 
 ## What the script checks (and what it found)
 
@@ -53,24 +54,24 @@ State persistence; Cmd command map / MIDI; R/U Random-Surprise-Undo class; Tst t
 | C-1 personalities / F-M06, C-4 envelope / F-M05, C-6 breathing / F-M07, C-7 phrase / F-L08, F-D01 budget, C-3 mistakes / F-M13, C-8 evolve / F-L16, C-9 band type / F-M09, C-10 capture v2 / F-M08 | ok | ok | ok | ok 5110-5190 | SHAPE popover + band-lane combos + CAPTURE card ok | params | 7, 8 ok (capture) | performance | ok | ok |
 | C-0 effective display / F-S05 | ok | n.a. | n.a. | ok | knob markers ok | none | n.a. | n.a. | ok | ok |
 | X-1 command map, F-L24 controller profiles | ok | n.a. | n.a. | ok 6240 | Options profile + LED device + Fill Now timing ok | `<Cmd>` ok | 1-30 bindable; 24/25 handler FIXED; 31/32 not bindable (waived) | n.a. | ok | ok |
-| N-USE-a Panic / F-S12 | ok: voices, preview, scrub, hold voices, bus cards (`fadeOut`), MIDI notes, wet gain ramp all verified in `panicWet()` / `onPanicAction` | n.a. | n.a. | ok 6200, 6205 | footer chip ok; large Performance-tab PANIC button FIXED | `<Perf>` options ok | 9, 10 ok | not saved (tested) | ok | ok; chip is 22 px high (GAP 7) |
+| N-USE-a Panic / F-S12 | ok: voices, preview, scrub, hold voices, bus cards (`fadeOut`), MIDI notes, wet gain ramp all verified in `panicWet()` / `onPanicAction` | n.a. | n.a. | ok 6200, 6205 | footer chip ok; large Performance-tab PANIC button FIXED | `<Perf>` options ok | 9, 10 ok | not saved (tested) | ok | ok; chip is a full-height 22 px target (G7 closed) |
 | F-L25 live safety | ok | ok | ok | ok 6205 | WET SAFETY switch FIXED; LAST GOOD SCENE button FIXED | n.a. | 11 with arg -1 ok | performance | ok | ok |
 | F-L07 scenes / F-M11, N-VAL bank | ok | n.a. | n.a. | ok 6220 | scene panel, EXPORT / IMPORT / UNDO ok | `<Scenes>` ok | 11-14 ok | n.a. | ok | ok |
 | C-2 macros / F-L06, F-M23 | ok | ok | ok | ok 6230 | knobs + mapping editor ok; per-mapping smoothing and LFO row FIXED | `<Macros>` ok | n.a. | performance | ok | ok |
-| F-M18 Beat Battles | ok | ok | ok | FIXED 6225 | BATTLE card (switch, STORE A / B, CLEAR, status) FIXED | session only (styles) | n.a. | performance | ok | ok; header A/B does not feed it (GAP 6) |
+| F-M18 Beat Battles | ok | ok | ok | FIXED 6225 | BATTLE card (switch, STORE A / B, CLEAR, status) FIXED | session only (styles) | n.a. | performance | ok | ok; FROM A/B button feeds the styles from the header A/B (G6 closed) |
 | F-M10 holds, F-S07 Storm, F-S08 Roulette, F-P02 Fill Now | ok | ok | ok | ok 6210 | HoldPads ok (pads drive commands; `fm10_*` hold bools are automation mirrors, waived) | n.a. | 17-23 ok | performance | ok | ok |
 | FX-0 shell, F-L14 multiband | ok | ok | FIXED (`bandLowFx` ...) | ok 4060 | Effects section + lane switches ok | `<Fx>` ok | n.a. | performance | ok | ok |
 | N-FX1 Swell, N-FX2 Cloud, F-M16 Ratchet, F-M14 Crush, F-M20 Tape | ok | ok | FIXED (34 ids) | ok 4000-4060 | effect cards ok | n.a. | n.a. | never randomised (tested) | ok | ok |
 | F-M19 Freeze and Scrub | ok; snapshot length now follows `captureLength` FIXED | ok | FIXED | ok 4070 | ScrubStrip ok | n.a. | n.a. | performance | ok | ok |
-| SP-0, F-M15 Resonator, F-L19 FS delay, F-L15 Dub, F-L21 Convolution, F-L20 Formant, F-X02 Spectral freeze | ok; Scale Lock reaches resonator + formant through `EngineBlockIO.scaleMask` (verified) | ok | ok | ok 4080-4130 | effect cards ok | `<Fx>` auto-capture flags | 24 / 25 handler FIXED | never randomised (tested) | ok | ok; F-L20 per-voice design GAP 1 |
+| SP-0, F-M15 Resonator, F-L19 FS delay, F-L15 Dub, F-L21 Convolution, F-L20 Formant, F-X02 Spectral freeze | ok; Scale Lock reaches resonator + formant through `EngineBlockIO.scaleMask` (verified) | ok | ok | ok 4080-4130 | effect cards ok | `<Fx>` auto-capture flags | 24 / 25 handler FIXED | never randomised (tested) | ok | ok; F-L20 per-voice design: recorded design deviation (G1) |
 | F-X01 Harmonic granular | ok | ok | ok | ok 6090 | HarmonicStrip (Advanced) ok | n.a. | n.a. | never randomised | ok | ok; not scene-recallable (cap) |
 | N-MUS Scale Lock / F-L18, F-X03 key detection | ok | ok | ok | ok 6010, 6040 | ScaleStrip, KeyStrip ok; Key window + Min confidence knobs FIXED | `<Key>` ok | n.a. | never randomised | ok | ok |
-| F-L22 energy, F-L09 groove, F-L10 call/response, F-X04 arrangement, F-X05 taste | ok | ok | ok | ok 6020-6080 | strips (Advanced) ok | `<Groove>`, `<Taste>` ok | 26, 27 ok; 31, 32 not bindable (waived) | never randomised | ok | ok; GAP 3, 5 |
-| F-M21 tension | ok; FX lane now scales the effect Amounts FIXED | ok | ok | ok 6070 | TensionStrip ok | `<Tension>` ok | n.a. | never randomised | ok | ok; curve editor popover GAP 2 |
+| F-L22 energy, F-L09 groove, F-L10 call/response, F-X04 arrangement, F-X05 taste | ok | ok | ok | ok 6020-6080 | strips (Advanced) ok | `<Groove>`, `<Taste>` ok | 26, 27 ok; 31, 32 not bindable (waived) | never randomised | ok | ok; Skip in the History drawer (G3 closed); G3 M1 limit and G5 stay |
+| F-M21 tension | ok; FX lane now scales the effect Amounts FIXED | ok | ok | ok 6070 | TensionStrip ok | `<Tension>` ok | n.a. | never randomised | ok | ok; curve editor popover (G2 closed) |
 | F-L11 MIDI output | ok (build option, default OFF) | ok | ok | ok 6400 | Routing card ok; Options offset row FIXED | `midiOutOffsetMs` persisted in `<Perf>` FIXED | n.a. | performance | ok | ok |
-| F-M17 wet-only, F-L12 Wet bus, F-L13 sidechain fills | ok | ok | ok | ok 6400 | WET ONLY / SC gate / SC snap ok | n.a. | n.a. | performance; preserve rule FIXED | ok | ok; Mix-panel selector + footer chip GAP 8 |
+| F-M17 wet-only, F-L12 Wet bus, F-L13 sidechain fills | ok | ok | ok | ok 6400 | WET ONLY / SC gate / SC snap ok | n.a. | n.a. | performance; preserve rule FIXED | ok | ok; Mix-panel OUTPUT selector and footer WET ONLY chip (G8 closed) |
 | F-D03 quality modes (F-X07), F-X06 co-op | ok | ok | ok | ok 6400 | QUALITY / CO-OP cards ok | n.a. | n.a. | performance | ok | ok; co-op subset GAP 4 |
-| U-4 / F-M12 browser, F-S11 favourites, U-5 view, U-7 tour, U-8 scale, F-D04 access, F-M22 suggest, F-L17 Mutation Lab, U-10 / F-S10 presets | ok | n.a. | n.a. | ok 1010-1300 | ok; FILE > favourite the current preset FIXED | settings file / root `viewMode` / `<Mutation>` | n.a. | n.a. | ok | ok; GAP 10 |
+| U-4 / F-M12 browser, F-S11 favourites, U-5 view, U-7 tour, U-8 scale, F-D04 access, F-M22 suggest, F-L17 Mutation Lab, U-10 / F-S10 presets | ok | n.a. | n.a. | ok 1010-1300 | ok; FILE > favourite the current preset FIXED | settings file / root `viewMode` / `<Mutation>` | n.a. | n.a. | ok | ok; Ctrl/Cmd+D, favourites-only stepping, one Undo entry per burst (G10 closed); FILE Compare group stays |
 | P-01, F-P01, F-P03 | out of scope | - | - | - | - | - | - | - | - | ADR 0001, 0002 FIXED |
 
 ## Fixed in this audit
@@ -98,26 +99,45 @@ Docs and tooling
 14. `tools/audit/completeness_audit.py` (+ `--selftest`).
 15. `Tests/features/TestAudit.cpp` (16 tests) and `tools/test_completeness_audit.py` (3 tests) pin each fix and keep the audit green in CI.
 
-## Remaining, with reasons
+## Closed by the gap-closing pass
 
-1. **F-L20 per-voice formant** (`fl20_*`, Preserve, Detail, formant pool): the doc-12 registry decided a BUS card with 4 ids; building the feature-file design needs new parameter ids and a decision. Latency 21.3 ms, not 16 / 10.7 ms.
-2. **F-M21 curve editor popover**: Custom curves are editable only through the saved `<Tension>` subtree. Needs a visual design review.
-3. **F-X05**: no Skip button in the History drawer (the Taste strip has Like / Skip); M1 is +10 points, not +15 (model limit, documented in WP7). Skip ids 31/32 are not MIDI-bindable (controller-profile schema v1 lists 1-30).
-4. **F-X06 co-op**: safe subset only (no rendezvous-hash slots, priority / yield, group scene recall).
-5. **F-X04** prediction accuracy +-2 s, not +-1 frame (detection lag).
-6. **Beat Battle styles** are stored by the card; the header A/B does not feed them (A/B lives in `PluginEditor`, a hot file); styles are session state.
-7. **Panic footer chip** is 22 px high (the footer height set by WP3); the 36 px button in the Performance tab satisfies "large hit target"; growing the footer needs a visual review of every tab.
-8. **F-M17 Mix-panel OUTPUT selector and footer "WET ONLY" chip**: the switch is in Performance > Routing with a status line. A hidden wet-only state is guarded by the preserve rule instead.
-9. **F-M03** timeline expands over the gap view, the editor does not grow.
-10. **F-S11** Ctrl/Cmd+D and "favourites only" step scope; **F-S06** FILE "Compare" group (the drawer has the A/B row).
-11. **T-01, T-02, W-01, Q-01** (QA / GUI-polish tickets, `no` in the status file): T-01 needs the meter arithmetic extracted, T-02 needs screenshots, W-01 is Windows-only, Q-01 (`tools/qa`) belongs with the robustness audit. **W-03** partial (full matrix not run).
-12. **F-L11 extras** (Hit / CC events, velocity mode) and **F-L12** `fl12_main_mode` are not built: the doc-12 registry decided the id set (DECISIONS 18).
-13. Scenes: the four `hg*` ids are not recallable (128-id file cap), `wetSolo` / `qualityMode` are excluded by design.
-14. **Not verified here** (no host, hardware or display available): real DAW behaviour of every feature (REAPER pin mapping, Bitwig, Cubase, FL, Live), MIDI hardware and LED feedback, drag-export into a DAW, pluginval / clap-validator / auval with the new parameters, Windows and macOS builds, audibility of every effect and preset, screenshots at minimum / default / large size of the new cards and the scrolling Options page, screen-reader behaviour of the new controls, CPU budgets on the reference machine.
+Each item has tests in `Tests/features/TestGapClose.cpp` (group `GapClose`), `TestMeter.cpp` (`Meter`) or `TestTransport.cpp` (`Transport`); defaults stay neutral, `Tests/golden` and the state fixtures were not touched, no assertion was loosened. Nothing here was seen or heard: GUI geometry is asserted by bounds, not by screenshot.
+
+| Gap | What was built | Where |
+|---|---|---|
+| G8 F-M17 | Mix-panel `OUTPUT: NORMAL / WET ONLY` selector under the readouts (a `GapToggle` on `wetSolo`: automation, MIDI learn, tooltip, accessible name "Output mode ..."); Dry and Wet knobs dimmed to 45 % while wet only (still readable and still hold their values); footer chip `WET ONLY` next to PANIC with `(bypassed)` / `- monitor aid active` (Band Solo) text and its own tooltip. Both follow the parameter, so host automation and the preserve rule show up. | `gui/Panels.*` (`MixPanel`), `gui/slots/PanicSlot.cpp` |
+| G2 F-M21 | `TENSION > EDIT CURVES...` opens a call-out with the curve editor: lane tabs (Density, Intensity, Width, FX Send), a 480 x 160 canvas with the 1/16 grid, a 0.5 "no change" line, the curve drawn exactly as the audio thread evaluates it, draggable points (nearest within 12 px), double-click adds (max 16), right-click or Alt-click removes (end points kept), BUILD / BUILD+DROP / BREAKDOWN / SWELL copy a sampled built-in shape into the lane, RESET LANE, a playhead from `lastPhase` at 15 Hz. Keyboard: Page Up / Page Down / Home / End select, arrows move (1/64 length, 1 %, Shift = 10x), Insert adds in the widest gap, Delete removes; the selection is announced through the component title ("Density point 2 of 3, bar 4.5, 72 percent"). The first edit switches Shape to Custom (a parameter gesture) so the drawn curve is heard. The pure edit rules (`features/tension/CurveEdit.*`) keep every lane valid (20 000 random operations in the test). Tab is deliberately not used for point selection (it would trap keyboard focus). | `features/tension/CurveEdit.*`, `gui/slots/TensionEditor.*`, `TensionStrip.cpp` |
+| G3 F-X05 | SKIP button in the History drawer (row 2, next to MORE LIKE) and a context-menu item: rates the selected recipe (`SkipRecipe`) or the latest fill (`SkipLatest`); with LEARN MY TASTE off it posts "Turn on LEARN MY TASTE" instead of queuing a rating the service would discard. | `features/recipes/RecipeDrawer.cpp`, `Help.cpp` |
+| G10 F-S11 | Ctrl/Cmd+D toggles the favourite of the current preset (factory and user presets; a modified sound cannot be starred); Ctrl/Cmd+Up / Down step; FILE > "Arrows step through favourites only" (per-user setting `presets.stepScope`; with no favourites stepping falls back to all presets and the footer says so); footer message `Preset 12/25: name`; a burst of steps within 3 s is one Undo entry (`discardNewestUndoSnapshot`). Help section 1110. The optional MIDI Program Change responder of the feature file is not built (default off in the spec). | `PluginEditor.*`, `features/presetbrowser/PresetCatalog.*` (`favouriteIndices`, `stepWithin`) |
+| G6 F-M18 | `FROM A/B` button on the BATTLE card copies the header A and B snapshots (the side on screen is captured first) into styles A and B through `ui::UiState::EditorActions::battleFromHeaderAb`. Still session state. | `gui/slots/BattleSlot.cpp`, `PluginEditor.*` |
+| G7 F-S12 | The footer is 22 px high (`kFooterHeight`) and the PANIC chip is the whole footer height: a 150 x 22 px target (the WET ONLY chip beside it is 168 x 22); the 36 px PANIC button stays in the Performance tab. Growing the footer would push every tab's layout and needs a visual review, so the target is documented and pinned by a test instead. | `PanicSlot.cpp`, `TestGapClose.cpp` |
+| G11 T-01 | `gui/MeterMath.h` (dB map, `PeakHold` with injected clock, gradient) extracted from `LevelMeter`, which delegates; 8 tests for the 1500 ms hold, 20 dB/s fall (+-1 dB per second), settling, restart rules, monotonic map, gradient stops. Behaviour unchanged by construction (same constants, same per-tick step). The pixel-golden item of the ticket is not done (needs per-platform images). | `gui/MeterMath.h`, `WaveformGapView.h`, `TestMeter.cpp` |
+| G11 W-03 | Matrix tests for the ticket (block patterns 8192/32/4096/64/512 ..., 60 s steady playback, 60 -> 180 BPM ramp at five host block sizes, tempo step, seek, loop wrap, stop/start, small nudge, no PPQ, block-pattern independence of the wet signal). One behaviour fix from the ticket text: "playing without a PPQ" was a transport jump (and a wet panic) in EVERY callback; it is now one reset on the transition (`updateTempoInfo`). | `PluginProcessor.cpp`, `TestTransport.cpp` |
+| G11 Q-01 | `tools/qa/run_matrix.py` (+ `summarise.py`, `tools/test_qa_matrix.py`, 11 tests): fast / full tiers, evidence JSON per SHA and OS, a step that executes nothing fails, a validator that is not installed is `unverified`, manual rows listed as open. Wired into no CI job yet. | `tools/qa/` |
+| G11 T-02 | `tools/check_layout_literals.py` is a ratchet over `PluginEditor.cpp` / `Panels.cpp` (fails when more spacing literals that are not multiples of 4 appear; baseline `tools/layout_literals_baseline.json`). The layout pass itself needs screenshots and stays open. | `tools/` |
+
+## Status of the numbered gaps
+
+| # | Gap | Status | Reason / what remains |
+|---|---|---|---|
+| 1 | F-L20 per-voice formant (`fl20_*`, Preserve, Detail, formant pool) | **Design deviation, recorded** | Shipped as the doc-12 BUS card (`fmtAmount`, `fmtShift`, `fmtTilt`, `fmtVowel`; DECISIONS 18 keeps the doc-12 ids; latency 21.3 ms, not 10.7 ms). The per-voice design needs a formant pool inside `FillEngine` / `FillVoice` (hot files), a scheduler change (`minMs + kLatency` for every voice with formant amount > 0), six new permanent parameter ids that duplicate the four shipped ones, and a Preserve default (100) that would make the shipped Vowel setting inaudible. None of it can be judged without listening, and the bus card is already correct and tested. Preserve / Detail alone would need a new parameter group and a DSP change to a shipped card with no way to hear it here: not done. |
+| 2 | F-M21 curve editor popover | **Closed** | see above |
+| 3 | F-X05 Skip in History drawer; M1 +10 not +15; Skip ids 31/32 not MIDI-bindable | **Skip button closed**; M1 and binding open | M1 is a model limit (bounded by the 2x cap, documented in WP7). Ids 31/32 need a controller-profile key; schema v1 lists commands 1-30 (waived in the script). |
+| 4 | F-X06 co-op beyond the safe subset | **Open, not safe** | Rendezvous-hash slots, priority / yield and group scene recall need a cross-instance protocol whose failure modes (two instances disagreeing about who owns a slot, an instance that never yields) cannot be exercised in one process; the in-process subset stays. |
+| 5 | F-X04 prediction +-2 s, not +-1 frame | **Open (model limit)** | Detection lag of the section tracker. |
+| 6 | Beat Battle styles from the header A/B | **Closed** | see above |
+| 7 | Panic footer chip height | **Closed (documented, tested)** | see above |
+| 8 | F-M17 Mix-panel selector + footer chip | **Closed** | see above |
+| 9 | F-M03 timeline expands over the gap view, the editor does not grow | **Design deviation, recorded** | Growing the editor shifts every tab and the saved-size clamp; it needs the visual review of T-02. |
+| 10 | F-S11 Ctrl/Cmd+D, favourites-only scope; F-S06 FILE "Compare" group | **F-S11 closed**; Compare group deviation | The drawer's SET A / SET B / A/B / MATCH row is the Compare group (same actions). MIDI Program Change (optional, default off) not built. |
+| 11 | T-01, T-02, W-01, Q-01, W-03 | **T-01 mostly closed, Q-01 harness built, W-03 test matrix built, T-02 ratchet only, W-01 external** | T-01 still lacks the pixel-golden and the narrow-readout test of the ticket. W-03 still lacks the jitter measurement in two real hosts that would justify tightening the 0.25 beat tolerance (it was not changed). W-01 is a Windows-only crash (pluginval level 10, editor automation): it needs a Windows machine, a dump and symbols; the protocol and the code-reading leads are in `docs/progress/W-01.md`, nothing is claimed as a root cause. T-02 needs screenshots at three sizes before any layout value changes. Q-01 is not yet a CI job; the validators rows stay `unverified` until their tools run. |
+| 12 | F-L11 extras (Hit / CC events, velocity mode), F-L12 `fl12_main_mode` | **Open by decision** | DECISIONS 18 (the doc-12 registry decided the id set). |
+| 13 | Scenes: `hg*` ids not recallable (128-id cap); `wetSolo` / `qualityMode` excluded by design | **Open by design** | |
+| 14 | Not verified here | **Open** | Unchanged and extended: no host, hardware or display. Also unverified for this pass: how the Mix-panel selector, the WET ONLY chip, the curve editor popover and the new drawer / BATTLE buttons look at minimum, default and large size and under 150 / 200 % scale; Ctrl/Cmd+D and Ctrl/Cmd+Up / Down inside REAPER, Live, FL, Logic and Bitwig (hosts may take those keys); screen-reader announcements of the curve editor; the TENSION call-out inside a real host window. |
 
 ## Waived by the script (`KNOWN_EXEMPTIONS`, each with its reason in the file)
 
-`fm10_stutter/freeze/reverse/tape` (no direct control: pads drive the commands), `Learn` subtree row (reserved, empty), `SkipLatest/SkipRecipe` (not bindable), `recipes` (tests live in other fragments).
+`fm10_stutter/freeze/reverse/tape` (no direct control: pads drive the commands), `Learn` subtree row (reserved, empty), `SkipLatest/SkipRecipe` (not MIDI-bindable; GUI Skip is in the Taste strip and the History drawer), `recipes` (tests live in other fragments).
 
 ## Verification
 

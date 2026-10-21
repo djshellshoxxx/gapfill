@@ -138,6 +138,21 @@ Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md
 | FILE menu entries (audition, history, export, favourite) | `file_menu_entry_points_exist_while_the_editor_does` | none | Automated (menu items themselves are not clicked) |
 | Mechanical wiring audit | `python3 tools/audit/completeness_audit.py --selftest`; the audit exits 0 | `tools/validate_repo.py` unchanged | Automated |
 
+### Gap-closing pass after the audit (`docs/audits/2026-10-21-completeness-audit.md`, "Closed by the gap-closing pass")
+
+| Gap closed | Unit/regression evidence (file) | CI/host evidence | Current status |
+|---|---|---|---|
+| F-M17 Mix-panel OUTPUT selector, dimmed Dry / Wet, footer WET ONLY chip | `TestGapClose.cpp`: mix_panel_output_selector_follows_and_drives_wet_only, mix_panel_selector_does_not_overlap_the_other_readouts, footer_chip_shows_wet_only_and_is_a_full_footer_height_target | none; look at min / default / large size unverified | Automated (bounds, not pixels) |
+| F-S12 chip hit target (22 px = footer height) | footer_chip_shows_wet_only_and_is_a_full_footer_height_target | none | Automated |
+| F-M21 curve editor (pure rules, mouse, keyboard, Custom switch, strip button) | tension_edit_operations_always_leave_a_valid_lane (20 000 random ops), tension_edit_rules_pin_the_end_points_and_the_limits, tension_copy_shape_samples_the_built_in_shape, tension_nearest_point_picks_by_distance, tension_editor_publishes_edits_and_switches_to_custom, tension_editor_mouse_adds_drags_and_removes, tension_strip_has_the_edit_button_and_the_help_names_it | screen reader, looped region in a DAW | Automated; accessibility announcements unverified |
+| F-X05 SKIP in the History drawer | history_drawer_has_a_skip_button_that_rates_through_the_taste_service | none | Automated |
+| F-S11 Ctrl/Cmd+D, Ctrl/Cmd+Up/Down, favourites-only scope, one Undo entry per burst | catalog_step_within_a_pool_wraps_and_handles_non_members, ctrl_d_toggles_the_favourite_and_ctrl_arrows_step, favourites_only_stepping_visits_only_favourites_and_falls_back_when_none, a_burst_of_preset_steps_leaves_one_undo_entry_and_undo_restores_the_start | key handling inside REAPER / Live / FL / Logic / Bitwig | Automated; host key conflicts unverified |
+| F-M18 styles from the header A/B | beat_battle_styles_follow_the_header_ab_snapshots | none | Automated |
+| T-01 meter arithmetic | `TestMeter.cpp`: peak_holds_1500ms, peak_does_not_fall_during_hold, peak_falls_20_dB_per_second, falls_to_the_floor_and_settles, new_higher_peak_resets_hold_and_lower_level_does_not, db_map_monotonic_and_endpoints, gradient_stops_exact | pixel golden and narrow-readout test of the ticket open | Automated (arithmetic) |
+| W-03 transport matrix; no-PPQ one-shot | `TestTransport.cpp`: steady_playback_no_jump_at_alternating_block_sizes, tempo_ramp_60_to_180_over_8_bars_has_no_false_jump, tempo_step_has_no_false_jump, seek_loop_wrap_and_stop_start_are_each_detected_once, playing_without_ppq_resets_once_not_every_block, fill_start_positions_do_not_depend_on_the_host_block_pattern | jitter measurement in two real hosts | Automated; tolerance retune open |
+| Q-01 matrix harness | `tools/test_qa_matrix.py` (11 tests: zero tests fail, skipped validator is `unverified`, bad-filter guard, crash flag, evidence schema, summary exit code) | not a CI job yet | Automated (harness self-tests); the matrix itself runs on demand: `python tools/qa/run_matrix.py --binary <GapFillTests>` |
+| T-02 layout-literal ratchet | `tools/test_check_layout_literals.py` | none | Automated (ratchet only; layout pass open) |
+
 ### WP4 tickets (audition, recipes, export, A/B)
 
 | Ticket | Unit/regression evidence (file) | CI/host evidence | Current status |

@@ -61,7 +61,7 @@ by default, so an existing project sounds the same.
   recapture, controlled mistakes, controlled evolve, tempo-sync fallback tempo (Options).
 - **Effects** (Performance tab / Effects section, all off at Amount 0) - Reverse Swell, Granular Cloud, Ratchet, Rhythmic Crush, Tape Destruction, Comb Resonator,
   Frequency-shifted Delay, Dub Echo, Hit Reverb (transient-triggered convolution), Formant shift, Spectral Freeze and Freeze & Scrub, Harmonic Granular, per-lane effect switches.
-- **Musical context** - Scale Lock and automatic key detection, groove inheritance, call and response, energy following, tension/release curves, arrangement awareness,
+- **Musical context** - Scale Lock and automatic key detection, groove inheritance, call and response, energy following, tension/release curves with a curve editor, arrangement awareness,
   local preference learning (Like/Skip).
 - **Live control** - MIDI command map and controller profiles with LED feedback (Standalone), Panic/Recover (footer chip and a large Performance-tab button), momentary
   and latch holds, Stutter Storm, Glitch Roulette, quantised Fill Now, scenes with quantised recall and `.gapbank` exchange, macros with LFOs, Beat Battles, a wet safety limiter.
@@ -69,7 +69,7 @@ by default, so an existing project sounds the same.
   (build option `GAPFILL_MIDI_OUT`, off by default), quality modes (Full/Balanced/Lite/Auto), multi-instance co-operation (safe subset).
 - **Usability** - Simple/Advanced view, interface size 100-200 %, quick tour, accessibility palettes and large controls, a preset browser with favourites, 41 factory presets, Mutation Lab, smart preset suggestions.
 
-Not built: the per-voice formant design, the Mix-panel wet-only selector and footer chip, the tension curve editor popover, Ctrl+D favourites; see the status file.
+Not built: the per-voice formant design (a recorded design deviation: the formant effect ships as a bus card), MIDI Program Change preset selection, Hit/CC events for MIDI output; see the status file.
 
 ## Building
 

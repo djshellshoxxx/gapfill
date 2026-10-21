@@ -43,6 +43,15 @@ Version: 0.0.1 beta · Type: audio **effect** (not an instrument)
 - Still open (reasons in the report): F-L20 per-voice design, F-M21 curve editor, F-M17 Mix-panel selector + footer chip, F-X06 beyond the safe subset, T-01 / T-02 / W-01 / Q-01, real-host / hardware / Windows / macOS verification.
 
 
+### 2026-10-21 (later) - gap-closing pass after the completeness audit
+
+- Report: "Closed by the gap-closing pass" and "Status of the numbered gaps" in `docs/audits/2026-10-21-completeness-audit.md`; ticket totals now yes 65, partial 8, no 1, out of scope 1.
+- **Built:** Mix-panel OUTPUT selector + footer WET ONLY chip (F-M17); Tension curve editor popover (F-M21); SKIP in the History drawer (F-X05); Ctrl/Cmd+D, Ctrl/Cmd+Up/Down, favourites-only stepping and one Undo entry per burst of steps (F-S11); BATTLE FROM A/B (F-M18); PANIC chip hit target documented and tested (F-S12); `MeterMath.h` extraction with tests (T-01); transport test matrix and the "playing without a PPQ resets once" fix (W-03); `tools/qa/run_matrix.py` (Q-01); layout-literal ratchet (T-02).
+- **Recorded, not built:** F-L20 per-voice design (design deviation, audit G1), F-X06 beyond the safe subset, F-M03 editor growth, W-01 (Windows only, `docs/progress/W-01.md`).
+- Hot files touched (justification for `hot-file-ok`): `PluginEditor.*` (key handling, stepping, favourite helper, battle hook), `Panels.*` (Mix selector), `PluginProcessor.*` (one transport predicate, `discardNewestUndoSnapshot`, `getUndoPushCount`).
+- Unverified, as before: real hosts, hardware, Windows / macOS, screenshots at three sizes, screen-reader behaviour, audibility.
+
+
 ### 2026-10-07 - full audit, four new features, v0.0.1 beta release
 
 - Merged the two unmerged branches (`full-audit-fixes-20261006`, `codex/gapfill-creative-features-spec`) and removed every stale branch.
