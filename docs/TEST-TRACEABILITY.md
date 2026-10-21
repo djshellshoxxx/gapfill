@@ -47,7 +47,7 @@ Keep this table current. The file names below are expected test locations; adjus
 Use the project scripts and current CI workflow as the source of truth; do not paste commands from an old branch without checking they still exist.
 
 - Fast preflight and local subset: `bash tools/dev/check.sh build-dev`.
-- Targeted incremental build: `bash tools/dev/build-target.sh build-dev <tests|vst3|clap|standalone|plugin|all> [filter]` (available when the focused-build PR is merged).
+- Targeted incremental build: `bash tools/dev/build-target.sh build-dev <tests|vst3|clap|standalone|plugin|all> [filter]` (available after PR #21 or this consolidated PR #24 is merged).
 - Full suite: build `GapFillTests`, then run it with no filter; run the Combinatorial group explicitly as well.
 - CI/release: follow `docs/VALIDATION.md`; do not treat a fast local subset as a release gate.
 
