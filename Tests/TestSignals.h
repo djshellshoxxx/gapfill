@@ -127,7 +127,7 @@ public:
 
 /** Configures the processor's bus layout and prepares it. */
 void prepareProcessor (juce::AudioProcessor& proc, double sampleRate, int blockSize,
-                       bool withSidechain, bool mono = false);
+                       bool withSidechain, bool mono = false, bool withWetBus = false);
 
 /** Renders `input` (and optional `sidechain`) through the processor. */
 juce::AudioBuffer<float> renderThroughPlugin (juce::AudioProcessor& proc,

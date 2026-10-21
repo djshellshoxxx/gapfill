@@ -13,7 +13,10 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_SCDRIVE(X)
+#define GAPFILL_PARAMS_SCDRIVE(X) \
+    X (scSnap, "scSnap") \
+    X (scGate, "scGate") \
+    X (scThresh, "scThresh")
 
 namespace gapfill
 {

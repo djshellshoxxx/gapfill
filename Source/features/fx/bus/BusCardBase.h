@@ -106,7 +106,9 @@ public:
             else
                 silentSamples += len;
 
-            const bool capped = tailCapSamples > 0 && silentSamples > tailCapSamples;
+            // F-D03: Balanced / Lite shorten every tail cap (x0.5 / x0.25); Full is exactly the card's own cap.
+            const auto cap = s.tailCapScale == 1.0f ? tailCapSamples : (std::int64_t) ((double) tailCapSamples * (double) s.tailCapScale);
+            const bool capped = cap > 0 && silentSamples > cap;
             tailGate.setTarget (capped ? 0.0f : 1.0f, capped ? std::max (1, (int) (0.25 * sr)) : std::max (1, (int) (0.005 * sr)));
 
             for (int i = 0; i < len; ++i)

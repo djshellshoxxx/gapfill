@@ -13,7 +13,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_WETOUT(X)
+#define GAPFILL_PARAMS_WETOUT(X) \
+    X (wetSolo, "wetSolo")
 
 namespace gapfill
 {

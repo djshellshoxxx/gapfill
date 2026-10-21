@@ -23,6 +23,10 @@
 #include "features/explain/ExplainState.h"
 #include "features/context/ContextState.h"
 #include "features/ui/UiState.h"
+#include "features/scdrive/ScDrive.h"
+#include "features/midiout/MidiOut.h"
+#include "features/quality/Quality.h"
+#include "features/coop/Coop.h"
 
 namespace gapfill
 {
@@ -50,9 +54,10 @@ public:
     bool hasEditor() const override                      { return true; }
 
     const juce::String getName() const override          { return "GapFill"; }
-    // MIDI is accepted for CC-based parameter control (MIDI learn) only.
+    // MIDI input is accepted for CC-based parameter control (MIDI learn) and the command map.
+    // MIDI OUTPUT (gap / fill notes, F-L11) is declared only when the build option GAPFILL_MIDI_OUT is on.
     bool acceptsMidi() const override                    { return true; }
-    bool producesMidi() const override                   { return false; }
+    bool producesMidi() const override                   { return midiout::kDeclared; }
     bool isMidiEffect() const override                   { return false; }
     double getTailLengthSeconds() const override         { return 2.5; }
 
@@ -107,6 +112,16 @@ public:
     context::ContextState& getContextState() noexcept               { return contextState; }
     explain::ExplainState& getExplainState() noexcept               { return explainState; }
     const explain::ExplainState& getExplainState() const noexcept   { return explainState; }
+
+    /** WP10 routing & system. */
+    const scdrive::SidechainOnsetTracker& getScTracker() const noexcept   { return scTracker; }       // F-L13
+    midiout::MidiOutEmitter& getMidiOut() noexcept                         { return midiOut; }         // F-L11
+    /** F-L11 Options value: shifts the note time-stamps by -100..+100 ms (hosts that do not delay MIDI by PDC). */
+    void setMidiOutOffsetMs (double ms) noexcept    { midiOutOffsetMs.store (juce::jlimit (-(double) midiout::kMaxOffsetMs, (double) midiout::kMaxOffsetMs, ms), std::memory_order_relaxed); }
+    double getMidiOutOffsetMs() const noexcept      { return midiOutOffsetMs.load (std::memory_order_relaxed); }
+    const quality::QualityController& getQualityController() const noexcept { return qualityCtl; }    // F-D03
+    int getAppliedQualityLevel() const noexcept     { return appliedQuality.load (std::memory_order_relaxed); }
+    const coop::CoopMember& getCoop() const noexcept                       { return coopMember; }      // F-X06
 
     /** WP11 UI shell state: status board, Simple/Advanced view mode (message thread). */
     ui::UiState& getUiState() noexcept                              { return uiState; }
@@ -221,7 +236,12 @@ private:
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
     bool isParameterStateValid (const juce::ValueTree& state) const;
     void snapParametersToState();
-    void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); }
+    void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); midiOut.requestFlush(); }
+    void clearWetBus (juce::AudioBuffer<float>&) noexcept;          // F-L12
+    /** Input, Output, Sidechain, plus the optional "Wet" output (F-L12; not for Audio Unit, see wetbus::isDeclared).
+        A static member because BusesProperties is protected in juce::AudioProcessor. */
+    static BusesProperties makeBuses();
+    midiout::Settings gatherMidiOutSettings() const noexcept;       // F-L11
 
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
@@ -237,6 +257,14 @@ private:
     MidiLearnManager midiLearn;
     live::LiveControl liveControl { apvts };
     recipes::RecipeServices recipeServices;
+
+    // WP10 routing & system (docs/architecture/MODULES.md)
+    scdrive::SidechainOnsetTracker scTracker;        // F-L13: fed only while a gate / snap is set and the sidechain is connected
+    midiout::MidiOutEmitter midiOut;                 // F-L11
+    std::atomic<double> midiOutOffsetMs { 0.0 };
+    quality::QualityController qualityCtl;           // F-D03
+    std::atomic<int> appliedQuality { 0 };
+    coop::CoopMember coopMember;                     // F-X06: claims a registry slot only while coopGroup != Off
 
     MeterState meters;
     VisualisationFifo viz;

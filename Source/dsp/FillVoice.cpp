@@ -387,14 +387,16 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
     // --- prime the spectral processor so the fill starts immediately -------
     if (spectralProcessor != nullptr)
     {
-        for (int i = 0; i < SpectralSmear::latency(); ++i)
+        const auto smearLatency = spectralProcessor->latencyNow();      // F-D03: one FFT order lower in Balanced / Lite
+
+        for (int i = 0; i < smearLatency; ++i)
         {
             const auto p = std::fmod ((double) i, (double) juce::jmax (1, captureLength - 1));
             float dummyL = 0.0f, dummyR = 0.0f;
             spectralProcessor->process (readCapture (0, p), readCapture (1, p), dummyL, dummyR);
         }
 
-        playPos = (double) SpectralSmear::latency();
+        playPos = (double) smearLatency;
     }
 
     // HOOK (WP8, FX-0): latch the effect cards for this fill.

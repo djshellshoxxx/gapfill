@@ -12,6 +12,9 @@
 #include "../features/fx/FxHooks.h"
 #include "../features/context/ContextHooks.h"
 #include "../features/scale/ScaleHooks.h"
+#include "../features/scdrive/ScDrive.h"
+#include "../features/coop/Coop.h"
+#include "../features/quality/Quality.h"
 
 namespace gapfill
 {
@@ -124,6 +127,11 @@ void FillEngine::reset()
     rejectCounts.fill (0);
     telemetry.reset();
     recentFills.clear();
+    transitions.clear();
+    snapTarget = -1;
+    snapChecked = false;
+    qualityLevel = 0;                      // F-D03: the processor re-applies its level after a reset
+    spectral.setLowerOrder (false);
     prevActiveVoices = 0;
     vizCounter = 0;
     vizAccum = {};
@@ -163,13 +171,30 @@ int FillEngine::getActiveVoiceCount() const noexcept
     return n;
 }
 
-FillVoice* FillEngine::findFreeVoice() noexcept
+FillVoice* FillEngine::findFreeVoice (int pool) noexcept
 {
-    for (auto& v : voices)
-        if (! v.isActive())
-            return &v;
+    const auto n = juce::jlimit (1, numVoices, pool);
+
+    for (int i = 0; i < n; ++i)
+        if (! voices[i].isActive())
+            return &voices[i];
 
     return nullptr;
+}
+
+bool FillEngine::isIdle() const noexcept
+{
+    return getActiveVoiceCount() == 0 && ! preview.isActive() && ! holdVoices.isActive() && ! scrub.isActive();
+}
+
+void FillEngine::setQualityLevel (int level) noexcept
+{
+    qualityLevel = juce::jlimit (0, quality::NumLevels - 1, level);
+}
+
+int FillEngine::getVoicePoolSize() const noexcept
+{
+    return quality::capsFor (qualityLevel).voices;
 }
 
 //==============================================================================
@@ -183,6 +208,7 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
                           fx::EngineBlockIO* io) noexcept
 {
     blockIO = io;                                   // HOOK (WP8, FX-0)
+    transitions.clear();                            // WP10: gap / fill transitions of this call
 
     if (io != nullptr)
     {
@@ -281,6 +307,14 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
                                 FillEventQueue* events) noexcept
 {
     const auto& frame = analysis.frameAt (outputPos);
+
+    // F-D03: the spectral smear changes its FFT order only while no spectral voice holds it.
+    {
+        const bool wantLower = quality::capsFor (qualityLevel).spectralLower;
+
+        if (wantLower != spectral.isLowerOrder() && ! spectral.isClaimed())
+            spectral.setLowerOrder (wantLower);
+    }
 
     // ---- protection envelopes -------------------------------------------
     const bool mainEventNow = (analysis.nextMainEvent (outputPos) == outputPos);
@@ -400,7 +434,10 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             inGap = true;
             gapEvaluated = false;
             gapStartPos = outputPos;
+            snapTarget = -1;                // F-L13
+            snapChecked = false;
             ++gapIndex;
+            transitions.push (Transition::GapOpen, outputPos, makeEvent (FillEventType::GapOpen).conf8);
 
             if (wantTimeline)
                 events->pushOptional (makeEvent (FillEventType::GapOpen));
@@ -409,11 +446,12 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
     else if (frame.conf < kExitGapConf)
     {
         inGap = false;
+        transitions.push (Transition::GapClose, outputPos);
     }
 
     bool startedFill = false;
 
-    if (inGap && ! gapEvaluated)
+    if (inGap && ! gapEvaluated && ! snapDefers (outputPos, analysis, s))
     {
         gapEvaluated = true;
         const auto result = trySchedule (outputPos, blockStartPos, frame, analysis, history, s);
@@ -448,6 +486,9 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
 
         for (const auto& v : voices)
             activeNow += v.isActive() ? 1 : 0;
+
+        for (int i = activeNow; i < prevActiveVoices; ++i)
+            transitions.push (Transition::FillEnd, outputPos);          // WP10 (MIDI out, co-op)
 
         if (wantTimeline)
             for (int i = activeNow; i < prevActiveVoices; ++i)
@@ -602,7 +643,7 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
     if (forced)
         plan.recipe.flags |= FillRecipe::flagForced;
 
-    auto* voice = findFreeVoice();
+    auto* voice = findFreeVoice (quality::capsFor (s.perf.qualityLevel).voices);   // F-D03 effective pool
 
     if (voice == nullptr)
         return reject (RejectReason::NoVoice);
@@ -616,6 +657,11 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
 
     if (havePpq)
         recentFills.push (budget::tickFor (ppq));       // F-D01 bar counting (every started fill counts)
+
+    // WP10: MIDI out velocity = the fill's intensity (1..127); co-op publishes start and length.
+    transitions.push (Transition::FillStart, outputPos,
+                      (std::uint8_t) juce::jlimit (1, 127, (int) std::lround (1.0f + 126.0f * juce::jlimit (0.0f, 1.0f, s.intensity01))),
+                      (std::int32_t) plan.lengthSamples);
 
     result.started = true;
     result.recipe = plan.recipe;
@@ -711,7 +757,63 @@ RejectReason FillEngine::checkEligibility (GapContext& ctx, const AnalysisEngine
         telemetry.budgetNeedsTransport.store (false, std::memory_order_relaxed);
     }
 
+    // F-L13 sidechain gate and F-X06 co-op yield: decided before any RNG draw. An explicit Fill Now is exempt.
+    if (! ctx.forced)
+    {
+        if (s.perf.sc.active())
+            if (const auto r = scdrive::evaluateGate (s.perf.sc, ctx.outputPos); r != RejectReason::None)
+                return r;
+
+        if (s.perf.coop.view != nullptr)
+        {
+            const bool havePpq = s.transportValid && s.samplesPerBeat > 1.0;
+            const auto offset = ctx.outputPos - ctx.blockStartPos;
+            const auto ppq = havePpq ? s.ppqAtBlockStart + (double) offset / s.samplesPerBeat : 0.0;
+            auto bpb = timing::beatsPerBar (s.perf.tsNum, s.perf.tsDen);
+
+            if (bpb <= 0.0)
+                bpb = 4.0;
+
+            if (const auto r = coop::evaluate (*s.perf.coop.view, havePpq, ppq, offset, s.samplesPerBeat, bpb);
+                r != RejectReason::None)
+                return r;
+        }
+    }
+
     return RejectReason::None;
+}
+
+bool FillEngine::snapDefers (std::int64_t outputPos, const AnalysisEngine& analysis, const EngineSettings& s) noexcept
+{
+    if (s.perf.sc.snap01 <= 0.0f || s.perf.sc.tracker == nullptr)
+        return false;
+
+    if (! snapChecked)
+    {
+        snapChecked = true;
+
+        const auto minGap = (std::int64_t) juce::jmax (16.0, s.minGapMs * 0.001 * sr);
+        const auto maxFill = (std::int64_t) juce::jmax (32.0, s.maxFillMs * 0.001 * sr);
+        const auto preGuard = (std::int64_t) (sr * 0.001 * lerp (4.0f, 25.0f, s.protNext01));
+
+        // The room a fill starting at `at` would have: the same arithmetic as checkEligibility.
+        auto roomAt = [&] (std::int64_t at)
+        {
+            const auto nextEvent = analysis.nextDetectionEvent (at + 1);
+            const auto nextProtected = analysis.nextProtectedEvent (at + 1);
+            auto boundary = nextEvent;
+
+            if (nextProtected > at && (boundary < 0 || nextProtected < boundary))
+                boundary = nextProtected;
+
+            return boundary > at ? juce::jmax ((std::int64_t) 0, boundary - at - preGuard) : maxFill;
+        };
+
+        snapTarget = scdrive::chooseSnapTarget (s.perf.sc, outputPos, (std::int64_t) AnalysisEngine::hopSize, sr,
+                                                (std::int64_t) (s.lookaheadMs * 0.001 * sr), minGap, roomAt);
+    }
+
+    return snapTarget > outputPos;
 }
 
 RejectReason FillEngine::rollDecision (GapContext& ctx, Rng& rng, const EngineSettings& s,

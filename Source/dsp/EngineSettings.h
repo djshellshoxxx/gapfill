@@ -10,6 +10,8 @@
 #include "../features/harmonic/HarmonicSettings.h"
 #include "../features/keydetect/KeySettings.h"
 #include "../features/scale/ScaleLock.h"
+#include "../features/coop/CoopFwd.h"
+#include "../features/scdrive/ScSettings.h"
 
 #include <cstdint>
 
@@ -75,6 +77,11 @@ struct PerformanceSettings
     /** Decision-stage OUTPUT (never a parameter): multiplier on the fill probability
         of the gap being decided. Exactly 1.0 means neutral (C-7 Phrase). */
     float probabilityMul = 1.0f;
+
+    // WP10 routing & system. Neutral at their defaults (null / 0).
+    scdrive::ScSettings sc;           // F-L13: sidechain gate / snap; inert without a tracker
+    coop::CoopSettings coop;          // F-X06: null view = Off, alone, or paused
+    int   qualityLevel = 0;           // F-D03: 0 Full, 1 Balanced, 2 Lite (level in force, not the setting)
 };
 
 //==============================================================================
