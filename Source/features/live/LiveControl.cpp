@@ -58,6 +58,17 @@ void LiveControl::post (UiRequest::Kind kind, int a) noexcept
         uiDropped.fetch_add (1, std::memory_order_relaxed);
 }
 
+void LiveControl::emit (FillEventType type, std::int64_t pos) noexcept
+{
+    if (eventQueue == nullptr)
+        return;
+
+    FillEvent e;
+    e.type = type;
+    e.pos = pos;
+    eventQueue->push (e);
+}
+
 void LiveControl::onPanicAction (panic::Action action, FillEngine& engine) noexcept
 {
     if (action == panic::Action::Panic)
@@ -68,10 +79,12 @@ void LiveControl::onPanicAction (panic::Action action, FillEngine& engine) noexc
         ringCount = 0;
         post (UiRequest::SceneCancel);
         post (UiRequest::PanicChanged, 1);
+        emit (FillEventType::Panic, blockPos);
     }
     else if (action == panic::Action::Recover)
     {
         post (UiRequest::PanicChanged, 0);
+        emit (FillEventType::Recover, blockPos);
     }
 }
 
@@ -111,8 +124,9 @@ void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset,
     }
 }
 
-void LiveControl::beginBlock (const juce::MidiBuffer& midi, FillEngine& engine) noexcept
+void LiveControl::beginBlock (const juce::MidiBuffer& midi, FillEngine& engine, std::int64_t outputPos) noexcept
 {
+    blockPos = outputPos;
     commands::Event events[commands::kMaxCommandEventsPerBlock];
 
     // 1. A new binding table (releases anything that was held).
@@ -179,7 +193,7 @@ void LiveControl::fillModulationInputs (Effective::ModulationInputs& in, int see
     in.macros.runtime = &macroRuntime;
 }
 
-void LiveControl::prepareChunk (EngineSettings& s, int numSamples) noexcept
+void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t outputPos) noexcept
 {
     macroRuntime.chunkSeconds = (float) ((double) std::max (1, numSamples) / sampleRate);
 
@@ -207,7 +221,10 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples) noexcept
     const auto r = sceneEngine.beginChunk (sceneCtl.publisher(), t);
 
     if (r.appliedId != 0)
+    {
         post (UiRequest::SceneApplied, (int) r.appliedId);
+        emit (FillEventType::SceneApplied, outputPos);
+    }
 
     const auto& view = sceneEngine.view();
     s.perf.sceneView = view.active ? &view : nullptr;

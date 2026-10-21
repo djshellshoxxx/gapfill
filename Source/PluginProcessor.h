@@ -16,6 +16,7 @@
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
 #include "features/live/LiveControl.h"
+#include "features/explain/ExplainState.h"
 
 namespace gapfill
 {
@@ -90,6 +91,9 @@ public:
     /** WP6 live control hub (panic, scenes, MIDI command map). */
     live::LiveControl& getLiveControl() noexcept                    { return liveControl; }
     const live::LiveControl& getLiveControl() const noexcept        { return liveControl; }
+    /** WP3 Explain & assist: health codes, telemetry, fix-it, timeline, event recorder. */
+    explain::ExplainState& getExplainState() noexcept               { return explainState; }
+    const explain::ExplainState& getExplainState() const noexcept   { return explainState; }
 
     //==========================================================================
     // Cross-thread queues (docs/dev/02 F0-4)
@@ -210,6 +214,7 @@ private:
     FillEventQueue  fillEvents;      // audio -> message, drained by the timer
     RecipeHistory   recipeHistory;   // message thread only (survives the editor)
     GapOutcomeLog   outcomeLog;      // message thread only
+    explain::ExplainState explainState;   // WP3; attached to apvts in the constructor
 
     // --- buffers (all sized in prepareToPlay) ---
     juce::AudioBuffer<float> mainBuffer, wetBuffer, delayRing;

@@ -275,25 +275,25 @@ GF_TEST (Battle, panic_suspends_the_battle)
     s.perf.tsNum = 4;
     s.perf.tsDen = 4;
     s.perf.battleEvery = 1;
-    live.prepareChunk (s, 256);
+    live.prepareChunk (s, 256, 0);
     GF_EXPECT (s.perf.battle != nullptr);
 
     live.panic().requestPanic();
-    live.beginBlock (midi, engine);
+    live.beginBlock (midi, engine, 0);
     EngineSettings s2 = s;
     s2.perf.battle = nullptr;
-    live.prepareChunk (s2, 256);
+    live.prepareChunk (s2, 256, 0);
     GF_EXPECT (s2.perf.battle == nullptr && s2.perf.panicked);
 
     live.panic().requestRecover();
-    live.beginBlock (midi, engine);
+    live.beginBlock (midi, engine, 0);
     EngineSettings s3;
     s3.perf.battleEvery = 1;
     s3.transportValid = true;
     s3.samplesPerBeat = 24000.0;
     s3.perf.tsNum = 4;
     s3.perf.tsDen = 4;
-    live.prepareChunk (s3, 256);
+    live.prepareChunk (s3, 256, 0);
     GF_EXPECT (s3.perf.battle != nullptr && ! s3.perf.panicked);
 }
 

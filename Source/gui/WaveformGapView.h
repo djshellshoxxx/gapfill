@@ -14,6 +14,7 @@ namespace gapfill
     considers usable space, the protection it is applying, and the fills it
     placed - all from lock-free frames produced by the audio thread. */
 class WaveformGapView : public juce::Component,
+                        public juce::TooltipClient,
                         private juce::Timer
 {
 public:
@@ -27,7 +28,20 @@ public:
     void setLookaheadMs (float ms);
     void setActive (bool shouldRun);
 
+    /** E-3: explains the skipped-gap marker under the mouse ("<label> - X ms free, Y ms needed. <advice>"). */
+    juce::String getTooltip() override;
+
+    /** Index of the newest-to-oldest-agnostic column holding a skipped-gap marker within
+        `slop` columns of x (component coordinates); -1 when none. Public for tests. */
+    int findRejectedColumnNear (float x, int slop = 3) const;
+
+    /** Test access to the last column geometry computed by paint(). */
+    const VizFrame& getColumn (int i) const noexcept { return columns[(size_t) ((writeIndex + i) % juce::jmax (1, numColumns))]; }
+    int getNumColumns() const noexcept { return numColumns; }
+    void injectFrameForTests (const VizFrame& f)  { for (int i = 0; i < framesPerColumn; ++i) { accumulate (f); } }
+
 private:
+    void accumulate (const VizFrame& f);
     void timerCallback() override;
     void pushColumn (const VizFrame& frame);
 
@@ -43,6 +57,10 @@ private:
 
     bool spectralMode = false;
     float lookaheadMs = 40.0f;
+
+    // Geometry of the last paint, used to map the mouse to a column (E-3 tooltip).
+    float plotLeft = 0.0f;
+    float plotColumnWidth = 1.0f;
 
     static constexpr int maxColumns = 2048;
     static constexpr int drainPerTick = 512;

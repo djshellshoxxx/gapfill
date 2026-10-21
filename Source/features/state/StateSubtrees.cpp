@@ -1,6 +1,7 @@
 #include "StateSubtrees.h"
 
 #include "../../PluginProcessor.h"
+#include "../explain/ExplainState.h"
 
 namespace gapfill::state
 {
@@ -83,7 +84,7 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
         { "Tension", 3 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-M21
         { "Groove",  1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-L09
         { "Fx",      1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // FX-0
-        { "Health",  1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // N-USE
+        { "Health",  1 * Ki,  explain::validateSubtree, explain::applySubtree, explain::serialiseSubtree, explain::resetSubtree },   // N-USE (WP3)
         { "Learn",   4 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-X05
     };
 

@@ -381,7 +381,7 @@ GF_TEST (Panic, footer_chip_is_hosted_named_and_only_hit_tests_its_own_rectangle
     juce::Component parent;
     parent.setBounds (0, 0, 800, 12);
     SlotHost host (proc, parent);
-    GF_EXPECT (host.getNumComponents (Slot::FooterStatus) == 1);
+    GF_EXPECT (host.getNumComponents (Slot::FooterStatus) >= 1);              // other work packages share the footer
     host.setSlotBounds (Slot::FooterStatus, { 0, 0, 800, 12 });
 
     juce::Component* chip = nullptr;
@@ -394,4 +394,23 @@ GF_TEST (Panic, footer_chip_is_hosted_named_and_only_hit_tests_its_own_rectangle
     GF_EXPECT (chip->getDescription().isNotEmpty());
     GF_EXPECT (chip->hitTest (10, 5));
     GF_EXPECT (! chip->hitTest (400, 5));       // the version marker area is not a panic button
+}
+
+GF_TEST (Panic, panic_and_recover_leave_timeline_markers_in_the_event_queue)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, kSr, 256, false);
+    juce::AudioBuffer<float> work (2, 256);
+    juce::MidiBuffer midi;
+    work.clear();
+    proc.processBlock (work, midi);
+    proc.drainFillEvents();
+
+    proc.getLiveControl().panic().requestPanic();
+    proc.processBlock (work, midi);
+    GF_EXPECT (proc.drainFillEvents() >= 1);
+
+    proc.getLiveControl().panic().requestRecover();
+    proc.processBlock (work, midi);
+    GF_EXPECT (proc.drainFillEvents() >= 1);
 }

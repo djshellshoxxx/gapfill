@@ -89,6 +89,9 @@ public:
     const juce::String& getLearnStatus() const noexcept  { return learnStatus; }
     void setMidiLearn (MidiLearnManager* m) noexcept     { midiLearn = m; }
 
+    /** The audio -> message event queue (timeline markers: Panic, Recover, SceneApplied). Audio thread is its single producer. */
+    void setEventQueue (FillEventQueue* q) noexcept      { eventQueue = q; }
+
     //--- F-L24 controller profiles and LED feedback ---------------------------
     /** Installs a profile's bindings (Replace clears first, otherwise existing bindings win) and its
         feedback rules. `message` explains skipped bindings. */
@@ -122,7 +125,7 @@ public:
     void reset() noexcept;
 
     /** Top of processBlock, after MidiLearnManager::processMidi. */
-    void beginBlock (const juce::MidiBuffer&, FillEngine&) noexcept;
+    void beginBlock (const juce::MidiBuffer&, FillEngine&, std::int64_t outputPos) noexcept;
 
     /** One command drained from the processor's message-thread queue. */
     void handleCommand (const Command&, FillEngine&) noexcept;
@@ -137,7 +140,7 @@ public:
     }
 
     /** Per processed chunk, after the transport fields of `s` are filled. */
-    void prepareChunk (EngineSettings& s, int numSamples) noexcept;
+    void prepareChunk (EngineSettings& s, int numSamples, std::int64_t outputPos) noexcept;
 
     /** Wet-bus gains for the next `n` samples (sequential chunks of one block). */
     const float* wetGains (int n) noexcept               { return panicCtl.nextGains (n); }
@@ -157,10 +160,13 @@ private:
     void execute (CommandType, int arg, bool on, int sampleOffset, FillEngine&) noexcept;
     void onPanicAction (panic::Action, FillEngine&) noexcept;
     void post (UiRequest::Kind, int a = 0) noexcept;
+    void emit (FillEventType, std::int64_t pos) noexcept;
     void handleUi (const UiRequest&, GapFillAudioProcessor&);
 
     juce::AudioProcessorValueTreeState& apvts;
     MidiLearnManager* midiLearn = nullptr;
+    FillEventQueue* eventQueue = nullptr;
+    std::int64_t blockPos = 0;
 
     commands::BindingModel bindingModel;
     commands::Scanner scanner;
