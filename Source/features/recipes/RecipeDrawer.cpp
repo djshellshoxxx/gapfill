@@ -16,6 +16,7 @@
 
 #include "RecipeServices.h"
 #include "../audition/Heartbeat.h"
+#include "../export/WavExport.h"
 #include "../history/Describe.h"
 #include "../history/RecipeFile.h"
 #include "../lock/LikeBias.h"
@@ -80,7 +81,23 @@ namespace
                 return;
             }
 
+            dragStarted = false;
+
+            if (onDragPrepare != nullptr)
+                onDragPrepare();
+
             juce::Button::mouseDown (e);
+        }
+
+        void mouseDrag (const juce::MouseEvent& e) override
+        {
+            juce::Button::mouseDrag (e);
+
+            if (! dragStarted && e.mods.isLeftButtonDown() && e.getDistanceFromDragStart() > 8 && onDragOut != nullptr)
+            {
+                dragStarted = true;
+                onDragOut();
+            }
         }
 
         void paintButton (juce::Graphics& g, bool highlighted, bool down) override
@@ -115,10 +132,11 @@ namespace
         }
 
         std::function<void()> onContext;
+        std::function<void()> onDragPrepare, onDragOut;     // U-2: drag the exported WAV into the DAW
         FillRecipe recipe;
 
     private:
-        bool selected = false, locked = false;
+        bool selected = false, locked = false, dragStarted = false;
     };
 
     //==========================================================================
@@ -149,6 +167,8 @@ namespace
                 chips[(size_t) i].setClickingTogglesState (false);
                 chips[(size_t) i].onClick = [this, i] { select (i); };
                 chips[(size_t) i].onContext = [this, i] { select (i); showMenu(); };
+                chips[(size_t) i].onDragPrepare = [this, i] { select (i); beginExport (ExportPurpose::Drag); };
+                chips[(size_t) i].onDragOut = [this] { dragOut(); };
                 addChildComponent (chips[(size_t) i]);
             }
 
@@ -170,6 +190,11 @@ namespace
                    [this] { likeSelected(); });
             setup (saveBtn, "SAVE...", "Save recipe",
                    "Save the selected recipe as a small .gfrecipe file.", [this] { saveSelected(); });
+            setup (exportBtn, "EXPORT...", "Export fill",
+                   "Save the wet-only audio of the selected fill (or the latest fill or audition) as a 24-bit WAV: "
+                   "only what GapFill added, after protect and width, before the dry/wet mix. Drag a chip into your DAW "
+                   "to drop the same audio on a track. Fills older than eight seconds are no longer available.",
+                   [this] { beginExport (ExportPurpose::File); });
             setup (loadBtn, "LOAD...", "Load recipe",
                    "Load a .gfrecipe file into Lock. Lock is switched off so you decide when to engage it.",
                    [this] { loadRecipe(); });
@@ -254,6 +279,8 @@ namespace
             row3.removeFromLeft (kGap);
             loadBtn.setBounds (row3.removeFromLeft (68));
             row3.removeFromLeft (kGap);
+            exportBtn.setBounds (row3.removeFromLeft (84));
+            row3.removeFromLeft (kGap);
             extraRowArea = row3;
             layoutExtraRow();
         }
@@ -313,6 +340,8 @@ namespace
         void timerCallback() override
         {
             heartbeat.poll (proc.getMeterState());
+            proc.getRecipes().exportService.arm();         // the wet tap records while an editor with a drawer exists
+            pollExport();
             refresh (false);
         }
 
@@ -353,12 +382,13 @@ namespace
             }
 
             for (auto* c : std::initializer_list<juce::Component*> { &lockToggle, &lockLabel, &auditionBtn, &lockThisBtn,
-                                                                     &likeBtn, &saveBtn, &loadBtn })
+                                                                     &likeBtn, &saveBtn, &loadBtn, &exportBtn })
                 c->setVisible (open);
 
             lockLabel.setText (summary, juce::dontSendNotification);
             lockThisBtn.setEnabled (sel >= 0);
             saveBtn.setEnabled (sel >= 0);
+            exportBtn.setEnabled (h.size() > 0 || proc.getRecipes().lastPreviewSpan.isKnown());
             likeBtn.setButtonText (like > 0 ? "LIKED x" + juce::String (like) : juce::String ("MORE LIKE"));
             repaint();
         }
@@ -519,6 +549,7 @@ namespace
             menu.addItem (2, "Lock this");
             menu.addItem (3, "More like this");
             menu.addItem (4, "Save recipe...");
+            menu.addItem (5, "Export fill...");
 
             menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&chips[(size_t) sel]),
                                 [safe = juce::Component::SafePointer<RecipeDrawer> (this)] (int result)
@@ -530,18 +561,173 @@ namespace
                 else if (result == 2) safe->lockSelected();
                 else if (result == 3) safe->likeSelected();
                 else if (result == 4) safe->saveSelected();
+                else if (result == 5) safe->beginExport (ExportPurpose::File);
             });
+        }
+
+        //======================================================================
+        // U-2 export. The audio thread copies the segment (bounded per block); everything
+        // below, including the file I/O, runs here on the message thread.
+
+        enum class ExportPurpose { File, Drag };
+
+        struct PendingExport
+        {
+            bool active = false;
+            ExportPurpose purpose = ExportPurpose::File;
+            std::uint32_t deadlineMs = 0;
+            juce::String algo;
+        };
+
+        /** The span to export: the selected fill, else the more recent of the latest fill and audition. */
+        bool chooseExportSpan (FillSpan& span, juce::String& algoLabel) const
+        {
+            auto& services = proc.getRecipes();
+            const auto& h = proc.getRecipeHistory();
+            const auto sel = selectedIndex();
+
+            if (sel >= 0)
+            {
+                span = h.getSpan (sel);
+                algoLabel = algoName ((Algo) juce::jlimit (0, numAlgos - 1, (int) h.get (sel).algo));
+                return true;
+            }
+
+            const bool haveFill = h.size() > 0 && h.getSpan (0).isKnown();
+            const bool havePreview = services.lastPreviewSpan.isKnown();
+
+            if (havePreview && (! haveFill || services.lastPreviewSpan.startPos > h.getSpan (0).startPos))
+            {
+                span = services.lastPreviewSpan;
+                algoLabel = algoName ((Algo) juce::jlimit (0, numAlgos - 1, (int) services.lastPreviewRecipe.algo));
+                return true;
+            }
+
+            if (haveFill)
+            {
+                span = h.getSpan (0);
+                algoLabel = algoName ((Algo) juce::jlimit (0, numAlgos - 1, (int) h.get (0).algo));
+                return true;
+            }
+
+            return false;
+        }
+
+        void beginExport (ExportPurpose purpose)
+        {
+            auto& services = proc.getRecipes();
+            FillSpan span;
+            juce::String algo;
+
+            if (! chooseExportSpan (span, algo) || ! span.isKnown())
+            {
+                services.postMessage ("That fill is too old", 3000);
+                return;
+            }
+
+            services.exportService.arm();
+            const auto result = services.exportService.request (span);
+
+            if (result != exporting::RequestResult::Accepted)
+            {
+                services.postMessage (exporting::requestText (result), 3000);
+                return;
+            }
+
+            pending.active = true;
+            pending.purpose = purpose;
+            pending.algo = algo;
+            pending.deadlineMs = juce::Time::getMillisecondCounter()
+                               + (std::uint32_t) (1000.0 * (double) span.lengthSamples / juce::jmax (1.0, services.exportService.getSampleRate())) + 3000u;
+        }
+
+        void pollExport()
+        {
+            if (! pending.active)
+                return;
+
+            auto& service = proc.getRecipes().exportService;
+            exporting::Failure why = exporting::Failure::None;
+
+            if (service.take (exported, why))
+            {
+                pending.active = false;
+                finishExport();
+            }
+            else if (why != exporting::Failure::None)
+            {
+                pending.active = false;
+                proc.getRecipes().postMessage (exporting::failureText (why), 3500);
+            }
+            else if ((std::int32_t) (juce::Time::getMillisecondCounter() - pending.deadlineMs) > 0)
+            {
+                service.cancelPending();
+                pending.active = false;
+                proc.getRecipes().postMessage ("Export timed out - is audio playing?", 3500);
+            }
+        }
+
+        void finishExport()
+        {
+            auto& services = proc.getRecipes();
+            const auto sr = services.exportService.getSampleRate();
+            const auto name = exporting::defaultFileName (pending.algo, services.exportService.bpm.load(), juce::Time::getCurrentTime());
+
+            if (pending.purpose == ExportPurpose::Drag)
+            {
+                dragFile = juce::File::getSpecialLocation (juce::File::tempDirectory).getChildFile ("GapFill").getChildFile (name);
+                juce::String error;
+
+                if (! exporting::writeWav24 (dragFile, exported, sr, error))
+                {
+                    dragFile = juce::File();
+                    services.postMessage (error, 4000);
+                }
+
+                return;
+            }
+
+            auto dir = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("GapFill").getChildFile ("Exports");
+            dir.createDirectory();
+
+            chooser = std::make_unique<juce::FileChooser> ("Export fill", dir.getChildFile (name), "*.wav");
+            chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
+                                    | juce::FileBrowserComponent::warnAboutOverwriting,
+                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this), sr] (const juce::FileChooser& fc)
+            {
+                auto file = fc.getResult();
+
+                if (safe == nullptr || file == juce::File())
+                    return;
+
+                file = file.withFileExtension ("wav");
+                juce::String error;
+
+                if (exporting::writeWav24 (file, safe->exported, sr, error))
+                    safe->proc.getRecipes().postMessage ("Exported " + file.getFileName(), 3500);
+                else
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", error);
+            });
+        }
+
+        void dragOut()
+        {
+            if (dragFile.existsAsFile())
+                juce::DragAndDropContainer::performExternalDragDropOfFiles ({ dragFile.getFullPathName() }, false, this);
         }
 
         //======================================================================
         GapFillAudioProcessor& proc;
         audition::Heartbeat heartbeat;
+        PendingExport pending;
+        juce::AudioBuffer<float> exported;
+        juce::File dragFile;
 
         juce::TextButton handle { "RECIPES" };
         std::array<ChipButton, (size_t) kChips> chips;
         GapToggle lockToggle;
         juce::Label lockLabel;
-        juce::TextButton auditionBtn, lockThisBtn, likeBtn, saveBtn, loadBtn;
+        juce::TextButton auditionBtn, lockThisBtn, likeBtn, saveBtn, loadBtn, exportBtn;
 
         juce::Rectangle<int> drawerBounds, extraRowArea;
         juce::Rectangle<float> chipRow;

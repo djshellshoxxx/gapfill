@@ -9,8 +9,10 @@
 // audio thread; everything else on the message thread.
 
 #include "../audition/MidiTrigger.h"
+#include "../export/ExportService.h"
 #include "../lock/LockSubtree.h"
 #include "../../dsp/EngineEvents.h"
+#include "../../dsp/EventLogs.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_data_structures/juce_data_structures.h>
@@ -31,6 +33,9 @@ class RecipeServices
 public:
     audition::MidiTrigger trigger;      // E-1 / U-3
     lock::LockMirror lockMirror;        // C-5: message-thread copy of the engine's lock recipe
+    exporting::ExportService exportService;   // U-2
+    FillSpan lastPreviewSpan;           // U-2: where the latest audition sits (message thread)
+    FillRecipe lastPreviewRecipe;
 
     //==========================================================================
     // Audio thread
@@ -41,7 +46,15 @@ public:
 
     /** End of every chunk: copies the few engine figures the editor shows (LIKED xN,
         "lock armed"). Relaxed atomics; the editor never reads engine memory. */
-    void publish (const FillEngine&) noexcept;
+    void publish (const FillEngine&, double bpm) noexcept;
+
+    /** After the wet post-processing of each chunk (`skip` .. end of the wet buffer, whose first
+        sample is output position `outputPos`): the export tap and, later, the A/B loudness meter. */
+    void afterWet (const juce::AudioBuffer<float>& wet, int startSample, int numSamples,
+                   std::int64_t outputPos) noexcept;
+
+    /** prepareToPlay (message thread, audio stopped): allocates the export ring. */
+    void prepare (double sampleRate);
 
     //==========================================================================
     // Message thread

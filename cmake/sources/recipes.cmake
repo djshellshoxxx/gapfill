@@ -4,3 +4,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/recipes/RecipeFooter.cpp
     Source/features/recipes/Help.cpp
 )
+list(APPEND GAPFILL_SOURCES
+    Source/features/export/ExportService.cpp
+    Source/features/export/WavExport.cpp
+)

@@ -23,6 +23,17 @@ namespace
         "SAVE... writes the selected recipe to a small .gfrecipe file in Documents/GapFill/Recipes. LOAD... reads one back into "
         "Lock with Lock switched off, so you decide when to engage it. Files that are too large, damaged or out of range are "
         "refused with a message and change nothing.");
+
+    const HelpRegistrar exportHelp (4030, "Export Fill",
+        "EXPORT... in the recipes drawer saves the audio GapFill added for the selected fill (or for the latest fill or "
+        "audition when none is selected) as a 24-bit stereo WAV at the session sample rate, with 20 ms of lead-in and the "
+        "fade-out tail. Only the wet bus is exported: what GapFill generated after Low Protect, Center Protect and Wet Width, "
+        "before the dry/wet mix, so the file is the same whatever the Dry and Wet knobs say. The file name is "
+        "GapFill_<Algorithm>_<tempo>bpm_<date>-<time>.wav.\n"
+        "Drag a chip out of the drawer into your DAW to drop the same audio on a track.\n"
+        "The last eight seconds of the wet bus are kept while the editor is open (and for a minute after it closes); "
+        "older fills, and fills played before the editor was opened, show \"That fill is too old\". Only one export runs at a time. "
+        "Nothing is recorded when the editor has never been opened, so a plugin you only mix with costs nothing.");
 }
 
 } // namespace gapfill

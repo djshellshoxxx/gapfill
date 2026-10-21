@@ -97,6 +97,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     history.prepare (2, (int) std::ceil (kHistorySeconds * currentSampleRate));
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    recipeServices.prepare (currentSampleRate);
     soloSplitter.prepare (currentSampleRate, 2);
 
     for (auto& hp : lowProtect)
@@ -716,6 +717,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         }
     }
 
+    // WP4: the wet bus after protect and width, before the dry/wet mix (U-2 tap, F-S06 loudness).
+    recipeServices.afterWet (wetBuffer, skip, numSamples - skip, outputStart + skip);
+
     // ---- mix -------------------------------------------------------------
     dryGain.setTargetValue (pv (params.dry) * 0.01f);
     wetGain.setTargetValue (pv (params.wet) * 0.01f);
@@ -833,7 +837,8 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         meters.currentAlgo.store (engine.getCurrentAlgo());
         meters.blockCounter.store (meters.blockCounter.load (std::memory_order_relaxed) + 1, std::memory_order_relaxed);
         meters.previewStatus.store ((int) engine.getPreviewStatusCode(), std::memory_order_relaxed);
-        recipeServices.publish (engine);
+        recipeServices.publish (engine, engineSettings.transportValid && engineSettings.samplesPerBeat > 1.0
+                                          ? 60.0 * currentSampleRate / engineSettings.samplesPerBeat : 0.0);
 
         for (int r = 0; r < MeterState::numReasonCounters; ++r)
             meters.reasonCount[r].store ((std::uint32_t) engine.getRejectCount ((RejectReason) r), std::memory_order_relaxed);

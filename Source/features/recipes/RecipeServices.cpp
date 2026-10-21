@@ -12,8 +12,21 @@ void RecipeServices::onMidi (FillEngine& engine, const juce::MidiBuffer& midi) n
         engine.requestPreview (velocity);          // collapses with a pending UI request
 }
 
-void RecipeServices::publish (const FillEngine& engine) noexcept
+void RecipeServices::prepare (double sampleRate)
 {
+    exportService.prepare (sampleRate);
+}
+
+void RecipeServices::afterWet (const juce::AudioBuffer<float>& wet, int startSample, int numSamples,
+                               std::int64_t outputPos) noexcept
+{
+    if (numSamples > 0)
+        exportService.process (wet, startSample, numSamples, outputPos);
+}
+
+void RecipeServices::publish (const FillEngine& engine, double bpm) noexcept
+{
+    exportService.bpm.store ((float) bpm, std::memory_order_relaxed);
     likeRemaining.store (engine.getLikeState().remaining, std::memory_order_relaxed);
     lockArmed.store (engine.getLockState().engaged && engine.getLockState().armed, std::memory_order_relaxed);
 }
@@ -36,6 +49,8 @@ bool RecipeServices::onFillEvent (const FillEvent& e) noexcept
             return true;
 
         case FillEventType::PreviewStarted:
+            lastPreviewSpan = { e.pos, e.lengthSamples };
+            lastPreviewRecipe = e.recipe;
             return true;                      // consumed: never listed in history or the outcome log
 
         default:
