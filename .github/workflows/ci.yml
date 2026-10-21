@@ -176,6 +176,35 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  # TEMPORARY (removed before merge): same-runner proof that the branch renders the
+  # golden scenarios like master 83447a7. See docs/dev/golden-tolerances.md.
+  golden-vs-master:
+    name: golden-vs-master (temporary)
+    needs: [changes, preflight]
+    if: needs.changes.outputs.native == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fetch JUCE and CLAP support
+        run: bash tools/ci_fetch_deps.sh
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build xvfb libasound2-dev libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev \
+            libxrandr-dev libxrender-dev
+      - name: Build branch GapFillTests
+        run: |
+          cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build build-ci --target GapFillTests -- -j"$(nproc)"
+      - name: Render on this runner with master and branch, compare
+        run: |
+          lscpu | grep -E 'Model name' || true
+          bash tools/ci_golden_vs_master.sh build-ci/artefacts/GapFillTests 83447a70f880ad49f9348c6405931f70bbc82fd5 "$PWD/golden-compare" 2>&1 | tee golden-vs-master.log
+
   build-linux-x64:
     name: build-linux-x64 (VST3, CLAP, Standalone)
     needs: [changes, unit-tests]
