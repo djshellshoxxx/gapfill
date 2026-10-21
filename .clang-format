@@ -1,0 +1,28 @@
+# Matches the existing GapFill style (Allman braces, JUCE-like spacing).
+# Applied to NEW files only (git clang-format on the diff); never mass-reformat.
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++20
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 120
+BreakBeforeBraces: Allman
+SpaceBeforeParens: Always
+SpaceAfterCStyleCast: true
+SpaceInEmptyParentheses: false
+SpacesInParentheses: false
+PointerAlignment: Left
+AccessModifierOffset: -4
+IndentCaseLabels: true
+NamespaceIndentation: None
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: Consecutive
+AlignTrailingComments: true
+AllowShortFunctionsOnASingleLine: Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+BinPackArguments: true
+BinPackParameters: true
+ReflowComments: false
+SortIncludes: Never

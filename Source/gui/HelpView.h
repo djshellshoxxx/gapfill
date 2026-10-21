@@ -2,13 +2,15 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "LookAndFeel.h"
+#include "HelpRegistry.h"
 
 namespace gapfill
 {
 
 //==============================================================================
 /** The scrollable body of the help section. */
-class HelpContent : public juce::Component
+class HelpContent : public juce::Component,
+                    private HelpWriter
 {
 public:
     HelpContent();
@@ -20,6 +22,13 @@ public:
     int idealHeight() const { return (int) std::ceil (layout.getHeight()) + 40; }
 
 private:
+    // HelpWriter: what registered sections write into.
+    void title (const juce::String&) override;
+    void versionLine (const juce::String&) override;
+    void body (const juce::String&) override;
+    void entry (const juce::String&, const juce::String&) override;
+    void heading (const juce::String&);
+
     void rebuildLayout (float width);
 
     juce::AttributedString text;
