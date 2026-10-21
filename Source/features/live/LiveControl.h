@@ -17,6 +17,7 @@
 
 #include "../battle/Battle.h"
 #include "../commands/CommandMap.h"
+#include "../commands/ControllerProfile.h"
 #include "../macros/MacroModel.h"
 #include "../panic/Panic.h"
 #include "../scenes/SceneController.h"
@@ -87,6 +88,25 @@ public:
     int  getLearnTicksRemaining() const noexcept         { return learnTicks; }
     const juce::String& getLearnStatus() const noexcept  { return learnStatus; }
     void setMidiLearn (MidiLearnManager* m) noexcept     { midiLearn = m; }
+
+    //--- F-L24 controller profiles and LED feedback ---------------------------
+    /** Installs a profile's bindings (Replace clears first, otherwise existing bindings win) and its
+        feedback rules. `message` explains skipped bindings. */
+    bool applyProfile (const commands::Profile&, bool replace, juce::String& message);
+
+    /** Chooses the MIDI output device that mirrors LED state. Standalone only: elsewhere the plugin
+        emits no MIDI and the device is ignored. An empty name switches feedback off. */
+    void setFeedbackDevice (const juce::String& deviceName);
+
+    /** Test seam: install any sink (production code uses setFeedbackDevice). */
+    void setFeedbackSink (std::unique_ptr<commands::MidiSink>);
+
+    /** Re-resolves the active profile's feedback rules and the output device after `<Cmd>` was restored. */
+    void refreshFeedbackAfterRestore();
+
+    static bool feedbackAvailableInThisHost() noexcept;
+    const juce::String& getFeedbackStatus() const noexcept     { return feedbackStatus; }
+    commands::FeedbackEngine& feedbackEngine() noexcept        { return feedback; }
 
     //--- options -------------------------------------------------------------
     PerfOptions getPerfOptions() const noexcept;
@@ -171,6 +191,10 @@ private:
 
     std::atomic<double> uiPpq { 0.0 };
     std::atomic<int> uiTsNum { 0 }, uiTsDen { 0 };
+
+    commands::FeedbackEngine feedback;
+    juce::String feedbackStatus;
+    int pumpTicks = 0;
 
     int learnTicks = 0;
     juce::String learnStatus;

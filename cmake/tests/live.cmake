@@ -8,4 +8,5 @@ list(APPEND GAPFILL_TEST_SOURCES
     Tests/features/TestSafety.cpp
     Tests/features/TestMacros.cpp
     Tests/features/TestBattle.cpp
+    Tests/features/TestControllers.cpp
 )

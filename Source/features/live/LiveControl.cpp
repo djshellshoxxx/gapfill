@@ -314,6 +314,21 @@ void LiveControl::pump (GapFillAudioProcessor& proc)
 
     sceneCtl.poll();
 
+    // ---- F-L24 LED feedback (message thread; never touches audio) ------------
+    {
+        commands::FeedbackState fs;
+        fs.panicked = panicCtl.isPanicked();
+        fs.currentScene = sceneCtl.getCurrentIndex();
+        fs.pendingScene = sceneCtl.getPendingIndex();
+        feedback.update (fs);
+
+        if (++pumpTicks >= MidiLearnManager::learningTimerHz)      // about once per second
+        {
+            pumpTicks = 0;
+            feedback.pollConnection (fs);
+        }
+    }
+
     // ---- X-1 learn ---------------------------------------------------------
     commands::Binding learned;
 
@@ -361,6 +376,75 @@ void LiveControl::pump (GapFillAudioProcessor& proc)
         scanner.cancelLearn();
         learnStatus = "Learn timed out";
     }
+}
+
+//------------------------------------------------------------------------------
+bool LiveControl::feedbackAvailableInThisHost() noexcept
+{
+    return juce::JUCEApplicationBase::isStandaloneApp();
+}
+
+bool LiveControl::applyProfile (const commands::Profile& profile, bool replace, juce::String& message)
+{
+    if (replace)
+        bindingModel.clear();
+
+    int skipped = 0;
+
+    for (const auto& b : profile.bindings)
+    {
+        // A binding the user already owns, or one that collides with a CC mapped to a parameter, is skipped.
+        const bool ccTaken = b.type == commands::MsgType::CC && midiLearn != nullptr
+                             && midiLearn->getParameterIDForCC (b.number).isNotEmpty();
+
+        if (ccTaken || bindingModel.add (b) != commands::BindingModel::AddResult::Ok)
+            ++skipped;
+    }
+
+    bindingModel.setProfileName (profile.name.toStdString());
+    feedback.setRules (profile.feedback);
+
+    message = "Profile \"" + profile.name + "\" installed: " + juce::String ((int) profile.bindings.size() - skipped)
+              + " binding(s)" + (skipped > 0 ? ", " + juce::String (skipped) + " skipped (already in use)" : juce::String())
+              + (profile.feedback.empty() ? juce::String() : ", " + juce::String ((int) profile.feedback.size()) + " feedback rule(s)")
+              + (feedbackAvailableInThisHost() ? "." : ". LED feedback works in the Standalone application only.");
+    return true;
+}
+
+void LiveControl::setFeedbackSink (std::unique_ptr<commands::MidiSink> sink)
+{
+    feedback.setSink (std::move (sink));
+}
+
+void LiveControl::setFeedbackDevice (const juce::String& deviceName)
+{
+    bindingModel.setFeedbackDevice (deviceName.toStdString());
+
+    if (deviceName.isEmpty() || ! feedbackAvailableInThisHost())
+    {
+        feedback.setSink (nullptr);
+        feedbackStatus = deviceName.isEmpty() ? juce::String() : "LED feedback works in the Standalone application only.";
+        return;
+    }
+
+    juce::String error;
+    feedback.setSink (commands::makeDeviceSink (deviceName, error));
+    feedbackStatus = error;
+}
+
+void LiveControl::refreshFeedbackAfterRestore()
+{
+    feedback.setRules ({});
+    const auto wanted = juce::String (bindingModel.getProfileName());
+
+    if (wanted.isNotEmpty())
+    {
+        for (const auto& p : commands::scanLibrary (commands::defaultUserDirectory()).profiles)
+            if (p.name == wanted)
+                feedback.setRules (p.profile.feedback);
+    }
+
+    setFeedbackDevice (juce::String (bindingModel.getFeedbackDevice()));
 }
 
 //------------------------------------------------------------------------------

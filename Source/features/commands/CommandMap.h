@@ -106,6 +106,10 @@ public:
     TripleBuffer<BindingTable>& publisher() noexcept { return pub; }
     void publish() noexcept                          { pub.publish (table); }
 
+    /** Name of the controller profile that supplied the bindings (feedback rules are re-resolved from it). */
+    std::string getProfileName() const               { return profileName; }
+    void setProfileName (const std::string& s)       { profileName = s.substr (0, 48); }
+
     std::string getFeedbackDevice() const            { return feedbackDevice; }
     void setFeedbackDevice (const std::string& s)    { feedbackDevice = s.substr (0, 96); }
 
@@ -122,6 +126,7 @@ private:
     BindingTable table;
     TripleBuffer<BindingTable> pub;
     std::string feedbackDevice;
+    std::string profileName;
 };
 
 //==============================================================================

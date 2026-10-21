@@ -104,6 +104,7 @@ void BindingModel::clear()
 {
     const auto pcOn = table.pcSceneEnabled;
     const auto pcCh = table.pcSceneChannel;
+    profileName.clear();
     table = BindingTable {};
     table.pcSceneEnabled = pcOn;
     table.pcSceneChannel = pcCh;
@@ -127,6 +128,9 @@ juce::ValueTree BindingModel::toValueTree() const
 
     if (! feedbackDevice.empty())
         t.setProperty ("dev", juce::String (feedbackDevice), nullptr);
+
+    if (! profileName.empty())
+        t.setProperty ("profile", juce::String (profileName), nullptr);
 
     for (int i = 0; i < table.count; ++i)
     {
@@ -161,6 +165,7 @@ void BindingModel::restore (const juce::ValueTree& t)
         fresh.pcSceneEnabled = (std::uint8_t) (((int) t.getProperty ("pcScene", 0)) != 0 ? 1 : 0);
         fresh.pcSceneChannel = (std::uint8_t) juce::jlimit (0, 16, (int) t.getProperty ("pcCh", 0));
         feedbackDevice = t.getProperty ("dev", "").toString().substring (0, 96).toStdString();
+        profileName = t.getProperty ("profile", "").toString().substring (0, 48).toStdString();
 
         for (const auto& n : t)
         {
@@ -194,6 +199,7 @@ void BindingModel::restore (const juce::ValueTree& t)
     else
     {
         feedbackDevice.clear();
+        profileName.clear();
     }
 
     table = fresh;

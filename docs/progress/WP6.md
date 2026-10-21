@@ -15,9 +15,16 @@ F-M23, F-M18, F-L24, then the E-1-dependent ones (F-M10, F-S07, F-P02).
 | C-2 | Done (engine + state) | `features/macros/MacroEngine.*` (curves, mapping, runtime, factory table), `MacroModel.*` (rules, `<Macros>` codec, 2 KiB), params `macroActivity/Chaos/Space/Destruction`, `macrosOn` (off), `Effective::applyMacros`. Macros own a target (`perf.macroOwnedMask`); the Space macro drives `widthAmount` through `perf.macroWidth01`. |
 | F-M23 | Done (engine + state) | Targets 21..35 (effect Amount ids) appended to the table, per-mapping `smoothMs` and `bipolar`, one LFO per macro (sine/tri/saw/square/seeded S&H, Hz or division), PPQ-locked decision-stage re-evaluation `Effective::applyMacroLfos`. |
 | F-M18 | Done (engine) | `features/battle/Battle.*`: `battleEvery` param (group `battle`), `BattleModel` (two styles restricted to the scene whitelist), audio `BattleRuntime`, `Effective::applyBattle`. Overlay only. |
+| F-L24 | Done (core) | `features/commands/ControllerProfile.*`: JSON profile schema (<= 8 KiB, 48 bindings, 64 LED rules), two built-in profiles, user directory scan, `FeedbackEngine` (diff-only LED messages, reconnect refresh), `MidiSink` device wrapper (Standalone only). |
 | N-VAL | Done (core) | `features/bank/BankFile.*`: `.gapbank` export/import (256 KiB, 64 scenes, SHA-256 digest, atomic apply, one-step undo), PC -> scene and Next/Prev/Cancel commands. |
 
 ## Deviations and gaps (honest list)
+
+* **Controller profiles**: the built-in profiles are compiled into `ControllerProfile.cpp` (and validated by the same parser as user files)
+  instead of `Resources/controllers/*.json`, because the repo has no resource-embedding step for plain files; user profiles still come from
+  `<Documents>/GapFill/Controllers/*.json`. The active profile NAME is stored in `<Cmd>`; its feedback rules are re-resolved from the library on
+  load (the 3 KiB cap cannot hold 48 bindings plus 64 LED rules). Feedback is verified against a mock sink only: no MIDI hardware or real
+  output device was available (unverified), and the device chooser UI belongs to the Options page (WP11 owns it).
 
 * **F-M18 style source**: the header A/B snapshots live in `PluginEditor` (WP11-owned hot file), so Battle keeps its own two style slots
   (`LiveControl::battles().setStyleFromState / setStyleFromCurrent`). The header A/B code needs one call per store to feed them

@@ -3,6 +3,7 @@
 list(APPEND GAPFILL_SOURCES
     Source/features/common/EngineTargets.cpp
     Source/features/commands/CommandMap.cpp
+    Source/features/commands/ControllerProfile.cpp
     Source/features/panic/Panic.cpp
     Source/features/scenes/SceneModel.cpp
     Source/features/scenes/SceneOverlay.cpp

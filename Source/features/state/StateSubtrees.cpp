@@ -14,12 +14,21 @@ namespace
     {
         const auto& m = p.getLiveControl().bindings();
         const auto t = m.toValueTree();
-        const bool empty = m.size() == 0 && m.getTable().pcSceneEnabled == 0 && m.getFeedbackDevice().empty();
+        const bool empty = m.size() == 0 && m.getTable().pcSceneEnabled == 0 && m.getFeedbackDevice().empty() && m.getProfileName().empty();
         return empty ? juce::ValueTree() : t;
     }
 
-    void cmdApply (GapFillAudioProcessor& p, const juce::ValueTree& t)  { p.getLiveControl().bindings().restore (t); }
-    void cmdReset (GapFillAudioProcessor& p)                            { p.getLiveControl().bindings().restore ({}); }
+    void cmdApply (GapFillAudioProcessor& p, const juce::ValueTree& t)
+    {
+        p.getLiveControl().bindings().restore (t);
+        p.getLiveControl().refreshFeedbackAfterRestore();
+    }
+
+    void cmdReset (GapFillAudioProcessor& p)
+    {
+        p.getLiveControl().bindings().restore ({});
+        p.getLiveControl().refreshFeedbackAfterRestore();
+    }
 
     juce::ValueTree macrosSerialise (const GapFillAudioProcessor& p)
     {
