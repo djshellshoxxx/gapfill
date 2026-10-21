@@ -5,8 +5,6 @@
 
 #include "PluginProcessor.h"
 
-#include <charconv>
-#include <cstring>
 #include "PluginEditor.h"
 
 namespace gapfill
@@ -935,19 +933,33 @@ bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state)
             const auto text = value.toString().trim();
 
             // A character whitelist alone accepts incomplete numbers such as
-            // "1e", "++2" and "1-2". Parse the entire string, locale-independently.
-            const auto* begin = text.toRawUTF8();
-            const auto* end = begin + std::strlen (begin);
-            if (begin == end)
+            // "1e", "++2" and "1-2". Validate the full grammar
+            // [+-]digits[.digits][(e|E)[+-]digits] before the locale-independent
+            // juce parse. (std::from_chars<double> is unavailable on Apple libc++.)
+            const auto* p = text.toRawUTF8();
+            const auto skipDigits = [&p] { int n = 0; while (*p >= '0' && *p <= '9') { ++p; ++n; } return n; };
+            if (*p == '+' || *p == '-')
+                ++p;
+            int mantissaDigits = skipDigits();
+            if (*p == '.')
+            {
+                ++p;
+                mantissaDigits += skipDigits();
+            }
+            if (mantissaDigits == 0)
+                return false;
+            if (*p == 'e' || *p == 'E')
+            {
+                ++p;
+                if (*p == '+' || *p == '-')
+                    ++p;
+                if (skipDigits() == 0)
+                    return false;
+            }
+            if (*p != '\0')
                 return false;
 
-            // std::from_chars accepts a leading minus but not a leading plus.
-            const auto* numericBegin = *begin == '+' ? begin + 1 : begin;
-            if (numericBegin == end || (*begin == '+' && (*numericBegin == '-' || *numericBegin == '+')))
-                return false;
-            const auto result = std::from_chars (numericBegin, end, real, std::chars_format::general);
-            if (numericBegin == end || result.ec != std::errc {} || result.ptr != end)
-                return false;
+            real = text.getDoubleValue();
         }
         else
         {
