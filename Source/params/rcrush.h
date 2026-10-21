@@ -13,7 +13,12 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_RCRUSH(X)
+#define GAPFILL_PARAMS_RCRUSH(X) \
+    X (rcAmount, "rcAmount") \
+    X (rcBits, "rcBits") \
+    X (rcRate, "rcRate") \
+    X (rcHold, "rcHold") \
+    X (rcTone, "rcTone")
 
 namespace gapfill
 {

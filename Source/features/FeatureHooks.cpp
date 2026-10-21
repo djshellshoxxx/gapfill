@@ -1,5 +1,6 @@
 #include "FeatureHooks.h"
 #include "../dsp/FillEngine.h"
+#include "fx/FxHooks.h"
 
 #include <algorithm>
 
@@ -40,6 +41,8 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     //   gatherHgran, gatherWetout, gatherSafety, gatherMidiout, gatherScdrive, gatherBandfx,
     //   gatherGroove, gatherCall, gatherEnergy, gatherTension, gatherBattle, gatherSection,
     //   gatherLearn, gatherCoop, gatherQuality
+
+    fx::gatherFx (s, params);           // WP8: swell, cloud, ratchet, rcrush, tapedestr, bandfx (scrub: F-M19)
 }
 
 void dispatchCommand (FillEngine& /*engine*/, const Command& /*command*/) noexcept

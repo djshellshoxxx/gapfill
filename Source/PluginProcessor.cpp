@@ -103,6 +103,8 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     history.prepare (2, (int) std::ceil (kHistorySeconds * currentSampleRate));
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    fxChain.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    engine.setFxMeters (&fxChain.getMeters());
     soloSplitter.prepare (currentSampleRate, 2);
     liveControl.prepare (currentSampleRate, preparedBlockSize);
 
@@ -150,6 +152,7 @@ void GapFillAudioProcessor::reset()
     // Hosts call this on transport jumps and when re-arming a track: every
     // piece of running DSP state has to go, without reallocating anything.
     engine.reset();
+    fxChain.reset();
     analysis.reset();
     history.clear();
 
@@ -391,14 +394,14 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
         if (! lastTransportPlaying || ! ppqValid || std::abs (ppq - expected) > 0.25)
         {
             engine.noteTransportJump();
-            engine.panic();
+            panicWet();
         }
 
         lastPpqPosition = ppq;
     }
     else if (lastTransportPlaying && ! playing && startSample == 0)
     {
-        engine.panic();
+        panicWet();
     }
 
     if (startSample == 0)
@@ -641,7 +644,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         // Keep analysing (so the visualiser still shows what the detector sees)
         // but stop scheduling and fade out anything still playing.
         engineSettings.fill01 = 0.0f;
-        engine.panic();
+        panicWet();
     }
 
     const auto outputStart = samplesProcessed - (std::int64_t) targetLatency;
@@ -649,11 +652,16 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
     analysis.discardEventsBefore (juce::jmax ((std::int64_t) 0, outputStart));
 
+    // WP8 (FX-0): bus effect chain sees the wet bus before the wet post-processing.
+    auto fxIo = fxChain.beginBlock (engineSettings.fx, numSamples);
+
     if (skip < numSamples)
     {
         engine.process (wetBuffer, skip, numSamples - skip, outputStart + skip,
-                        analysis, history, engineSettings, &viz, &fillEvents);
+                        analysis, history, engineSettings, &viz, &fillEvents, &fxIo);
     }
+
+    fxChain.processBus (wetBuffer, 0, numSamples, engineSettings.fx, fxIo, outputStart);
 
     // ---- dry path: lookahead delay with click-free latency changes -------
     {

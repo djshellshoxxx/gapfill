@@ -16,6 +16,8 @@
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
 #include "features/live/LiveControl.h"
+#include "features/fx/FxChain.h"
+#include "features/fx/FxUiState.h"
 #include "features/explain/ExplainState.h"
 
 namespace gapfill
@@ -177,6 +179,10 @@ public:
     //==========================================================================
     // Test-facing accessors
     const FillEngine& getFillEngine() const noexcept  { return engine; }
+    fx::FxChain& getFxChain() noexcept { return fxChain; }
+    const fx::FxMeters& getFxMeters() const noexcept { return fxChain.getMeters(); }
+    fx::FxUiState& getFxUiState() noexcept { return fxUi; }
+    const fx::FxUiState& getFxUiState() const noexcept { return fxUi; }
     const AnalysisEngine& getAnalysis() const noexcept { return analysis; }
     int getActiveLatencySamples() const noexcept { return meters.latencySamples.load(); }
     std::int64_t getSourceHistoryWritePosition() const noexcept { return history.getWritePosition(); }
@@ -194,6 +200,7 @@ private:
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
     bool isParameterStateValid (const juce::ValueTree& state) const;
     void snapParametersToState();
+    void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); }
 
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
@@ -203,6 +210,8 @@ private:
     AnalysisEngine analysis;
     SourceHistory  history;
     FillEngine     engine;
+    fx::FxChain    fxChain;       // WP8: bus effect chain (voice cards live in the voices)
+    fx::FxUiState  fxUi;          // WP8: <Fx> state subtree (fold state, remembered amounts)
 
     MidiLearnManager midiLearn;
     live::LiveControl liveControl { apvts };
