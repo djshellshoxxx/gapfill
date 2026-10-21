@@ -19,5 +19,10 @@ list(APPEND GAPFILL_SOURCES
     Source/params/fm10.cpp
     Source/features/live/LiveControl.cpp
     Source/features/live/Roulette.cpp
+    Source/features/live/Info.cpp
     Source/gui/slots/PanicSlot.cpp
+    Source/gui/slots/HoldPadsSlot.cpp
+    Source/gui/slots/ScenePanelSlot.cpp
+    Source/gui/slots/MacroEditorSlot.cpp
+    Source/gui/slots/ControllerOptionsSlot.cpp
 )

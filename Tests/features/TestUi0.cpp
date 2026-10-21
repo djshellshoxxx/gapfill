@@ -83,8 +83,9 @@ GF_TEST (Ui0, slots_empty_layout_identical_to_baseline)
         GapFillAudioProcessorEditor editor (proc);
         editor.setSize (size.x, size.y);
 
-        GF_EXPECT (editor.getPerformancePanelForTests() == nullptr);      // nothing registered for the Performance tab
-        GF_EXPECT (! editor.isPerformanceTabForTests());
+        // WP6 registers the pads, scene panel and macro editor in the Performance tab: the panel exists, and the
+        // three existing tabs keep their geometry whether it shows as a tab or from the FILE menu.
+        GF_EXPECT (editor.getPerformancePanelForTests() != nullptr);
         // WP8 registers the Effects section and the scrub strip: the drawer header (22 px) and the
         // 72 px strip + 6 px gap come out of the visualiser; everything else is the old layout.
         GF_EXPECT (editor.getEffectsDrawerForTests() != nullptr);
@@ -103,7 +104,7 @@ GF_TEST (Ui0, slots_empty_layout_identical_to_baseline)
         const auto t0 = editor.getTabBoundsForTests (0), t1 = editor.getTabBoundsForTests (1), t2 = editor.getTabBoundsForTests (2);
         // 130/150/130 (shrunk evenly only when the SIMPLE | ADVANCED switch leaves less room), minus 1 px insets.
         GF_EXPECT (t0.getWidth() >= 100 && t1.getWidth() == t0.getWidth() + 20 && t2.getWidth() == t0.getWidth());
-        GF_EXPECT (editor.getTabBoundsForTests (3).isEmpty());
+        GF_EXPECT (editor.getTabBoundsForTests (3).isEmpty() == ! editor.isPerformanceTabForTests());
     }
 }
 

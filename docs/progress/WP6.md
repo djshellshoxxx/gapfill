@@ -17,7 +17,7 @@ F-M23, F-M18, F-L24, then the E-1-dependent ones (F-M10, F-S07, F-P02).
 | F-M18 | Done (engine) | `features/battle/Battle.*`: `battleEvery` param (group `battle`), `BattleModel` (two styles restricted to the scene whitelist), audio `BattleRuntime`, `Effective::applyBattle`. Overlay only. |
 | F-L24 | Done (core) | `features/commands/ControllerProfile.*`: JSON profile schema (<= 8 KiB, 48 bindings, 64 LED rules), two built-in profiles, user directory scan, `FeedbackEngine` (diff-only LED messages, reconnect refresh), `MidiSink` device wrapper (Standalone only). |
 | F-P02 | Done | `FillEngine::trySchedule(..., forced)`; `ctx.forced` skips TooSoon + the density roll, `ForcedUnsafe` for room < max(60 ms, minGap) or a detected event within protectHold (option `fillNowOverSustained`); recipe flag `flagForced`; LiveControl resolves the Beat/Bar boundary to an absolute output sample (`perf.fillNowId/Pos`), re-arms on seek/loop, falls back to Immediate without transport, panic cancels. |
-| F-M10 | DONE (no UI pads) | `HoldController` + `HoldVoices` (2 ping-pong FillVoices from the WP4 performance voice): momentary/latch/stack/timeout/panic, dry duck (`fm10_*` params, group FM10), commands 20-23. GUI pads not built (UI-0 rectangles absent). Tests: TestMomentary, TestHoldVoices. |
+| F-M10 | DONE | `HoldController` + `HoldVoices` (2 ping-pong FillVoices from the WP4 performance voice): momentary/latch/stack/timeout/panic, dry duck (`fm10_*` params, group FM10), commands 20-23. Pads in the Performance tab. Tests: TestMomentary, TestHoldVoices. |
 | F-S07 | DONE | Stutter Storm renders on the hold voices (1/32 grid pattern, gate 80 %, +1.5 dB accent, 1/8 tail); TestHoldVoices. |
 | N-VAL | Done (core) | `features/bank/BankFile.*`: `.gapbank` export/import (256 KiB, 64 scenes, SHA-256 digest, atomic apply, one-step undo), PC -> scene and Next/Prev/Cancel commands. |
 
@@ -37,9 +37,12 @@ F-M23, F-M18, F-L24, then the E-1-dependent ones (F-M10, F-S07, F-P02).
   (`setStyleFromState (0/1, apvts, slotA/slotB)`); until then the Performance panel stores "current sound" into A or B. The styles are
   session state (like the header A/B) and are not written to the project.
 
-* **Macro editor UI** (4 knobs, MACROS LED, mapping popover) is not built: it needs the `PerformanceStrip`/Performance-tab rectangle that
-  UI-0 (WP11) reserves. All behaviour is reachable through `LiveControl::macroMappings()`, MIDI learn on the four value parameters and
-  host automation.
+* **Live GUI (after WP11 UI-0)**: `gui/slots/HoldPadsSlot.cpp` (7 pads + hold options), `ScenePanelSlot.cpp` (scene picker, quantise,
+  PREV/NEXT/CANCEL/STORE/NEW, .gapbank EXPORT/IMPORT/UNDO), `MacroEditorSlot.cpp` (MACROS switch, 4 knobs, M1..M4 mapping editor: target,
+  min, max, curve, bipolar, remove, add) all in `Slot::PerformanceTab` (orders 100/200/300, scrolling stack), and
+  `ControllerOptionsSlot.cpp` (profile chooser, LED output device, Fill Now timing) in `Slot::OptionsExtra`. ParamInfo for the 16 live
+  parameters is in `features/live/Info.cpp`. Not in the GUI: per-mapping smoothing and the macro LFO (state / controller layer only).
+  Not visually verified (no screenshots); keyboard-name and slot-layout tests pass.
 * F-M23 targets 21..35 are `Unavailable` until the owning feature adds its Amount parameter (`MacroModel::addMapping` checks the layout).
   Their effective value is computed and published (`getMacroEffective01`) but only becomes sound when that feature's gather stage reads it.
 * The block stage has no PPQ yet (transport is read later in the chunk), so a tempo-synced LFO is evaluated at the free-run clock there and
