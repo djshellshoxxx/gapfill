@@ -46,11 +46,16 @@ public:
     explicit CreativePanel (juce::AudioProcessorValueTreeState&);
     void resized() override;
 
+    /** Cell (in this panel's coordinates) reserved for Slot::CreativeExtra: the
+        fourth toggle position the CAPTURE button used to occupy. */
+    juce::Rectangle<int> getExtraSlotBounds() const noexcept { return extraSlotBounds; }
+
 private:
+    juce::Rectangle<int> extraSlotBounds;
     GapKnob fill, intensity, complexity, chaos, density;
     GapCombo fillType, stutterDiv, delayDiv;
     GapKnob seed, width;
-    GapToggle sync, pingPong, monoWet, capture;
+    GapToggle sync, pingPong, monoWet;
 };
 
 //==============================================================================

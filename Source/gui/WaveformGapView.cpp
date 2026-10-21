@@ -1,5 +1,7 @@
 #include "WaveformGapView.h"
 #include "../Parameters.h"
+#include "../dsp/FillEngine.h"
+#include "../features/reasons/Reasons.h"
 
 namespace gapfill
 {
@@ -16,7 +18,7 @@ WaveformGapView::WaveformGapView (VisualisationFifo& f)
     : fifo (f)
 {
     setOpaque (true);
-    setInterceptsMouseClicks (false, false);
+    setInterceptsMouseClicks (true, false);   // hover only (E-3 skipped-gap tooltip)
     drainBuffer.resize ((size_t) drainPerTick);
     columns.assign ((size_t) maxColumns, VizFrame {});
     numColumns = 600;
@@ -72,6 +74,39 @@ void WaveformGapView::pushColumn (const VizFrame& frame)
     writeIndex = (writeIndex + 1) % juce::jmax (1, numColumns);
 }
 
+void WaveformGapView::accumulate (const VizFrame& f)
+{
+    accumulator.peak   = juce::jmax (accumulator.peak, f.peak);
+    accumulator.conf   = juce::jmax (accumulator.conf, f.conf);
+    accumulator.energy = juce::jmax (accumulator.energy, f.energy);
+    accumulator.duck   = juce::jmin (accumulator.duck, f.duck);
+    accumulator.flags  = (std::uint8_t) (accumulator.flags | f.flags);
+
+    for (int b = 0; b < 3; ++b)
+        accumulator.bandConf[b] = juce::jmax (accumulator.bandConf[b], f.bandConf[b]);
+
+    if (f.algo != 0xFF)
+    {
+        accumulator.algo = f.algo;
+        accumulator.band = f.band;
+    }
+
+    // E-3: a rejected gap keeps its reason and the numbers through the decimation.
+    if ((f.flags & VizFrame::flagRejected) != 0)
+    {
+        accumulator.reason = f.reason;
+        accumulator.availMs = f.availMs;
+        accumulator.needMs = f.needMs;
+    }
+
+    if (++accumulatorCount >= framesPerColumn)
+    {
+        pushColumn (accumulator);
+        accumulator = {};
+        accumulatorCount = 0;
+    }
+}
+
 void WaveformGapView::timerCallback()
 {
     int total = 0;
@@ -85,30 +120,10 @@ void WaveformGapView::timerCallback()
 
         for (int i = 0; i < got; ++i)
         {
-            const auto& f = drainBuffer[(size_t) i];
+            accumulate (drainBuffer[(size_t) i]);
 
-            accumulator.peak   = juce::jmax (accumulator.peak, f.peak);
-            accumulator.conf   = juce::jmax (accumulator.conf, f.conf);
-            accumulator.energy = juce::jmax (accumulator.energy, f.energy);
-            accumulator.duck   = juce::jmin (accumulator.duck, f.duck);
-            accumulator.flags  = (std::uint8_t) (accumulator.flags | f.flags);
-
-            for (int b = 0; b < 3; ++b)
-                accumulator.bandConf[b] = juce::jmax (accumulator.bandConf[b], f.bandConf[b]);
-
-            if (f.algo != 0xFF)
-            {
-                accumulator.algo = f.algo;
-                accumulator.band = f.band;
-            }
-
-            if (++accumulatorCount >= framesPerColumn)
-            {
-                pushColumn (accumulator);
-                accumulator = {};
-                accumulatorCount = 0;
+            if (accumulatorCount == 0)
                 ++total;
-            }
         }
 
         if (got < drainPerTick)
@@ -144,41 +159,20 @@ void WaveformGapView::paint (juce::Graphics& g)
     const auto n = juce::jmax (1, numColumns);
     const auto colWidth = plot.getWidth() / (float) n;
 
-    // ---- legend ----------------------------------------------------------
+    // ---- legend row -------------------------------------------------------
+    // The swatches (colour + pattern, collapsible) are the E-3 legend strip, a
+    // slot component drawn over the left of this row; only the window length
+    // and lookahead readout live here.
     {
         g.setFont (juce::Font (juce::FontOptions (10.0f)).withExtraKerningFactor (0.08f));
-
-        struct Entry { const char* label; juce::Colour colour; };
-        const Entry entries[] =
-        {
-            { "SIGNAL",      colours::waveform },
-            { "EVENT",       juce::Colours::white },
-            { "USABLE GAP",  colours::accent },
-            { "PROTECTED",   colours::accentAmber },
-            { "FILL",        colours::accentWarm },
-        };
-
-        auto x = legend.getX();
-
-        for (const auto& e : entries)
-        {
-            g.setColour (e.colour);
-            g.fillRoundedRectangle (x, legend.getCentreY() - 3.0f, 12.0f, 6.0f, 2.0f);
-            g.setColour (colours::textDim);
-            const auto w = 6.2f * (float) juce::String (e.label).length() + 8.0f;
-            g.drawText (e.label, juce::Rectangle<float> (x + 16.0f, legend.getY(), w, legend.getHeight()),
-                        juce::Justification::centredLeft);
-            x += w + 26.0f;
-
-            if (x > legend.getRight() - 60.0f)
-                break;
-        }
-
         g.setColour (colours::textDim);
         g.drawText (juce::String (kWindowSeconds, 1) + " s  |  lookahead "
                       + juce::String ((int) std::round (lookaheadMs)) + " ms",
                     legend.toNearestInt(), juce::Justification::centredRight);
     }
+
+    plotLeft = plot.getX();
+    plotColumnWidth = colWidth;
 
     // ---- lookahead strip on the right ------------------------------------
     {
@@ -264,6 +258,36 @@ void WaveformGapView::paint (juce::Graphics& g)
             g.setColour (colours::accent.withAlpha (0.75f));
             g.strokePath (conf, juce::PathStrokeType (1.3f));
         }
+    }
+
+    // E-3: the engine's own gap threshold on the confidence lane. Below the line
+    // is "quiet but not a gap" and produces no event.
+    {
+        const auto y = plot.getBottom() - kEnterGapConf * plot.getHeight() * 0.96f;
+        const float dashes[] = { 4.0f, 3.0f };
+        g.setColour (colours::accent.withAlpha (0.55f));
+        g.drawDashedLine (juce::Line<float> (plot.getX(), y, plot.getRight(), y), dashes, 2, 1.0f);
+    }
+
+    // E-3: hollow diamond at the start of every skipped gap (shape, not colour alone).
+    for (int i = 0; i < n; ++i)
+    {
+        const auto& c = columns[(size_t) ((writeIndex + i) % n)];
+
+        if ((c.flags & VizFrame::flagRejected) == 0)
+            continue;
+
+        const auto cx = plot.getX() + (float) i * colWidth;
+        juce::Path diamond;
+        diamond.addQuadrilateral (cx, plot.getY() + 2.0f, cx + 5.0f, plot.getY() + 8.0f,
+                                  cx, plot.getY() + 14.0f, cx - 5.0f, plot.getY() + 8.0f);
+        g.setColour (colours::text.withAlpha (0.9f));
+        g.strokePath (diamond, juce::PathStrokeType (1.4f));
+
+        g.setFont (fonts::mono (8.5f));
+        g.drawText (juce::String::charToString ((juce::juce_wchar) reasons::info ((RejectReason) c.reason).letter),
+                    juce::Rectangle<float> (cx + 6.0f, plot.getY() + 2.0f, 12.0f, 12.0f).toNearestInt(),
+                    juce::Justification::centredLeft, false);
     }
 
     // protection band + event markers
@@ -361,6 +385,44 @@ void WaveformGapView::paint (juce::Graphics& g)
     // ---- playhead --------------------------------------------------------
     g.setColour (colours::accent.withAlpha (0.55f));
     g.drawVerticalLine ((int) plot.getRight() - 1, plot.getY(), plot.getBottom());
+}
+
+int WaveformGapView::findRejectedColumnNear (float x, int slop) const
+{
+    const auto n = juce::jmax (1, numColumns);
+    const auto centre = (int) std::floor ((x - plotLeft) / juce::jmax (0.001f, plotColumnWidth));
+    int best = -1;
+
+    for (int d = 0; d <= slop + 6; ++d)       // markers are ~10 px wide; search around the pointer
+    {
+        for (int sign : { 1, -1 })
+        {
+            const auto i = centre + sign * d;
+
+            if (i < 0 || i >= n)
+                continue;
+
+            const auto& c = columns[(size_t) ((writeIndex + i) % n)];
+
+            if ((c.flags & VizFrame::flagRejected) != 0
+                 && std::abs ((float) i * plotColumnWidth + plotLeft - x) <= 8.0f + (float) slop)
+                return i;
+        }
+    }
+
+    return best;
+}
+
+juce::String WaveformGapView::getTooltip()
+{
+    const auto pos = getMouseXYRelative();
+    const auto i = findRejectedColumnNear ((float) pos.x);
+
+    if (i < 0)
+        return {};
+
+    const auto& c = getColumn (i);
+    return reasons::hoverText ((RejectReason) c.reason, (float) c.availMs, (float) c.needMs);
 }
 
 } // namespace gapfill

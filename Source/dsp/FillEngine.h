@@ -1,63 +1,20 @@
 #pragma once
 
+#include "EngineEvents.h"
+#include "EngineSettings.h"
 #include "FillVoice.h"
+#include "SchedulerTypes.h"
 #include "VisualisationState.h"
 
+#include <array>
 #include <limits>
 
 namespace gapfill
 {
 
-//==============================================================================
-/** Everything the scheduler needs, captured once per block from the parameters
-    and the host playhead. */
-struct EngineSettings
-{
-    DetMode mode = DetMode::Transient;
-
-    float fill01       = 0.35f;
-    float intensity01  = 0.50f;
-    float complexity01 = 0.40f;
-    float chaos01      = 0.25f;
-    float density01    = 0.65f;
-
-    /** 0 = Auto, otherwise (Algo index + 1). */
-    int   fillTypeIndex = 0;
-    float weights[numAlgos] {};
-
-    int   seed = 1;
-
-    float minGapMs      = 60.0f;
-    float maxFillMs     = 400.0f;
-    float protectHoldMs = 40.0f;
-    float lookaheadMs   = 40.0f;
-
-    float protTrans01 = 0.60f;
-    float protNext01  = 0.70f;
-    float protSC01    = 0.70f;
-
-    float stutterSeconds = 0.125f;
-    float delaySeconds   = 0.125f;
-    bool  pingPong       = true;
-
-    float xoverLM = 180.0f;
-    float xoverMH = 3500.0f;
-
-    bool  bandOn[3]   { true, true, true };
-    float bandAmt[3]  { 1.0f, 1.0f, 1.0f };
-    float bandInt[3]  { 0.5f, 0.5f, 0.5f };
-    float bandProb[3] { 0.45f, 0.75f, 0.9f };
-
-    double ppqAtBlockStart = 0.0;
-    double samplesPerBeat  = 0.0;
-    bool   transportValid  = false;
-    bool   sidechainActive = false;
-
-    /** Output position minus source-history position. Zero while the history
-        follows the input; it grows while Capture holds the history frozen so
-        fills keep reading the latched material. */
-    std::int64_t historyOffset = 0;
-};
+/** Gap confidence at which a region becomes an eligible gap. Exported so the
+    visualiser (E-3 threshold line) draws the engine's own number. */
+inline constexpr float kEnterGapConf = 0.55f;
 
 //==============================================================================
 /** Schedules fills into detected gaps and renders the voices that result.
@@ -66,6 +23,8 @@ struct EngineSettings
     the same sample positions no matter how the host slices its blocks. */
 class FillEngine
 {
+    friend struct SchedulerTestAccess;   // unit tests drive single stages directly
+
 public:
     static constexpr int numVoices = 4;
 
@@ -85,7 +44,8 @@ public:
                   const AnalysisEngine& analysis,
                   const SourceHistory& history,
                   const EngineSettings& settings,
-                  VisualisationFifo* viz) noexcept;
+                  VisualisationFifo* viz,
+                  FillEventQueue* events = nullptr) noexcept;
 
     int  getActiveVoiceCount() const noexcept;
     int  getCurrentAlgo() const noexcept { return lastRenderedAlgo; }
@@ -98,14 +58,53 @@ public:
         Minimum Gap setting (used by tests). */
     int  getGapsRejectedTooShort() const noexcept { return gapsTooShort; }
 
+    /** Gaps rejected for each RejectReason since the last reset (index = reason;
+        audio-thread owned, read by tests and published to the meters). */
+    int  getRejectCount (RejectReason r) const noexcept { return rejectCounts[(size_t) r]; }
+
 private:
     void controlUpdate (std::int64_t outputPos, std::int64_t blockStartPos,
                         const AnalysisEngine& analysis, const SourceHistory& history,
-                        const EngineSettings& s, VisualisationFifo* viz) noexcept;
+                        const EngineSettings& s, VisualisationFifo* viz,
+                        FillEventQueue* events) noexcept;
 
-    bool trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
-                      const AnalysisFrame& frame, const AnalysisEngine& analysis,
-                      const SourceHistory& history, const EngineSettings& s) noexcept;
+    // --- scheduler stages (docs/dev/02-FOUNDATIONS.md F0-2) -------------------
+    // trySchedule is a short orchestrator; each stage below is owned by the
+    // feature tickets named in the spec. The RNG draw order is FROZEN:
+    // chooseBand (spectral) -> chance(probability) -> nextBipolar (length scale)
+    // -> chooseAlgorithm. New features never draw from `rng`.
+
+    ScheduleResult trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
+                                const AnalysisFrame& frame, const AnalysisEngine& analysis,
+                                const SourceHistory& history, const EngineSettings& s) noexcept;
+
+    /** Fill on, source present, voices free, not too soon, enough room.
+        Fills `ctx` (room figures) on success; counts TooShort gaps. */
+    RejectReason checkEligibility (GapContext& ctx, const AnalysisEngine& analysis,
+                                   const EngineSettings& s, float& neededMs) noexcept;
+
+    /** Spectral lane choice and the probability roll. Draws from `rng`. */
+    RejectReason rollDecision (GapContext& ctx, Rng& rng, const EngineSettings& s,
+                               int& band) noexcept;
+
+    /** Length and algorithm. Draws from `rng`. */
+    RejectReason buildRecipe (const GapContext& ctx, Rng& rng, const EngineSettings& s,
+                              int band, FillPlan& plan) noexcept;
+
+    /** HOOK for Lock (C-5) and Mistakes (C-3): may rewrite the plan, or return
+        a reject reason (LockSkipped). Empty in Phase 0. */
+    RejectReason adjustRecipe (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept;
+
+    VoiceSetup toVoiceSetup (const FillPlan& plan, const GapContext& ctx, const EngineSettings& s,
+                             const SourceHistory& history) const noexcept;
+
+    /** Starts the voice, with the Granular/Reverse fallback when the spectral
+        processor is busy. Updates `plan` if the algorithm changed. */
+    bool startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan,
+                     const SourceHistory& history) noexcept;
+
+    void noteFillStarted (const FillPlan& plan, std::int64_t outputPos) noexcept;
+    void noteRejected (RejectReason r) noexcept;
 
     int chooseAlgorithm (float lengthMs, const EngineSettings& s, Rng& rng) noexcept;
     int chooseBand (const AnalysisFrame& frame, const EngineSettings& s, Rng& rng) noexcept;
@@ -119,6 +118,7 @@ private:
 
     // --- gap state machine ---
     bool inGap = false;
+    int prevActiveVoices = 0;          // F-M03: detects voices finishing between control updates
     bool gapEvaluated = false;
     std::int64_t gapStartPos = 0;
     std::int64_t lastFillStartPos = -1000000;
@@ -143,6 +143,7 @@ private:
     int lastRenderedAlgo = -1;
     int fillsStarted = 0;
     int gapsTooShort = 0;
+    std::array<int, (size_t) numRejectReasons> rejectCounts {};
 
     // --- visualiser decimation ---
     int vizDecim = 2;

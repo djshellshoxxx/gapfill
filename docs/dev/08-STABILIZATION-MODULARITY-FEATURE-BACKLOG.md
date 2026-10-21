@@ -1,5 +1,5 @@
 # 08 - Stabilization first, modularity second, features later
-Status: proposed execution plan, 2026-10-19. **No feature implementation is authorized by this document.**
+Status: execution plan of 2026-10-19, **updated 2026-10-21: the feature gate is lifted.** The owner reports beta1 shipped on all platforms and authorized implementing every catalogued item. Gates A and B below remain the *quality bar* (green CI on every supported platform, neutral-default goldens, old-state fixtures, no audio-thread allocation) for each PR, but they no longer block feature work. Features that depend on the Phase 0 seams (`02`, F0-1..F0-10) still wait for those seams. Every Gate C entry now has a full spec in `12-SPEC-BACKLOG-AND-NEW.md` (coverage map in its §1).
 
 ## Decision and sequence (overrides sequencing in 01 for the near term)
 
@@ -7,7 +7,7 @@ Status: proposed execution plan, 2026-10-19. **No feature implementation is auth
 
 **Gate B: modular and safe extension surface** is second. Refactor without changing output, parameters, public IDs, state serialization, latency, preset sound or supported host behavior; prove equivalence with tests. Do not implement creative backlog until Gates A and B are explicitly signed off.
 
-**Gate C: deferred feature candidates** is third. The backlog below is a *catalogue for later selection*, not a commitment. Each item needs a design/spec, value and cost reassessment, dependency check and owner before becoming an implementation ticket.
+**Gate C: feature candidates** is third and is now **open**. The backlog below was a catalogue; each entry is now *specified* (see `12` §1 for the canonical spec per item, `12` §13 for work packages and `12` §12 for merge order). Selection is replaced by the dependency order; an owner is still assigned per work package before a ticket starts.
 
 ### Evidence boundaries
 
@@ -189,11 +189,12 @@ Value labels: H = high everyday/production utility, M = medium/niche, X = explor
 ### Backlog use and decisions
 
 - All suggestions from the 2026-10-19 review are recorded above, plus the earlier planned E/C/U tickets. Existing features **Undo, Capture v1, Surprise and Tape Stop** are foundations for enhancements, not missing features. No candidate is automatically approved.
-- Before selecting any candidate: inspect actual current code to ensure it is not already available; map overlap to its E/C/U spec; draft user-visible behavior, success/quality metric, host/OS impacts, parameters/state design, real-time risks, tests/golden fixtures, value/complexity estimate and rollout toggle. Select one at a time.
+- **2026-10-21:** all entries moved from `idea` to `specified`; unselected-entry preservation no longer applies. Lifecycle continues at `tests written`.
+- (Historical rule) Before selecting any candidate: inspect actual current code to ensure it is not already available; map overlap to its E/C/U spec; draft user-visible behavior, success/quality metric, host/OS impacts, parameters/state design, real-time risks, tests/golden fixtures, value/complexity estimate and rollout toggle. Select one at a time.
 - Re-sort based on measured implementation scope after Gate B. A simple, high-value addition still cannot precede Gate A/B. Some "S" UI tasks have dependencies on larger modules, and *must* wait for those prerequisites.
 - Use a one-way lifecycle: `idea -> selected -> specified -> tests written -> implemented -> verified all platforms -> merged -> shipped`. Maintain unselected entries unchanged so nothing is lost.
 
-## Immediate first work session
+## Immediate first work session (historical; superseded by `12` §12 wave 0)
 
 1. Verify PR statuses/runs and current master against A0 evidence. Do not start feature coding.
 2. Merge/reconcile low-risk already-validated CI/packaging changes in an order that does not break tests.

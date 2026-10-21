@@ -3,6 +3,8 @@
 #   packaging/package_release.sh <windows-build-dir> [<linux-build-dir>] [<out-dir>]
 # Windows assets: installer (NSIS), portable zip, VST3 zip, CLAP zip.
 # Linux assets (when a Linux build dir is given): portable, VST3 and CLAP zips.
+# macOS archives come from packaging/package_macos.sh (needs native Apple tools).
+# Env overrides: GAPFILL_ASSET_TAG (file-name version), GAPFILL_DISPLAY_VERSION (text).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -12,8 +14,9 @@ OUT="$(mkdir -p "${3:-$ROOT/dist}" && cd "${3:-$ROOT/dist}" && pwd)"
 
 VERSION_NUM="$(sed -n 's/^project(GapFill VERSION \([0-9.]*\).*/\1/p' "$ROOT/CMakeLists.txt")"
 STAGE="$(sed -n 's/^set(GAPFILL_RELEASE_STAGE "\(.*\)")/\1/p' "$ROOT/CMakeLists.txt")"
-TAG="${VERSION_NUM}${STAGE:+-$STAGE}"
-DISPLAY="${VERSION_NUM}${STAGE:+ $STAGE}"
+# release-beta.yml overrides these so e.g. v0.0.2-beta1 produces GapFill-0.0.2-beta1-* assets.
+TAG="${GAPFILL_ASSET_TAG:-${VERSION_NUM}${STAGE:+-$STAGE}}"
+DISPLAY="${GAPFILL_DISPLAY_VERSION:-${VERSION_NUM}${STAGE:+ $STAGE}}"
 
 mkdir -p "$OUT"
 STAGING="$(mktemp -d)"
@@ -61,7 +64,7 @@ if [ -n "$LIN" ]; then
     for kind in Portable VST3 CLAP; do
         d="$STAGING/l-$kind"; mkdir -p "$d"; docs "$d"
         case $kind in
-            Portable) cp "$LIN/artefacts/GapFill" "$d/" ;;
+            Portable) cp "$LIN/artefacts/GapFill" "$d/"; chmod +x "$d/GapFill" ;;
             VST3)     cp -r "$LIN/GapFill_artefacts/Release/VST3/GapFill.vst3" "$d/" ;;
             CLAP)     cp "$LIN/GapFill_artefacts/Release/CLAP/GapFill.clap" "$d/" ;;
         esac
@@ -69,5 +72,6 @@ if [ -n "$LIN" ]; then
     done
 fi
 
-(cd "$OUT" && sha256sum GapFill-"$TAG"-* > "GapFill-$TAG-SHA256SUMS.txt")
+rm -f "$OUT/GapFill-$TAG-SHA256SUMS.txt"
+(cd "$OUT" && sha256sum GapFill-"$TAG"-* >"GapFill-$TAG-SHA256SUMS.txt")
 ls -la "$OUT"

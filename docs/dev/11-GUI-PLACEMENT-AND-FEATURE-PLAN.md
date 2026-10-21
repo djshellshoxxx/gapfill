@@ -1,6 +1,6 @@
 # Feature candidates and GUI placement plan
 
-Status: proposal only. This document does not authorize implementation. Before coding a feature, update its specification, acceptance tests, and placement in this plan.
+Status (2026-10-21): placement plan for the features now authorized in `12-SPEC-BACKLOG-AND-NEW.md`. Before coding a UI ticket, run the GUI implementation sequence below and record the decision. All candidates in the table have a spec in `12` (N-USE-b health, F-D01 budget, F-L07/N-VAL scenes and banks, N-USE-a panic, N-VAL exchange, F-D02 events, F-D03 quality, F-D04 accessibility); UI-0 in `12` creates the Performance tab / Effects section shell.
 
 ## Current interface constraints
 
@@ -84,3 +84,15 @@ For each approved feature, record:
 - Test, host, and live-performance acceptance evidence.
 
 Use docs/adr/README.md if the placement depends on a lasting architecture or compatibility decision.
+
+### Recorded decisions
+
+**WP3 Explain & assist (E-3, F-S01, N-USE-b, N-EASY, F-M03, F-D02), 2026-10-21.**
+- *Problem:* "it is doing nothing" and "is it set up right?" without opening a manual.
+- *Controls:* one footer status line (FooterStatus slot) with a STATUS button and, only while a suggestion exists, APPLY / X or UNDO; a legend strip and a TIMELINE toggle in the top row of the visualiser (one composite in the VisualiserOverlay slot, because the slot host divides a slot between all its components); hollow skipped-gap markers and the gap-threshold line inside the gap view; a detail call-out (health list, suggestion, why-so-few-fills, latency/CPU, diagnostics). Nothing was added to the header. Footer height 12 -> 22 px so the line and buttons are clickable.
+- *Defaults:* footer silent when healthy; suggestions on; legend open; timeline collapsed; recording off.
+- *Min size:* editor tested at 1020 x 620: footer and overlay inside the editor, not overlapping; the timeline expands over the gap view (no extra height yet - the "height x2" growth needs the UI-0 layout owner).
+- *Options page:* latency/CPU and the diagnostics drawer live in the detail call-out for now; UI-0 can embed `health::DetailsPanel` in the Options page through the OptionsExtra slot.
+- *Cost:* CPU estimate = two clock reads per block while an editor is open; health = ten comparisons per chunk; recorder = one atomic load when off; no latency change.
+- *Acceptance evidence:* `docs/progress/WP3.md`; manual M-3 script and DAW checks are unverified.
+

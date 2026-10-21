@@ -125,14 +125,11 @@ CreativePanel::CreativePanel (juce::AudioProcessorValueTreeState& s)
              colours::accentGreen),
       sync (s, "syncEnable", "TEMPO SYNC", "Derive stutter and delay timings from the host tempo."),
       pingPong (s, "pingPong", "PING PONG", "Alternate delay taps between left and right."),
-      monoWet (s, "wetMono", "MONO WET", "Collapse the generated material to mono for maximum mono compatibility."),
-      capture (s, "capture", "CAPTURE",
-               "Freeze the source: fills keep using the audio heard when Capture was switched on, "
-               "while detection, protection and the dry signal follow the live input. Switch off to release.")
+      monoWet (s, "wetMono", "MONO WET", "Collapse the generated material to mono for maximum mono compatibility.")
 {
     for (auto* c : std::initializer_list<juce::Component*> { &fill, &intensity, &complexity, &chaos, &density,
                                                              &fillType, &stutterDiv, &delayDiv, &seed, &width,
-                                                             &sync, &pingPong, &monoWet, &capture })
+                                                             &sync, &pingPong, &monoWet })
         addAndMakeVisible (c);
 }
 
@@ -140,7 +137,15 @@ void CreativePanel::resized()
 {
     auto b = contentArea();
 
-    layoutRow (b.removeFromBottom (24), { &sync, &pingPong, &monoWet, &capture });
+    {
+        // Four equal cells; the fourth is reserved for Slot::CreativeExtra.
+        auto row = b.removeFromBottom (24);
+        constexpr int gap = 6;
+        const auto w = (row.getWidth() - gap * 3) / 4;
+        layoutRow (row.removeFromLeft (w * 3 + gap * 2), { &sync, &pingPong, &monoWet });
+        row.removeFromLeft (gap);
+        extraSlotBounds = row.withWidth (w);
+    }
     b.removeFromBottom (5);
 
     layoutRow (b.removeFromBottom (34), { &fillType, &stutterDiv, &delayDiv });

@@ -289,6 +289,20 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
         for (int i = chosen; i < maxModifiers; ++i)
             modifiers[i] = Modifier::None;
 
+        // A recipe may force the stack (after the draws above, so the RNG
+        // sequence is identical whether or not an override is present).
+        if (setup.modifierOverride != 0xFF)
+        {
+            numModifiers = 0;
+
+            for (int i = 0; i < maxModifiers; ++i)
+                modifiers[i] = Modifier::None;
+
+            for (int bit = 0; bit < poolSize && numModifiers < maxModifiers; ++bit)
+                if ((setup.modifierOverride & (1 << bit)) != 0)
+                    modifiers[numModifiers++] = pool[bit];
+        }
+
         const auto intensity = juce::jlimit (0.0f, 1.0f, setup.intensity01);
 
         modFilterMode  = rng.nextInt (3);
@@ -459,6 +473,9 @@ void FillVoice::configureAlgorithm()
             pitchRate = 1.0;
             pitchRateEnd = std::pow (2.0, (double) (up ? amount : -amount) / 12.0);
             pitchRateEnd = juce::jlimit (0.06, 16.0, pitchRateEnd);
+
+            if (setupData.pitchOverride != 127)
+                pitchRateEnd = juce::jlimit (0.06, 16.0, std::pow (2.0, (double) setupData.pitchOverride / 12.0));
             playPos = 0.0;
             pitchXfadePos = 0.0f;
             break;
