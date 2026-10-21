@@ -441,9 +441,9 @@ namespace
 
             // The level contract only holds while the user-visible gains are sane: dry <= 100 %, width etc. are
             // inside the limiter. A bypassed block is a plain pass-through of a <= full-scale input.
-            // Band Solo is a monitoring mode: the crossover filter is retuned live and may overshoot a hostile
-            // full-scale input (observed 6.7x on a Nyquist square, see the QA report), so it is outside the bound.
-            const bool levelBound = proc.getValueTreeState().getRawParameterValue ("bandSolo")->load() < 0.5f;
+            // Band Solo is limited by dsp::soloLimit (it used to overshoot 6.7x on a hostile input while the
+            // crossover moved), so it is inside the bound like every other mode.
+            const bool levelBound = true;
             checkOutput (work, 0, mainCh, n, levelBound, st, tag + levelContext (proc));
 
             if (wetCh > 0)
@@ -638,8 +638,7 @@ GF_TEST (IntegratedStress, concurrent_audio_thread_with_editor_cycles_state_load
             // switch Wet Safety off or enable Band Solo. The +6 dBFS bound applies once the contract has held for a while
             // (gain smoothing has settled); finite / no-allocation checks always apply.
             auto& tree = proc.getValueTreeState();
-            const bool contract = tree.getRawParameterValue ("output")->load() <= 0.001f && tree.getRawParameterValue ("wetSafety")->load() > 0.5f
-                                  && tree.getRawParameterValue ("bandSolo")->load() < 0.5f;
+            const bool contract = tree.getRawParameterValue ("output")->load() <= 0.001f && tree.getRawParameterValue ("wetSafety")->load() > 0.5f;
             calmBlocks = contract ? calmBlocks + 1 : 0;
             checkOutput (work, 0, 2, n, calmBlocks > 600, st, "concurrent");
 

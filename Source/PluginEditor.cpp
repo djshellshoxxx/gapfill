@@ -31,7 +31,7 @@ namespace
     constexpr int kMixHeight    = 124;
     constexpr int kTabHeight    = 26;
     constexpr int kFooterHeight = 22;   // status line (WP3 FooterStatus slot) + version marker, bottom-right
-    constexpr int kEffectsBody  = 140;   // UI-0: unfolded Effects section, scrolls inside itself
+    constexpr int kEffectsBody  = 176;   // UI-0: unfolded Effects section, scrolls inside itself
     constexpr int kMinVisualiserHeight = 70;
     constexpr int kViewToggleWidth = 130;        // U-5 SIMPLE | ADVANCED, right end of the tab row
     constexpr int kPerformanceStripHeight = 72;   // UI-0: Slot::PerformanceStrip, only when a feature registered one

@@ -18,6 +18,7 @@
 #include "../Knob.h"
 #include "../../PluginProcessor.h"
 #include "../../features/fx/EffectCard.h"
+#include "ScrubCard.h"
 
 #include <memory>
 #include <vector>
@@ -103,6 +104,7 @@ public:
 
     int getNumCards() const noexcept { return (int) cards.size(); }
     EffectCardView& getCard (int i) noexcept { return *cards[(size_t) i]; }
+    ScrubCardView& getScrubCard() noexcept { return *scrub; }   ///< F-M19 Freeze & Scrub, the first card
 
 private:
     void timerCallback() override;
@@ -111,6 +113,7 @@ private:
     GapFillAudioProcessor& proc;
     juce::Viewport viewport;
     juce::Component content;
+    std::unique_ptr<ScrubCardView> scrub;
     std::vector<std::unique_ptr<EffectCardView>> cards;
     juce::Label routingLabel;
     std::vector<std::unique_ptr<GapToggle>> routing;

@@ -11,6 +11,7 @@
 #include "features/panic/WetSafety.h"
 #include "features/wetout/WetOut.h"
 #include "features/wetbus/WetBus.h"
+#include "dsp/SoloLimit.h"
 
 namespace gapfill
 {
@@ -1056,14 +1057,14 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         {
             float lo, mi, hi;
             soloSplitter.processStereo (0, outL[i], lo, mi, hi);
-            outL[i] = solo == 1 ? lo : (solo == 2 ? mi : hi);
+            outL[i] = dsp::soloLimit (solo == 1 ? lo : (solo == 2 ? mi : hi));
 
             auto finalR = outL[i];
 
             if (outR != nullptr)
             {
                 soloSplitter.processStereo (1, outR[i], lo, mi, hi);
-                outR[i] = solo == 1 ? lo : (solo == 2 ? mi : hi);
+                outR[i] = dsp::soloLimit (solo == 1 ? lo : (solo == 2 ? mi : hi));
                 finalR = outR[i];
             }
 

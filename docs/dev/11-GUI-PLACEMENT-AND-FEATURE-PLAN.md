@@ -103,3 +103,10 @@ Use docs/adr/README.md if the placement depends on a lasting architecture or com
 - *Defaults:* new instances open Simple; old states Advanced; tour once per user; effects off; suggestions and calibration are opt-in and never automatic.
 - *Min size:* tested at 1020 x 620 for tabs + toggle, Simple controls, Options extra area, tour card; visual screenshots not captured.
 - *Cost:* idle audio thread = three relaxed atomic loads per chunk (recorder, profile, overlay queue); no latency change.
+
+**F-M19 Freeze & Scrub placement fix, 2026-10-21.**
+- *Problem:* the SCRUB button with POSITION / WIDTH knobs rendered as a detached 72 px strip between the visualiser and the panels on every tab, knobs far from the button.
+- *Controls moved:* SCRUB, Position (`scrubPos`) and Width (`scrubWidth`) moved into a foldable Scrub card, first in the Effects drawer (Creative tab). Parameter IDs and behaviour are unchanged.
+- *Defaults:* header only (the switch and a hint) while SCRUB is off; Position / Width bars show only while it is on; fold arrow persists for the session only.
+- *Min size:* tested at 1020 x 620, 1100 x 700, 1300 x 900, 1800 x 1000 (GuiQa configs `drawer+scrub`); the visualiser no longer loses 78 px. The drawer body is 176 px and scrolls inside itself.
+

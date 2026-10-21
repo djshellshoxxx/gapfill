@@ -19,5 +19,5 @@ list(APPEND GAPFILL_SOURCES
     Source/features/cloud/CloudMode.cpp
     Source/features/scrub/ScrubVoice.cpp
     Source/gui/slots/EffectsSection.cpp
-    Source/gui/slots/ScrubStrip.cpp
+    Source/gui/slots/ScrubCard.cpp
 )

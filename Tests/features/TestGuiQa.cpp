@@ -196,6 +196,7 @@ namespace
         int w, h;
         int scale;
         bool drawer;
+        bool scrub = false;      ///< Freeze & Scrub switched on (its Position / Width knobs show in the drawer)
     };
 
     void maybeSnapshot (juce::Component& editor, const juce::String& file)
@@ -231,6 +232,9 @@ namespace
             GapFillAudioProcessor proc;
             proc.getUiState().setViewMode (cfg.mode);
             proc.setKeyboardNavigationEnabled (keyboard);
+
+            if (cfg.scrub)
+                setParams (proc, { { "scrubOn", 1.0f } });
 
             GapFillAudioProcessorEditor editor (proc);
             editor.setSize (cfg.w, cfg.h);
@@ -292,7 +296,12 @@ GF_TEST (GuiQa, layout_has_no_clipping_overlap_or_truncated_text_across_sizes_mo
             }
 
     for (const auto& sz : sizes)
+    {
         configs.push_back ({ "drawer", ui::ViewMode::Advanced, 0, sz[0], sz[1], 100, true });
+        configs.push_back ({ "drawer+scrub", ui::ViewMode::Advanced, 0, sz[0], sz[1], 100, true, true });   // Scrub card unfolded
+    }
+
+    configs.push_back ({ "drawer+scrub simple", ui::ViewMode::Simple, 0, 1020, 620, 100, true, true });
 
     report (runConfigs (configs, false));
 }
@@ -314,7 +323,7 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
     ScopedSettings scoped;
     settings::GlobalSettings::shared()->setInt (settings::GlobalSettings::keyUiScale, 100);
 
-    struct Shot { const char* name; ui::ViewMode mode; int tab; int w, h; bool drawer; bool tour; };
+    struct Shot { const char* name; ui::ViewMode mode; int tab; int w, h; bool drawer; bool tour; bool scrub = false; };
     const Shot shots[] = {
         { "main-simple-creative-1100x700", ui::ViewMode::Simple,   0, 1100, 700, false, false },
         { "main-advanced-creative-1100x700", ui::ViewMode::Advanced, 0, 1100, 700, false, false },
@@ -324,6 +333,9 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
         { "main-advanced-min-1020x620", ui::ViewMode::Advanced, 0, 1020, 620, false, false },
         { "main-advanced-effects-drawer-1300x900", ui::ViewMode::Advanced, 0, 1300, 900, true, false },
         { "main-advanced-large-1800x1000", ui::ViewMode::Advanced, 0, 1800, 1000, false, false },
+        { "main-advanced-effects-drawer-scrub-1300x900", ui::ViewMode::Advanced, 0, 1300, 900, true, false, true },
+        { "main-advanced-effects-drawer-scrub-min-1020x620", ui::ViewMode::Advanced, 0, 1020, 620, true, false, true },
+        { "main-simple-effects-drawer-1100x700", ui::ViewMode::Simple, 0, 1100, 700, true, false, true },
         { "tour-1100x700", ui::ViewMode::Simple, 0, 1100, 700, false, true },
     };
 
@@ -332,6 +344,9 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
         GapFillAudioProcessor proc;
         prepareProcessor (proc, 48000.0, 512, false);
         proc.getUiState().setViewMode (s.mode);
+
+        if (s.scrub)
+            setParams (proc, { { "scrubOn", 1.0f } });
 
         // give the visualiser something to show
         TestPlayHead ph;

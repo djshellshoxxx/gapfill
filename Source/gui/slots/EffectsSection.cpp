@@ -487,6 +487,10 @@ EffectsSection::EffectsSection (GapFillAudioProcessor& p)
     setTitle ("Effects");
     setWantsKeyboardFocus (false);
 
+    scrub = std::make_unique<ScrubCardView> (proc);
+    scrub->onHeightChanged = [this] { layoutCards(); };
+    content.addAndMakeVisible (*scrub);
+
     for (const auto& def : cardDefinitions())
     {
         cards.push_back (std::make_unique<EffectCardView> (proc, def));
@@ -540,6 +544,13 @@ void EffectsSection::layoutCards()
 {
     const auto w = juce::jmax (200, viewport.getMaximumVisibleWidth());
     int y = 0;
+
+    if (scrub != nullptr)
+    {
+        const auto h = scrub->getPreferredHeight();
+        scrub->setBounds (0, y, w, h);
+        y += h;
+    }
 
     for (auto& c : cards)
     {

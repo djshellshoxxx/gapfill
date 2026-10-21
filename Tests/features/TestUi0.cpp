@@ -86,17 +86,15 @@ GF_TEST (Ui0, slots_empty_layout_identical_to_baseline)
         // WP6 registers the pads, scene panel and macro editor in the Performance tab: the panel exists, and the
         // three existing tabs keep their geometry whether it shows as a tab or from the FILE menu.
         GF_EXPECT (editor.getPerformancePanelForTests() != nullptr);
-        // WP8 registers the Effects section and the scrub strip: the drawer header (22 px) and the
-        // 72 px strip + 6 px gap come out of the visualiser; everything else is the old layout.
+        // WP8 registers the Effects section (Freeze & Scrub is a card inside it, no detached strip): only the
+        // drawer header (22 px) comes out of the visualiser; everything else is the old layout.
         GF_EXPECT (editor.getEffectsDrawerForTests() != nullptr);
 
         // The pre-UI-0 formulas (kTopBarHeight 46, kMixHeight 124, kFooterHeight 22, 8 px gaps).
         const auto inner = juce::Rectangle<int> (0, 46, size.x, size.y - 46).reduced (10, 8).withTrimmedBottom (22);
         const auto rest = inner.getHeight() - 124 - 8;
         const auto controlHeight = juce::jlimit (250, 360, (int) ((float) rest * 0.54f)) + EffectsDrawer::headerHeight;
-        auto visHeight = rest - 8 - controlHeight;
-        if (visHeight >= 72 + 70 + 6)
-            visHeight -= 72 + 6;
+        const auto visHeight = rest - 8 - controlHeight;
         const auto expectedVis = juce::Rectangle<int> (inner.getX(), inner.getY(), inner.getWidth(), visHeight);
 
         GF_EXPECT_MSG (editor.getVisualiserBoundsForTests() == expectedVis, "visualiser rectangle unchanged");

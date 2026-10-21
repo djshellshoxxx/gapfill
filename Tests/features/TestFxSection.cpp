@@ -185,26 +185,46 @@ GF_TEST (FxSection, help_sections_are_registered_in_the_feature_band)
     GF_EXPECT (found >= 8);          // overview, swell, cloud, ratchet, tape, crush, lanes, scrub
 }
 
-GF_TEST (FxSection, scrub_controls_are_hosted_in_the_performance_strip)
+GF_TEST (FxSection, scrub_is_a_foldable_card_of_the_effects_section_with_progressive_disclosure)
 {
-    GF_EXPECT (! getSlotFactories (Slot::PerformanceStrip).empty());
+    // No detached strip any more: nothing registers for the PerformanceStrip slot.
+    GF_EXPECT (getSlotFactories (Slot::PerformanceStrip).empty());
 
     GapFillAudioProcessor proc;
-    juce::Component parent;
-    parent.setBounds (0, 0, 800, 200);
-    SlotHost host (proc, parent);
-    host.setSlotBounds (Slot::PerformanceStrip, { 0, 0, 400, 100 });
+    fxgui::EffectsSection section (proc);
+    section.setBounds (0, 0, 600, 140);
+    auto& scrub = section.getScrubCard();
 
-    int toggles = 0, knobs = 0;
+    // Off: only the 28 px header; Position / Width are hidden and parameters keep their ids.
+    GF_EXPECT (proc.getValueTreeState().getParameter ("scrubOn") != nullptr);
+    GF_EXPECT (proc.getValueTreeState().getParameter ("scrubPos") != nullptr);
+    GF_EXPECT (proc.getValueTreeState().getParameter ("scrubWidth") != nullptr);
+    GF_EXPECT (! scrub.isScrubOn());
+    GF_EXPECT (! scrub.isBodyVisible());
+    GF_EXPECT (scrub.getPreferredHeight() == fxgui::ScrubCardView::headerHeight);
 
-    for (auto* c : parent.getChildren())
-    {
-        for (auto* inner : c->getChildren())
-        {
-            toggles += dynamic_cast<GapToggle*> (inner) != nullptr;
-            knobs += dynamic_cast<GapKnob*> (inner) != nullptr;
-        }
-    }
+    // On: the knobs appear, grouped on one row right under the switch.
+    setParams (proc, { { "scrubOn", 1.0f } });
+    scrub.refresh();
+    GF_EXPECT (scrub.isScrubOn() && scrub.isBodyVisible());
+    GF_EXPECT (scrub.getPreferredHeight() > fxgui::ScrubCardView::headerHeight);
+    GF_EXPECT (scrub.getHeight() == scrub.getPreferredHeight());
 
-    GF_EXPECT (toggles >= 1 && knobs >= 2);
+    int bars = 0;
+
+    for (auto* c : scrub.getChildren())
+        bars += dynamic_cast<GapBar*> (c) != nullptr && c->isVisible();
+
+    GF_EXPECT (bars == 2);
+    GF_EXPECT (scrub.getPreferredHeight() <= 80);       // compact: header + one row
+
+    // Folding hides them again; the first card sits above the effect cards without overlap.
+    scrub.setFolded (true);
+    GF_EXPECT (! scrub.isBodyVisible() && scrub.getHeight() == fxgui::ScrubCardView::headerHeight);
+    scrub.setFolded (false);
+    GF_EXPECT (section.getCard (0).getY() >= 0);
+
+    setParams (proc, { { "scrubOn", 0.0f } });
+    scrub.refresh();
+    GF_EXPECT (! scrub.isBodyVisible());
 }

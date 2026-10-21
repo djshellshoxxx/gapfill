@@ -3,4 +3,5 @@ list(APPEND GAPFILL_TEST_SOURCES
     Tests/features/TestIntegratedStress.cpp
     Tests/features/TestStateQa.cpp
     Tests/features/TestGuiQa.cpp
+    Tests/features/TestSoloLimit.cpp
 )
