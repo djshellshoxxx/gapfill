@@ -1,6 +1,8 @@
 #include "FeatureHooks.h"
 #include "../dsp/FillEngine.h"
 
+#include <algorithm>
+
 namespace gapfill::hooks
 {
 
@@ -17,8 +19,12 @@ Effective::ModulationInputs gatherModulationInputs (const ParamCache& params) no
     return in;
 }
 
-void gatherFeatureSettings (EngineSettings& /*s*/, const ParamCache& /*params*/) noexcept
+void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcept
 {
+    // F-M18 gatherBattle: Off, 1, 2, 4, 8 bars
+    static constexpr int kBattleBars[] = { 0, 1, 2, 4, 8 };
+    s.perf.battleEvery = kBattleBars[std::clamp (pi (params.battleEvery), 0, 4)];
+
     // One explicit call per feature, in this order (add yours below):
     //   gatherLock (s, params);          // C-5
     //   gatherMistakes (s, params);      // C-3

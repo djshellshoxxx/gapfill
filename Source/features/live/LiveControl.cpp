@@ -19,6 +19,8 @@ LiveControl::LiveControl (juce::AudioProcessorValueTreeState& state)
     phraseBarsParam = state.getRawParameterValue ("phraseBars");        // null until the phrase group has parameters
     phraseOffsetParam = state.getRawParameterValue ("phraseOffset");
 
+    scenes::initTables();
+    scenes::initOverlayTargets();
     macros::initTargets();
     bool available[macros::kNumTargets] {};
 
@@ -210,6 +212,30 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples) noexcept
     const auto& view = sceneEngine.view();
     s.perf.sceneView = view.active ? &view : nullptr;
     s.perf.panicked = panicCtl.isPanicked();
+
+    // F-M18 Beat Battles: alternation by bar window, an overlay like a scene (no APVTS writes).
+    {
+        battle::BattleConfig fresh;
+
+        if (battleModel.publisher().consume (fresh))
+            battleRuntime.adopt (fresh);
+
+        battleRuntime.everyBars = s.perf.battleEvery;
+        battle::Status status = battle::Status::Off;
+
+        if (battleRuntime.everyBars > 0)
+        {
+            if (! battleRuntime.haveStyles)
+                status = battle::Status::NeedsStyles;
+            else if (battleRuntime.styleAt (t.ppq, t.valid, t.tsNum, t.tsDen) < 0)
+                status = battle::Status::NoTransport;
+            else
+                status = battleRuntime.styleAt (t.ppq, t.valid, t.tsNum, t.tsDen) == 0 ? battle::Status::StyleA : battle::Status::StyleB;
+        }
+
+        uiBattle.store ((int) status, std::memory_order_relaxed);
+        s.perf.battle = (battleRuntime.everyBars > 0 && battleRuntime.haveStyles && ! panicCtl.isPanicked()) ? &battleRuntime : nullptr;
+    }
 
     uiPpq.store (t.valid ? t.ppq : -1.0, std::memory_order_relaxed);
     uiTsNum.store (t.tsNum, std::memory_order_relaxed);

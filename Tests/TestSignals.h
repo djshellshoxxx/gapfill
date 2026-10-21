@@ -104,6 +104,10 @@ public:
 
         info.setIsPlaying (playing);
         info.setTimeInSamples (timeInSamples);
+
+        if (timeSigNumerator > 0 && timeSigDenominator > 0)
+            info.setTimeSignature (juce::AudioPlayHead::TimeSignature { timeSigNumerator, timeSigDenominator });
+
         return info;
     }
 
@@ -117,6 +121,7 @@ public:
 
     bool provideInfo = true, provideBpm = true, providePpq = true, playing = true;
     double bpm = 120.0, ppq = 0.0;
+    int timeSigNumerator = 0, timeSigDenominator = 0;      // 0 = the host reports no time signature
     juce::int64 timeInSamples = 0;
 };
 

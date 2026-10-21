@@ -11,6 +11,8 @@ list(APPEND GAPFILL_SOURCES
     Source/features/bank/BankFile.cpp
     Source/features/macros/MacroEngine.cpp
     Source/features/macros/MacroModel.cpp
+    Source/features/battle/Battle.cpp
+    Source/features/effective/StageBattle.cpp
     Source/features/live/LiveControl.cpp
     Source/features/live/Roulette.cpp
     Source/gui/slots/PanicSlot.cpp

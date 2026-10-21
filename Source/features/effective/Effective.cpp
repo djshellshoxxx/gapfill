@@ -14,6 +14,7 @@ void applyBlock (EngineSettings& s, const ModulationInputs& in, MacroOutputs& ou
 void applyAtDecision (EngineSettings& sLocal, double ppq, const TransportInfo& ts)
 {
     applyScene (sLocal, ppq, ts);
+    applyBattle (sLocal, ppq, ts);
     applyMacroLfos (sLocal, ppq, ts);
 
     // Evolve slowly moves the base, breathing modulates density, phrase biases.

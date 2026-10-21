@@ -8,7 +8,8 @@ namespace gapfill
 {
 
 namespace scenes { struct OverlayView; }    // F-L07 (features/scenes/SceneOverlay.h)
-namespace macros { struct MacroRuntime; }   // C-2 / F-M23 (features/macros/MacroModel.h)
+namespace macros { struct MacroRuntime; }   // C-2 / F-M23 (features/macros/MacroEngine.h)
+namespace battle { struct BattleRuntime; }  // F-M18 (features/battle/Battle.h)
 
 //==============================================================================
 // Performance / creative settings (docs/dev/02-FOUNDATIONS.md F0-5). Every
@@ -40,6 +41,8 @@ struct PerformanceSettings
     const scenes::OverlayView* sceneView = nullptr;   // F-L07: audio-thread-owned overlay
     const macros::MacroRuntime* macroRuntime = nullptr;   // F-M23: LFO macros re-evaluated per decision
     std::uint32_t macroOwnedMask = 0; // C-2: macro target bits claimed by macros (scenes skip them)
+    int   battleEvery = 0;            // F-M18: 0 off, else bars per style window
+    const battle::BattleRuntime* battle = nullptr;
     bool  macroWidthOn = false;       // C-2: the Space macro drives the wet width
     float macroWidth01 = 1.0f;
 };

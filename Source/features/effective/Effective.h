@@ -75,6 +75,7 @@ void applyBlock (EngineSettings&, const ModulationInputs&, MacroOutputs&);
 // slow stages below then modulate.
 
 void applyScene     (EngineSettings&, double ppq, const TransportInfo&);           // F-L07 StageScene.cpp
+void applyBattle    (EngineSettings&, double ppq, const TransportInfo&);           // F-M18 StageBattle.cpp
 void applyMacroLfos (EngineSettings&, double ppq, const TransportInfo&);           // F-M23 StageMacros.cpp
 void applyEvolve    (EngineSettings&, double ppq, const TransportInfo&);           // C-8  StageEvolve.cpp
 void applyBreathing (EngineSettings&, double ppq, const TransportInfo&);           // C-6  StageBreathing.cpp

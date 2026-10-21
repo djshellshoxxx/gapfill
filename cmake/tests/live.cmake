@@ -7,4 +7,5 @@ list(APPEND GAPFILL_TEST_SOURCES
     Tests/features/TestRoulette.cpp
     Tests/features/TestSafety.cpp
     Tests/features/TestMacros.cpp
+    Tests/features/TestBattle.cpp
 )

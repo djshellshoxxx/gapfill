@@ -134,4 +134,7 @@ private:
 /** Builds the parameter index -> EngineSettings target table (message thread). */
 void initOverlayTargets();
 
+/** The EngineSettings field a parameter index drives (Kind::None when there is none). Audio-thread safe. */
+targets::Ref overlayTargetFor (int paramIndex) noexcept;
+
 } // namespace gapfill::scenes

@@ -15,6 +15,7 @@
 // bounded SPSC queue audio -> message (UiRequest). Nothing here allocates,
 // locks or does IO on the audio thread.
 
+#include "../battle/Battle.h"
 #include "../commands/CommandMap.h"
 #include "../macros/MacroModel.h"
 #include "../panic/Panic.h"
@@ -68,6 +69,8 @@ public:
     const commands::BindingModel& bindings() const noexcept { return bindingModel; }
     scenes::SceneController& scenes() noexcept           { return sceneCtl; }
     const scenes::SceneController& scenes() const noexcept { return sceneCtl; }
+    battle::BattleModel& battles() noexcept              { return battleModel; }
+    battle::Status getBattleStatus() const noexcept      { return (battle::Status) uiBattle.load (std::memory_order_relaxed); }
     macros::MacroModel& macroMappings() noexcept         { return macroModel; }
     const macros::MacroModel& macroMappings() const noexcept { return macroModel; }
     GlitchRoulette& roulette() noexcept                  { return rouletteState; }
@@ -145,6 +148,9 @@ private:
     scenes::SceneEngine sceneEngine;
     panic::PanicController panicCtl;
     macros::MacroModel macroModel;
+    battle::BattleModel battleModel;
+    battle::BattleRuntime battleRuntime;
+    std::atomic<int> uiBattle { 0 };
     macros::MacroRuntime macroRuntime;
     std::atomic<float> uiEffective[macros::kNumTargets] {};
     GlitchRoulette rouletteState { juce::Random::getSystemRandom() };

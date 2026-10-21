@@ -26,6 +26,11 @@ void initOverlayTargets()
     });
 }
 
+targets::Ref overlayTargetFor (int paramIndex) noexcept
+{
+    return paramIndex >= 0 && paramIndex < kMaxTargets ? targetTable[(size_t) paramIndex] : targets::Ref {};
+}
+
 void OverlayView::applyTo (EngineSettings& s) const noexcept
 {
     for (int i = 0; i < n; ++i)

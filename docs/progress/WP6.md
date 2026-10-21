@@ -14,9 +14,15 @@ F-M23, F-M18, F-L24, then the E-1-dependent ones (F-M10, F-S07, F-P02).
 | F-L25 | Done (core) | `wetSafety` param (group `safety`), `panic/WetSafety.h` soft limiter after the width stage, SceneGoto(arg -1) = last good scene. |
 | C-2 | Done (engine + state) | `features/macros/MacroEngine.*` (curves, mapping, runtime, factory table), `MacroModel.*` (rules, `<Macros>` codec, 2 KiB), params `macroActivity/Chaos/Space/Destruction`, `macrosOn` (off), `Effective::applyMacros`. Macros own a target (`perf.macroOwnedMask`); the Space macro drives `widthAmount` through `perf.macroWidth01`. |
 | F-M23 | Done (engine + state) | Targets 21..35 (effect Amount ids) appended to the table, per-mapping `smoothMs` and `bipolar`, one LFO per macro (sine/tri/saw/square/seeded S&H, Hz or division), PPQ-locked decision-stage re-evaluation `Effective::applyMacroLfos`. |
+| F-M18 | Done (engine) | `features/battle/Battle.*`: `battleEvery` param (group `battle`), `BattleModel` (two styles restricted to the scene whitelist), audio `BattleRuntime`, `Effective::applyBattle`. Overlay only. |
 | N-VAL | Done (core) | `features/bank/BankFile.*`: `.gapbank` export/import (256 KiB, 64 scenes, SHA-256 digest, atomic apply, one-step undo), PC -> scene and Next/Prev/Cancel commands. |
 
 ## Deviations and gaps (honest list)
+
+* **F-M18 style source**: the header A/B snapshots live in `PluginEditor` (WP11-owned hot file), so Battle keeps its own two style slots
+  (`LiveControl::battles().setStyleFromState / setStyleFromCurrent`). The header A/B code needs one call per store to feed them
+  (`setStyleFromState (0/1, apvts, slotA/slotB)`); until then the Performance panel stores "current sound" into A or B. The styles are
+  session state (like the header A/B) and are not written to the project.
 
 * **Macro editor UI** (4 knobs, MACROS LED, mapping popover) is not built: it needs the `PerformanceStrip`/Performance-tab rectangle that
   UI-0 (WP11) reserves. All behaviour is reachable through `LiveControl::macroMappings()`, MIDI learn on the four value parameters and
