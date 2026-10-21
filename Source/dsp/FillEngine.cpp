@@ -1,5 +1,6 @@
 #include "FillEngine.h"
 #include "../features/effective/Effective.h"
+#include "../features/lock/LockStage.h"
 
 namespace gapfill
 {
@@ -81,6 +82,8 @@ void FillEngine::reset()
         v.reset();
 
     resetPreview();                       // E-1: fades the preview, restarts its sequence
+    lockState.resetRuntime();             // C-5: the locked recipe survives, the "latest fill" memory does not
+    like.cancel();                        // C-11
 
     spectral.reset();
     spectral.release();
@@ -153,6 +156,7 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
     int offset = 0;
 
     servePendingPreview (outputStartPos, analysis, history, s, events);     // E-1
+    lockState.update (s.perf.lockOn);                                       // C-5
 
     while (offset < numSamples)
     {
@@ -174,6 +178,7 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
     }
 
     preview.endBlock();                                                     // E-1
+    flushLockEvents (outputStartPos, events);                               // C-5
 
     int algo = -1;
 
@@ -545,6 +550,11 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
     {
         algoIndex = chooseAlgorithm (lengthMs, s, rng);
 
+        // C-5: Lock still plays its algorithm when the weights or length would exclude it;
+        // adjustRecipe applies the fit rules.
+        if (algoIndex < 0 && lockstage::isActive (lockState, s))
+            algoIndex = lockState.recipe.algo;
+
         if (algoIndex < 0)
         {
             // Report the shortest fill any enabled algorithm could have played.
@@ -572,15 +582,22 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
     r.lengthClass = lengthClassFor (lengthMs, s.maxFillMs);
     r.lengthMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (lengthMs));
     r.seed = (std::uint32_t) hashCombine (ctx.key, (std::uint64_t) (algoIndex + 1) * 0x27D4EB2FULL);
+
+    if (likeApplies (s))
+        r.flags |= FillRecipe::flagBiased;      // C-11
+
     return RejectReason::None;
 }
 
-RejectReason FillEngine::adjustRecipe (FillPlan&, const GapContext&, const EngineSettings&) noexcept
+RejectReason FillEngine::adjustRecipe (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept
 {
-    // HOOK (empty in Phase 0): Fill Lock (C-5) substitutes the locked recipe
-    // here and may return LockSkipped; Mistakes (C-3) sets mistakeType/Amt.
+    // Fill Lock (C-5) substitutes the locked recipe here and may return LockSkipped.
+    // HOOK for Mistakes (C-3): sets mistakeType/Amt, rolling fresh per fill.
     // Features draw from their own salted sub-RNG (Source/features/Salts.h),
     // never from the scheduler's Rng.
+    if (lockstage::isActive (lockState, s))
+        return lockstage::apply (lockState, plan, ctx, s, sr, kProfiles[lockState.recipe.algo].minMs);
+
     return RejectReason::None;
 }
 
@@ -671,6 +688,11 @@ void FillEngine::noteFillStarted (const FillPlan& plan, std::int64_t outputPos) 
     recentWrite = (recentWrite + 1) % historyLength;
     lastFillStartPos = outputPos;
     ++fillsStarted;
+
+    lockState.noteStarted (plan.recipe);        // C-5: latest natural recipe (previews never get here)
+
+    if ((plan.recipe.flags & FillRecipe::flagFromLock) == 0)
+        like.noteStarted();                     // C-11: only started, unlocked, natural fills count
 }
 
 void FillEngine::noteRejected (RejectReason r) noexcept
@@ -712,6 +734,9 @@ int FillEngine::chooseAlgorithm (float lengthMs, const EngineSettings& s, Rng& r
 
         // How hard was the hit that opened this gap?
         w *= 1.0f - 0.5f * std::abs (juce::jlimit (0.0f, 1.0f, lastEventTransient) - p.transient);
+
+        if (likeApplies (s))                    // C-11: a bias on the weight, never a new candidate
+            w *= like.algoFactor (i);
 
         // Avoid immediate repetition unless chaos is low (where repetition is a
         // musical choice rather than an accident).
@@ -764,7 +789,11 @@ int FillEngine::chooseBand (const AnalysisFrame& frame, const EngineSettings& s,
         if (frame.bandConf[b] < 0.45f)
             continue;
 
-        const auto w = frame.bandConf[b] * juce::jmax (0.02f, s.bandProb[b]) * juce::jmax (0.02f, s.bandAmt[b]);
+        auto w = frame.bandConf[b] * juce::jmax (0.02f, s.bandProb[b]) * juce::jmax (0.02f, s.bandAmt[b]);
+
+        if (likeApplies (s))                    // C-11
+            w *= like.bandFactor (b);
+
         weights[b] = w;
         total += w;
     }

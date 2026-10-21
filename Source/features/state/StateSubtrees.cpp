@@ -1,5 +1,6 @@
 #include "StateSubtrees.h"
 #include "../recipes/RecipeServices.h"
+#include "../lock/LockSubtree.h"
 
 namespace gapfill::state
 {
@@ -16,7 +17,7 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
     static const std::vector<SubtreeDesc> table =
     {
         { "Macros",  2 * Ki,  nullptr, nullptr, nullptr, nullptr },   // C-2
-        { "Lock",    1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // C-5
+        { "Lock",    1 * Ki,  lock::validate, lock::apply, lock::serialise, lock::reset },   // C-5
         { "History", 1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // U-1
         { "Perf",    4 * Ki,  recipes::validatePerf, recipes::applyPerf, recipes::serialisePerf, recipes::resetPerf },   // U prefs (WP4: trigger, match)
         { "Scenes",  24 * Ki, nullptr, nullptr, nullptr, nullptr },   // F-L07 / N-VAL

@@ -1,6 +1,8 @@
 #include "FeatureHooks.h"
 #include "../dsp/FillEngine.h"
 #include "audition/Audition.h"
+#include "lock/LockCommands.h"
+#include "lock/LockStage.h"
 
 namespace gapfill::hooks
 {
@@ -14,10 +16,10 @@ Effective::ModulationInputs gatherModulationInputs (const ParamCache& /*params*/
     return in;
 }
 
-void gatherFeatureSettings (EngineSettings& /*s*/, const ParamCache& /*params*/) noexcept
+void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcept
 {
     // One explicit call per feature, in this order (add yours below):
-    //   gatherLock (s, params);          // C-5
+    lockstage::gather (s, params);       // C-5
     //   gatherMistakes (s, params);      // C-3
     //   gatherEnvelope (s, params);      // C-4
     //   gatherBreathing (s, params);     // C-6
@@ -37,6 +39,9 @@ void dispatchCommand (FillEngine& engine, const Command& command) noexcept
 {
     // One line per feature that owns commands; each returns true when it handled `command`.
     if (audition::handleCommand (engine, command))      // E-1: Preview, PreviewRecipe
+        return;
+
+    if (lock::handleCommand (engine, command))          // C-5 / C-11: Lock*, Unlock, Like*
         return;
 }
 

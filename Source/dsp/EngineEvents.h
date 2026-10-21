@@ -49,7 +49,8 @@ enum class FillEventType : std::uint8_t
     Started,       ///< a fill started; `recipe` describes it
     Rejected,      ///< a gap was evaluated and not filled; `reason` says why
     LockSet,       ///< C-5: the audio thread stored `recipe` as the Fill Lock recipe
-    PreviewStarted ///< E-1: an audition voice started; never listed in history or the outcome log
+    PreviewStarted,///< E-1: an audition voice started; never listed in history or the outcome log
+    LockCleared    ///< C-5: the audio thread forgot the locked recipe (Unlock command)
 };
 
 struct FillEvent

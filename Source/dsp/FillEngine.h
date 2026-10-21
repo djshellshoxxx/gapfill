@@ -6,6 +6,8 @@
 #include "SchedulerTypes.h"
 #include "VisualisationState.h"
 #include "../features/audition/PreviewChannel.h"
+#include "../features/lock/LikeBias.h"
+#include "../features/lock/LockState.h"
 
 #include <array>
 #include <limits>
@@ -31,8 +33,9 @@ public:
     /** Fades every voice out quickly (bypass, transport jumps, reset). */
     void panic() noexcept;
 
-    /** Forgets the deterministic gap counter, used when the transport jumps. */
-    void noteTransportJump() noexcept { gapIndex = 0; }
+    /** Forgets the deterministic gap counter, used when the transport jumps. A jump
+        also ends a More Like That bias (C-11). */
+    void noteTransportJump() noexcept { gapIndex = 0; like.cancel(); }
 
     /** Renders into `wet` (which must already be cleared) and returns the
         protection duck that the processor should apply to the wet bus. */
@@ -56,6 +59,20 @@ public:
     std::uint32_t getPreviewStatusCode() const noexcept   { return preview.code(); }
     bool isPreviewActive() const noexcept                 { return preview.isActive(); }
     bool isPreviewPending() const noexcept                { return preview.request.pending; }
+
+    //--------------------------------------------------------------------------
+    // C-5 Fill Lock / C-11 More Like That (audio thread; features/lock/LockEngine.cpp).
+    // The same entry points serve the commands LockLatest, LockRecipe, Unlock,
+    // LikeLatest and LikeRecipe.
+
+    void lockLatest() noexcept;
+    void lockRecipe (const FillRecipe&) noexcept;
+    void unlockRecipe() noexcept;
+    void likeLatest() noexcept;
+    void likeRecipe (const FillRecipe&) noexcept;
+
+    const LockState& getLockState() const noexcept   { return lockState; }
+    const LikeState& getLikeState() const noexcept   { return like; }
 
     /** The gap bookkeeping a preview must never change (E-1 acceptance; used by tests). */
     struct GapBookkeeping
@@ -144,7 +161,11 @@ private:
     bool startPreview (std::uint8_t velocity, std::int64_t outputPos,
                        const AnalysisEngine&, const SourceHistory&, const EngineSettings&,
                        const FillRecipe* recipe, FillEventQueue* events) noexcept;
+    /** C-11: the bias is ignored while Fill Lock is on. */
+    bool likeApplies (const EngineSettings& s) const noexcept   { return like.active() && ! s.perf.lockOn; }
+
     void resetPreview() noexcept;
+    void flushLockEvents (std::int64_t pos, FillEventQueue* events) noexcept;
     void servePendingPreview (std::int64_t outputPos, const AnalysisEngine&, const SourceHistory&,
                               const EngineSettings&, FillEventQueue* events) noexcept;
 
@@ -153,6 +174,8 @@ private:
 
     FillVoice voices[numVoices];
     PreviewChannel preview;        // E-1: dedicated voice outside the pool of numVoices
+    LockState lockState;           // C-5
+    LikeState like;                // C-11
     SpectralSmear spectral;
 
     // --- gap state machine ---

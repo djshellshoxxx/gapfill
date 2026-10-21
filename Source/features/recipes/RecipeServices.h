@@ -9,6 +9,7 @@
 // audio thread; everything else on the message thread.
 
 #include "../audition/MidiTrigger.h"
+#include "../lock/LockSubtree.h"
 #include "../../dsp/EngineEvents.h"
 
 #include <juce_audio_basics/juce_audio_basics.h>
@@ -27,6 +28,7 @@ class RecipeServices
 {
 public:
     audition::MidiTrigger trigger;      // E-1 / U-3
+    lock::LockMirror lockMirror;        // C-5: message-thread copy of the engine's lock recipe
 
     //==========================================================================
     // Audio thread

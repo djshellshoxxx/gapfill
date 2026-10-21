@@ -13,7 +13,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_LOCK(X)
+#define GAPFILL_PARAMS_LOCK(X) \
+    X (fillLock, "fillLock")
 
 namespace gapfill
 {

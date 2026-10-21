@@ -21,8 +21,15 @@ bool RecipeServices::onFillEvent (const FillEvent& e) noexcept
 {
     switch (e.type)
     {
-        case FillEventType::PreviewStarted:
         case FillEventType::LockSet:
+            lockMirror = { true, e.recipe };
+            return true;
+
+        case FillEventType::LockCleared:
+            lockMirror = {};
+            return true;
+
+        case FillEventType::PreviewStarted:
             return true;                      // consumed: never listed in history or the outcome log
 
         default:

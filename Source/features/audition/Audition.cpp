@@ -8,21 +8,20 @@ namespace gapfill::audition
 
 bool handleCommand (FillEngine& engine, const Command& command, std::uint32_t nowMs) noexcept
 {
-    switch (command.type)
-    {
-        case CommandType::Preview:
-            if (! isStalePreviewCommand (command.issuedMs, nowMs))
-                engine.requestPreview (command.velocity != 0 ? command.velocity : (std::uint8_t) 100);
-            return true;
+    if (command.type != CommandType::Preview && command.type != CommandType::PreviewRecipe)
+        return false;
 
-        case CommandType::PreviewRecipe:
-            if (! isStalePreviewCommand (command.issuedMs, nowMs))
-                engine.requestPreviewRecipe (command.recipe, command.velocity != 0 ? command.velocity : (std::uint8_t) 100);
-            return true;
+    if (isStalePreviewCommand (command.issuedMs, nowMs))
+        return true;                                  // handled: too old to honour
 
-        default:
-            return false;
-    }
+    const auto velocity = command.velocity != 0 ? command.velocity : (std::uint8_t) 100;
+
+    if (command.type == CommandType::Preview)
+        engine.requestPreview (velocity);
+    else
+        engine.requestPreviewRecipe (command.recipe, velocity);
+
+    return true;
 }
 
 bool handleCommand (FillEngine& engine, const Command& command) noexcept
