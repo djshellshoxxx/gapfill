@@ -63,10 +63,20 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Repository preflight
         run: python tools/validate_repo.py
       - name: Preflight unit tests
-        run: python -m unittest tools/test_validate_repo.py
+        run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py
+
+      - name: Hot-file ownership (pull requests)
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          BASE_REF: ${{ github.base_ref }}
+        run: python tools/check_hot_files.py --title "$PR_TITLE" --labels "$PR_LABELS" --base "origin/$BASE_REF"
 
       - name: Windows, Linux and macOS packaging regression (synthetic fixtures)
         run: bash tools/test_package_release.sh

@@ -10,4 +10,5 @@ list(APPEND GAPFILL_TEST_SOURCES
     Tests/support/AllocGuard.cpp
     Tests/features/TestGolden.cpp
     Tests/features/TestStateFixtures.cpp
+    Tests/Perf.cpp
 )
