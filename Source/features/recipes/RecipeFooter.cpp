@@ -4,6 +4,7 @@
 //   1. MIDI learn countdown for the audition trigger
 //   2. a transient message (rejections for 2 s, "Start playback to audition", load/save results)
 //   3. "Preview: <Algorithm>" while an audition plays
+//   3b. "+1.4 dB match" while A/B level matching is trimming the output
 //   4. "Locked: <recipe>" / "Lock armed" / "Fill Type overrides Lock"
 //   5. "LIKED x3"
 //
@@ -84,6 +85,10 @@ namespace
                 const auto algo = previewAlgoOf (code);
                 next = algo >= 0 && algo < numAlgos ? "Preview: " + juce::String (algoName ((Algo) algo))
                                                     : juce::String ("Preview");
+            }
+            else if (services.match.isEnabled() && abcompare::trimText (services.match.getTrimDb()).isNotEmpty())
+            {
+                next = abcompare::trimText (services.match.getTrimDb());
             }
             else
             {

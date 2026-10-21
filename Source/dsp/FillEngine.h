@@ -53,12 +53,16 @@ public:
     // to the last one. It is served at the start of the next process() call.
 
     void requestPreview (std::uint8_t velocity) noexcept;
-    void requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity) noexcept;
+    void requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb = 0) noexcept;
 
     /** PreviewChannel::code(): status, algorithm and sequence number. */
     std::uint32_t getPreviewStatusCode() const noexcept   { return preview.code(); }
     bool isPreviewActive() const noexcept                 { return preview.isActive(); }
     bool isPreviewPending() const noexcept                { return preview.request.pending; }
+
+    /** F-S06: RMS of the last preview that finished (voice only) and a counter that moves with it. */
+    float getLastPreviewRms() const noexcept              { return preview.lastRms; }
+    std::uint32_t getPreviewDoneCount() const noexcept    { return preview.doneCount; }
 
     //--------------------------------------------------------------------------
     // C-5 Fill Lock / C-11 More Like That (audio thread; features/lock/LockEngine.cpp).
@@ -160,7 +164,7 @@ private:
         instead of choosing one. Sets the preview status. */
     bool startPreview (std::uint8_t velocity, std::int64_t outputPos,
                        const AnalysisEngine&, const SourceHistory&, const EngineSettings&,
-                       const FillRecipe* recipe, FillEventQueue* events) noexcept;
+                       const FillRecipe* recipe, int gainCentiDb, FillEventQueue* events) noexcept;
     /** C-11: the bias is ignored while Fill Lock is on. */
     bool likeApplies (const EngineSettings& s) const noexcept   { return like.active() && ! s.perf.lockOn; }
 

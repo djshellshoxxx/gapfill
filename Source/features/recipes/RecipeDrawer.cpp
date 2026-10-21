@@ -190,6 +190,27 @@ namespace
                    [this] { likeSelected(); });
             setup (saveBtn, "SAVE...", "Save recipe",
                    "Save the selected recipe as a small .gfrecipe file.", [this] { saveSelected(); });
+            setup (setABtn, "SET A", "Set recipe A",
+                   "Use the selected recipe as slot A of the recipe A/B compare.", [this] { setSlot (0); });
+            setup (setBBtn, "SET B", "Set recipe B",
+                   "Use the selected recipe as slot B of the recipe A/B compare.", [this] { setSlot (1); });
+            setup (abBtn, "A/B", "Audition recipe A or B",
+                   "Alternate the audition between recipe A and recipe B. Each recipe's level is measured and the "
+                   "same trim as the header A/B (up to 6 dB) keeps them equally loud.", [this] { auditionAB(); });
+            setup (matchBtn, "MATCH", "Match levels",
+                   "Match levels (header A/B): each side measures the loudness of the wet signal it produces and, once both "
+                   "sides have 3 seconds of fills, switching trims the output by up to 6 dB so they sound equally loud. "
+                   "The trim is never saved. Off by default.", [this] { toggleMatch(); });
+            matchBtn.setClickingTogglesState (true);
+            matchBtn.setColour (juce::TextButton::buttonOnColourId, colours::accentGreen);
+            matchBtn.setColour (juce::TextButton::textColourOnId, colours::accentGreen);
+
+            abLabel.setFont (fonts::mono (9.5f));
+            abLabel.setColour (juce::Label::textColourId, colours::textMuted);
+            abLabel.setMinimumHorizontalScale (0.7f);
+            abLabel.setInterceptsMouseClicks (false, false);
+            addChildComponent (abLabel);
+
             setup (exportBtn, "EXPORT...", "Export fill",
                    "Save the wet-only audio of the selected fill (or the latest fill or audition) as a 24-bit WAV: "
                    "only what GapFill added, after protect and width, before the dry/wet mix. Drag a chip into your DAW "
@@ -281,6 +302,15 @@ namespace
             row3.removeFromLeft (kGap);
             exportBtn.setBounds (row3.removeFromLeft (84));
             row3.removeFromLeft (kGap);
+            setABtn.setBounds (row3.removeFromLeft (52));
+            row3.removeFromLeft (kGap);
+            setBBtn.setBounds (row3.removeFromLeft (52));
+            row3.removeFromLeft (kGap);
+            abBtn.setBounds (row3.removeFromLeft (52));
+            row3.removeFromLeft (kGap);
+            matchBtn.setBounds (row3.removeFromLeft (64));
+            row3.removeFromLeft (kGap);
+            abLabel.setBounds (row3);
             extraRowArea = row3;
             layoutExtraRow();
         }
@@ -356,9 +386,13 @@ namespace
 
             handle.setButtonText ("RECIPES " + juce::String (h.size()));
 
+            const auto abText = abSummary();
+
             if (! force && generation == lastGeneration && like == lastLike && lockKey == lastLockKey
-                  && summary == lastSummary && open == lastOpen)
+                  && summary == lastSummary && open == lastOpen && abText == lastAbText)
                 return;
+
+            lastAbText = abText;
 
             lastGeneration = generation;
             lastLike = like;
@@ -382,15 +416,43 @@ namespace
             }
 
             for (auto* c : std::initializer_list<juce::Component*> { &lockToggle, &lockLabel, &auditionBtn, &lockThisBtn,
-                                                                     &likeBtn, &saveBtn, &loadBtn, &exportBtn })
+                                                                     &likeBtn, &saveBtn, &loadBtn, &exportBtn,
+                                                                     &setABtn, &setBBtn, &abBtn, &matchBtn, &abLabel })
                 c->setVisible (open);
 
             lockLabel.setText (summary, juce::dontSendNotification);
             lockThisBtn.setEnabled (sel >= 0);
             saveBtn.setEnabled (sel >= 0);
             exportBtn.setEnabled (h.size() > 0 || proc.getRecipes().lastPreviewSpan.isKnown());
+            setABtn.setEnabled (sel >= 0);
+            setBBtn.setEnabled (sel >= 0);
+            abBtn.setEnabled (proc.getRecipes().recipeAB.isReady());
+            matchBtn.setToggleState (proc.getRecipes().match.isEnabled(), juce::dontSendNotification);
+            abLabel.setText (abSummary(), juce::dontSendNotification);
             likeBtn.setButtonText (like > 0 ? "LIKED x" + juce::String (like) : juce::String ("MORE LIKE"));
             repaint();
+        }
+
+        juce::String abSummary() const
+        {
+            auto& services = proc.getRecipes();
+            const auto& ab = services.recipeAB;
+            juce::String text;
+
+            for (int slot = 0; slot < 2; ++slot)
+            {
+                if (ab.hasSlot (slot))
+                    text << (slot == 0 ? "A: " : "   B: ") << history::describeRecipe (ab.getSlot (slot), 0.0);
+            }
+
+            if (services.match.isEnabled())
+            {
+                const auto trim = abcompare::trimText (services.match.getTrimDb());
+                const auto have = juce::jmin (services.match.getSideSeconds (0), services.match.getSideSeconds (1));
+                text << "   " << (trim.isNotEmpty() ? trim : have < abcompare::kMinDataSeconds ? juce::String ("matching: measuring") : juce::String ("0.0 dB match"));
+            }
+
+            return text.trim();
         }
 
         juce::String lockSummary() const
@@ -537,6 +599,44 @@ namespace
             });
         }
 
+        void setSlot (int slot)
+        {
+            if (! hasSelection())
+                return;
+
+            const auto r = selectedRecipe();
+            proc.getRecipes().recipeAB.setSlot (slot, r);
+            proc.getRecipes().postMessage (juce::String (slot == 0 ? "A: " : "B: ") + history::describeRecipe (r, 0.0), 2500);
+            refresh (true);
+        }
+
+        void auditionAB()
+        {
+            heartbeat.poll (proc.getMeterState());
+
+            if (! heartbeat.isRunning())
+            {
+                proc.getRecipes().postMessage ("Start playback to audition");
+                return;
+            }
+
+            Command c;
+
+            if (! proc.getRecipes().recipeAB.next (c, juce::jmax<std::uint32_t> (1u, juce::Time::getMillisecondCounter())))
+            {
+                proc.getRecipes().postMessage ("Set recipe A and recipe B first (select a chip, then SET A / SET B)", 3500);
+                return;
+            }
+
+            proc.postCommand (c);
+        }
+
+        void toggleMatch()
+        {
+            proc.getRecipes().match.setEnabled (matchBtn.getToggleState());
+            refresh (true);
+        }
+
         void showMenu()
         {
             const auto sel = selectedIndex();
@@ -550,6 +650,8 @@ namespace
             menu.addItem (3, "More like this");
             menu.addItem (4, "Save recipe...");
             menu.addItem (5, "Export fill...");
+            menu.addItem (6, "Set as A");
+            menu.addItem (7, "Set as B");
 
             menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&chips[(size_t) sel]),
                                 [safe = juce::Component::SafePointer<RecipeDrawer> (this)] (int result)
@@ -562,6 +664,8 @@ namespace
                 else if (result == 3) safe->likeSelected();
                 else if (result == 4) safe->saveSelected();
                 else if (result == 5) safe->beginExport (ExportPurpose::File);
+                else if (result == 6) safe->setSlot (0);
+                else if (result == 7) safe->setSlot (1);
             });
         }
 
@@ -727,7 +831,8 @@ namespace
         std::array<ChipButton, (size_t) kChips> chips;
         GapToggle lockToggle;
         juce::Label lockLabel;
-        juce::TextButton auditionBtn, lockThisBtn, likeBtn, saveBtn, loadBtn, exportBtn;
+        juce::TextButton auditionBtn, lockThisBtn, likeBtn, saveBtn, loadBtn, exportBtn, setABtn, setBBtn, abBtn, matchBtn;
+        juce::Label abLabel;
 
         juce::Rectangle<int> drawerBounds, extraRowArea;
         juce::Rectangle<float> chipRow;
@@ -736,7 +841,7 @@ namespace
 
         std::uint32_t lastGeneration = 0;
         int lastLike = -1, lastLockKey = -1;
-        juce::String lastSummary;
+        juce::String lastSummary, lastAbText;
         bool lastOpen = false;
 
         std::unique_ptr<juce::FileChooser> chooser;

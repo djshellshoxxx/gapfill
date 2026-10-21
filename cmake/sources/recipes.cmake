@@ -8,3 +8,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/export/ExportService.cpp
     Source/features/export/WavExport.cpp
 )
+list(APPEND GAPFILL_SOURCES
+    Source/features/abcompare/MatchLevels.cpp
+    Source/features/abcompare/RecipeAB.cpp
+)

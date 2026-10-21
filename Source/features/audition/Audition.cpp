@@ -19,7 +19,7 @@ bool handleCommand (FillEngine& engine, const Command& command, std::uint32_t no
     if (command.type == CommandType::Preview)
         engine.requestPreview (velocity);
     else
-        engine.requestPreviewRecipe (command.recipe, velocity);
+        engine.requestPreviewRecipe (command.recipe, velocity, command.index);   // index = A/B trim in 1/100 dB
 
     return true;
 }

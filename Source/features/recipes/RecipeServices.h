@@ -8,6 +8,8 @@
 // Threading: members are tagged. `onMidi`, `afterWet`, `matchGain` run on the
 // audio thread; everything else on the message thread.
 
+#include "../abcompare/MatchLevels.h"
+#include "../abcompare/RecipeAB.h"
 #include "../audition/MidiTrigger.h"
 #include "../export/ExportService.h"
 #include "../lock/LockSubtree.h"
@@ -36,6 +38,8 @@ public:
     exporting::ExportService exportService;   // U-2
     FillSpan lastPreviewSpan;           // U-2: where the latest audition sits (message thread)
     FillRecipe lastPreviewRecipe;
+    abcompare::MatchLevels match;       // F-S06: header A/B level matching (audio + message thread)
+    abcompare::RecipeAB recipeAB;       // F-S06: History recipe A/B (message thread)
 
     //==========================================================================
     // Audio thread
@@ -59,6 +63,15 @@ public:
     //==========================================================================
     // Message thread
 
+    /** The header A/B changed side (called by the editor's A/B button). Bookkeeping only. */
+    void noteHeaderAbSide (bool sideB) noexcept        { match.setActiveSide (sideB ? 1 : 0); }
+
+    /** Per-sample output trim for the mix loop (exactly 1.0 unless "Match levels" is on and both
+        sides have been measured). Audio thread. */
+    float nextMatchGain() noexcept                     { return match.nextGain(); }
+
+    std::atomic<float> previewRms { 0.0f };     ///< F-S06: RMS of the last finished preview
+    std::atomic<std::uint32_t> previewDone { 0 };
     std::atomic<int>  likeRemaining { 0 };      ///< C-11 starts left, written by the audio thread
     std::atomic<bool> lockArmed { false };      ///< C-5 engaged with nothing to lock yet
 
@@ -78,6 +91,7 @@ public:
     juce::String getMessage() const;
 
 private:
+    std::uint32_t seenPreviewDone = 0;
     juce::String message;
     std::uint32_t messageUntilMs = 0;
 };

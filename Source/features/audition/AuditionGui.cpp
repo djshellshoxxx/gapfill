@@ -26,7 +26,7 @@ namespace
         "Play one fill right now from the last few seconds of audio, using the current settings. "
         "Needs audio playing through the plugin. Right-click to map a MIDI CC or a trigger note.";
 
-    constexpr int kMenuLearnCC = 1, kMenuClearCC = 2, kMenuLearnNote = 3, kMenuNoteOff = 4;
+    constexpr int kMenuLearnCC = 1, kMenuClearCC = 2, kMenuLearnNote = 3, kMenuNoteOff = 4, kMenuMatch = 5;
     constexpr int kMenuNoteBase = 1000, kMenuChannelBase = 2000;
 
     juce::String noteName (int n)
@@ -153,6 +153,8 @@ private:
             channels.addItem (kMenuChannelBase + c, channelName (c), true, c == trig.getChannel());
 
         menu.addSubMenu ("Channel: " + channelName (trig.getChannel()), channels);
+        menu.addSeparator();
+        menu.addItem (kMenuMatch, "Match levels (header A/B)", true, proc.getRecipes().match.isEnabled());
 
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this),
                             [safe = juce::Component::SafePointer<AuditionButton> (this)] (int result)
@@ -170,6 +172,8 @@ private:
                 t.getLearn() == Learn::Note ? t.stopLearn() : t.startLearn (Learn::Note);
             else if (result == kMenuNoteOff)
                 t.setNote (-1);
+            else if (result == kMenuMatch)
+                safe->proc.getRecipes().match.setEnabled (! safe->proc.getRecipes().match.isEnabled());
             else if (result >= kMenuChannelBase)
                 t.setChannel (result - kMenuChannelBase);
             else if (result >= kMenuNoteBase)

@@ -743,7 +743,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         const auto byp = bypassMix.getNextValue();
         const auto d = lerp (dryGain.getNextValue(), 1.0f, byp);
         const auto w = wetGain.getNextValue() * (1.0f - byp);
-        const auto o = lerp (outGain.getNextValue(), 1.0f, byp);
+        const auto o = lerp (outGain.getNextValue() * recipeServices.nextMatchGain(), 1.0f, byp);   // F-S06 trim (1.0 when off)
 
         float l, r;
 

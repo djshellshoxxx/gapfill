@@ -34,6 +34,16 @@ namespace
         "The last eight seconds of the wet bus are kept while the editor is open (and for a minute after it closes); "
         "older fills, and fills played before the editor was opened, show \"That fill is too old\". Only one export runs at a time. "
         "Nothing is recorded when the editor has never been opened, so a plugin you only mix with costs nothing.");
+
+    const HelpRegistrar matchHelp (4040, "A/B level matching",
+        "A louder side wins every comparison. MATCH (in the recipes drawer, or right-click AUDITION) switches on level matching "
+        "for the header A/B: each side measures the loudness of the wet signal it produces (a 100 Hz high-pass, 400 ms windows, "
+        "silence ignored, averaged over 10 seconds). Once both sides have 3 seconds of fills measured, switching trims the output "
+        "by up to 6 dB, over 50 ms, so the two sides sound equally loud, and the footer shows the trim, for example \"+1.4 dB match\".\n"
+        "The trim is only an output level: it is never saved with the project or a preset, is not a parameter, and disappears "
+        "when MATCH is switched off. Swapping A and B changes no parameter and adds no undo step.\n"
+        "Recipe compare: select a fill chip and press SET A, select another and press SET B, then press A/B to alternate the "
+        "audition between the two recipes. Each recipe's level is measured the same way and the same trim keeps them equally loud.");
 }
 
 } // namespace gapfill

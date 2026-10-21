@@ -19,13 +19,14 @@ void FillEngine::requestPreview (std::uint8_t velocity) noexcept
     preview.request.velocity = velocity;
 }
 
-void FillEngine::requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity) noexcept
+void FillEngine::requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb) noexcept
 {
     preview.request = {};
     preview.request.pending = true;
     preview.request.velocity = velocity;
     preview.request.hasRecipe = true;
     preview.request.recipe = recipe;
+    preview.request.gainCentiDb = juce::jlimit (-600, 600, gainCentiDb);
 }
 
 FillEngine::GapBookkeeping FillEngine::getGapBookkeeping() const noexcept
@@ -69,13 +70,13 @@ void FillEngine::servePendingPreview (std::int64_t outputPos, const AnalysisEngi
     preview.request = {};
 
     startPreview (request.velocity, outputPos, analysis, history, s,
-                  request.hasRecipe ? &request.recipe : nullptr, events);
+                  request.hasRecipe ? &request.recipe : nullptr, request.gainCentiDb, events);
 }
 
 bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
                                const AnalysisEngine& analysis, const SourceHistory& history,
                                const EngineSettings& s, const FillRecipe* recipeIn,
-                               FillEventQueue* events) noexcept
+                               int gainCentiDb, FillEventQueue* events) noexcept
 {
     auto fail = [this] (PreviewStatus why)
     {
@@ -189,11 +190,17 @@ bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
     // Velocity maps to amplitude: 0.8 * lerp (0.5, 1.0, vel / 127); toVoiceSetup supplied the 0.8.
     setup.amp *= lerp (0.5f, 1.0f, juce::jlimit (0.0f, 1.0f, (float) velocity / 127.0f));
 
+    // F-S06: the recipe A/B level-matching trim (0 for every other preview: x 1.0f is exact).
+    if (gainCentiDb != 0)
+        setup.amp *= std::pow (10.0f, (float) gainCentiDb / 2000.0f);
+
     // The previous preview fades out over 5 ms while the new one starts.
     preview.beginRestart (history);
 
     if (! startVoice (preview.voice, setup, plan, history))
         return fail (PreviewStatus::RejectedBuild);
+
+    preview.beginMeasuring();
 
     preview.status = PreviewStatus::Playing;
     preview.algo = plan.algoIndex;
