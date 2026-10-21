@@ -280,4 +280,43 @@ int PresetCatalog::step (int current, int delta) const noexcept
     return ((current + delta) % n + n) % n;
 }
 
+std::vector<int> PresetCatalog::favouriteIndices (const juce::StringArray& favourites) const
+{
+    std::vector<int> out;
+
+    for (int i = 0; i < (int) all.size(); ++i)
+        if (favourites.contains (all[(size_t) i].identity))
+            out.push_back (i);
+
+    return out;
+}
+
+int PresetCatalog::stepWithin (const std::vector<int>& pool, int current, int delta) noexcept
+{
+    const auto n = (int) pool.size();
+
+    if (n == 0)
+        return -1;
+
+    const auto it = std::find (pool.begin(), pool.end(), current);
+
+    if (it != pool.end())
+        return pool[(size_t) ((((int) (it - pool.begin()) + (delta >= 0 ? 1 : -1)) % n + n) % n)];
+
+    if (delta >= 0)
+    {
+        for (const int idx : pool)
+            if (idx > current)
+                return idx;
+
+        return pool.front();
+    }
+
+    for (int i = n - 1; i >= 0; --i)
+        if (pool[(size_t) i] < current)
+            return pool[(size_t) i];
+
+    return pool.back();
+}
+
 } // namespace gapfill::presets

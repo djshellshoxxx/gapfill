@@ -1,6 +1,7 @@
 #include "PresetBrowser.h"
 
 #include "../../PluginProcessor.h"
+#include "../../gui/HelpRegistry.h"
 #include "../../gui/Knob.h"
 #include "../../gui/LookAndFeel.h"
 
@@ -16,6 +17,16 @@ namespace
     {
         return (int) std::ceil (juce::GlyphArrangement::getStringWidth (font, text));
     }
+
+    const HelpRegistrar helpPresets (1110, "Presets, favourites and stepping", [] (HelpWriter& w)
+    {
+        w.body ("Click the preset name to browse, search and star presets. The < and > buttons (and Ctrl/Cmd + Up and Down while the editor has focus) "
+                "step through every factory and user preset and wrap around at the ends. Steps within three seconds of each other share one Undo entry, "
+                "so browsing twenty presets does not use up the 32 Undo steps and Undo brings back the sound from before you started stepping.");
+        w.body ("Ctrl/Cmd + D (or FILE > Add preset to favourites) stars the current preset. FILE > Arrows step through favourites only "
+                "makes < and > visit only the starred presets; with none starred they step through all presets and the footer says so. "
+                "A modified sound (Custom) cannot be starred. Favourites are per user and are not saved in projects.");
+    });
 }
 
 //==============================================================================

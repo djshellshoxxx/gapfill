@@ -406,8 +406,13 @@ const std::vector<Preset>& getFactoryPresets()
 //==============================================================================
 void resetToDefaults (juce::AudioProcessorValueTreeState& state)
 {
+    const auto routing = routingParameterIDs();      // F-M17: Reset and preset apply keep the routing switches
+
     for (const auto& id : allParameterIDs())
     {
+        if (routing.contains (id))
+            continue;
+
         if (auto* p = state.getParameter (id))
             p->setValueNotifyingHost (p->getDefaultValue());
     }

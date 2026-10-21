@@ -180,6 +180,23 @@ float ContextState::tensionWidthDelta (const EngineSettings& s, float baseWidth0
     return tension::widthDelta (t, baseWidth01, mid, valid, s.perf.tsNum, s.perf.tsDen);
 }
 
+float ContextState::tensionFxSend (const EngineSettings& s, int numSamples) const noexcept
+{
+    const auto& t = s.perf.tension;
+
+    if (! t.active() || t.depth[tension::FxSend] <= 0.0f)
+        return 1.0f;
+
+    const bool valid = s.transportValid && s.samplesPerBeat > 1.0;
+    const double mid = s.ppqAtBlockStart + (valid ? 0.5 * (double) numSamples / s.samplesPerBeat : 0.0);
+    const auto out = tension::tensionAt (mid, valid, s.perf.tsNum, s.perf.tsDen, t);
+
+    if (! out.active)
+        return 1.0f;
+
+    return std::clamp (1.0f - t.depth[tension::FxSend] * std::max (0.0f, 1.0f - 2.0f * out.c[tension::FxSend]), 0.0f, 1.0f);
+}
+
 void ContextState::publishArrangement() noexcept
 {
     const auto& a = section.state();

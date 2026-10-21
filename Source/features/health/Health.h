@@ -60,7 +60,7 @@ struct Observations
     bool scRequested = false;           ///< detSource != Main
     bool scBusEnabled = false;          ///< the sidechain bus is enabled by the host
     float scPeak = 0.0f;                ///< linear peak of the sidechain in this chunk
-    bool freeTimingFallback = false;    ///< E-2 fallback BPM in use (not wired until E-2 lands)
+    bool freeTimingFallback = false;    ///< E-2 fallback BPM in use (tempo feature on, transport invalid, no host tempo seen recently)
     float cpu01 = 0.0f;                 ///< smoothed estimate, telemetry::CpuMeter
     bool deadlineOverrun = false;       ///< pulse: a block took longer than it lasted
     std::uint32_t droppedEvents = 0;    ///< pulse: events/commands dropped since the last chunk

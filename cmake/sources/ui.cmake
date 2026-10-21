@@ -5,6 +5,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/info/ParamInfo.cpp
     Source/features/info/CoreInfo.cpp
     Source/features/info/BusFxInfo.cpp
+    Source/features/info/FxInfo.cpp
     Source/features/info/StatusBoard.cpp
     Source/features/info/HoverStatus.cpp
     Source/features/viewmode/ViewMode.cpp
@@ -15,6 +16,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/calibrate/Calibrator.cpp
     Source/features/calibrate/Session.cpp
     Source/features/calibrate/Gui.cpp
+    Source/features/calibrate/OptionsRow.cpp
     Source/features/suggest/Profile.cpp
     Source/features/suggest/Suggest.cpp
     Source/features/suggest/Gui.cpp

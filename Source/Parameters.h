@@ -234,4 +234,9 @@ juce::StringArray randomisableParameterIDs();
     add<Group>PerformanceIds). Disjoint from randomisableParameterIDs(). */
 juce::StringArray performanceParameterIDs();
 
+/** F-M17: routing switches that factory presets, Reset and Undo / file load must PRESERVE (a hidden
+    wet-only state would silence a project after loading a preset). Host session restore still applies
+    them. A subset of performanceParameterIDs(). */
+juce::StringArray routingParameterIDs();
+
 } // namespace gapfill

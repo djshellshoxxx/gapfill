@@ -46,6 +46,31 @@ Windows beta builds are packaged and published as GitHub prereleases only after 
   a compile error in preset saving; unnamed weight sliders for screen readers; the CI
   `clap-validator` install step.
 
+## Unreleased: features added since 0.0.1 beta
+
+These are implemented, wired and covered by the automated suite on the development branch; they are **not in the 0.0.1 beta binaries**
+and have not yet been checked in real DAW hosts (see `docs/dev/features/IMPLEMENTATION-STATUS.md` for the per-ticket status and
+`docs/audits/2026-10-21-completeness-audit.md` for what the last audit verified and what is still open). Everything new is off or neutral
+by default, so an existing project sounds the same.
+
+- **Explain and assist** - Fill Audition (AUDITION button, FILE menu, MIDI note or CC trigger), "why didn't it fill" reasons on the visualiser and a gap
+  timeline, a transport/sidechain/CPU health line in the footer with Fix-it suggestions you can apply and undo, Auto-Calibrate (LEARN), event capture and replay.
+- **Recipes** - the last eight fills in the RECIPES drawer: audition, Lock (repeat a fill's character), More Like This, save/load `.gfrecipe`, A/B compare with
+  level matching, and Export Fill (wet-only 24-bit WAV, also by drag into a DAW).
+- **Shaping** - fill intensity envelope, personalities, density breathing, phrase awareness, per-bar budget and quiet zones, per-band fill type, capture length and
+  recapture, controlled mistakes, controlled evolve, tempo-sync fallback tempo (Options).
+- **Effects** (Performance tab / Effects section, all off at Amount 0) - Reverse Swell, Granular Cloud, Ratchet, Rhythmic Crush, Tape Destruction, Comb Resonator,
+  Frequency-shifted Delay, Dub Echo, Hit Reverb (transient-triggered convolution), Formant shift, Spectral Freeze and Freeze & Scrub, Harmonic Granular, per-lane effect switches.
+- **Musical context** - Scale Lock and automatic key detection, groove inheritance, call and response, energy following, tension/release curves with a curve editor, arrangement awareness,
+  local preference learning (Like/Skip).
+- **Live control** - MIDI command map and controller profiles with LED feedback (Standalone), Panic/Recover (footer chip and a large Performance-tab button), momentary
+  and latch holds, Stutter Storm, Glitch Roulette, quantised Fill Now, scenes with quantised recall and `.gapbank` exchange, macros with LFOs, Beat Battles, a wet safety limiter.
+- **Routing and system** - Wet-only output (kept across presets, Reset, Undo and file load), an optional Wet output bus, sidechain-driven fills, MIDI output
+  (build option `GAPFILL_MIDI_OUT`, off by default), quality modes (Full/Balanced/Lite/Auto), multi-instance co-operation (safe subset).
+- **Usability** - Simple/Advanced view, interface size 100-200 %, quick tour, accessibility palettes and large controls, a preset browser with favourites, 41 factory presets, Mutation Lab, smart preset suggestions.
+
+Not built: the per-voice formant design (a recorded design deviation: the formant effect ships as a bus card), MIDI Program Change preset selection, Hit/CC events for MIDI output; see the status file.
+
 ## Building
 
 Requirements: CMake 3.22+, a C++20 compiler (MSVC 2022 on Windows), and the JUCE
@@ -135,6 +160,10 @@ transient patterns, gap confidence, per-band availability, sidechain detection),
 every fill algorithm, the protection system, latency/lookahead alignment, state
 serialisation, and a large combinatorial sweep of parameter settings.
 
+`python3 tools/audit/completeness_audit.py` checks the wiring that a compiler cannot: every parameter has a ParamInfo entry, a GUI control (or a documented
+reason), a lock-file entry and a Random/Undo classification; every source and test file is compiled; every command id has a handler; every state subtree
+has handlers; every feature spec has a status row.
+
 Plugin validation (scan, creation, editor lifecycle, bus layouts, state, audio
 processing) is run with [pluginval](https://github.com/Tracktion/pluginval):
 
@@ -195,8 +224,10 @@ Source/
   PluginEditor.*          top bar, tabs, A/B, presets, FILE menu, overlays
   Parameters.*            stable parameter IDs (X-macro) + cached atomics
   Presets.*               41 factory presets in 7 categories + Starting Points, reset, randomise
-  features/presetbrowser  preset browser, user presets, per-user settings file
-  features/{info,viewmode,uiscale,tour,access,calibrate,suggest,mutation}  WP11 UI features
+  features/                one folder per feature (see docs/architecture/MODULES.md): presetbrowser, info, viewmode,
+                          uiscale, tour, access, calibrate, suggest, mutation, fx (cards), scenes, macros, commands,
+                          panic, momentary, battle, lock, history, export, audition, fixit, health, timeline, ...
+  params/                 one parameter group per feature (IDs append-only, locked in tools/param_ids/)
   MidiLearn.*             CC learn and mapping, lock-free audio -> UI
   dsp/
     DspUtils.h            SVF, envelopes, RNG, SourceHistory, EventQueue

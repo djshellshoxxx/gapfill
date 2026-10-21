@@ -41,7 +41,17 @@ public:
     void showTour (bool force);
     static bool& tourAutoShowEnabled();
 
+    /** F-S11: Ctrl/Cmd + D favourites the current preset, Ctrl/Cmd + Up / Down step to the previous / next preset.
+        Keys the focused child does not use bubble up to here. */
+    bool keyPressed (const juce::KeyPress&) override;
+
    #ifdef GAPFILL_UNIT_TESTS
+    void stepPresetForTests (int delta)         { stepPreset (delta); }
+    void forgetPresetBurstForTests()            { lastPresetStepMs = 0; undoPushesAfterLastStep = 0; }
+    bool feedBattleFromHeaderAbForTests()       { return feedBattleFromHeaderAb(); }
+    void setHeaderSlotsForTests (const juce::ValueTree& a, const juce::ValueTree& b) { slotA = a; slotB = b; }
+    void toggleCurrentFavouriteForTests()       { toggleCurrentFavourite(); }
+    juce::String currentPresetIdentityForTests() const { return currentPresetIdentity(); }
     void applyKeyboardNavigationSettingForTests() { applyKeyboardNavigationSetting(); }
     int getKeyboardFocusableControlCountForTests() const;
     int getUnnamedKeyboardFocusableControlCountForTests() const;
@@ -56,6 +66,7 @@ public:
     void applyScaleForTests()                   { applyScale(); }
     juce::Rectangle<int> getOptionsExtraBoundsForTests() const { return optionsView.getExtraBounds(); }
     juce::Rectangle<int> getOptionsBoundsForTests() const { return optionsView.getBounds(); }
+    OptionsView& getOptionsViewForTests() noexcept { return optionsView; }
     tour::TourOverlay* getTourOverlayForTests() noexcept { return tourOverlay.get(); }
     bool maybeAutoShowTourForTests()            { return maybeAutoShowTour(); }
     void applyAccessibilityForTests()           { applyAccessibility(); }
@@ -81,6 +92,9 @@ private:
     enum class Tab { Creative = 0, Weights, Spectral, Performance };
 
     void timerCallback() override;
+    juce::uint32 lastPresetStepMs = 0;          // F-S11: steps within 3 s of each other share one Undo entry
+    unsigned undoPushesAfterLastStep = 0;
+    juce::uint32 presetStatusUntilMs = 0;       // F-S11: "Preset 12/25: name" in the footer for a short while
     juce::Rectangle<int> footerBounds() const;
     void setTab (Tab newTab);
     void applyViewMode();
@@ -92,6 +106,10 @@ private:
     void setPresetDisplay (const juce::String&);
     int  currentPresetIndex() const;
     void stepPreset (int delta);
+    juce::String currentPresetIdentity() const;
+    void toggleCurrentFavourite();
+    void showPresetStatus (const juce::String&);
+    bool feedBattleFromHeaderAb();
     bool loadCatalogEntry (const presets::PresetEntry&);
     void showPresetBrowser();
     void showMutationLab();

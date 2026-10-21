@@ -386,7 +386,7 @@ namespace
         GapFillAudioProcessor& proc;
     };
 
-    const SlotRegistrar shapeButton ({ Slot::CreativeExtra, 110,
+    const SlotRegistrar shapeButton ({ Slot::CreativeExtra, 120,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<ShapeButton> (proc);

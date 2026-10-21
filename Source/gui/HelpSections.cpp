@@ -215,6 +215,10 @@ namespace
     {
         w.entry ("Dry / Wet", "independent levels for the original and the generated material.");
         w.entry ("Output", "final trim, -24 to +12 dB.");
+        w.entry ("OUTPUT: NORMAL / WET ONLY", "the button under the readouts. WET ONLY sends only what GapFill generates to the main "
+                                              "output, at unity, with no dry signal: Dry and Wet are shown dimmed and ignored, Output still "
+                                              "applies, bypass wins. A WET ONLY chip also appears in the footer next to PANIC so the "
+                                              "state cannot be forgotten. Presets, Reset, Undo and file loads never change it.");
         w.entry ("Wet Width / Mono Wet", "stereo width of the fills only. Mono Wet collapses them for "
                                        "maximum mono compatibility.");
         w.entry ("Meters", "input, fill and output levels, plus the live gap-confidence bar.");
@@ -246,6 +250,11 @@ namespace
                                       "Enable it to use Tab / Shift+Tab between controls, arrow keys on "
                                       "sliders and menus, and Space/Return on buttons.");
         w.entry ("Hover Tooltips", "can be turned off globally without changing the sound.");
+        w.entry ("More options", "The lower part of the Options page scrolls. It holds Interface size, Accessibility, "
+                               "the tempo to use when the host provides none, the Auto-Calibrate listening time (4 to 15 seconds) "
+                               "and whether its result is applied automatically (off by default), the MIDI output offset (-100 to +100 ms, "
+                               "saved with the project), the Fill Audition trigger note, channel and CC, and the controller profile. "
+                               "These are preferences, not parameters: they are never automated and never part of a preset.");
     });
 
     const HelpRegistrar helpSection9000 (9000, "Troubleshooting", [] (HelpWriter& w)

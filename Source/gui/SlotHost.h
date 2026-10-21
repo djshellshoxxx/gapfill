@@ -51,10 +51,10 @@ std::vector<SlotComponentFactory> getSlotFactories (Slot);
 //==============================================================================
 /** How a slot arranges its components inside its rectangle (UI-0).
     Row: left to right, the width split evenly (default).
-    Column: top to bottom, the height split evenly (OptionsExtra).
+    Column: top to bottom, the height split evenly (no slot uses it since OptionsExtra became a Stack).
     Stack: top to bottom at the full width, each component keeping its OWN
     height (the height it had when created, or what it later sets itself, e.g.
-    a foldable effect card). Used by PerformanceTab (EffectsSection components bring their own scrolling and fill the drawer); the
+    a foldable effect card). Used by PerformanceTab and OptionsExtra (EffectsSection components bring their own scrolling and fill the drawer); the
     stack's total height is reported so a scrolling panel can size its content. */
 enum class SlotLayout { Row, Column, Stack };
 

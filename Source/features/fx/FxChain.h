@@ -20,6 +20,7 @@
 #include "EngineBlockIO.h"
 #include "FxMeters.h"
 #include "bus/BusCards.h"
+#include "../../dsp/EngineEvents.h"
 
 #include <array>
 #include <vector>
@@ -62,6 +63,15 @@ public:
     /** The WP9 bus cards (control access for the editor and tests). */
     bus::BusCards& cardsRef() noexcept { return busCards; }
     const bus::BusCards& cardsRef() const noexcept { return busCards; }
+
+    /** X-1 commands 24 / 25 (SpectralCapture / SpectralRelease): same requests as the
+        Effects section buttons (atomic counters, audio-thread safe). True when handled. */
+    bool handleCommand (const Command& c) noexcept
+    {
+        if (c.type == CommandType::SpectralCapture) { busCards.spfreeze.requestCapture(); return true; }
+        if (c.type == CommandType::SpectralRelease) { busCards.spfreeze.requestRelease(); return true; }
+        return false;
+    }
 
     FxMeters& getMeters() noexcept { return meters; }
     const FxMeters& getMeters() const noexcept { return meters; }

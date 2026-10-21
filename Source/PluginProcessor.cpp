@@ -316,7 +316,7 @@ void GapFillAudioProcessor::drainCommands() noexcept
             shaping.capture.requestRecapture();
         else if (batch[i].type == CommandType::ReleaseCapture)
             shaping.capture.requestRelease();
-        else
+        else if (! fxChain.handleCommand (batch[i]))      // X-1 24/25: spectral freeze capture / release
             hooks::dispatchCommand (engine, batch[i]);
 
         contextState.onCommand (batch[i]);
@@ -444,8 +444,13 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
     // DAW changes buffer sizes or processBlock splits oversized host buffers.
     if (playing && startSample == 0)
     {
-        if (! lastTransportPlaying || ! lastTransportPositionValid || ! ppqValid
-             || std::abs (ppq - lastPpqPosition) > 0.25)
+        // W-03: "playing without a PPQ" is a one-shot (the callback that loses the position), not a reset on every
+        // callback, which would panic the wet signal and restart the gap counter in every block.
+        const bool jumped = ! lastTransportPlaying
+                            || (ppqValid ? (! lastTransportPositionValid || std::abs (ppq - lastPpqPosition) > 0.25)
+                                         : lastTransportPositionValid);
+
+        if (jumped)
         {
             engine.noteTransportJump();
             contextState.onTransportJump();
@@ -789,6 +794,8 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         ci.tsDen = engineSettings.perf.tsDen;
         ci.tempoFeatureOn = pb (params.syncEnable) || pb (params.maxFillSync)
                              || engineSettings.perf.quantDivision >= 0 || engineSettings.perf.modSync;
+        ci.freeTimingFallback = ci.tempoFeatureOn && ! ci.transportValid
+                                && ! shaping.tempo.hostTempoSeenRecently (currentSampleRate);
         ci.scRequested = detSource != DetSource::Main || scDriveRequested;
         ci.scBusEnabled = sidechainBusEnabled;
         ci.scPeak = sidechainBusEnabled ? explain::peakOf (monoSide.data(), numSamples) : 0.0f;
@@ -813,6 +820,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     analysis.discardEventsBefore (juce::jmax ((std::int64_t) 0, outputStart));
 
     // WP8 (FX-0): bus effect chain sees the wet bus before the wet post-processing.
+    fx::applyEffectSend (engineSettings.fx, contextState.tensionFxSend (engineSettings, numSamples));      // WP7 F-M21 FX lane (identity while Tension is off)
     auto fxIo = fxChain.beginBlock (engineSettings.fx, numSamples);
 
     engine.clearTransitions();
@@ -1177,6 +1185,7 @@ juce::String GapFillAudioProcessor::surprise()
 void GapFillAudioProcessor::pushUndoSnapshot()
 {
     undoStack.push_back (apvts.copyState().createCopy());
+    ++undoPushCount;
 
     if ((int) undoStack.size() > maxUndoSteps)
         undoStack.erase (undoStack.begin());
@@ -1189,7 +1198,7 @@ bool GapFillAudioProcessor::undo()
 
     auto snapshot = std::move (undoStack.back());
     undoStack.pop_back();
-    return applyParameterState (snapshot);
+    return applyParameterState (snapshot, true);          // performance state is never undone (docs/dev/02 F0-1)
 }
 
 //==============================================================================
@@ -1338,13 +1347,59 @@ void GapFillAudioProcessor::snapParametersToState()
     }
 }
 
-bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state)
+void GapFillAudioProcessor::replaceParameterStateKeepingPerformance (const juce::ValueTree& state)
+{
+    // Overwrite the performance nodes of the incoming tree with the current ones, so the values travel the exact
+    // same path as an ordinary load (no float round trip through normalised values: Undo stays bit-exact).
+    auto incoming = state.createCopy();
+    const auto current = apvts.copyState();
+
+    for (const auto& id : performanceParameterIDs())
+    {
+        const auto now = current.getChildWithProperty ("id", id);
+        auto node = incoming.getChildWithProperty ("id", id);
+
+        if (! now.isValid())
+            continue;
+
+        if (node.isValid())
+            node.setProperty ("value", now.getProperty ("value"), nullptr);
+        else
+            incoming.appendChild (now.createCopy(), nullptr);
+    }
+
+    apvts.replaceState (incoming);
+}
+
+bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state, bool keepPerformance)
 {
     if (! isParameterStateValid (state))
         return false;
 
     programChangeInProgress.store (true, std::memory_order_relaxed);
-    apvts.replaceState (state.createCopy());
+
+    if (keepPerformance)
+    {
+        replaceParameterStateKeepingPerformance (state);       // Undo
+    }
+    else
+    {
+        // F-M17: .gapfill file load keeps the routing switches (wet-only) as they are now.
+        auto incoming = state.createCopy();
+        const auto current = apvts.copyState();
+
+        for (const auto& id : routingParameterIDs())
+        {
+            const auto now = current.getChildWithProperty ("id", id);
+            auto node = incoming.getChildWithProperty ("id", id);
+
+            if (now.isValid() && node.isValid())
+                node.setProperty ("value", now.getProperty ("value"), nullptr);
+        }
+
+        apvts.replaceState (incoming);
+    }
+
     snapParametersToState();
     liveControl.forceHoldsOff();                    // F-M10: holds are never ON after a restore
     currentProgram.store (-1, std::memory_order_relaxed);

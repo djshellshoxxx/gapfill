@@ -37,7 +37,7 @@ SlotLayout defaultLayoutFor (Slot slot) noexcept
 {
     switch (slot)
     {
-        case Slot::OptionsExtra:   return SlotLayout::Column;
+        case Slot::OptionsExtra:   return SlotLayout::Stack;      // inside the Options page's scrolling area
         case Slot::PerformanceTab: return SlotLayout::Stack;
         default:                   return SlotLayout::Row;
     }
@@ -171,7 +171,7 @@ void SlotHost::layout (Slot slot)
     const auto area = bounds[(size_t) slot];
     const bool show = visible[(size_t) slot] && ! area.isEmpty();
     const auto n = (int) comps.size();
-    const bool vertical = (slot == Slot::OptionsExtra);
+    const bool vertical = false;      // no Column slot is registered any more (OptionsExtra became a Stack)
     const juce::ScopedValueSetter<bool> guard (inLayout, true);
 
     if (defaultLayoutFor (slot) == SlotLayout::Stack)

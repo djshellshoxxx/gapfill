@@ -4,6 +4,8 @@ list(APPEND GAPFILL_SOURCES
     Source/features/routing/Info.cpp
     Source/features/scdrive/ScDrive.cpp
     Source/features/midiout/MidiOut.cpp
+    Source/features/midiout/MidiOutState.cpp
+    Source/features/midiout/OptionsRow.cpp
     Source/features/quality/Quality.cpp
     Source/features/coop/Coop.cpp
     Source/gui/slots/RoutingSlot.cpp

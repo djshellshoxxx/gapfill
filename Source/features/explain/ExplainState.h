@@ -48,6 +48,7 @@ struct ChunkInfo
     float scPeak = 0.0f;                ///< linear peak of the sidechain in this chunk
     bool bypassed = false;
     bool panicActive = false;           ///< N-USE-a (WP6): LiveControl's panic hold
+    bool freeTimingFallback = false;    ///< E-2: a tempo feature is on and the Options fallback BPM is in use (no host tempo seen lately)
     std::uint32_t droppedTotal = 0;     ///< FillEventQueue::getDroppedCount()
 };
 

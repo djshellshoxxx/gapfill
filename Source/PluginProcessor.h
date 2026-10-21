@@ -80,7 +80,12 @@ public:
     /** Validates and atomically applies a bare APVTS parameter tree.
         Unknown parameters are ignored for forward compatibility; malformed
         values for known parameters reject the whole state. */
-    bool applyParameterState (const juce::ValueTree& state);
+    bool applyParameterState (const juce::ValueTree& state, bool keepPerformance = false);
+
+    /** Replaces the parameter values with `state` but keeps the CURRENT value of every performance parameter
+        (performanceParameterIDs(): Lock, holds, scrub, macros on, battle, routing ...). Used by Undo and the
+        header A/B swap: docs/dev/02 F0-1 keeps performance state out of Undo snapshots and A/B. Message thread. */
+    void replaceParameterStateKeepingPerformance (const juce::ValueTree& state);
 
     static constexpr std::int64_t maxPresetFileBytes = 1024 * 1024;
 
@@ -164,6 +169,10 @@ public:
     void pushUndoSnapshot();
     bool canUndo() const noexcept { return ! undoStack.empty(); }
     int  getUndoDepth() const noexcept { return (int) undoStack.size(); }
+    /** F-S11: drops the newest snapshot, so a burst of preset steps leaves ONE undo entry (the sound before the burst). */
+    void discardNewestUndoSnapshot() noexcept { if (! undoStack.empty()) undoStack.pop_back(); }
+    /** Number of snapshots ever pushed (also when the oldest was evicted): lets a caller see that something pushed one. */
+    unsigned getUndoPushCount() const noexcept { return undoPushCount; }
     /** Restores the sound from before the most recent big action. */
     bool undo();
 
@@ -332,6 +341,7 @@ private:
     juce::Random randomSource;
     int lastSurpriseProfile = -1;
     std::vector<juce::ValueTree> undoStack;
+    unsigned undoPushCount = 0;
     std::atomic<int> latencyToReport { 0 };
     std::atomic<bool> prepared { false };
 

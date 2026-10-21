@@ -68,7 +68,12 @@ jobs:
       - name: Repository preflight
         run: python tools/validate_repo.py
       - name: Preflight unit tests
-        run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py
+        run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py
+
+      - name: Completeness audit and layout-literal ratchet
+        run: |
+          python tools/audit/completeness_audit.py
+          python tools/check_layout_literals.py
 
       - name: Hot-file ownership (pull requests)
         if: github.event_name == 'pull_request'
@@ -148,7 +153,17 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p test-results
+          set +e
           xvfb-run -a build-ci/artefacts/GapFillTests 2>&1 | tee test-results/GapFillTests-linux-full.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::group::Failing tests"
+            grep -n -B6 -A3 '\[FAIL\]' test-results/GapFillTests-linux-full.log || true
+            echo "::endgroup::"
+            grep -h -B6 -A3 '\[FAIL\]' test-results/GapFillTests-linux-full.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done
+          fi
+          exit "$status"
 
       - name: Golden diagnostics (only after a failure)
         if: failure()

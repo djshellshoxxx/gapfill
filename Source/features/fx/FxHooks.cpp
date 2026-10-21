@@ -48,6 +48,7 @@ void gatherFx (EngineSettings& s, const ParamCache& p) noexcept
     f.scrub.on = pb (p.scrubOn);
     f.scrub.pos01 = pv (p.scrubPos) / 100.0f;
     f.scrub.widthMs = pv (p.scrubWidth);
+    f.scrub.windowMs = pv (p.captureLength);       // C-10: the scrub snapshot is as long as the Capture length (default 1 s)
 
     f.resonator.amount01 = pv (p.resAmount) / 100.0f;
     f.resonator.note = juce::jlimit (24, 96, pi (p.resNote));

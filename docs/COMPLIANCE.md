@@ -10,7 +10,7 @@ GapFill uses docs/standards/CDL_PLUGIN_BASELINE.md as the required common Circui
 | MIDI | Implemented | MIDI input is used for CC learn and mapped parameter control; GapFill is not a MIDI effect. It emits no MIDI in shipped builds: gap / fill note output (F-L11) exists behind the build option `GAPFILL_MIDI_OUT`, which is OFF by default (it changes `producesMidi()` and the host routing; enabling it is a release decision after the host matrix, VST3/CLAP only, never AU). |
 | Standalone | Implemented | Standalone target exposes device configuration through JUCE's standalone host wrapper. |
 | File loading | Implemented | Portable .gapfill parameter-state files can be saved and opened. |
-| File export | Planned, not implemented | U-2 Fill Export is specified in docs/dev/05-SPEC-USABILITY-VALUE.md. Do not describe offline fill rendering/export as shipped until implemented and validated. |
+| File export | Implemented (development branch, unreleased) | U-2 Export Fill writes the wet-only audio of a recent fill as a 24-bit WAV to a file the user chooses (RECIPES drawer, FILE > Export last fill..., drag into a DAW); the recorder is armed only while the drawer or menu is in use. No offline whole-track rendering exists. Drag-out into real DAWs is unverified. |
 | Instrument | Not applicable | GapFill generates fills from recent input audio and is not an instrument. |
 
 ## Compliance areas
@@ -52,4 +52,4 @@ Full validation is defined in docs/VALIDATION.md and enforced by the JUCE test s
 
 ## Planned compliance changes (docs/dev/12)
 
-Rows below change when the named ticket ships; update this file in the same PR. File export: U-2 (and F-L12 wet bus, F-M17 wet-only mode). MIDI profile: X-1 adds MIDI *command* bindings and Program Change input; F-L11 would make GapFill emit MIDI and is a build option that stays OFF by default (the "emits no MIDI" statement holds until then, never for AU). Keyboard navigation and Reduced Motion: every new control follows the existing rows; F-D04 adds contrast and large-control settings. Privacy: F-D02 event files and F-X05 preference tables are local files only, opt-in, never transmitted; no row changes to "no telemetry".
+Rows below change when the named ticket ships; update this file in the same PR. File export: U-2 shipped on the development branch (F-L12 wet bus and F-M17 wet-only mode too; the Wet bus is not declared for AU until auval + Logic pass). MIDI profile: X-1 adds MIDI *command* bindings and Program Change input; F-L11 would make GapFill emit MIDI and is a build option that stays OFF by default (the "emits no MIDI" statement holds until then, never for AU). Keyboard navigation and Reduced Motion: every new control follows the existing rows; F-D04 adds contrast and large-control settings. Privacy: F-D02 event files and F-X05 preference tables are local files only, opt-in, never transmitted; no row changes to "no telemetry".

@@ -280,7 +280,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     addChildComponent (*calibrateCard);
     detectionPanel.onLearn = [this] { calibrateCard->begin(); calibrateCard->toFront (false); };
 
-    slots->setSlotContainer (Slot::OptionsExtra, &optionsView);
+    slots->setSlotContainer (Slot::OptionsExtra, &optionsView.getExtraContent());
 
     if (slots->getNumComponents (Slot::PerformanceTab) > 0)
     {
@@ -360,6 +360,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     // ---- A/B snapshots -----------------------------------------------------
     slotA = proc.getValueTreeState().copyState().createCopy();
     slotB = slotA.createCopy();
+    proc.getUiState().editorActions.battleFromHeaderAb = [this] { return feedBattleFromHeaderAb(); };
 
     // Start every editor session with a clean visual history. Drain through
     // the FIFO's consumer API rather than resetting its indices: an audio
@@ -411,6 +412,7 @@ GapFillAudioProcessorEditor::~GapFillAudioProcessorEditor()
     proc.getUiState().status.clear (info::StatusKind::Learn);
     proc.getUiState().status.clear (info::StatusKind::Capture);
     proc.getExplainState().openOptions = nullptr;
+    proc.getUiState().editorActions.battleFromHeaderAb = nullptr;
     proc.getVisualisationFifo().setEnabled (false);
     setLookAndFeel (nullptr);
 }
@@ -637,12 +639,96 @@ int GapFillAudioProcessorEditor::currentPresetIndex() const
 void GapFillAudioProcessorEditor::stepPreset (int delta)
 {
     refreshPresetList();
-    const auto index = navCatalog.step (currentPresetIndex(), delta);
+
+    // F-S11: "Favourites only" steps through the starred presets; with none saved it falls back to all of them.
+    int index;
+    bool fellBack = false;
+
+    if (settingsFile->getInt (presets::kKeyStepScope, 0) == 1)
+    {
+        const auto pool = navCatalog.favouriteIndices (settingsFile->getFavourites());
+        fellBack = pool.empty();
+        index = fellBack ? navCatalog.step (currentPresetIndex(), delta)
+                         : presets::PresetCatalog::stepWithin (pool, currentPresetIndex(), delta);
+    }
+    else
+    {
+        index = navCatalog.step (currentPresetIndex(), delta);
+    }
 
     if (index < 0)
         return;
 
-    loadCatalogEntry (navCatalog.entries()[(size_t) index]);
+    // Undo coalescing: a burst of steps (each within 3 s of the previous, nothing else pushed an Undo entry in between)
+    // keeps only the snapshot from before the burst, so browsing 20 presets does not push real work out of the 32 steps.
+    const auto now = juce::Time::getMillisecondCounter();
+    const bool inBurst = lastPresetStepMs != 0 && now - lastPresetStepMs <= 3000u
+                         && proc.getUndoPushCount() == undoPushesAfterLastStep;
+    const auto pushesBefore = proc.getUndoPushCount();
+
+    if (! loadCatalogEntry (navCatalog.entries()[(size_t) index]))
+        return;
+
+    if (inBurst && proc.getUndoPushCount() > pushesBefore)
+        proc.discardNewestUndoSnapshot();
+
+    lastPresetStepMs = juce::jmax<juce::uint32> (1u, now);
+    undoPushesAfterLastStep = proc.getUndoPushCount();
+
+    const auto total = (int) navCatalog.entries().size();
+    showPresetStatus (fellBack ? juce::String ("No favourites yet - stepping all presets")
+                               : "Preset " + juce::String (index + 1) + "/" + juce::String (total) + ": "
+                                     + navCatalog.entries()[(size_t) index].name);
+}
+
+void GapFillAudioProcessorEditor::showPresetStatus (const juce::String& text)
+{
+    proc.getUiState().status.set (info::StatusKind::Preview, text);
+    presetStatusUntilMs = juce::jmax<juce::uint32> (1u, juce::Time::getMillisecondCounter() + 3000u);
+}
+
+juce::String GapFillAudioProcessorEditor::currentPresetIdentity() const
+{
+    const auto index = currentPresetIndex();
+    return index >= 0 ? navCatalog.entries()[(size_t) index].identity : juce::String();
+}
+
+void GapFillAudioProcessorEditor::toggleCurrentFavourite()
+{
+    refreshPresetList();
+    const auto id = currentPresetIdentity();
+
+    if (id.isEmpty())
+    {
+        showPresetStatus ("Load a preset first: a modified sound cannot be a favourite");
+        return;
+    }
+
+    const bool now = ! settingsFile->isFavourite (id);
+    settingsFile->setFavourite (id, now);
+    showPresetStatus (now ? "Added to favourites: " + proc.getCurrentPresetName() : "Removed from favourites: " + proc.getCurrentPresetName());
+}
+
+bool GapFillAudioProcessorEditor::keyPressed (const juce::KeyPress& key)
+{
+    const auto mods = key.getModifiers();
+
+    if (! mods.isCommandDown() || mods.isAltDown())
+        return false;
+
+    if (key.getKeyCode() == 'D' || key.getKeyCode() == 'd')
+    {
+        toggleCurrentFavourite();
+        return true;
+    }
+
+    if (key.getKeyCode() == juce::KeyPress::upKey || key.getKeyCode() == juce::KeyPress::downKey)
+    {
+        stepPreset (key.getKeyCode() == juce::KeyPress::upKey ? -1 : +1);
+        return true;
+    }
+
+    return false;
 }
 
 bool GapFillAudioProcessorEditor::loadCatalogEntry (const presets::PresetEntry& entry)
@@ -762,7 +848,7 @@ void GapFillAudioProcessorEditor::saveUserPreset()
 //==============================================================================
 void GapFillAudioProcessorEditor::showFileMenu()
 {
-    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance, kBrowse, kTour, kLab };
+    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance, kBrowse, kTour, kLab, kAudition, kHistory, kExportFill, kFavourite, kStepScope };
 
     juce::PopupMenu menu;
     menu.setLookAndFeel (&lookAndFeel);
@@ -776,7 +862,23 @@ void GapFillAudioProcessorEditor::showFileMenu()
     menu.addItem (kOpen, "Open...");
     menu.addSeparator();
     menu.addItem (kBrowse, "Preset browser...");
+
+    // F-S11: favourite the current factory preset from the menu (the browser stars every preset, user presets included).
+    refreshPresetList();
+    const auto favouriteId = currentPresetIdentity();
+    const bool knownPreset = favouriteId.isNotEmpty();
+    const bool isFavourite = knownPreset && settingsFile->isFavourite (favouriteId);
+    menu.addItem (kFavourite, isFavourite ? "Remove preset from favourites  (Ctrl/Cmd+D)" : "Add preset to favourites  (Ctrl/Cmd+D)", knownPreset);
+    menu.addItem (kStepScope, "Arrows step through favourites only", true,
+                  settingsFile->getInt (presets::kKeyStepScope, 0) == 1);
     menu.addItem (kSavePreset, "Save as user preset...");
+    menu.addSeparator();
+
+    // Fills: the same actions as the AUDITION button and the RECIPES drawer (greyed out while those do not exist).
+    const auto& actions = proc.getUiState().editorActions;
+    menu.addItem (kAudition, "Audition a fill", actions.auditionNow != nullptr);
+    menu.addItem (kHistory, "Fill history...", actions.openHistory != nullptr);
+    menu.addItem (kExportFill, "Export last fill...", actions.exportLatestFill != nullptr);
     menu.addSeparator();
     menu.addItem (kOptions, "Options...");
     menu.addItem (kLab, "Mutation Lab...");
@@ -796,8 +898,14 @@ void GapFillAudioProcessorEditor::showFileMenu()
             case kOpen:       doOpen(); break;
             case kSavePreset: saveUserPreset(); break;
             case kBrowse:     showPresetBrowser(); break;
+            case kFavourite:  toggleCurrentFavourite(); break;
+            case kStepScope:  settingsFile->setInt (presets::kKeyStepScope, settingsFile->getInt (presets::kKeyStepScope, 0) == 1 ? 0 : 1);
+                              break;
             case kTour:       showTour (true); break;
             case kLab:        showMutationLab(); break;
+            case kAudition:   if (auto f = proc.getUiState().editorActions.auditionNow) f(); break;
+            case kHistory:    if (auto f = proc.getUiState().editorActions.openHistory) f(); break;
+            case kExportFill: if (auto f = proc.getUiState().editorActions.exportLatestFill) f(); break;
             case kOptions:    showOptions(); break;
             case kPerformance: setTab (Tab::Performance); break;
             default: break;
@@ -968,11 +1076,23 @@ void GapFillAudioProcessorEditor::toggleAB()
     auto& target = usingSlotB ? slotB : slotA;
 
     if (target.isValid())
-        state.replaceState (target.createCopy());
+        proc.replaceParameterStateKeepingPerformance (target);      // A/B never flips performance state (docs/dev/02 F0-1)
 
     proc.getRecipes().noteHeaderAbSide (usingSlotB);        // F-S06: level matching follows the sounding side
     abButton.setButtonText (usingSlotB ? "B" : "A");
     setPresetDisplay (usingSlotB ? "B" : "A");
+}
+
+/** F-M18: the header A/B snapshots become Beat Battle styles A and B (the side on screen is captured first). */
+bool GapFillAudioProcessorEditor::feedBattleFromHeaderAb()
+{
+    auto& state = proc.getValueTreeState();
+    (usingSlotB ? slotB : slotA) = state.copyState().createCopy();
+
+    auto& battles = proc.getLiveControl().battles();
+    const bool a = battles.setStyleFromState (0, state, slotA);
+    const bool b = battles.setStyleFromState (1, state, slotB);
+    return a && b;
 }
 
 void GapFillAudioProcessorEditor::copyToOtherSlot()
@@ -1066,6 +1186,13 @@ void GapFillAudioProcessorEditor::timerCallback()
 
     // U-9: the footer shows the highest-priority message (learn > ... > capture here).
     auto& board = proc.getUiState().status;
+
+    if (presetStatusUntilMs != 0 && (juce::int32) (juce::Time::getMillisecondCounter() - presetStatusUntilMs) >= 0)
+    {
+        presetStatusUntilMs = 0;
+        board.clear (info::StatusKind::Preview);
+    }
+
     board.set (info::StatusKind::Learn, midiLearn.isLearning() ? status : juce::String());
     board.set (info::StatusKind::Capture, meters.captureActive.load() && ! midiLearn.isLearning()
                                               ? juce::String ("Capture is on - fills use the captured source")
@@ -1255,9 +1382,13 @@ void GapFillAudioProcessorEditor::resized()
 
     // The options page is a small panel rather than a full overlay; the OptionsExtra slot (interface size,
     // accessibility) lives in the free area under the device row, so the panel grew by 140 px.
-    optionsView.setBounds (juce::Rectangle<int> (520, juce::jmin (580, getHeight() - 16))
+    optionsView.setBounds (juce::Rectangle<int> (520, juce::jmin (640, getHeight() - 16))
                              .withCentre (getLocalBounds().getCentre()));
-    slots->setSlotBounds (Slot::OptionsExtra, optionsView.getExtraBounds());
+
+    // The extra rows scroll inside the panel's viewport; each keeps its own height (Stack slot).
+    for (int pass = 0; pass < 2; ++pass)      // the second pass accounts for a scroll bar that the first one made necessary
+        slots->setSlotBounds (Slot::OptionsExtra, { 0, 0, juce::jmax (1, optionsView.getExtraViewport().getMaximumVisibleWidth()),
+                                                    juce::jmax (1, slots->getStackHeight (Slot::OptionsExtra)) });
 }
 
 } // namespace gapfill
