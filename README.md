@@ -209,6 +209,10 @@ JUCE is used under its own licence terms. This plugin's own source is provided
 as-is.
 
 
+## Wiki
+
+Wiki source pages are in [docs/wiki/](docs/wiki/Home.md): user guide, developer guide, architecture rationale and codebase map.
+
 ## Required shared plug-in standard
 
 This project follows the [Circuit Drift Labs Shared Audio Plugin Standard](docs/standards/CDL_PLUGIN_BASELINE.md). It is required for the plug-in target; standalone-only requirements apply only when a standalone target is included. The product-specific specification supplements the shared standard and records the applicable profiles, compliance status, and any exceptions.
