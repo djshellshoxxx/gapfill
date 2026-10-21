@@ -31,23 +31,23 @@ endif()
 # ---------------------------------------------------------------------------
 # Shared source list (used by both the plugin and the test runner)
 # ---------------------------------------------------------------------------
-set(GAPFILL_SOURCES
-    Source/PluginProcessor.cpp
-    Source/PluginEditor.cpp
-    Source/Parameters.cpp
-    Source/Presets.cpp
-    Source/MidiLearn.cpp
-    Source/dsp/AnalysisEngine.cpp
-    Source/dsp/FillVoice.cpp
-    Source/dsp/FillEngine.cpp
-    Source/dsp/SpectralSmear.cpp
-    Source/gui/LookAndFeel.cpp
-    Source/gui/Knob.cpp
-    Source/gui/WaveformGapView.cpp
-    Source/gui/Panels.cpp
-    Source/gui/HelpView.cpp
-    Source/gui/OptionsView.cpp
-)
+# The lists live in cmake/sources/*.cmake (one fragment per feature) so two
+# feature branches never edit the same lines of this file. file(GLOB) is used
+# only on those small fragment directories, never on source files, so the
+# source lists themselves stay explicit and reviewable.
+set(GAPFILL_SOURCES "")
+file(GLOB GAPFILL_SOURCE_FRAGMENTS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/sources/*.cmake")
+foreach(fragment IN LISTS GAPFILL_SOURCE_FRAGMENTS)
+    include("${fragment}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${fragment}")
+endforeach()
+
+set(GAPFILL_TEST_SOURCES "")
+file(GLOB GAPFILL_TEST_FRAGMENTS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/tests/*.cmake")
+foreach(fragment IN LISTS GAPFILL_TEST_FRAGMENTS)
+    include("${fragment}")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${fragment}")
+endforeach()
 
 set(GAPFILL_MODULES
     juce::juce_audio_basics
@@ -151,16 +151,7 @@ juce_add_console_app(GapFillTests PRODUCT_NAME "GapFillTests")
 
 target_sources(GapFillTests PRIVATE
     ${GAPFILL_SOURCES}
-    Tests/TestMain.cpp
-    Tests/TestFramework.cpp
-    Tests/TestSignals.cpp
-    Tests/TestDsp.cpp
-    Tests/TestPlugin.cpp
-    Tests/TestCombinatorial.cpp
-    Tests/support/TestRig.cpp
-    Tests/support/AllocGuard.cpp
-    Tests/features/TestGolden.cpp
-    Tests/features/TestStateFixtures.cpp
+    ${GAPFILL_TEST_SOURCES}
 )
 
 target_compile_definitions(GapFillTests PUBLIC
