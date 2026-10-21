@@ -402,7 +402,7 @@ void FillVoice::configureAlgorithm()
         {
             stutterSliceLen = juce::jlimit ((int) (sr * 0.01), (int) (sr * 0.3),
                                             (int) (setupData.stutterSeconds * sr));
-            stutterCurrentLen = stutterSliceLen;
+            stutterCurrentLen = stutterSliceLen + setupData.grooveShifts.delta (0);       // F-L09 (neutral: +0)
             stutterIndex = 0;
             stutterPos = 0;
             stutterRead = (double) sliceOffset;
@@ -437,7 +437,7 @@ void FillVoice::configureAlgorithm()
 
             for (int i = 0; i < numTaps; ++i)
             {
-                tapOffset[i] = i * spacing;
+                tapOffset[i] = i * spacing + setupData.grooveShifts.at (i);               // F-L09 (neutral: +0)
                 tapGain[i] = std::pow (feedback, (float) i);
 
                 if (setupData.pingPong && channels > 1)
@@ -838,7 +838,8 @@ void FillVoice::genStutter (float& l, float& r) noexcept
         stutterPos = 0;
         stutterRead = (double) sliceOffset;
         stutterCurrentLen = juce::jlimit ((int) (sr * 0.006), (int) (sr * 0.5),
-                                          (int) ((float) stutterCurrentLen * stutterRatio));
+                                          (int) ((float) stutterCurrentLen * stutterRatio)
+                                            + setupData.grooveShifts.delta (stutterIndex));       // F-L09 (neutral: +0)
         stutterRate = juce::jlimit (0.25f, 4.0f, stutterRate * stutterRateStep);
         stutterGain = juce::jlimit (0.05f, 1.0f, stutterGain * stutterGainStep);
     }

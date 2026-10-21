@@ -102,6 +102,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
     fxChain.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    contextState.prepare (currentSampleRate);
     engine.setFxMeters (&fxChain.getMeters());
     soloSplitter.prepare (currentSampleRate, 2);
 
@@ -150,6 +151,7 @@ void GapFillAudioProcessor::reset()
     // piece of running DSP state has to go, without reallocating anything.
     engine.reset();
     fxChain.reset();
+    contextState.reset();
     analysis.reset();
     history.clear();
 
@@ -266,6 +268,7 @@ void GapFillAudioProcessor::drainCommands() noexcept
     {
         explainState.onCommand (batch[i]);
         hooks::dispatchCommand (engine, batch[i]);
+        contextState.onCommand (batch[i]);
     }
 }
 
@@ -391,6 +394,7 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
              || std::abs (ppq - lastPpqPosition) > 0.25)
         {
             engine.noteTransportJump();
+            contextState.onTransportJump();
             panicWet();
            #ifdef GAPFILL_UNIT_TESTS
             ++transportJumpCountForTests;
@@ -615,6 +619,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     engineSettings.sidechainActive = sidechainActive;
     engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
+    contextState.onChunk (monoMain.data(), numSamples, analysis, samplesProcessed, engineSettings);       // WP7: F-L22 energy, F-L09 groove
 
     {
         // WP3: health codes + event recording observe the chunk (bounded, allocation-free).

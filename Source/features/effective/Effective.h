@@ -72,6 +72,7 @@ void applyBlock (EngineSettings&, const ModulationInputs&, MacroOutputs&);
 void applyEvolve    (EngineSettings&, double ppq, const TransportInfo&);           // C-8  StageEvolve.cpp
 void applyBreathing (EngineSettings&, double ppq, const TransportInfo&);           // C-6  StageBreathing.cpp
 void applyPhrase    (EngineSettings&, double ppq, const TransportInfo&);           // C-7  StagePhrase.cpp
+void applyEnergy    (EngineSettings&, double ppq, const TransportInfo&);           // F-L22 StageEnergy.cpp
 
 /** Runs the decision stages in their fixed order on the scheduler's local copy. */
 void applyAtDecision (EngineSettings& sLocal, double ppq, const TransportInfo&);

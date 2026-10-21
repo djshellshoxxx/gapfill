@@ -13,7 +13,11 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_KEYDET(X)
+#define GAPFILL_PARAMS_KEYDET(X) \
+    X (scaleFollow, "scaleFollow") \
+    X (fx03_window, "fx03_window") \
+    X (fx03_minConf, "fx03_minConf") \
+    X (fx03_hold, "fx03_hold")
 
 namespace gapfill
 {

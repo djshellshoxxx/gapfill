@@ -1,7 +1,7 @@
 #include "FillEngine.h"
 #include "../features/effective/Effective.h"
 #include "../features/fx/FxHooks.h"
-#include "../features/scale/ScaleHooks.h"
+#include "../features/context/ContextHooks.h"
 
 namespace gapfill
 {
@@ -690,7 +690,7 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     }
 
     fx::prepareVoiceSetup (setup, plan, ctx, s, fxMeters);      // WP8: effect cards, swell landing, band routing
-    scale::prepareVoiceSetup (setup, plan, s);                  // WP7 N-MUS: scale for the voice, recipe pitch override
+    context::prepareVoiceSetup (setup, plan, ctx, s);           // WP7: Scale Lock (N-MUS) voice setup, groove shifts (F-L09)
     return setup;
 }
 

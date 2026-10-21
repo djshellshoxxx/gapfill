@@ -6,6 +6,7 @@
 #include "../features/cloud/CloudMode.h"
 #include "../features/fx/FxSettings.h"
 #include "../features/fx/VoiceFxChain.h"
+#include "../features/groove/GrooveWarp.h"
 #include "../features/scale/VoiceQuantiser.h"
 #include "../features/swell/SwellMode.h"
 
@@ -71,6 +72,9 @@ struct VoiceSetup
 
     /** N-MUS Scale Lock for the voice's own pitch choices (Granular ratios, Cloud, Comb). Off = neutral. */
     scale::ScaleSettings scaleLock;
+
+    /** F-L09 Groove inheritance: shifts of the Stutter repeat / Delay tap boundaries. Neutral = off. */
+    groove::GrooveShifts grooveShifts;
 };
 
 //==============================================================================

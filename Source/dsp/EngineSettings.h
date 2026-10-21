@@ -2,6 +2,8 @@
 
 #include "../Parameters.h"
 #include "../features/fx/FxSettings.h"
+#include "../features/groove/GrooveSettings.h"
+#include "../features/keydetect/KeySettings.h"
 #include "../features/scale/ScaleLock.h"
 
 #include <cstdint>
@@ -17,6 +19,7 @@ namespace gapfill
 struct BreathSettings  { bool on = false; int bars = 4; float depth01 = 0.0f; int curve = 0; };   // C-6
 struct PhraseSettings  { int bars = 0; float bias01 = 0.0f; };                                    // C-7
 struct EvolveSettings  { int periodBars = 0; };                                                   // C-8
+struct EnergySettings  { float adapt01 = 0.0f; int target = 2; int level = 1; };                  // F-L22: target 0 Density, 1 Intensity, 2 Both; level 0 Low, 1 Mid, 2 High
 
 struct PerformanceSettings
 {
@@ -27,6 +30,9 @@ struct PerformanceSettings
     BreathSettings breath;            // C-6
     PhraseSettings phrase;            // C-7
     EvolveSettings evolve;            // C-8
+    EnergySettings energy;            // F-L22
+    groove::GrooveSettings groove;    // F-L09
+    keydetect::KeySettings key;       // F-X03
     bool  likeActive = false;         // C-11
     int   quantDivision = -1;         // E-2 fill-length quantise, -1 off
     bool  modSync = false;            // E-2

@@ -13,7 +13,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_ENERGY(X)
+#define GAPFILL_PARAMS_ENERGY(X) \
+    X (energyAdapt, "energyAdapt") \
+    X (energyTarget, "energyTarget")
 
 namespace gapfill
 {

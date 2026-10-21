@@ -3,4 +3,9 @@ list(APPEND GAPFILL_SOURCES
     Source/features/scale/ScaleLock.cpp
     Source/features/scale/ScaleHooks.cpp
     Source/gui/slots/ScaleStrip.cpp
+    # F-L22 energy tracking (musical context)
+    Source/features/context/EnergyTracker.cpp
+    Source/features/context/ContextState.cpp
+    Source/features/effective/StageEnergy.cpp
+    Source/gui/slots/EnergyStrip.cpp
 )

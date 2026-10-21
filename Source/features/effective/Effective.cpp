@@ -17,6 +17,7 @@ void applyAtDecision (EngineSettings& sLocal, double ppq, const TransportInfo& t
     applyEvolve (sLocal, ppq, ts);
     applyBreathing (sLocal, ppq, ts);
     applyPhrase (sLocal, ppq, ts);
+    applyEnergy (sLocal, ppq, ts);       // F-L22 (WP7), after the other stages
 }
 
 } // namespace gapfill::Effective

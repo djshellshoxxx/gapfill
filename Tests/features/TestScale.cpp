@@ -145,7 +145,7 @@ GF_TEST (Scale, tie_rule_deterministic)
     const auto cMajor = scale::makeScaleSet (0, (int) scale::ScaleType::Major);       // 0 2 4 5 7 9 11
 
     GF_EXPECT (scale::snapInterval (1, cMajor) == 0);             // 0 and 2 tie: smaller |i|
-    GF_EXPECT (scale::snapInterval (-1, cMajor) == 0);            // 0 and -2 tie: smaller |i|
+    GF_EXPECT (scale::snapInterval (-1, cMajor) == -1);           // B is a degree
     GF_EXPECT (scale::snapInterval (6, cMajor) == 5);             // 5 and 7 tie: smaller |i|
     GF_EXPECT (scale::snapInterval (-6, cMajor) == -5);           // -7 and -5 tie: smaller |i|
     GF_EXPECT (scale::snapInterval (3, cMajor) == 2);             // 2 and 4 tie: smaller |i|
@@ -170,7 +170,12 @@ GF_TEST (Scale, octaves_preserved)
 
         for (int i = -12; i <= 12; ++i)
             for (int oct : { -24, -12, 12, 24 })
-                GF_EXPECT (scale::snapInterval (i + oct, set) == scale::snapInterval (i, set) + oct);
+                {
+                    // Same snapping distance one or more octaves away, and still in key (ties may resolve toward zero).
+                    const auto r = scale::snapInterval (i + oct, set);
+                    GF_EXPECT (std::abs (r - (i + oct)) == std::abs (scale::snapInterval (i, set) - i));
+                    GF_EXPECT (set.containsPitchClass (3 + r));
+                }
     }
 }
 

@@ -2,6 +2,7 @@
 #include "../dsp/FillEngine.h"
 #include "fx/FxHooks.h"
 #include "scale/ScaleHooks.h"
+#include "context/ContextState.h"
 
 namespace gapfill::hooks
 {
@@ -33,6 +34,7 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     //   gatherGroove, gatherCall, gatherEnergy, gatherTension, gatherBattle, gatherSection,
     //   gatherLearn, gatherCoop, gatherQuality
 
+    context::gatherContext (s, params); // WP7: F-L22 energy follow (tracker runs in ContextState::onChunk)
     scale::gatherScale (s, params);     // WP7: N-MUS Scale Lock
     fx::gatherFx (s, params);           // WP8: swell, cloud, ratchet, rcrush, tapedestr, bandfx (scrub: F-M19)
 }

@@ -1,2 +1,5 @@
 # Append-only parameter ID lock for group 'groove' (one id per line, in order).
 # Adding an id is a deliberate act: add it here and in Source/params/groove.h.
+fl09_amount
+fl09_grid
+fl09_hold

@@ -13,7 +13,10 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_GROOVE(X)
+#define GAPFILL_PARAMS_GROOVE(X) \
+    X (fl09_amount, "fl09_amount") \
+    X (fl09_grid, "fl09_grid") \
+    X (fl09_hold, "fl09_hold")
 
 namespace gapfill
 {

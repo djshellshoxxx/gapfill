@@ -2,6 +2,8 @@
 #include "../fx/FxUiState.h"
 
 #include "../explain/ExplainState.h"
+#include "../groove/GrooveStateTree.h"
+#include "../keydetect/KeyStateTree.h"
 
 namespace gapfill::state
 {
@@ -24,10 +26,11 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
         { "Scenes",  24 * Ki, nullptr, nullptr, nullptr, nullptr },   // F-L07 / N-VAL
         { "Cmd",     3 * Ki,  nullptr, nullptr, nullptr, nullptr },   // X-1
         { "Tension", 3 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-M21
-        { "Groove",  1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-L09
+        { "Groove",  1 * Ki,  groove::validateTree, groove::applyTree, groove::serialiseTree, groove::resetTree },   // F-L09
         { "Fx",      1 * Ki,  fx::validateFxTree, fx::applyFxTree, fx::serialiseFxTree, fx::resetFxTree },   // FX-0
         { "Health",  1 * Ki,  explain::validateSubtree, explain::applySubtree, explain::serialiseSubtree, explain::resetSubtree },   // N-USE (WP3)
         { "Learn",   4 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-X05
+        { "Key",     64,      keydetect::validateKeyTree, keydetect::applyKeyTree, keydetect::serialiseKeyTree, keydetect::resetKeyTree },   // F-X03 (WP7)
     };
 
     return table;
