@@ -43,6 +43,7 @@ bool CloudMode::configure (bool requested, const CloudSettings& settings, float 
         return false;
 
     s = settings;
+    grainCap = std::clamp (settings.maxGrains, 1, kCloudMaxGrains);      // F-D03
     chaos = juce::jlimit (0.0f, 1.0f, chaos01);
     anchor = anchorPos;
     sr = sampleRate;
@@ -125,8 +126,10 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
         const auto g = drawGrain (std::max ((std::int64_t) 0, oldest));
         bool placed = false;
 
-        for (auto& slot : grains)
+        for (int i = 0; i < grainCap; ++i)
         {
+            auto& slot = grains[i];
+
             if (! slot.active)
             {
                 slot = g;

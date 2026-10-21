@@ -385,13 +385,17 @@ float regionEnergy (const juce::AudioBuffer<float>& buffer, int start, int numSa
 
 //==============================================================================
 void prepareProcessor (juce::AudioProcessor& proc, double sampleRate, int blockSize,
-                       bool withSidechain, bool mono)
+                       bool withSidechain, bool mono, bool withWetBus)
 {
     const auto channelSet = mono ? juce::AudioChannelSet::mono() : juce::AudioChannelSet::stereo();
 
     juce::AudioProcessor::BusesLayout layout;
     layout.inputBuses.add (channelSet);
     layout.outputBuses.add (channelSet);
+
+    if (proc.getBusCount (false) > 1)           // F-L12: the optional "Wet" output bus (disabled unless asked for)
+        layout.outputBuses.add (withWetBus ? juce::AudioChannelSet::stereo() : juce::AudioChannelSet::disabled());
+
     layout.inputBuses.add (withSidechain ? juce::AudioChannelSet::stereo()
                                          : juce::AudioChannelSet::disabled());
 

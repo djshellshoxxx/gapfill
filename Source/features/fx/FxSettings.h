@@ -29,6 +29,7 @@ struct CloudSettings
     float jitter01 = 0.4f;
     float pitchCents = 100.0f;
     float spread01 = 0.6f;
+    int   maxGrains = 48;       ///< F-D03 quality cap (Full 48, Balanced 32, Lite 16)
 };
 
 struct RatchetSettings
@@ -146,6 +147,9 @@ struct FxSettings
     /** Quality "Lite" seam (F-L11 quality group, not landed): the spectral and
         convolution cards are disabled while true. */
     bool lite = false;
+
+    /** F-D03: multiplier on every bus-effect tail cap (Full 1.0, Balanced 0.5, Lite 0.25). */
+    float tailCapScale = 1.0f;
 
     /** True when any VoiceFx card could be active for a new fill. */
     bool anyVoiceFx() const noexcept

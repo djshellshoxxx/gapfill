@@ -1,6 +1,7 @@
 #pragma once
 
 #include "EngineEvents.h"
+#include "EngineTransitions.h"
 #include "EngineSettings.h"
 #include "../features/budget/Budget.h"
 #include "../features/effective/Effective.h"
@@ -126,6 +127,24 @@ public:
     int  getCurrentAlgo() const noexcept { return lastRenderedAlgo; }
     float getCurrentDuck() const noexcept { return currentDuck; }
 
+    //--------------------------------------------------------------------------
+    // WP10 routing & system
+
+    /** Gap / fill transitions of the last process() call (F-L11 MIDI out, F-X06 co-op). The processor
+        clears the log before process() so a chunk that skips the engine reports nothing. */
+    const TransitionLog& getTransitions() const noexcept   { return transitions; }
+    void clearTransitions() noexcept                       { transitions.clear(); }
+
+    /** F-D03: nothing is sounding (no fill, preview, hold or scrub voice): a quality change may apply. */
+    bool isIdle() const noexcept;
+
+    /** F-D03: level in force (0 Full, 1 Balanced, 2 Lite). Call only when isIdle(): resets the spectral smear. */
+    void setQualityLevel (int level) noexcept;
+    int  getQualityLevel() const noexcept   { return qualityLevel; }
+
+    /** Number of fill voices the scheduler may use at the level in force. */
+    int  getVoicePoolSize() const noexcept;
+
     /** Total number of fills started since the last reset (used by tests). */
     int  getFillsStarted() const noexcept { return fillsStarted; }
 
@@ -197,7 +216,10 @@ private:
 
     int chooseAlgorithm (float lengthMs, const EngineSettings& s, Rng& rng) noexcept;
     int chooseBand (const AnalysisFrame& frame, const EngineSettings& s, Rng& rng) noexcept;
-    FillVoice* findFreeVoice() noexcept;
+    FillVoice* findFreeVoice (int pool = numVoices) noexcept;
+
+    /** F-L13: true while the evaluation of the open gap is postponed to a nearby sidechain onset. */
+    bool snapDefers (std::int64_t outputPos, const AnalysisEngine&, const EngineSettings&) noexcept;
 
     /** E-1: starts the preview voice. `recipe` (optional) replays that recipe
         instead of choosing one. Sets the preview status. */
@@ -256,6 +278,10 @@ private:
     std::array<int, (size_t) numRejectReasons> rejectCounts {};
     DecisionTelemetry telemetry;
     budget::RecentFills recentFills;   // F-D01: last 16 fill starts (ppq ticks)
+    TransitionLog transitions;         // WP10: gap / fill transitions of the last process() call
+    std::int64_t snapTarget = -1;      // F-L13: hop-aligned evaluation target of the open gap (-1 none)
+    bool snapChecked = false;          // F-L13: the open gap was already looked at
+    int qualityLevel = 0;              // F-D03
 
     // --- visualiser decimation ---
     int vizDecim = 2;

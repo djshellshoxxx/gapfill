@@ -13,7 +13,10 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_MIDIOUT(X)
+#define GAPFILL_PARAMS_MIDIOUT(X) \
+    X (midiOutMode, "midiOutMode") \
+    X (midiOutNote, "midiOutNote") \
+    X (midiOutChan, "midiOutChan")
 
 namespace gapfill
 {

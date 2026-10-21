@@ -103,7 +103,7 @@ juce_add_plugin(GapFill
     VST3_CATEGORIES         Fx Delay Modulation
     IS_SYNTH                FALSE
     NEEDS_MIDI_INPUT        TRUE
-    NEEDS_MIDI_OUTPUT       FALSE
+    NEEDS_MIDI_OUTPUT       ${GAPFILL_NEEDS_MIDI_OUTPUT}
     IS_MIDI_EFFECT          FALSE
     # The wrapper must allow keyboard events so the persisted opt-in
     # Keyboard Navigation mode can function. The editor and every interactive

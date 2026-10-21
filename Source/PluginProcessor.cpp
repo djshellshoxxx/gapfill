@@ -9,6 +9,8 @@
 #include "features/FeatureHooks.h"
 #include "features/state/StateSubtrees.h"
 #include "features/panic/WetSafety.h"
+#include "features/wetout/WetOut.h"
+#include "features/wetbus/WetBus.h"
 
 namespace gapfill
 {
@@ -25,11 +27,21 @@ namespace
 }
 
 //==============================================================================
+juce::AudioProcessor::BusesProperties GapFillAudioProcessor::makeBuses()
+{
+    auto props = BusesProperties()
+                     .withInput  ("Input",     juce::AudioChannelSet::stereo(), true)
+                     .withOutput ("Output",    juce::AudioChannelSet::stereo(), true)
+                     .withInput  ("Sidechain", juce::AudioChannelSet::stereo(), false);
+
+    if (wetbus::isDeclared())
+        props = props.withOutput ("Wet", juce::AudioChannelSet::stereo(), false);
+
+    return props;
+}
+
 GapFillAudioProcessor::GapFillAudioProcessor()
-    : AudioProcessor (BusesProperties()
-                        .withInput  ("Input",     juce::AudioChannelSet::stereo(), true)
-                        .withOutput ("Output",    juce::AudioChannelSet::stereo(), true)
-                        .withInput  ("Sidechain", juce::AudioChannelSet::stereo(), false)),
+    : AudioProcessor (makeBuses()),                      // Input, Output, Sidechain (+ the optional "Wet" output, F-L12)
       apvts (*this, nullptr, "GAPFILL", createParameterLayout())
 {
     params.connect (apvts);
@@ -79,7 +91,7 @@ bool GapFillAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) 
             return false;
     }
 
-    return true;
+    return wetbus::isLayoutSupported (layouts);         // F-L12: the Wet bus is absent, disabled or stereo
 }
 
 //==============================================================================
@@ -106,6 +118,9 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     shaping.capture.prepare (currentSampleRate, 2);   // C-10: sample-rate change clears the latch
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    scTracker.prepare (currentSampleRate);               // F-L13
+    qualityCtl.reset();                                  // F-D03: starts at Full, applies the setting at the first idle moment
+    midiOut.requestFlush();                              // F-L11: nothing may be left sounding from before
     recipeServices.prepare (currentSampleRate);
     fxChain.prepare (currentSampleRate, preparedBlockSize, mainChannels);
     engine.setFxMeters (&fxChain.getMeters());
@@ -124,8 +139,11 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
         s->setCurrentAndTargetValue (0.0f);
     }
 
-    dryGain.setCurrentAndTargetValue (pv (params.dry) * 0.01f);
-    wetGain.setCurrentAndTargetValue (pv (params.wet) * 0.01f);
+    {
+        const auto mix = wetout::mixTargets (pb (params.wetSolo), pv (params.dry) * 0.01f, pv (params.wet) * 0.01f);   // F-M17
+        dryGain.setCurrentAndTargetValue (mix.dry);
+        wetGain.setCurrentAndTargetValue (mix.wet);
+    }
     outGain.setCurrentAndTargetValue (dbToGain (pv (params.output)));
     widthAmount.setCurrentAndTargetValue (pv (params.width) * 0.01f);
 
@@ -149,6 +167,7 @@ void GapFillAudioProcessor::releaseResources()
 {
     prepared.store (false);
     reset();
+    coopMember.release();                                // F-X06: free the registry slot
 }
 
 void GapFillAudioProcessor::reset()
@@ -156,6 +175,9 @@ void GapFillAudioProcessor::reset()
     // Hosts call this on transport jumps and when re-arming a track: every
     // piece of running DSP state has to go, without reallocating anything.
     engine.reset();
+    scTracker.reset();                                   // F-L13
+    qualityCtl.reset();                                  // F-D03
+    midiOut.requestFlush();                              // F-L11
     fxChain.reset();
     analysis.reset();
     history.clear();
@@ -488,10 +510,16 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         buffer.clear (ch, 0, numSamples);
 
     if (! prepared.load() || numSamples <= 0)
+    {
+        clearWetBus (buffer);                          // F-L12: never leave sidechain residue on the Wet output
         return;
+    }
 
     hostBlockSamples = numSamples;
     const bool bypassed = pb (params.bypass);
+
+    if constexpr (midiout::kActive)
+        midiOut.beginBlock (gatherMidiOutSettings(), numSamples);        // F-L11
 
     int offset = 0;
 
@@ -501,6 +529,9 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
         processChunk (buffer, offset, n, bypassed);
         offset += n;
     }
+
+    if constexpr (midiout::kActive)
+        midiOut.finish (midi);                                           // F-L11: clears the incoming MIDI when on
 }
 
 void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
@@ -519,9 +550,16 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
         buffer.clear (ch, 0, numSamples);
 
     if (! prepared.load() || numSamples <= 0)
+    {
+        clearWetBus (buffer);
         return;
+    }
 
     hostBlockSamples = numSamples;
+
+    if constexpr (midiout::kActive)
+        midiOut.beginBlock (gatherMidiOutSettings(), numSamples);
+
     int offset = 0;
 
     while (offset < numSamples)
@@ -530,6 +568,25 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
         processChunk (buffer, offset, n, true);
         offset += n;
     }
+
+    if constexpr (midiout::kActive)
+        midiOut.finish (midi);
+}
+
+void GapFillAudioProcessor::clearWetBus (juce::AudioBuffer<float>& buffer) noexcept
+{
+    if (getBusCount (false) > wetbus::kWetBusIndex && getBus (false, wetbus::kWetBusIndex)->isEnabled())
+        getBusBuffer (buffer, false, wetbus::kWetBusIndex).clear();
+}
+
+midiout::Settings GapFillAudioProcessor::gatherMidiOutSettings() const noexcept
+{
+    midiout::Settings m;
+    m.mode = juce::jlimit (0, (int) midiout::NumModes - 1, pi (params.midiOutMode));
+    m.note = juce::jlimit (0, 127, pi (params.midiOutNote));
+    m.channel = juce::jlimit (1, 16, pi (params.midiOutChan));
+    m.offsetSamples = (int) std::lround (midiOutOffsetMs.load (std::memory_order_relaxed) * 0.001 * currentSampleRate);
+    return m;
 }
 
 //==============================================================================
@@ -608,8 +665,15 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     const bool sidechainActive = sidechainBusEnabled && sidechainHasSignal
                                    && detSource != DetSource::Main;
 
+    // F-L13: the onset tracker runs only while a gate or snap is set AND the sidechain bus is connected.
+    const bool scDriveRequested = pi (params.scGate) != 0 || pv (params.scSnap) > 0.0f;
+    const bool scDriveWanted = scDriveRequested && sidechainBusEnabled;
+
+    if (scDriveWanted)
+        scTracker.process (monoSide.data(), numSamples, samplesProcessed, pv (params.scThresh));
+
     meters.sidechainConnected.store (sidechainBusEnabled && sidechainHasSignal);
-    meters.sidechainRequested.store (detSource != DetSource::Main);
+    meters.sidechainRequested.store (detSource != DetSource::Main || scDriveRequested);
 
     // ---- mono detection signal ------------------------------------------
     {
@@ -670,8 +734,31 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     auto engineSettings = gatherEngineSettings();
     engineSettings.sidechainActive = sidechainActive;
     engineSettings.bypassed = bypassed;
+    engineSettings.perf.sc.tracker = scDriveWanted ? &scTracker : nullptr;     // F-L13 (inert without a connected bus)
     engineSettings.historyOffset = samplesProcessed + numSamples - fillSource.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
+
+    // F-D03 quality: the level in force (changes only while the engine is idle, or after a short fade).
+    {
+        const auto step = qualityCtl.update (pi (params.qualityMode), isNonRealtime(), (double) numSamples / currentSampleRate,
+                                             explainState.cpu.getCpu01(), explainState.cpu.getOverrunCount(), engine.isIdle());
+
+        if (step.forceFade)
+            panicWet();
+
+        if (step.level != engine.getQualityLevel())
+            engine.setQualityLevel (step.level);
+
+        quality::applyToSettings (engineSettings, step.level);
+        appliedQuality.store (step.level, std::memory_order_relaxed);
+    }
+
+    // F-X06 co-op: join / leave the group, snapshot the peers published up to the previous block.
+    const bool coopOn = pi (params.coopGroup) != 0;
+
+    if (coopOn || coopMember.getId() != 0)
+        engineSettings.perf.coop = coopMember.beginChunk (pi (params.coopGroup), pi (params.coopMode), currentSampleRate,
+                                                          juce::Time::getMillisecondCounterHiRes(), juce::Time::getMillisecondCounter());
     liveControl.prepareChunk (engineSettings, numSamples, samplesProcessed - (std::int64_t) targetLatency);
     const float* panicGains = liveControl.wetGains (numSamples);   // N-USE-a: fixed ramp on the wet bus
     const float* dryDuck = liveControl.dryDuckGains (numSamples);   // F-M10: null unless a hold ducks the dry
@@ -690,7 +777,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         ci.tsDen = engineSettings.perf.tsDen;
         ci.tempoFeatureOn = pb (params.syncEnable) || pb (params.maxFillSync)
                              || engineSettings.perf.quantDivision >= 0 || engineSettings.perf.modSync;
-        ci.scRequested = detSource != DetSource::Main;
+        ci.scRequested = detSource != DetSource::Main || scDriveRequested;
         ci.scBusEnabled = sidechainBusEnabled;
         ci.scPeak = sidechainBusEnabled ? explain::peakOf (monoSide.data(), numSamples) : 0.0f;
         ci.bypassed = bypassed;
@@ -716,11 +803,21 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     // WP8 (FX-0): bus effect chain sees the wet bus before the wet post-processing.
     auto fxIo = fxChain.beginBlock (engineSettings.fx, numSamples);
 
+    engine.clearTransitions();
+
     if (skip < numSamples)
     {
         engine.process (wetBuffer, skip, numSamples - skip, outputStart + skip,
                         analysis, fillSource, engineSettings, &viz, &fillEvents, &fxIo);
     }
+
+    if constexpr (midiout::kActive)
+        midiOut.consume (engine.getTransitions(), outputStart, startSample, numSamples);          // F-L11
+
+    if (coopOn)
+        coopMember.publish (engine.getTransitions(), outputStart, numSamples,                    // F-X06
+                            engineSettings.transportValid && engineSettings.samplesPerBeat > 1.0,
+                            engineSettings.ppqAtBlockStart, engineSettings.samplesPerBeat);
 
     fxChain.processBus (wetBuffer, 0, numSamples, engineSettings.fx, fxIo, outputStart);
 
@@ -835,8 +932,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     recipeServices.afterWet (wetBuffer, skip, numSamples - skip, outputStart + skip);
 
     // ---- mix -------------------------------------------------------------
-    dryGain.setTargetValue (pv (params.dry) * 0.01f);
-    wetGain.setTargetValue (pv (params.wet) * 0.01f);
+    const auto mixTarget = wetout::mixTargets (pb (params.wetSolo), pv (params.dry) * 0.01f, pv (params.wet) * 0.01f);   // F-M17
+    dryGain.setTargetValue (mixTarget.dry);
+    wetGain.setTargetValue (mixTarget.wet);
     outGain.setTargetValue (dbToGain (pv (params.output)));
     bypassMix.setTargetValue (bypassed ? 1.0f : 0.0f);
 
@@ -849,6 +947,25 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     const auto* dryR = mainBuffer.getReadPointer (1);
     const auto* wetL = wetBuffer.getReadPointer (0);
     const auto* wetR = wetBuffer.getReadPointer (1);
+
+    // F-L12: the optional "Wet" output bus carries the wet signal at unity (panic ramp x (1 - bypass)).
+    // Its channels alias the sidechain input in the host's in-place buffer; the sidechain was copied to
+    // monoSide at the top of this chunk, and every sample of the bus is overwritten below.
+    float* wetBusL = nullptr;
+    float* wetBusR = nullptr;
+
+    if (getBusCount (false) > wetbus::kWetBusIndex && getBus (false, wetbus::kWetBusIndex)->isEnabled())
+    {
+        auto wetBus = getBusBuffer (buffer, false, wetbus::kWetBusIndex);
+
+        if (wetBus.getNumChannels() >= 2)
+        {
+            wetBusL = wetBus.getWritePointer (0, startSample);
+            wetBusR = wetBus.getWritePointer (1, startSample);
+        }
+    }
+
+    const bool wetBusSilent = (audition && ! bypassed) || (pi (params.bandSolo) > 0 && ! bypassed);
 
     float peakOut = 0.0f, peakWet = 0.0f;
 
@@ -878,6 +995,13 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
         peakWet = juce::jmax (peakWet, std::abs (wetL[i] * w), std::abs (wetR[i] * w));
         outL[i] = l;
+
+        if (wetBusL != nullptr)
+        {
+            const auto g = (1.0f - byp) * panicGains[i];                 // the wet term of the main mix with the Wet knob at unity
+            wetBusL[i] = wetBusSilent ? 0.0f : sanitise (wetL[i] * g, 16.0f);
+            wetBusR[i] = wetBusSilent ? 0.0f : sanitise (wetR[i] * g, 16.0f);
+        }
 
         if (outR != nullptr)
         {
