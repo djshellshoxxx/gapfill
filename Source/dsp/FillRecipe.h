@@ -33,7 +33,8 @@ struct FillRecipe
     static constexpr std::uint8_t flagBiased   = 1 << 2;
     static constexpr std::uint8_t flagSwell    = 1 << 3;   ///< N-FX1: Reverse voice renders as a Reverse Swell
     static constexpr std::uint8_t flagCloud    = 1 << 4;   ///< N-FX2: Granular voice renders as a Granular Cloud
-    static constexpr std::uint8_t knownFlags   = flagPreview | flagFromLock | flagBiased | flagSwell | flagCloud;
+    static constexpr std::uint8_t flagForced   = 1 << 5;   ///< F-P02: started by Fill Now (forced scheduling)
+    static constexpr std::uint8_t knownFlags   = flagPreview | flagFromLock | flagBiased | flagSwell | flagCloud | flagForced;
 
     static constexpr std::uint8_t noDivision      = 0xFF;
     static constexpr std::uint8_t modifierBits    = 0x1F;   ///< five Modifier values

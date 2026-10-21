@@ -37,6 +37,7 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     midiLearn.connect (apvts);
     liveControl.setMidiLearn (&midiLearn);
     liveControl.setEventQueue (&fillEvents);
+    liveControl.setPanicHook ([] (void* self) noexcept { static_cast<GapFillAudioProcessor*> (self)->panicWet(); }, this);
     explainState.attach (*this, apvts);
     fillEvents.setTap (&explainState.recorder);
 
@@ -655,6 +656,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     {
         // Keep analysing (so the visualiser still shows what the detector sees)
         // but stop scheduling and fade out anything still playing.
+        liveControl.clearHolds();                      // F-M10: bypass releases every hold
         engineSettings.fill01 = 0.0f;
         panicWet();
     }

@@ -74,8 +74,14 @@ void LiveControl::onPanicAction (panic::Action action, FillEngine& engine) noexc
     if (action == panic::Action::Panic)
     {
         // Wet ramp is the controller's; here: stop voices, cancel what was queued.
-        engine.panic();
+        if (panicHook != nullptr)
+            panicHook (panicContext);
+        else
+            engine.panic();
+
         sceneEngine.cancelPending();
+        fillNowRequested = fillNowPending = false;      // panic cancels queued actions
+        hold.panic();                                   // and releases every hold
         ringCount = 0;
         post (UiRequest::SceneCancel);
         post (UiRequest::PanicChanged, 1);
@@ -88,7 +94,7 @@ void LiveControl::onPanicAction (panic::Action action, FillEngine& engine) noexc
     }
 }
 
-void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset, FillEngine& engine) noexcept
+void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset, FillEngine& engine, momentary::Source src) noexcept
 {
     switch ((int) type)
     {
@@ -113,6 +119,14 @@ void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset,
                 post (UiRequest::SceneCancel);
             }
             break;
+
+        case (int) CommandType::MomentaryStutter: hold.setLevel (momentary::Effect::Stutter, src, on); break;
+        case (int) CommandType::MomentaryFreeze:  hold.setLevel (momentary::Effect::Freeze, src, on); break;
+        case (int) CommandType::MomentaryReverse: hold.setLevel (momentary::Effect::Reverse, src, on); break;
+        case (int) CommandType::MomentaryTape:    hold.setLevel (momentary::Effect::TapeStop, src, on); break;
+        case (int) CommandType::StutterStorm:     hold.setLevel (momentary::Effect::Storm, src, on); break;
+
+        case (int) CommandType::FillNow:   if (on) fillNowRequested = true; break;
 
         case (int) CommandType::PresetNext:  if (on) post (UiRequest::PresetNext); break;
         case (int) CommandType::PresetPrev:  if (on) post (UiRequest::PresetPrev); break;
@@ -174,7 +188,7 @@ void LiveControl::handleCommand (const Command& c, FillEngine& engine) noexcept
 {
     // Hold-type commands use velocity 0 as "release"; every other command is a press.
     const bool holdType = c.type == CommandType::StutterStorm || ((int) c.type >= 20 && (int) c.type <= 23);
-    execute (c.type, c.index, holdType ? c.velocity != 0 : true, 0, engine);
+    execute (c.type, c.index, holdType ? c.velocity != 0 : true, 0, engine, momentary::Source::Gui);
 }
 
 void LiveControl::fillModulationInputs (Effective::ModulationInputs& in, int seed) noexcept
@@ -195,6 +209,11 @@ void LiveControl::fillModulationInputs (Effective::ModulationInputs& in, int see
 
 void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t outputPos) noexcept
 {
+    hold.setLatch (holdLatchOpt.load (std::memory_order_relaxed));
+    hold.tick (numSamples, (std::int64_t) (holdTimeoutOpt.load (std::memory_order_relaxed) * sampleRate));
+    holdEngaged.store (hold.engagedMask(), std::memory_order_relaxed);
+    holdTimedOut.store (hold.timedOutMask(), std::memory_order_relaxed);
+
     macroRuntime.chunkSeconds = (float) ((double) std::max (1, numSamples) / sampleRate);
 
     for (int t = 0; t < macros::kNumTargets; ++t)
@@ -224,6 +243,66 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t 
     {
         post (UiRequest::SceneApplied, (int) r.appliedId);
         emit (FillEventType::SceneApplied, outputPos);
+    }
+
+    // F-P02 Fill Now: resolve the quantised boundary into an absolute output sample for the engine.
+    {
+        auto fire = [&] (std::int64_t pos)
+        {
+            if (++fillNowId == 0)
+                ++fillNowId;
+
+            fillNowPos = pos;
+            fillNowPending = false;
+        };
+
+        const auto mode = (FillNowQuant) fillNowQuantMode.load (std::memory_order_relaxed);
+
+        if (fillNowRequested)
+        {
+            fillNowRequested = false;
+
+            if (mode == FillNowQuant::Immediate || ! t.valid)
+            {
+                fire (outputPos);                       // no transport: immediate fallback
+            }
+            else
+            {
+                const auto guard = 0.001 * t.sampleRate / std::max (1.0, t.samplesPerBeat);
+                fillNowBoundaryPpq = scenes::quantiser::nextBoundary (mode == FillNowQuant::NextBeat ? scenes::Quant::Beat : scenes::Quant::Bar,
+                                                                      t.ppq, guard, t.tsNum, t.tsDen, 0, 0);
+                fillNowPending = true;
+                fillNowLastEndPpq = t.ppq;
+            }
+        }
+
+        if (fillNowPending)
+        {
+            const auto spb = std::max (1.0, t.samplesPerBeat);
+            const auto endPpq = t.ppq + (double) numSamples / spb;
+
+            if (! t.valid)
+            {
+                fire (outputPos);
+            }
+            else if (t.ppq < fillNowLastEndPpq - 1.0e-6 || t.ppq > fillNowLastEndPpq + 1.0)
+            {
+                // loop / seek: re-arm from the new position, never drop
+                const auto guard = 0.001 * t.sampleRate / spb;
+                fillNowBoundaryPpq = scenes::quantiser::nextBoundary (mode == FillNowQuant::NextBeat ? scenes::Quant::Beat : scenes::Quant::Bar,
+                                                                      t.ppq, guard, t.tsNum, t.tsDen, 0, 0);
+            }
+            else if (fillNowBoundaryPpq < endPpq)
+            {
+                fire (outputPos + (std::int64_t) std::llround (std::max (0.0, fillNowBoundaryPpq - t.ppq) * spb));
+            }
+
+            fillNowLastEndPpq = endPpq;
+        }
+
+        s.perf.fillNowId = fillNowId;
+        s.perf.fillNowPos = fillNowPos;
+        s.perf.fillNowOverSustained = fillNowOverSustainedOpt.load (std::memory_order_relaxed);
     }
 
     const auto& view = sceneEngine.view();
@@ -469,12 +548,20 @@ PerfOptions LiveControl::getPerfOptions() const noexcept
 {
     PerfOptions o;
     o.panic = panicCtl.getOptions();
+    o.fillNowQuant = (FillNowQuant) fillNowQuantMode.load (std::memory_order_relaxed);
+    o.fillNowOverSustained = fillNowOverSustainedOpt.load (std::memory_order_relaxed);
+    o.holdLatch = holdLatchOpt.load (std::memory_order_relaxed);
+    o.holdTimeoutSeconds = holdTimeoutOpt.load (std::memory_order_relaxed);
     return o;
 }
 
 void LiveControl::setPerfOptions (const PerfOptions& o) noexcept
 {
     panicCtl.setOptions (o.panic);
+    fillNowQuantMode.store ((std::uint8_t) o.fillNowQuant, std::memory_order_relaxed);
+    fillNowOverSustainedOpt.store (o.fillNowOverSustained, std::memory_order_relaxed);
+    holdLatchOpt.store (o.holdLatch, std::memory_order_relaxed);
+    holdTimeoutOpt.store (juce::jlimit (2, 60, o.holdTimeoutSeconds), std::memory_order_relaxed);
 }
 
 juce::ValueTree LiveControl::perfToValueTree() const
@@ -484,6 +571,10 @@ juce::ValueTree LiveControl::perfToValueTree() const
     t.setProperty ("v", 1, nullptr);
     t.setProperty ("recovery", (int) o.panic.recovery, nullptr);
     t.setProperty ("panicToggles", o.panic.panicToggles ? 1 : 0, nullptr);
+    t.setProperty ("fillNowQuant", (int) o.fillNowQuant, nullptr);
+    t.setProperty ("fillNowSustained", o.fillNowOverSustained ? 1 : 0, nullptr);
+    t.setProperty ("holdLatch", o.holdLatch ? 1 : 0, nullptr);
+    t.setProperty ("holdTimeout", o.holdTimeoutSeconds, nullptr);
     return t;
 }
 
@@ -493,7 +584,9 @@ bool LiveControl::perfValidate (const juce::ValueTree& t)
         return false;
 
     const auto rec = (int) t.getProperty ("recovery", 0);
-    return rec >= 0 && rec <= 3;
+    const auto q = (int) t.getProperty ("fillNowQuant", 1);
+    const auto to = (int) t.getProperty ("holdTimeout", 15);
+    return rec >= 0 && rec <= 3 && q >= 0 && q <= 2 && to >= 2 && to <= 60;
 }
 
 void LiveControl::perfRestore (const juce::ValueTree& t)
@@ -504,6 +597,10 @@ void LiveControl::perfRestore (const juce::ValueTree& t)
     {
         o.panic.recovery = (panic::RecoveryMode) juce::jlimit (0, 3, (int) t.getProperty ("recovery", 0));
         o.panic.panicToggles = (int) t.getProperty ("panicToggles", 1) != 0;
+        o.fillNowQuant = (FillNowQuant) juce::jlimit (0, 2, (int) t.getProperty ("fillNowQuant", 1));
+        o.fillNowOverSustained = (int) t.getProperty ("fillNowSustained", 0) != 0;
+        o.holdLatch = (int) t.getProperty ("holdLatch", 0) != 0;
+        o.holdTimeoutSeconds = juce::jlimit (2, 60, (int) t.getProperty ("holdTimeout", 15));
     }
 
     setPerfOptions (o);

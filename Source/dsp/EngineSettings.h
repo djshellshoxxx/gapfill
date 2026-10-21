@@ -42,6 +42,9 @@ struct PerformanceSettings
     const scenes::OverlayView* sceneView = nullptr;   // F-L07: audio-thread-owned overlay
     const macros::MacroRuntime* macroRuntime = nullptr;   // F-M23: LFO macros re-evaluated per decision
     std::uint32_t macroOwnedMask = 0; // C-2: macro target bits claimed by macros (scenes skip them)
+    std::uint32_t fillNowId = 0;      // F-P02: a new id requests one forced fill at fillNowPos (output timeline)
+    std::int64_t fillNowPos = 0;
+    bool  fillNowOverSustained = false;
     int   battleEvery = 0;            // F-M18: 0 off, else bars per style window
     const battle::BattleRuntime* battle = nullptr;
     bool  macroWidthOn = false;       // C-2: the Space macro drives the wet width

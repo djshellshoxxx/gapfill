@@ -19,6 +19,7 @@
 #include "../commands/CommandMap.h"
 #include "../commands/ControllerProfile.h"
 #include "../macros/MacroModel.h"
+#include "../momentary/HoldController.h"
 #include "../panic/Panic.h"
 #include "../scenes/SceneController.h"
 #include "Roulette.h"
@@ -54,9 +55,16 @@ struct UiRequest
 };
 
 /** Options kept in the <Perf> subtree (not automatable). */
+/** F-P02: when "Fill Now" lands. */
+enum class FillNowQuant : std::uint8_t { Immediate = 0, NextBeat = 1, NextBar = 2 };
+
 struct PerfOptions
 {
     panic::Options panic;
+    FillNowQuant fillNowQuant = FillNowQuant::NextBeat;   ///< Immediate without a valid transport
+    bool fillNowOverSustained = false;                    ///< allow a forced fill within protectHold of an event
+    bool holdLatch = false;                               ///< F-M10: pads latch instead of momentary
+    int  holdTimeoutSeconds = 15;                         ///< F-M10: lost-release safety, 2..60 s
 };
 
 class LiveControl
@@ -92,6 +100,10 @@ public:
     /** The audio -> message event queue (timeline markers: Panic, Recover, SceneApplied). Audio thread is its single producer. */
     void setEventQueue (FillEventQueue* q) noexcept      { eventQueue = q; }
 
+    /** Called on the audio thread when a panic starts: stops the voices AND fades the FX chain
+        (the processor's panicWet). Falls back to FillEngine::panic() when unset. */
+    void setPanicHook (void (*fn) (void*) noexcept, void* context) noexcept { panicHook = fn; panicContext = context; }
+
     //--- F-L24 controller profiles and LED feedback ---------------------------
     /** Installs a profile's bindings (Replace clears first, otherwise existing bindings win) and its
         feedback rules. `message` explains skipped bindings. */
@@ -110,6 +122,14 @@ public:
     static bool feedbackAvailableInThisHost() noexcept;
     const juce::String& getFeedbackStatus() const noexcept     { return feedbackStatus; }
     commands::FeedbackEngine& feedbackEngine() noexcept        { return feedback; }
+
+    //--- F-M10 / F-S07 hold state (rendering needs E-1's performance voice, see docs/progress/WP6.md) ---
+    std::uint8_t getHoldEngagedMask() const noexcept     { return holdEngaged.load (std::memory_order_relaxed); }
+    std::uint8_t getHoldTimedOutMask() const noexcept    { return holdTimedOut.load (std::memory_order_relaxed); }
+    const momentary::HoldController& holds() const noexcept { return hold; }
+
+    /** Bypass: every hold is released. Audio thread. */
+    void clearHolds() noexcept                           { hold.panic(); holdEngaged.store (0, std::memory_order_relaxed); holdTimedOut.store (0, std::memory_order_relaxed); }
 
     //--- options -------------------------------------------------------------
     PerfOptions getPerfOptions() const noexcept;
@@ -157,7 +177,8 @@ public:
     int    getUiTimeSigDen() const noexcept              { return uiTsDen.load (std::memory_order_relaxed); }
 
 private:
-    void execute (CommandType, int arg, bool on, int sampleOffset, FillEngine&) noexcept;
+    void execute (CommandType, int arg, bool on, int sampleOffset, FillEngine&,
+                  momentary::Source = momentary::Source::Midi) noexcept;
     void onPanicAction (panic::Action, FillEngine&) noexcept;
     void post (UiRequest::Kind, int a = 0) noexcept;
     void emit (FillEventType, std::int64_t pos) noexcept;
@@ -166,6 +187,8 @@ private:
     juce::AudioProcessorValueTreeState& apvts;
     MidiLearnManager* midiLearn = nullptr;
     FillEventQueue* eventQueue = nullptr;
+    void (*panicHook) (void*) noexcept = nullptr;
+    void* panicContext = nullptr;
     std::int64_t blockPos = 0;
 
     commands::BindingModel bindingModel;
@@ -201,6 +224,21 @@ private:
     commands::FeedbackEngine feedback;
     juce::String feedbackStatus;
     int pumpTicks = 0;
+
+    momentary::HoldController hold;
+    std::atomic<std::uint8_t> holdEngaged { 0 }, holdTimedOut { 0 };
+    std::atomic<bool> holdLatchOpt { false };
+    std::atomic<int> holdTimeoutOpt { 15 };
+
+    // F-P02 Fill Now (audio-thread state, options read through atomics)
+    std::atomic<std::uint8_t> fillNowQuantMode { (std::uint8_t) FillNowQuant::NextBeat };
+    std::atomic<bool> fillNowOverSustainedOpt { false };
+    bool fillNowRequested = false;
+    bool fillNowPending = false;
+    double fillNowBoundaryPpq = 0.0;
+    double fillNowLastEndPpq = -1.0;
+    std::uint32_t fillNowId = 0;
+    std::int64_t fillNowPos = 0;
 
     int learnTicks = 0;
     juce::String learnStatus;

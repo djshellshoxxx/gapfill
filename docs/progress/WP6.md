@@ -16,9 +16,15 @@ F-M23, F-M18, F-L24, then the E-1-dependent ones (F-M10, F-S07, F-P02).
 | F-M23 | Done (engine + state) | Targets 21..35 (effect Amount ids) appended to the table, per-mapping `smoothMs` and `bipolar`, one LFO per macro (sine/tri/saw/square/seeded S&H, Hz or division), PPQ-locked decision-stage re-evaluation `Effective::applyMacroLfos`. |
 | F-M18 | Done (engine) | `features/battle/Battle.*`: `battleEvery` param (group `battle`), `BattleModel` (two styles restricted to the scene whitelist), audio `BattleRuntime`, `Effective::applyBattle`. Overlay only. |
 | F-L24 | Done (core) | `features/commands/ControllerProfile.*`: JSON profile schema (<= 8 KiB, 48 bindings, 64 LED rules), two built-in profiles, user directory scan, `FeedbackEngine` (diff-only LED messages, reconnect refresh), `MidiSink` device wrapper (Standalone only). |
+| F-P02 | Done | `FillEngine::trySchedule(..., forced)`; `ctx.forced` skips TooSoon + the density roll, `ForcedUnsafe` for room < max(60 ms, minGap) or a detected event within protectHold (option `fillNowOverSustained`); recipe flag `flagForced`; LiveControl resolves the Beat/Bar boundary to an absolute output sample (`perf.fillNowId/Pos`), re-arms on seek/loop, falls back to Immediate without transport, panic cancels. |
+| F-M10 | PARTIAL: controller only | `features/momentary/HoldController`: momentary/latch, newest-wins stack, timeout, panic, `engageAt`; commands 20-23 wired (MIDI/GUI/bypass/panic), options in `<Perf>`. NOT built: the hold voices, dry duck, hold params (`fm10_*`) and UI pads, because E-1's dedicated performance voice (WP4) is not on the integration branch. |
+| F-S07 | PARTIAL: pattern only | `stormStepAt` (8-step pattern on the 1/32 grid, gate 80 %, accent, 1/8 tail), command 17 as a hold effect, `stormSeed`. Rendering needs the same E-1 voice. |
 | N-VAL | Done (core) | `features/bank/BankFile.*`: `.gapbank` export/import (256 KiB, 64 scenes, SHA-256 digest, atomic apply, one-step undo), PC -> scene and Next/Prev/Cancel commands. |
 
 ## Deviations and gaps (honest list)
+
+* **After the `docs/dev/features` merge** (DECISIONS.md): ids defined in doc 12 keep their names (decision 18); `seed` is not stored in scenes (decision 5, already a never-id); Panic mutes wet only. Master's `panicWet()` (voices + FX chain fade) is what Panic now calls (`LiveControl::setPanicHook`). The per-feature specs name other parameter ids (`fm10_*`) and a CommandBindings/`<Commands>` design for F-M10; WP6 kept the X-1 command map and `<Cmd>` of doc 12.
+* **Forced fill timing**: the engine evaluates at 32-sample analysis hops, so Fill Now starts at the first hop at/after the boundary (<= 31 samples late). The boundary-to-sample mapping follows the engine's existing convention (output position <-> block PPQ).
 
 * **Controller profiles**: the built-in profiles are compiled into `ControllerProfile.cpp` (and validated by the same parser as user files)
   instead of `Resources/controllers/*.json`, because the repo has no resource-embedding step for plain files; user profiles still come from

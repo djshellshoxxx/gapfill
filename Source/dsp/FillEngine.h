@@ -84,7 +84,8 @@ private:
 
     ScheduleResult trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
                                 const AnalysisFrame& frame, const AnalysisEngine& analysis,
-                                const SourceHistory& history, const EngineSettings& s) noexcept;
+                                const SourceHistory& history, const EngineSettings& s,
+                                bool forced = false) noexcept;
 
     /** Fill on, source present, voices free, not too soon, enough room.
         Fills `ctx` (room figures) on success; counts TooShort gaps. */
@@ -134,6 +135,7 @@ private:
     std::int64_t gapStartPos = 0;
     std::int64_t lastFillStartPos = -1000000;
     std::int64_t lastEventPos = 0;
+    std::uint32_t lastFillNowId = 0;       // F-P02
     float lastEventTransient = 0.5f;
     std::int64_t gapIndex = 0;
 

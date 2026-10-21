@@ -46,7 +46,8 @@ namespace
     juce::ValueTree perfSerialise (const GapFillAudioProcessor& p)
     {
         const auto o = p.getLiveControl().getPerfOptions();
-        const bool isDefault = o.panic.recovery == panic::RecoveryMode::Manual && o.panic.panicToggles;
+        const bool isDefault = o.panic.recovery == panic::RecoveryMode::Manual && o.panic.panicToggles
+                               && o.fillNowQuant == live::FillNowQuant::NextBeat && ! o.fillNowOverSustained && ! o.holdLatch && o.holdTimeoutSeconds == 15;
         return isDefault ? juce::ValueTree() : p.getLiveControl().perfToValueTree();
     }
 
