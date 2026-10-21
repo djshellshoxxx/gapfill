@@ -209,7 +209,7 @@ bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
     if (events != nullptr)
     {
         FillEvent e;
-        e.type = FillEventType::PreviewStarted;
+        e.type = FillEventType::Preview;
         e.recipe = plan.recipe;
         e.pos = outputPos;
         e.lengthSamples = (std::int32_t) plan.lengthSamples;

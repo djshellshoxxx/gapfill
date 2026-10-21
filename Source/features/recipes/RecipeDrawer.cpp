@@ -15,6 +15,7 @@
 // focus (opt-in mode) and screen readers see the same controls as the mouse.
 
 #include "RecipeServices.h"
+#include "RecipeStatus.h"
 #include "../audition/Heartbeat.h"
 #include "../export/WavExport.h"
 #include "../history/Describe.h"
@@ -234,6 +235,8 @@ namespace
 
         void paint (juce::Graphics& g) override
         {
+            paintStatusLine (g);
+
             if (! open)
                 return;
 
@@ -252,6 +255,31 @@ namespace
                 g.drawText ("No fills yet. The last eight fills appear here as soon as GapFill plays one.",
                             chipRow.toNearestInt(), juce::Justification::centred, true);
             }
+        }
+
+        void paintStatusLine (juce::Graphics& g)
+        {
+            if (statusLine.text.isEmpty())
+                return;
+
+            // One live message next to the handle (the footer belongs to the WP3 status component).
+            const auto font = fonts::mono (9.5f);
+            juce::GlyphArrangement glyphs;
+            glyphs.addLineOfText (font, statusLine.text, 0.0f, 0.0f);
+            const auto textWidth = glyphs.getBoundingBox (0, -1, false).getWidth();
+
+            const auto x = (float) handle.getRight() + 8.0f;
+            const auto width = juce::jmin (textWidth + 16.0f, (float) getWidth() - x - 12.0f);
+
+            if (width < 40.0f)
+                return;
+
+            const juce::Rectangle<float> pill (x, (float) handle.getY(), width, (float) kHandleH);
+            g.setColour (colours::background.withAlpha (0.82f));
+            g.fillRoundedRectangle (pill, metrics::controlRadius + 2.0f);
+            g.setColour (statusLine.warning ? colours::warning : colours::accentGreen);
+            g.setFont (font);
+            g.drawText (statusLine.text, pill.reduced (8.0f, 0.0f), juce::Justification::centredLeft, true);
         }
 
         void resized() override
@@ -372,6 +400,15 @@ namespace
             heartbeat.poll (proc.getMeterState());
             proc.getRecipes().exportService.arm();         // the wet tap records while an editor with a drawer exists
             pollExport();
+
+            const auto line = status.update();
+
+            if (! (line == statusLine))
+            {
+                statusLine = line;
+                repaint();
+            }
+
             refresh (false);
         }
 
@@ -822,6 +859,8 @@ namespace
 
         //======================================================================
         GapFillAudioProcessor& proc;
+        recipes::RecipeStatus status { proc };
+        recipes::RecipeStatus::Line statusLine;
         audition::Heartbeat heartbeat;
         PendingExport pending;
         juce::AudioBuffer<float> exported;
@@ -849,7 +888,9 @@ namespace
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RecipeDrawer)
     };
 
-    const SlotRegistrar recipeDrawer ({ Slot::VisualiserOverlay, 100,
+    // Order 200: after the WP3 legend / timeline overlay (100). SlotHost gives every VisualiserOverlay
+    // component the full rectangle, so both draw nothing but their own controls.
+    const SlotRegistrar recipeDrawer ({ Slot::VisualiserOverlay, 200,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<RecipeDrawer> (proc);

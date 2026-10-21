@@ -64,7 +64,7 @@ bool RecipeServices::onFillEvent (const FillEvent& e) noexcept
             lockMirror = {};
             return true;
 
-        case FillEventType::PreviewStarted:
+        case FillEventType::Preview:
             lastPreviewSpan = { e.pos, e.lengthSamples };
             lastPreviewRecipe = e.recipe;
             return true;                      // consumed: never listed in history or the outcome log

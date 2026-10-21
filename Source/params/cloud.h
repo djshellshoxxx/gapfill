@@ -13,7 +13,14 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_CLOUD(X)
+#define GAPFILL_PARAMS_CLOUD(X) \
+    X (cloudAmount, "cloudAmount") \
+    X (cloudDensity, "cloudDensity") \
+    X (cloudSize, "cloudSize") \
+    X (cloudSpan, "cloudSpan") \
+    X (cloudJitter, "cloudJitter") \
+    X (cloudPitch, "cloudPitch") \
+    X (cloudSpread, "cloudSpread")
 
 namespace gapfill
 {

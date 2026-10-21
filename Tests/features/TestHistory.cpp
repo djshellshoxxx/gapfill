@@ -179,7 +179,7 @@ GF_TEST (History, audition_recipe_plays_selected)
     GF_EXPECT (previewAlgoOf (rig.engine.getPreviewStatusCode()) == (int) Algo::Stutter);
 
     const auto events = drainEvents (rig.events);
-    GF_EXPECT (events.size() == 1 && events[0].type == FillEventType::PreviewStarted);
+    GF_EXPECT (events.size() == 1 && events[0].type == FillEventType::Preview);
     GF_EXPECT (events[0].recipe.algo == (std::uint8_t) Algo::Stutter);
     GF_EXPECT (events[0].recipe.modifierMask == 0x04);
     GF_EXPECT ((events[0].recipe.flags & FillRecipe::flagPreview) != 0);

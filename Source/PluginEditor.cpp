@@ -26,7 +26,7 @@ namespace
     constexpr int kTopBarHeight = 46;
     constexpr int kMixHeight    = 124;
     constexpr int kTabHeight    = 26;
-    constexpr int kFooterHeight = 12;   // version marker, bottom-right
+    constexpr int kFooterHeight = 22;   // status line (WP3 FooterStatus slot) + version marker, bottom-right
     constexpr int kMinWidth     = 1020;
     constexpr int kMinHeight    = 620;
 
@@ -328,6 +328,9 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     addChildComponent (optionsView);
 
+    // WP3 Fix-it R12 ("Open Options") needs a way back to this page.
+    proc.getExplainState().openOptions = [this] { showOptions(); };
+
     applyTooltipSetting();
     gapfill::setReducedMotionEnabled (proc.isReducedMotionEnabled());
     applyKeyboardNavigationSetting();
@@ -370,6 +373,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 GapFillAudioProcessorEditor::~GapFillAudioProcessorEditor()
 {
     stopTimer();
+    proc.getExplainState().openOptions = nullptr;
     proc.getVisualisationFifo().setEnabled (false);
     setLookAndFeel (nullptr);
 }

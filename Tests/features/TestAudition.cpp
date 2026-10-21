@@ -103,7 +103,7 @@ GF_TEST (Audition, audition_started_event_is_flagged_preview_and_carries_span)
 
     FillEvent e;
     GF_EXPECT (rig.events.pop (&e, 1) == 1);
-    GF_EXPECT (e.type == FillEventType::PreviewStarted);
+    GF_EXPECT (e.type == FillEventType::Preview);
     GF_EXPECT ((e.recipe.flags & FillRecipe::flagPreview) != 0);
     GF_EXPECT (isValid (e.recipe));
     GF_EXPECT (e.lengthSamples > 0 && e.pos == rig.lastOutStart);
