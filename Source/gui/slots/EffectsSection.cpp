@@ -19,6 +19,7 @@ namespace
             case ControlDef::Kind::Knob:   return 72;
             case ControlDef::Kind::Combo:  return 120;
             case ControlDef::Kind::Toggle: return 96;
+            case ControlDef::Kind::Button: return 96;
         }
 
         return 72;
@@ -83,6 +84,14 @@ const std::vector<CardDef>& cardDefinitions()
             { K::Knob, "tdDropout", "Dropout", "How often the signal drops out." },
             { K::Knob, "tdSplice",  "Splice",  "How often the tape jumps." } } },
 
+
+        { fx::CardId::Formant, "Formant", "fmtAmount",
+          "Moves the resonances of the sound without changing its pitch. Amount blends it with the original; the effect adds about 21 ms of delay.",
+          -1,
+          { { K::Knob,  "fmtShift",  "Shift", "Moves the formants up or down by up to an octave without changing the pitch." },
+            { K::Knob,  "fmtTilt",   "Tilt",  "Brightens (positive) or darkens (negative) the sound, up to 6 dB per octave." },
+            { K::Combo, "fmtVowel",  "Vowel", "Adds vowel-like resonances (A E I O U). This colours the sound; it does not make words." } } },
+
         { fx::CardId::RCrush, "Rhythmic Crush", "rcAmount",
           "Bit and rate reduction that can hold in musical time. Amount blends it with the dry fill.",
           -1,
@@ -90,6 +99,59 @@ const std::vector<CardDef>& cardDefinitions()
             { K::Knob,  "rcRate", "Rate", "Sample-hold factor (used when Hold is Free)." },
             { K::Combo, "rcHold", "Hold", "Hold the sample for a musical division, following an 8-step pattern." },
             { K::Knob,  "rcTone", "Tone", "Negative darkens, positive thins out the low end." } } },
+
+        { fx::CardId::Resonator, "Comb Resonator", "resAmount",
+          "Rings the wet sound at a musical pitch, like a tuned metal pipe. Amount is how much resonance is added.",
+          -1,
+          { { K::Knob,  "resNote",   "Note",   "Pitch of the resonance (MIDI note)." },
+            { K::Combo, "resMode",   "Mode",   "Manual keeps the note. Scale degrees picks an in-scale note for every fill when Scale Lock is on." },
+            { K::Knob,  "resDecay",  "Decay",  "How long the resonance rings." },
+            { K::Knob,  "resDamp",   "Damp",   "Darkens the ringing.", true },
+            { K::Knob,  "resSpread", "Spread", "Detunes left and right slightly for width.", true } } },
+
+        { fx::CardId::FsDelay, "Shifted Delay", "fsdAmount",
+          "An echo whose every repeat is shifted up or down in frequency by a fixed number of Hz.",
+          -1,
+          { { K::Knob,  "fsdShift",    "Shift",    "Frequency shift of each repeat in Hz. Negative shifts down." },
+            { K::Combo, "fsdTime",     "Time",     "Echo time in musical divisions." },
+            { K::Knob,  "fsdFeedback", "Feedback", "How many repeats you hear." },
+            { K::Knob,  "fsdDamp",     "Damp",     "Darkens each repeat.", true },
+            { K::Knob,  "fsdStereo",   "Stereo",   "Offsets the right echo in time and flips its shift direction.", true } } },
+
+        { fx::CardId::Dub, "Dub Echo", "dubAmount",
+          "A dub-style feedback echo that darkens and moves with the tempo. It cannot run away.",
+          -1,
+          { { K::Combo,  "dubDiv",      "Division", "Echo time in musical divisions." },
+            { K::Knob,   "dubFeedback", "Feedback", "How many repeats you hear (at most 90 %)." },
+            { K::Knob,   "dubLow",      "Low cut",  "Removes low frequencies from the repeats." },
+            { K::Knob,   "dubHigh",     "High cut", "Darkens the repeats." },
+            { K::Knob,   "dubMove",     "Move",     "How far the high cut moves over two bars." },
+            { K::Knob,   "dubSat",      "Sat",      "Saturation inside the loop.", true },
+            { K::Toggle, "dubPing",     "Ping-pong", "Bounce the repeats between left and right.", true } } },
+
+        { fx::CardId::Convo, "Hit Reverb", "cvAmount",
+          "A reverb built from one of your own hits. Capture an impulse from the last hit, then blend it in.",
+          -1,
+          { { K::Button, "irCapture", "Capture IR", "Use the strongest hit of the last 4 seconds as the reverb." },
+            { K::Knob,   "cvSize",    "Size",       "Length of the captured sound (applied at the next capture)." },
+            { K::Knob,   "cvDamp",    "Damp",       "Darkens the tail (applied at the next capture)." },
+            { K::Button, "irAuto",    "Auto",       "Capture automatically on the first strong hit when no impulse is loaded.", true },
+            { K::Button, "irSave",    "Save IR...", "Save the current impulse as a WAV file.", true },
+            { K::Button, "irLoad",    "Load IR...", "Load a WAV impulse (1 second or shorter).", true },
+            { K::Button, "irClear",   "Clear IR",   "Forget the impulse; the card then passes the sound unchanged.", true } } },
+
+        { fx::CardId::SpFreeze, "Spectral Freeze", "sfzAmount",
+          "Freezes the sound just before a gap into a sustained, evolving texture, optionally morphing between two captures.",
+          -1,
+          { { K::Button, "sfzCapture", "Capture",  "Freeze the sound that is playing right now." },
+            { K::Button, "sfzRelease", "Release",  "Fade the frozen sound out." },
+            { K::Knob,   "sfzLength",  "Length",   "How long the frozen sound is held." },
+            { K::Knob,   "sfzDecay",   "Decay",    "How quickly the held sound fades." },
+            { K::Knob,   "sfzMorph",   "Morph",    "Blend towards the second capture, or the live sound if there is only one." },
+            { K::Button, "sfzAuto",    "Auto",     "Capture automatically at every fill.", true },
+            { K::Knob,   "sfzSmear",   "Smear",    "Blurs the frozen spectrum.", true },
+            { K::Knob,   "sfzPitch",   "Pitch",    "Shifts the frozen sound in semitones.", true },
+            { K::Knob,   "sfzWidth",   "Width",    "Decorrelates left and right.", true } } },
     };
 
     return defs;
@@ -137,6 +199,18 @@ EffectCardView::EffectCardView (GapFillAudioProcessor& p, const CardDef& d)
             case ControlDef::Kind::Knob:   comp = std::make_unique<GapKnob> (state, c.paramId, c.label, c.tooltip, colours::primary); break;
             case ControlDef::Kind::Combo:  comp = std::make_unique<GapCombo> (state, c.paramId, c.label, c.tooltip); break;
             case ControlDef::Kind::Toggle: comp = std::make_unique<GapToggle> (state, c.paramId, c.label, c.tooltip); break;
+            case ControlDef::Kind::Button:
+            {
+                auto b = std::make_unique<juce::TextButton> (c.label);
+                b->setTooltip (c.tooltip);
+                b->setTitle (c.label);
+                const juce::String action (c.paramId);
+                b->setClickingTogglesState (action.endsWith ("Auto"));
+                auto* raw = b.get();
+                b->onClick = [this, action, raw] { runAction (action, raw); };
+                comp = std::move (b);
+                break;
+            }
         }
 
         addAndMakeVisible (*comp);
@@ -209,6 +283,40 @@ void EffectCardView::toggleEnabled()
     setEnabledCard (! isEnabledCard());
 }
 
+void EffectCardView::runAction (const juce::String& action, juce::Button* source)
+{
+    auto& cards = proc.getFxChain().cardsRef();
+
+    if (action == "irCapture")       cards.convo.requestCapture();
+    else if (action == "irClear")    cards.convo.clearIr();
+    else if (action == "irAuto")     cards.convo.setAutoCapture (source != nullptr && source->getToggleState());
+    else if (action == "sfzCapture") cards.spfreeze.requestCapture();
+    else if (action == "sfzRelease") cards.spfreeze.requestRelease();
+    else if (action == "sfzAuto")    cards.spfreeze.setAutoCapture (source != nullptr && source->getToggleState());
+    else if (action == "irSave" || action == "irLoad")
+    {
+        const bool save = action == "irSave";
+        chooser = std::make_unique<juce::FileChooser> (save ? "Save impulse response" : "Load impulse response",
+                                                       juce::File::getSpecialLocation (juce::File::userDocumentsDirectory), "*.wav");
+        const auto flags = save ? juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
+                                : juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+        chooser->launchAsync (flags, [this, save] (const juce::FileChooser& fc)
+        {
+            const auto f = fc.getResult();
+
+            if (f == juce::File())
+                return;
+
+            auto& convo = proc.getFxChain().cardsRef().convo;
+
+            if (save)
+                convo.saveIrToFile (f.withFileExtension ("wav"));
+            else
+                convo.loadIrFromFile (f);
+        });
+    }
+}
+
 void EffectCardView::soloThisEffect()
 {
     if (def.carrierAlgo >= 0)
@@ -261,6 +369,23 @@ void EffectCardView::refresh()
     else if (def.card == fx::CardId::Ratchet && on && m.tempoFallback.load (std::memory_order_relaxed))
     {
         text = "No transport - using the fallback tempo";
+    }
+
+    else if (def.card == fx::CardId::Convo && on)
+    {
+        const auto& cv = proc.getFxChain().cardsRef().convo;
+        text = cv.hasIr() ? "IR: " + juce::String (juce::roundToInt (1000.0 * cv.irLengthSamples() / juce::jmax (1.0, proc.getSampleRate()))) + " ms"
+                          : juce::String ("No IR - capture one");
+    }
+    else if (def.card == fx::CardId::SpFreeze && on)
+    {
+        const auto& sf = proc.getFxChain().cardsRef().spfreeze;
+        text = sf.isSounding() ? "Frozen" : (sf.captureSequence() > 0 ? "Released" : "Nothing captured yet");
+    }
+    else if (def.card == fx::CardId::Formant && on)
+    {
+        const auto ms = 1000.0 * proc.getFxChain().cardsRef().formant.latencySamples() / juce::jmax (1.0, proc.getSampleRate());
+        text = "Delays the sound by " + juce::String (juce::roundToInt (ms)) + " ms";
     }
 
     if (text != readout.getText())
@@ -521,6 +646,50 @@ namespace
     {
         w.body ("In Spectral detection each fill belongs to a LOW, MID or HIGH lane. The LOW / MID / HIGH switches under the effects "
                 "choose which lanes use them. A lane that is switched off stays free of effects; fills that cover the whole spectrum always use them.");
+    });
+
+    const HelpRegistrar helpFormant (4080, "Formant", [] (HelpWriter& w)
+    {
+        w.body ("Moves the resonant character of the sound (its formants) without changing its pitch. Amount blends the "
+                "processed sound with the original. The effect works on the whole wet sound and delays it by about 21 ms "
+                "(about 23 ms at 96 kHz); the next protected hit is still kept clear.");
+        w.entry ("Shift", "Up to 12 semitones either way. With Scale Lock on it snaps to an in-scale interval.");
+        w.entry ("Tilt", "Brightens or darkens by up to 6 dB per octave around 1 kHz.");
+        w.entry ("Vowel", "Adds vowel-like resonances. This colours the sound; it does not make words.");
+    });
+
+    const HelpRegistrar helpResonator (4090, "Comb Resonator", [] (HelpWriter& w)
+    {
+        w.body ("Rings the wet sound at a chosen pitch, like a tuned pipe. Amount is how much resonance is added to the sound.");
+        w.entry ("Note", "The pitch of the resonance.");
+        w.entry ("Mode", "Scale degrees picks an in-scale note near Note for every fill when Scale Lock is on; otherwise it behaves like Manual.");
+        w.entry ("Decay", "From 50 ms to 2 seconds of ringing.");
+    });
+
+    const HelpRegistrar helpFsDelay (4100, "Shifted Delay", [] (HelpWriter& w)
+    {
+        w.body ("An echo in which every repeat is shifted by a fixed number of Hz, so the repeats climb or sink. A shift of 0 "
+                "is a plain damped echo. Tails stop after 4 seconds.");
+    });
+
+    const HelpRegistrar helpDub (4110, "Dub Echo", [] (HelpWriter& w)
+    {
+        w.body ("A feedback echo that darkens with every repeat and whose high cut moves over two bars. The feedback is limited "
+                "to 90 % and a saturator keeps the loop level bounded, so it cannot run away.");
+    });
+
+    const HelpRegistrar helpConvo (4120, "Hit Reverb", [] (HelpWriter& w)
+    {
+        w.body ("Builds a reverb from one of your own hits: Capture IR takes the strongest hit of the last 4 seconds. "
+                "The impulse is never saved with the project - after reopening, capture again (or load a WAV). "
+                "Without an impulse the card passes the sound unchanged.");
+    });
+
+    const HelpRegistrar helpFreeze (4130, "Spectral Freeze", [] (HelpWriter& w)
+    {
+        w.body ("Freezes the sound just before a gap into a sustained texture. Auto capture does this at every fill; Capture "
+                "freezes what is playing now and Release fades it out. A second capture lets Morph blend between two frozen sounds. "
+                "The frozen sound starts about 43 ms after the capture.");
     });
 }
 

@@ -17,6 +17,12 @@ void FxChain::build()
     // Permanent order (docs/dev/12 FX-0): resonator -> fsdelay -> dub -> convo ->
     // spfreeze. Each bus card (WP9) adds one explicit line here.
     count = 0;
+    addBusCard (&busCards.formant);        // F-L20 (CardId order)
+    addBusCard (&busCards.resonator);      // F-M15
+    addBusCard (&busCards.fsdelay);        // F-L19
+    addBusCard (&busCards.dub);            // F-L15
+    addBusCard (&busCards.convo);          // F-L21
+    addBusCard (&busCards.spfreeze);       // F-X02
 }
 
 bool FxChain::addBusCard (BusFx* card) noexcept

@@ -20,14 +20,15 @@ namespace
 GF_TEST (FxSection, every_control_the_cards_show_is_a_real_parameter)
 {
     GapFillAudioProcessor proc;
-    GF_EXPECT (fxgui::cardDefinitions().size() == 5);
+    GF_EXPECT (fxgui::cardDefinitions().size() == 11);
 
     for (const auto& def : fxgui::cardDefinitions())
     {
         GF_EXPECT_MSG (proc.getValueTreeState().getParameter (def.amountId) != nullptr, def.amountId);
 
         for (const auto& c : def.controls)
-            GF_EXPECT_MSG (proc.getValueTreeState().getParameter (c.paramId) != nullptr, c.paramId);
+            if (c.kind != fxgui::ControlDef::Kind::Button)            // buttons name actions, not parameters
+                GF_EXPECT_MSG (proc.getValueTreeState().getParameter (c.paramId) != nullptr, c.paramId);
     }
 
     // Chain order of the cards is the permanent order.

@@ -59,13 +59,13 @@ void gatherFx (EngineSettings& s, const ParamCache& p) noexcept
     f.fsdelay.amount01 = pv (p.fsdAmount) / 100.0f;
     f.fsdelay.shiftHz = juce::jlimit (-2000.0f, 2000.0f, pv (p.fsdShift));
     f.fsdelay.time = juce::jlimit (0, (int) Division::NumDivisions - 1, pi (p.fsdTime));
-    f.fsdelay.feedback01 = juce::jlimit (0.0f, 0.85f, pv (p.fsdFeedback) / 100.0f);
+    f.fsdelay.feedback01 = juce::jlimit (0.0f, 0.85f, std::round (pv (p.fsdFeedback) * 100.0f) / 10000.0f);
     f.fsdelay.damp01 = pv (p.fsdDamp) / 100.0f;
     f.fsdelay.stereo01 = pv (p.fsdStereo) / 100.0f;
 
     f.dub.amount01 = pv (p.dubAmount) / 100.0f;
     f.dub.div = juce::jlimit (0, (int) Division::NumDivisions - 1, pi (p.dubDiv));
-    f.dub.feedback01 = juce::jlimit (0.0f, 0.9f, pv (p.dubFeedback) / 100.0f);
+    f.dub.feedback01 = juce::jlimit (0.0f, 0.9f, std::round (pv (p.dubFeedback) * 100.0f) / 10000.0f);
     f.dub.lowHz = pv (p.dubLow);
     f.dub.highHz = pv (p.dubHigh);
     f.dub.move01 = pv (p.dubMove) / 100.0f;

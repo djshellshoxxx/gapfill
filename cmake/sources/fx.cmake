@@ -8,6 +8,13 @@ list(APPEND GAPFILL_SOURCES
     Source/features/fx/RatchetCard.cpp
     Source/features/fx/RcrushCard.cpp
     Source/features/fx/TapeDestrCard.cpp
+    Source/features/fx/bus/ResonatorCard.cpp
+    Source/features/fx/bus/FsDelayCard.cpp
+    Source/features/fx/bus/DubCard.cpp
+    Source/features/fx/bus/FormantCard.cpp
+    Source/features/fx/bus/ConvoCard.cpp
+    Source/features/fx/bus/SpFreezeCard.cpp
+    Source/dsp/spectral/Stft.cpp
     Source/features/swell/SwellMode.cpp
     Source/features/cloud/CloudMode.cpp
     Source/features/scrub/ScrubVoice.cpp
