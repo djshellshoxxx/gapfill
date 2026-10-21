@@ -146,6 +146,18 @@ Sources: `cmake/sources/scale.cmake` (N-MUS + F-L22) and `cmake/sources/groove.c
 
 Parameters added: `scaleRoot scaleType scaleAmount` | `scaleFollow fx03_window fx03_minConf fx03_hold` | `energyAdapt energyTarget` | `fl09_amount fl09_grid fl09_hold` (groove IDs are performance ids). New state row `Key` (12 rows now). Migration: old states load with every new feature off.
 
+## WP5 shaping and decisions (as built)
+
+| Module | Files | Contract / invariants |
+|---|---|---|
+| Shared runtime | `features/shaping/ShapingRuntime.*`, `DecisionTelemetry.h` | One processor member (`getShaping()`): tempo memory (E-2), effective creative values for knobs (C-0), Capture v2 latch (C-10). `FillEngine::getDecisionTelemetry()` holds breathing phase, phrase position/multiplier, Evolve waypoint, budget bar count. Relaxed atomics, UI reads only. |
+| Sync (E-2) | `features/sync/*` | `TempoSource` (host tempo, last known, `<Perf>` fallbackBpm 40-300), `clampToDivision` (halves/doubles the division, never clips ms), `quantiseFillLength` (never lengthens). `Perf` subtree is composite (WP4 trigger/match + fallbackBpm) in `StateSubtrees.cpp`. |
+| Envelope (C-4), Mistakes (C-3) | `features/envelope`, `features/mistakes` | Voice stages, skipped entirely when neutral; mistakes roll on a salted sub-RNG in `adjustRecipe` after Lock (fresh per fill), zero draws at 0. |
+| Personality (C-1), Evolve (C-8) | `features/personality`, `features/evolve`, `Effective::applyPersonality/applyEvolve` | Pure overlays on `EngineSettings`; zero weights stay zero; forced Fill Type bypasses weights; Evolve is stateless (random-access waypoint order). |
+| Breathing (C-6), Phrase (C-7), Budget (F-D01), Timing | `features/breathing`, `phrase`, `budget`, `timing/BarTiming.h` | Decision stage on the scheduler's copy; neutral without valid PPQ and time signature; budget runs in `checkEligibility` before any RNG draw, ring of 16 fill starts cleared on transport jump. |
+| Band type (C-9) | `buildRecipe`, `params/bandtype` | Lane forces its algorithm in Spectral mode; global Fill Type wins; `NoAlgoFits` when it does not fit. |
+| Capture v2 (C-10) | `features/capture2/CaptureLatch.*`, `SourceHistory::setReadFloor` | v1 pause-the-writer kept; Recapture copies <= 4096 samples/block into ping-pong snapshots; release/sample-rate change/reset clear it. |
+
 ## Change checklist
 
 - [ ] Update the ownership table and flow diagram if a boundary moves.

@@ -23,9 +23,9 @@ inline juce::ParameterID makeID (const char* id, int versionHint = kVersionHint)
     return { id, versionHint };
 }
 
-inline std::unique_ptr<APF> percent (const char* id, const char* name, float def)
+inline std::unique_ptr<APF> percent (const char* id, const char* name, float def, int versionHint = kVersionHint)
 {
-    return std::make_unique<APF> (makeID (id), name,
+    return std::make_unique<APF> (makeID (id, versionHint), name,
                                   juce::NormalisableRange<float> (0.0f, 100.0f, 0.01f), def,
                                   Attr().withLabel ("%")
                                         .withStringFromValueFunction ([] (float v, int)
@@ -33,11 +33,11 @@ inline std::unique_ptr<APF> percent (const char* id, const char* name, float def
 }
 
 inline std::unique_ptr<APF> millis (const char* id, const char* name, float lo, float hi,
-                                    float def, float centre)
+                                    float def, float centre, int versionHint = kVersionHint)
 {
     auto r = juce::NormalisableRange<float> (lo, hi);
     r.setSkewForCentre (centre);
-    return std::make_unique<APF> (makeID (id), name, r, def,
+    return std::make_unique<APF> (makeID (id, versionHint), name, r, def,
                                   Attr().withLabel ("ms")
                                         .withStringFromValueFunction ([] (float v, int)
                                             { return juce::String (v, v < 100.0f ? 1 : 0) + " ms"; }));

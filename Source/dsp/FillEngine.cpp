@@ -1,5 +1,12 @@
 #include "FillEngine.h"
 #include "../features/effective/Effective.h"
+#include "../features/sync/Sync.h"
+#include "../features/breathing/Breathing.h"
+#include "../features/budget/Budget.h"
+#include "../features/mistakes/Mistakes.h"
+#include "../features/evolve/Evolve.h"
+#include "../features/phrase/Phrase.h"
+#include "../features/timing/BarTiming.h"
 #include "../features/history/Describe.h"
 #include "../features/lock/LockStage.h"
 #include "../features/fx/FxHooks.h"
@@ -113,6 +120,8 @@ void FillEngine::reset()
     fillsStarted = 0;
     gapsTooShort = 0;
     rejectCounts.fill (0);
+    telemetry.reset();
+    recentFills.clear();
     prevActiveVoices = 0;
     vizCounter = 0;
     vizAccum = {};
@@ -132,6 +141,13 @@ void FillEngine::panic() noexcept
             v.requestStop (juce::jmax (16, (int) (sr * 0.004)));
 
     preview.fadeOut (juce::jmax (48, (int) (sr * 0.004)));      // E-1
+}
+
+void FillEngine::sourceChanged() noexcept
+{
+    for (auto& v : voices)
+        if (v.isActive() && v.getAlgo() == Algo::Granular)
+            v.requestStop (juce::jmax (16, (int) (sr * 0.010)));
 }
 
 int FillEngine::getActiveVoiceCount() const noexcept
@@ -453,6 +469,25 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
 }
 
 //==============================================================================
+void FillEngine::publishDecisionTelemetry (const EngineSettings& base, const EngineSettings& decided, double ppq,
+                                           const Effective::TransportInfo& transport) noexcept
+{
+    const auto breath = breathing::phaseAt (base.perf.breath, ppq, transport);
+    telemetry.breathPhase.store ((float) breath, std::memory_order_relaxed);
+    telemetry.breathOffset.store (breath >= 0.0 ? decided.density01 - base.density01 : 0.0f, std::memory_order_relaxed);
+
+    evolve::Waypoint waypoint;
+    telemetry.evolveProfile.store (evolve::waypointAt (base, ppq, transport, waypoint) ? waypoint.profile : -1,
+                                   std::memory_order_relaxed);
+
+    telemetry.phrasePosition.store ((float) phrase::positionAt (base.perf.phrase, ppq, transport), std::memory_order_relaxed);
+    telemetry.phraseMultiplier.store (decided.perf.probabilityMul, std::memory_order_relaxed);
+    const auto bpb = timing::beatsPerBar (transport);
+    telemetry.barFills.store (bpb > 0.0 ? recentFills.countInBar (timing::barIndex (ppq, bpb), bpb) : 0,
+                              std::memory_order_relaxed);
+    telemetry.decisions.fetch_add (1, std::memory_order_relaxed);
+}
+
 ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
                                        const AnalysisFrame& frame, const AnalysisEngine& analysis,
                                        const SourceHistory& history, const EngineSettings& base) noexcept
@@ -468,13 +503,17 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
     responder.configure (base.perf.call, base.perf.lockOn || like.active() || base.fillTypeIndex > 0);
 
     EngineSettings s = base;
-    Effective::applyAtDecision (s, ppq, { havePpq, ppq, base.perf.tsNum, base.perf.tsDen,
-                                          havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0 });
+    const Effective::TransportInfo transport { havePpq, ppq, base.perf.tsNum, base.perf.tsDen,
+                                               havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0 };
+    Effective::applyAtDecision (s, ppq, transport);
+    publishDecisionTelemetry (base, s, ppq, transport);
 
     GapContext ctx;
     ctx.outputPos = outputPos;
     ctx.blockStartPos = blockStartPos;
     ctx.frame = &frame;
+    ctx.history = &history;
+    ctx.sourceAnchor = juce::jlimit ((std::int64_t) 0, history.getWritePosition(), outputPos - s.historyOffset);
 
     ScheduleResult result;
     FillPlan plan;
@@ -522,6 +561,10 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
         return reject (RejectReason::SourceUnavailable);
 
     noteFillStarted (plan, outputPos);
+
+    if (havePpq)
+        recentFills.push (budget::tickFor (ppq));       // F-D01 bar counting (every started fill counts)
+
     result.started = true;
     result.recipe = plan.recipe;
     result.lengthSamples = plan.lengthSamples;
@@ -581,6 +624,28 @@ RejectReason FillEngine::checkEligibility (GapContext& ctx, const AnalysisEngine
     }
 
     ctx.usable = juce::jmin (ctx.available, ctx.maxFillSamples);
+
+    // F-D01 per-bar budget and quiet zones: decided before any RNG draw, neutral when Off
+    // or without a valid transport / time signature.
+    if (s.perf.budget.perBar > 0 || s.perf.budget.zone > 0)
+    {
+        const bool havePpq = s.transportValid && s.samplesPerBeat > 1.0;
+        const auto ppq = havePpq ? s.ppqAtBlockStart + (double) (ctx.outputPos - ctx.blockStartPos) / s.samplesPerBeat
+                                 : 0.0;
+        bool needsTransport = false;
+        const auto verdict = budget::evaluate (s.perf.budget, s.perf.phrase, ppq,
+                                               { havePpq, ppq, s.perf.tsNum, s.perf.tsDen, 0.0 },
+                                               recentFills, &needsTransport);
+        telemetry.budgetNeedsTransport.store (needsTransport, std::memory_order_relaxed);
+
+        if (verdict != RejectReason::None)
+            return verdict;
+    }
+    else
+    {
+        telemetry.budgetNeedsTransport.store (false, std::memory_order_relaxed);
+    }
+
     return RejectReason::None;
 }
 
@@ -590,6 +655,7 @@ RejectReason FillEngine::rollDecision (GapContext& ctx, Rng& rng, const EngineSe
     // ---- should this gap be filled at all? -------------------------------
     ctx.conf = juce::jlimit (0.0f, 1.0f, ctx.frame->conf);
     auto probability = s.fill01 * (0.4f + 0.6f * s.density01) * (0.6f + 0.4f * ctx.conf) * 1.15f;
+    probability *= s.perf.probabilityMul;   // C-7 phrase ramp (exactly 1.0 when neutral)
 
     // ---- spectral lane ----------------------------------------------------
     band = -1;
@@ -621,16 +687,25 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
     auto lengthSamples = (std::int64_t) ((double) ctx.usable * juce::jlimit (0.2f, 1.2f, scale));
     lengthSamples = juce::jlimit (juce::jmin (ctx.minGapSamples, ctx.usable), ctx.usable, lengthSamples);
 
+    // E-2: optional fill-length grid (never lengthens, never exceeds usable).
+    if (s.perf.quantDivision >= 0 && s.transportValid && s.samplesPerBeat > 1.0)
+        lengthSamples = sync::quantiseFillLength (lengthSamples,
+                                                  sync::fillQuantBeats (s.perf.quantDivision + 1) * s.samplesPerBeat,
+                                                  ctx.minGapSamples, ctx.usable);
+
     const auto lengthMs = (float) (1000.0 * (double) lengthSamples / sr);
 
     // ---- algorithm ---------------------------------------------------------
     int algoIndex;
 
-    if (s.fillTypeIndex > 0)
-    {
-        algoIndex = juce::jlimit (0, numAlgos - 1, s.fillTypeIndex - 1);
+    // C-9: in Spectral mode a lane may force its own fill type; a global Fill Type wins over it.
+    const int laneType = (s.fillTypeIndex == 0 && band >= 0 && band < 3) ? s.perf.bandType[band] : 0;
 
-        // A manually chosen algorithm still has to fit the space.
+    if (s.fillTypeIndex > 0 || laneType > 0)
+    {
+        algoIndex = juce::jlimit (0, numAlgos - 1, (s.fillTypeIndex > 0 ? s.fillTypeIndex : laneType) - 1);
+
+        // A manually chosen algorithm still has to fit the space (no silent substitution).
         if (lengthMs < kProfiles[algoIndex].minMs * 0.6f)
         {
             plan.lengthMs = lengthMs;
@@ -685,7 +760,6 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
 RejectReason FillEngine::adjustRecipe (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept
 {
     // Fill Lock (C-5) substitutes the locked recipe here and may return LockSkipped.
-    // HOOK for Mistakes (C-3): sets mistakeType/Amt, rolling fresh per fill.
     // Features draw from their own salted sub-RNG (Source/features/Salts.h),
     // never from the scheduler's Rng.
     if (lockstage::isActive (lockState, s))
@@ -695,11 +769,61 @@ RejectReason FillEngine::adjustRecipe (FillPlan& plan, const GapContext& ctx, co
             return r;
     }
 
+    // C-3 Controlled Mistakes: a fresh roll for every fill (a locked recipe's mistake field is
+    // ignored, spec 04 C-5). With mistakes at 0 nothing runs and no RNG is touched.
+    if (s.perf.mistakes01 > 0.0f)
+        rollMistake (plan, ctx, s);
+
     fx::decideRenderModes (plan, ctx, s);       // WP8: Reverse Swell / Granular Cloud flags
     scale::decidePitch (plan, ctx, s);          // WP7 N-MUS: Scale Lock snaps the pitch decision
     if (responder.active() && (plan.recipe.flags & FillRecipe::flagFromLock) == 0)
         plan.recipe.flags |= FillRecipe::flagResponse;     // WP7 F-L10: History marks response fills
     return RejectReason::None;
+}
+
+void FillEngine::rollMistake (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept
+{
+    plan.recipe.mistakeType = 0;
+    plan.recipe.mistakeAmt = 0;
+
+    mistakes::Roller roller (s.perf.mistakes01, ctx.key);
+
+    if (! roller.hit())
+        return;
+
+    mistakes::Facts f;
+    f.algo = plan.algoIndex;
+    f.lengthSamples = plan.lengthSamples;
+    f.sampleRate = sr;
+    f.mono = channels < 2;
+    f.sourceAvailable = ctx.sourceAnchor;
+    f.seed = plan.recipe.seed;
+    f.repeats = mistakes::estimateRepeats (plan.algoIndex, plan.lengthSamples, sr, s.stutterSeconds,
+                                           s.delaySeconds, s.complexity01);
+
+    // Is the capture effectively mono? Estimated from at most 512 evenly spaced samples, and only
+    // when a stereo swing could be chosen at all.
+    if (! f.mono && ctx.history != nullptr
+         && 1000.0 * (double) plan.lengthSamples / sr >= mistakes::kMinBounceMs)
+    {
+        const auto span = juce::jmin ((std::int64_t) (sr * 0.32), plan.lengthSamples);
+        double diff = 0.0, energy = 0.0;
+
+        for (int i = 0; i < 512; ++i)
+        {
+            const auto p = (double) (ctx.sourceAnchor - span) + (double) span * (double) i / 512.0;
+            const auto a = (double) ctx.history->read (0, p);
+            const auto b = (double) ctx.history->read (1, p);
+            diff += (a - b) * (a - b);
+            energy += a * a + b * b;
+        }
+
+        f.stereoCoherent = energy < 1.0e-12 || diff <= 1.0e-6 * energy;        // < -60 dB difference
+    }
+
+    const auto roll = roller.pick (f);
+    plan.recipe.mistakeType = roll.type;
+    plan.recipe.mistakeAmt = roll.amount;
 }
 
 VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx,
@@ -727,6 +851,12 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     setup.stutterSeconds = s.stutterSeconds;
     setup.delaySeconds = s.delaySeconds;
     setup.pingPong = s.pingPong;
+    setup.modSyncSeconds = s.perf.modSyncSeconds;   // E-2 (0 = off)
+    setup.envShape = s.perf.envShape;               // C-4
+    setup.envAmount01 = s.perf.envAmount01;
+    setup.mistakeType = plan.recipe.mistakeType;    // C-3
+    setup.mistakeAmt01 = (float) plan.recipe.mistakeAmt * 0.01f;
+    setup.mistakeSeed = plan.recipe.seed;
     setup.rngSeed = hashCombine (ctx.key, (std::uint64_t) (plan.algoIndex + 1) * 0x27D4EB2FULL);
 
     for (int b = 0; b < 3; ++b)
