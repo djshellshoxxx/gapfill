@@ -7,6 +7,8 @@
 #include "../features/evolve/Evolve.h"
 #include "../features/phrase/Phrase.h"
 #include "../features/timing/BarTiming.h"
+#include "../features/history/Describe.h"
+#include "../features/lock/LockStage.h"
 #include "../features/fx/FxHooks.h"
 
 namespace gapfill
@@ -78,6 +80,7 @@ void FillEngine::prepare (double sampleRate, int /*maxBlockSize*/, int numChanne
     for (auto& v : voices)
         v.prepare (sr, channels);
 
+    preview.prepare (sr, channels);       // E-1
     scrub.prepare (sr, channels);
     spectral.prepare (sr, 2);
 
@@ -92,6 +95,9 @@ void FillEngine::reset()
     for (auto& v : voices)
         v.reset();
 
+    resetPreview();                       // E-1: fades the preview, restarts its sequence
+    lockState.resetRuntime();             // C-5: the locked recipe survives, the "latest fill" memory does not
+    like.cancel();                        // C-11
     scrub.reset();
 
     spectral.reset();
@@ -130,6 +136,8 @@ void FillEngine::panic() noexcept
     for (auto& v : voices)
         if (v.isActive())
             v.requestStop (juce::jmax (16, (int) (sr * 0.004)));
+
+    preview.fadeOut (juce::jmax (48, (int) (sr * 0.004)));      // E-1
 }
 
 void FillEngine::sourceChanged() noexcept
@@ -180,6 +188,9 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
     constexpr auto hop = AnalysisEngine::hopSize;
     int offset = 0;
 
+    servePendingPreview (outputStartPos, analysis, history, s, events);     // E-1
+    lockState.update (s.perf.lockOn);                                       // C-5
+
     while (offset < numSamples)
     {
         const auto outputPos = outputStartPos + offset;
@@ -204,8 +215,13 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
                       juce::jlimit ((std::int64_t) 0, history.getWritePosition(), outputPos - s.historyOffset),
                       s.fx.scrub, currentDuck);
 
+        preview.render (wet, wetStartSample + offset, chunk, history);      // E-1
+
         offset += chunk;
     }
+
+    preview.endBlock();                                                     // E-1
+    flushLockEvents (outputStartPos, events);                               // C-5
 
     int algo = -1;
 
@@ -305,10 +321,10 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
 
     currentDuck = juce::jlimit (0.0f, 1.0f, duck);
 
-    for (auto& v : voices)
+    auto protectVoice = [&] (FillVoice& v)
     {
         if (! v.isActive())
-            continue;
+            return;
 
         v.setDuck (currentDuck);
 
@@ -319,7 +335,12 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
         {
             v.requestStop ((int) juce::jmax ((std::int64_t) 48, distanceToNext));
         }
-    }
+    };
+
+    for (auto& v : voices)
+        protectVoice (v);
+
+    protectVoice (preview.voice);          // E-1: a preview is ducked like a natural fill
 
     // ---- gap state machine ----------------------------------------------
     if (! inGap)
@@ -356,6 +377,7 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             e.recipe = result.recipe;
             e.availMs = result.availableMs;
             e.needMs = result.neededMs;
+            e.lengthSamples = (std::int32_t) result.lengthSamples;     // U-2 export span
             events->push (e);
         }
 
@@ -413,6 +435,17 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             {
                 activeAlgo = (int) v.getAlgo();
                 activeBand = v.getBand();
+            }
+        }
+
+        if (preview.isActive())            // E-1: drawn in the preview colour
+        {
+            vizAccum.flags |= VizFrame::flagPreview;
+
+            if (activeAlgo < 0)
+            {
+                activeAlgo = (int) preview.voice.getAlgo();
+                activeBand = preview.voice.getBand();
             }
         }
 
@@ -527,6 +560,7 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
 
     result.started = true;
     result.recipe = plan.recipe;
+    result.lengthSamples = plan.lengthSamples;
     return result;
 }
 
@@ -675,6 +709,11 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
     {
         algoIndex = chooseAlgorithm (lengthMs, s, rng);
 
+        // C-5: Lock still plays its algorithm when the weights or length would exclude it;
+        // adjustRecipe applies the fit rules.
+        if (algoIndex < 0 && lockstage::isActive (lockState, s))
+            algoIndex = lockState.recipe.algo;
+
         if (algoIndex < 0)
         {
             // Report the shortest fill any enabled algorithm could have played.
@@ -701,18 +740,29 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
     r.band = (std::int8_t) band;
     r.lengthClass = lengthClassFor (lengthMs, s.maxFillMs);
     r.lengthMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (lengthMs));
+    r.division = history::recipeDivision (algoIndex, s, sr);       // U-1: Stutter / Delay subdivision, for the chip text
     r.seed = (std::uint32_t) hashCombine (ctx.key, (std::uint64_t) (algoIndex + 1) * 0x27D4EB2FULL);
+
+    if (likeApplies (s))
+        r.flags |= FillRecipe::flagBiased;      // C-11
+
     return RejectReason::None;
 }
 
 RejectReason FillEngine::adjustRecipe (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept
 {
-    // HOOK: Fill Lock (C-5) substitutes the locked recipe here and may return
-    // LockSkipped. Features draw from their own salted sub-RNG
-    // (Source/features/Salts.h), never from the scheduler's Rng.
+    // Fill Lock (C-5) substitutes the locked recipe here and may return LockSkipped.
+    // Features draw from their own salted sub-RNG (Source/features/Salts.h),
+    // never from the scheduler's Rng.
+    if (lockstage::isActive (lockState, s))
+    {
+        if (auto r = lockstage::apply (lockState, plan, ctx, s, sr, kProfiles[lockState.recipe.algo].minMs);
+            r != RejectReason::None)
+            return r;
+    }
 
     // C-3 Controlled Mistakes: a fresh roll for every fill (a locked recipe's mistake field is
-    // ignored). With mistakes at 0 nothing runs and no RNG is touched.
+    // ignored, spec 04 C-5). With mistakes at 0 nothing runs and no RNG is touched.
     if (s.perf.mistakes01 > 0.0f)
         rollMistake (plan, ctx, s);
 
@@ -825,8 +875,18 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
 bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan,
                              const SourceHistory& history) noexcept
 {
+    // The recipe records what the voice decided for itself (U-1 / C-5 replay it).
+    auto record = [&]
+    {
+        plan.recipe.modifierMask = voice.getModifierMask();
+        plan.recipe.pitchSemis = voice.getPitchSemis();
+    };
+
     if (voice.start (setup, history, &spectral))
+    {
+        record();
         return true;
+    }
 
     // Spectral processor busy - fall back to a simpler algorithm.
     setup.algo = Algo::Granular;
@@ -839,6 +899,7 @@ bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan
 
     plan.algoIndex = (int) setup.algo;
     plan.recipe.algo = (std::uint8_t) plan.algoIndex;
+    record();
     return true;
 }
 
@@ -849,6 +910,10 @@ void FillEngine::noteFillStarted (const FillPlan& plan, std::int64_t outputPos) 
     lastFillStartPos = outputPos;
     ++fillsStarted;
 
+    lockState.noteStarted (plan.recipe);        // C-5: latest natural recipe (previews never get here)
+
+    if ((plan.recipe.flags & FillRecipe::flagFromLock) == 0)
+        like.noteStarted();                     // C-11: only started, unlocked, natural fills count
     if (blockIO != nullptr && blockIO->numStarts < fx::kMaxFillStarts)      // HOOK (WP8, FX-0)
         blockIO->starts[blockIO->numStarts++] = { plan.recipe, outputPos };
 }
@@ -892,6 +957,9 @@ int FillEngine::chooseAlgorithm (float lengthMs, const EngineSettings& s, Rng& r
 
         // How hard was the hit that opened this gap?
         w *= 1.0f - 0.5f * std::abs (juce::jlimit (0.0f, 1.0f, lastEventTransient) - p.transient);
+
+        if (likeApplies (s))                    // C-11: a bias on the weight, never a new candidate
+            w *= like.algoFactor (i);
 
         // Avoid immediate repetition unless chaos is low (where repetition is a
         // musical choice rather than an accident).
@@ -944,7 +1012,11 @@ int FillEngine::chooseBand (const AnalysisFrame& frame, const EngineSettings& s,
         if (frame.bandConf[b] < 0.45f)
             continue;
 
-        const auto w = frame.bandConf[b] * juce::jmax (0.02f, s.bandProb[b]) * juce::jmax (0.02f, s.bandAmt[b]);
+        auto w = frame.bandConf[b] * juce::jmax (0.02f, s.bandProb[b]) * juce::jmax (0.02f, s.bandAmt[b]);
+
+        if (likeApplies (s))                    // C-11
+            w *= like.bandFactor (b);
+
         weights[b] = w;
         total += w;
     }

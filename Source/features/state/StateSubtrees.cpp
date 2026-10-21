@@ -1,5 +1,8 @@
 #include "StateSubtrees.h"
 #include "../sync/SyncState.h"
+#include "../recipes/RecipeServices.h"
+#include "../lock/LockSubtree.h"
+#include "../history/HistorySubtree.h"
 #include "../fx/FxUiState.h"
 
 #include "../explain/ExplainState.h"
@@ -10,6 +13,42 @@ namespace gapfill::state
 namespace
 {
     constexpr std::size_t Ki = 1024;
+
+    // `<Perf>` is shared: WP4 stores the audition trigger and A/B match switch, E-2 the fallback tempo.
+    // Every attribute is optional and owned by exactly one feature, so the handlers simply run in turn.
+    bool perfValidate (const juce::ValueTree& t)
+    {
+        return recipes::validatePerf (t) && sync::validatePerf (t);
+    }
+
+    void perfApply (GapFillAudioProcessor& p, const juce::ValueTree& t)
+    {
+        recipes::applyPerf (p, t);
+        sync::applyPerf (p, t);
+    }
+
+    juce::ValueTree perfSerialise (const GapFillAudioProcessor& p)
+    {
+        auto a = recipes::serialisePerf (p);
+        const auto b = sync::serialisePerf (p);
+
+        if (! b.isValid())
+            return a;
+
+        if (! a.isValid())
+            return b;
+
+        for (int i = 0; i < b.getNumProperties(); ++i)
+            a.setProperty (b.getPropertyName (i), b.getProperty (b.getPropertyName (i)), nullptr);
+
+        return a;
+    }
+
+    void perfReset (GapFillAudioProcessor& p)
+    {
+        recipes::resetPerf (p);
+        sync::resetPerf (p);
+    }
 }
 
 const std::vector<SubtreeDesc>& reservedSubtrees()
@@ -19,9 +58,9 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
     static const std::vector<SubtreeDesc> table =
     {
         { "Macros",  2 * Ki,  nullptr, nullptr, nullptr, nullptr },   // C-2
-        { "Lock",    1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // C-5
-        { "History", 1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // U-1
-        { "Perf",    4 * Ki,  sync::validatePerf, sync::applyPerf, sync::serialisePerf, sync::resetPerf },   // E-2 fallbackBpm (+ U prefs)
+        { "Lock",    1 * Ki,  lock::validate, lock::apply, lock::serialise, lock::reset },   // C-5
+        { "History", 1 * Ki,  history::validate, history::apply, history::serialise, history::reset },   // U-1
+        { "Perf",    4 * Ki,  perfValidate, perfApply, perfSerialise, perfReset },   // U prefs (WP4: trigger, match)
         { "Scenes",  24 * Ki, nullptr, nullptr, nullptr, nullptr },   // F-L07 / N-VAL
         { "Cmd",     3 * Ki,  nullptr, nullptr, nullptr, nullptr },   // X-1
         { "Tension", 3 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-M21

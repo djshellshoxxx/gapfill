@@ -8,6 +8,7 @@
 #include "../support/TestRig.h"
 
 #include <algorithm>
+#include <cmath>
 #include <chrono>
 #include <iostream>
 #include <vector>
@@ -23,60 +24,78 @@ namespace
     constexpr int    kBars  = goldenBars;
     constexpr int    kBlock = goldenBlockSize;
 
-    constexpr double kMaxAbsTolerance = 1.0e-5;
-    constexpr double kRmsTolerance    = 1.0e-6;
-
-    struct Scenario { char id; const char* name; };
+    // Tolerances are per scenario because libm / FMA / vectorisation differ
+    // between machines and compilers (docs/dev/golden-tolerances.md has the
+    // evidence). Scenarios that go through spectral analysis or chaotic
+    // selection (B, E) amplify last-ulp differences into small waveform
+    // differences, so they get a looser sample tolerance PLUS machine-independent
+    // invariants (energy, peak, DC, per-block envelope) that still catch a real
+    // behaviour change. Every other scenario stays tight.
+    struct Scenario { char id; const char* name; double maxAbs; double rms; bool sensitive; };
 
     constexpr Scenario kScenarios[] =
     {
-        { 'A', "drum_loop_default" },
-        { 'B', "spectral_mode" },
-        { 'C', "sidechain_click_track" },
-        { 'D', "forced_tape_stop" },
-        { 'E', "complexity_chaos_stress" },
-        { 'F', "bypass_to_active" },
+        { 'A', "drum_loop_default",        1.0e-5, 1.0e-6, false },
+        { 'B', "spectral_mode",            1.0e-2, 1.0e-3, true  },
+        { 'C', "sidechain_click_track",    1.0e-5, 1.0e-6, false },
+        { 'D', "forced_tape_stop",         1.0e-5, 1.0e-6, false },
+        { 'E', "complexity_chaos_stress",  1.0e-2, 1.0e-3, true  },
+        { 'F', "bypass_to_active",         1.0e-5, 1.0e-6, false },
     };
 
-    RenderResult renderScenario (char id)
+
+    struct SignalStats { double rms = 0.0, peak = 0.0, dc = 0.0; };
+
+    SignalStats signalStats (const juce::AudioBuffer<float>& b)
     {
-        GapFillAudioProcessor proc;
-        TestPlayHead playHead;
-        playHead.bpm = kBpm;
+        SignalStats st;
+        double sumSq = 0.0, sum = 0.0;
+        const auto n = (double) b.getNumChannels() * (double) b.getNumSamples();
 
-        RenderOptions options;
-        options.playHead = &playHead;
+        for (int ch = 0; ch < b.getNumChannels(); ++ch)
+            for (int i = 0; i < b.getNumSamples(); ++i)
+            {
+                const double v = b.getSample (ch, i);
+                sumSq += v * v;
+                sum += v;
+                st.peak = std::max (st.peak, std::abs (v));
+            }
 
-        const auto input = drumLoop (kSr, kBpm, kBars);
-        juce::AudioBuffer<float> click;
+        st.rms = n > 0 ? std::sqrt (sumSq / n) : 0.0;
+        st.dc = n > 0 ? sum / n : 0.0;
+        return st;
+    }
 
-        switch (id)
+    /** First 512-sample block (channel-summed energy) whose level differs by more than
+        1 dB, ignoring blocks quieter than -60 dBFS in both. -1 when none. This pins
+        where fills start and stop without depending on exact waveform values. */
+    int envelopeMismatchBlock (const juce::AudioBuffer<float>& a, const juce::AudioBuffer<float>& b)
+    {
+        constexpr int block = 512;
+        const auto blocks = a.getNumSamples() / block;
+
+        for (int k = 0; k < blocks; ++k)
         {
-            case 'A': break;
-            case 'B': setParams (proc, { { "detMode", 2.0f }, { "fill", 70.0f } }); break;
-            case 'C':
-                click = makeImpulseTrain (kSr, (double) input.getNumSamples() / kSr, 60.0 / kBpm);
-                setParams (proc, { { "detSource", 1.0f }, { "fill", 60.0f } });
-                options.sidechain = &click;
-                break;
-            case 'D': setParams (proc, { { "fillType", 15.0f }, { "fill", 80.0f } }); break;
-            case 'E':
-                setParams (proc, { { "complexity", 100.0f }, { "chaos", 100.0f }, { "fill", 100.0f },
-                                   { "density", 100.0f }, { "intensity", 100.0f } });
-                break;
-            case 'F':
-                setParams (proc, { { "bypass", 1.0f }, { "fill", 70.0f } });
-                options.onBlock = [&proc, half = input.getNumSamples() / 2] (int, int pos)
+            double ea = 0.0, eb = 0.0;
+
+            for (int ch = 0; ch < a.getNumChannels(); ++ch)
+                for (int i = k * block; i < (k + 1) * block; ++i)
                 {
-                    if (pos >= half)
-                        setParams (proc, { { "bypass", 0.0f } });
-                };
-                break;
-            default: GF_EXPECT_MSG (false, "unknown scenario"); break;
+                    ea += (double) a.getSample (ch, i) * a.getSample (ch, i);
+                    eb += (double) b.getSample (ch, i) * b.getSample (ch, i);
+                }
+
+            const auto da = 10.0 * std::log10 (ea / block + 1.0e-12);
+            const auto db = 10.0 * std::log10 (eb / block + 1.0e-12);
+
+            if ((da > -60.0 || db > -60.0) && std::abs (da - db) > 1.0)
+                return k;
         }
 
-        return renderOffline (proc, input, kBlock, kSr, options);
+        return -1;
     }
+
+    RenderResult renderScenario (char id) { return renderGoldenScenario (id); }
 
     juce::File goldenFile (const Scenario& s)
     {
@@ -109,14 +128,26 @@ namespace
         GF_EXPECT_MSG (readGoldenFile (file, expected, result.out.getNumChannels(), result.out.getNumSamples()),
                        "golden file has the wrong size: " + file.getFileName());
 
-        const auto d = compareBuffers (result.out, expected, kMaxAbsTolerance);
+        const auto d = compareBuffers (result.out, expected, s.maxAbs);
 
         GF_EXPECT_MSG (d.firstBad < 0,
                        "scenario " + juce::String::charToString (s.id) + " (" + s.name + ") differs from golden at sample "
                          + juce::String (d.firstBad) + " ch " + juce::String (d.channel)
                          + ", max abs error " + juce::String (d.maxAbs, 9));
-        GF_EXPECT_MSG (d.rms <= kRmsTolerance,
+        GF_EXPECT_MSG (d.rms <= s.rms,
                        "scenario " + juce::String::charToString (s.id) + " rms error " + juce::String (d.rms, 9));
+
+        // Machine-independent invariants, checked for every scenario (they are what
+        // protects the loosely toleranced ones).
+        const auto sa = signalStats (result.out);
+        const auto sb = signalStats (expected);
+        const auto label = juce::String::charToString (s.id) + " (" + s.name + ")";
+        GF_EXPECT_MSG (std::abs (sa.rms - sb.rms) <= 0.02 * sb.rms + 1.0e-9, "scenario " + label + " RMS changed");
+        GF_EXPECT_MSG (std::abs (sa.peak - sb.peak) <= 0.05 * sb.peak + 1.0e-9, "scenario " + label + " peak changed");
+        GF_EXPECT_MSG (std::abs (sa.dc - sb.dc) <= 1.0e-3, "scenario " + label + " DC offset changed");
+        GF_EXPECT_MSG (envelopeMismatchBlock (result.out, expected) < 0,
+                       "scenario " + label + " block energy envelope (event timing) differs at block "
+                         + juce::String (envelopeMismatchBlock (result.out, expected)));
     }
 }
 

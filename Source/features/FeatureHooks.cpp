@@ -4,6 +4,9 @@
 #include "budget/Budget.h"
 #include "evolve/Evolve.h"
 #include "phrase/Phrase.h"
+#include "audition/Audition.h"
+#include "lock/LockCommands.h"
+#include "lock/LockStage.h"
 #include "fx/FxHooks.h"
 
 namespace gapfill::hooks
@@ -56,7 +59,7 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     s.perf.phrase.offsetBars = juce::jlimit (0, 15, pi (params.phraseOffset));
 
     // One explicit call per feature, in this order (add yours below):
-    //   gatherLock (s, params);          // C-5
+    lockstage::gather (s, params);       // C-5
     //   gatherMistakes (s, params);      // C-3
     //   gatherEnvelope (s, params);      // C-4
     //   gatherBreathing (s, params);     // C-6
@@ -74,9 +77,14 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     fx::gatherFx (s, params);           // WP8: swell, cloud, ratchet, rcrush, tapedestr, bandfx (scrub: F-M19)
 }
 
-void dispatchCommand (FillEngine& /*engine*/, const Command& /*command*/) noexcept
+void dispatchCommand (FillEngine& engine, const Command& command) noexcept
 {
-    // switch (command.type) { case CommandType::Preview: ...; }
+    // One line per feature that owns commands; each returns true when it handled `command`.
+    if (audition::handleCommand (engine, command))      // E-1: Preview, PreviewRecipe
+        return;
+
+    if (lock::handleCommand (engine, command))          // C-5 / C-11: Lock*, Unlock, Like*
+        return;
 }
 
 } // namespace gapfill::hooks
