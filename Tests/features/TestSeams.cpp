@@ -457,7 +457,11 @@ GF_TEST (Effective, feature_hooks_leave_default_parameters_neutral)
             std::memcpy (&fx0, x + w, 4);
             std::memcpy (&fy0, y + w, 4);
 
-            if (! (std::isnormal (fx0) && std::isnormal (fy0)
+            // Exact zero counts as a float (a bipolar default may come back as -2e-8 after range conversion on
+            // another libm / FMA contraction), but denormals do not: those are integers/bools read as floats.
+            const auto isFloatLike = [] (float v) { return v == 0.0f || std::isnormal (v); };
+
+            if (! (isFloatLike (fx0) && isFloatLike (fy0)
                    && std::abs (fx0 - fy0) <= 1.0e-5f * std::max (1.0f, std::abs (fx0))))
             {
                 std::printf ("         EngineSettings bytes differ at region offset %zu: %.9g vs %.9g (raw %02x vs %02x)\n",
