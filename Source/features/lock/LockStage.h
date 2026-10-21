@@ -1,7 +1,7 @@
 #pragma once
 
 // C-5 Fill Lock: the `adjustRecipe` stage (docs/dev/04-SPEC-CREATIVE.md C-5, "Fit rules")
-// and the gather line for the `fillLock` parameter.
+// and the gather line for the `fl01_lock` parameter.
 
 #include "LockState.h"
 #include "../../dsp/EngineSettings.h"
@@ -10,7 +10,7 @@
 namespace gapfill::lockstage
 {
 
-/** gatherLock (docs/dev/02 F0-5): the fillLock parameter into EngineSettings::perf.lockOn. */
+/** gatherLock (docs/dev/02 F0-5): the fl01_lock parameter into EngineSettings::perf.lockOn. */
 void gather (EngineSettings&, const ParamCache&) noexcept;
 
 /** True when Lock replaces the scheduler's algorithm choice for this gap: engaged,

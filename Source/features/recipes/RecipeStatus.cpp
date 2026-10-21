@@ -16,7 +16,7 @@ RecipeStatus::RecipeStatus (GapFillAudioProcessor& p)
 juce::String RecipeStatus::lockSummary (GapFillAudioProcessor& proc, bool& isWarning)
 {
     auto& state = proc.getValueTreeState();
-    auto* lockParam = state.getRawParameterValue ("fillLock");
+    auto* lockParam = state.getRawParameterValue ("fl01_lock");
 
     if (lockParam == nullptr || lockParam->load() < 0.5f)
         return {};

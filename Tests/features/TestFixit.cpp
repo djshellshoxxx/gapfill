@@ -31,7 +31,7 @@ namespace
             p["maxFill"] = { 400, 20, 2000 };     p["fillType"] = { 3, 0, 15 };
             p["bandLowOn"] = { 1, 0, 1 };         p["bandMidOn"] = { 0, 0, 1 };
             p["bandHighOn"] = { 0, 0, 1 };        p["detSource"] = { 1, 0, 2 };
-            p["protNext"] = { 70, 0, 100 };       p["fillLock"] = { 1, 0, 1 };
+            p["protNext"] = { 70, 0, 100 };       p["fl01_lock"] = { 1, 0, 1 };
             p["qualityMode"] = { 0, 0, 3 };       p["dry"] = { 1, 0, 1 };
         }
 
@@ -127,7 +127,7 @@ GF_TEST (Fixit, one_synthetic_log_per_rule_gives_the_exact_proposal)
     {   // R8
         const auto v_p = evaluateRules (evidenceWith ({ { RejectReason::LockSkipped, 3 } }), pa);
         const auto* p = find (v_p, RuleId::LockSkipped);
-        GF_EXPECT (p != nullptr && p->changes[0].paramId == "fillLock" && p->changes[0].to == 0.0f);
+        GF_EXPECT (p != nullptr && p->changes[0].paramId == "fl01_lock" && p->changes[0].to == 0.0f);
     }
     {   // R9: needs the sidechain health codes too
         const auto without = evaluateRules (evidenceWith ({ { RejectReason::NoSource, 4 } }), pa);

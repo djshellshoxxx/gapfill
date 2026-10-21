@@ -53,12 +53,12 @@ namespace
 GF_TEST (Lock, fill_lock_parameter_is_registered_neutral_and_a_performance_id)
 {
     GapFillAudioProcessor proc;
-    auto* p = proc.getValueTreeState().getParameter ("fillLock");
+    auto* p = proc.getValueTreeState().getParameter ("fl01_lock");
     GF_EXPECT (p != nullptr);
     GF_EXPECT (p != nullptr && p->getValue() == 0.0f && p->getNumSteps() == 2);
-    GF_EXPECT (performanceParameterIDs().contains ("fillLock"));
-    GF_EXPECT (! randomisableParameterIDs().contains ("fillLock"));
-    GF_EXPECT (! creativeParameterIDs().contains ("fillLock"));
+    GF_EXPECT (performanceParameterIDs().contains ("fl01_lock"));
+    GF_EXPECT (! randomisableParameterIDs().contains ("fl01_lock"));
+    GF_EXPECT (! creativeParameterIDs().contains ("fl01_lock"));
 }
 
 GF_TEST (Lock, lock_pins_character_across_gaps)
@@ -415,7 +415,7 @@ GF_TEST (Lock, lock_with_protection_never_overruns_next_event)
 GF_TEST (Lock, lock_state_roundtrip)
 {
     const auto input = drumLoop (kSr, 150.0, 4);
-    ProcRun a ({ { "fill", 100.0f }, { "density", 100.0f }, { "fillLock", 1.0f } });
+    ProcRun a ({ { "fill", 100.0f }, { "density", 100.0f }, { "fl01_lock", 1.0f } });
 
     for (int i = 0; i * kBlock + kBlock <= input.getNumSamples(); ++i)
         a.step (input);
@@ -444,7 +444,7 @@ GF_TEST (Lock, lock_state_roundtrip)
 GF_TEST (Lock, lock_corrupt_recipe_does_not_block_load)
 {
     GapFillAudioProcessor src;
-    setParams (src, { { "fill", 61.0f }, { "fillLock", 1.0f } });
+    setParams (src, { { "fill", 61.0f }, { "fl01_lock", 1.0f } });
 
     juce::MemoryBlock blob;
     src.getStateInformation (blob);
@@ -461,7 +461,7 @@ GF_TEST (Lock, lock_corrupt_recipe_does_not_block_load)
     GapFillAudioProcessor dst;
     dst.setStateInformation (corrupted.getData(), (int) corrupted.getSize());
     GF_EXPECT_NEAR (dst.getValueTreeState().getRawParameterValue ("fill")->load(), 61.0, 0.01);
-    GF_EXPECT_NEAR (dst.getValueTreeState().getRawParameterValue ("fillLock")->load(), 1.0, 0.01);
+    GF_EXPECT_NEAR (dst.getValueTreeState().getRawParameterValue ("fl01_lock")->load(), 1.0, 0.01);
     GF_EXPECT_MSG (! dst.getRecipes().lockMirror.valid, "the bad subtree is dropped, parameters still load");
 
     // Out-of-range fields behind a correct checksum are rejected too.
@@ -484,7 +484,7 @@ GF_TEST (Lock, lock_corrupt_recipe_does_not_block_load)
 GF_TEST (Lock, lock_restore_plays_nothing)
 {
     GapFillAudioProcessor src;
-    setParams (src, { { "fillLock", 1.0f } });
+    setParams (src, { { "fl01_lock", 1.0f } });
     src.getRecipes().lockMirror = { true, stutterRecipe() };
     juce::MemoryBlock blob;
     src.getStateInformation (blob);

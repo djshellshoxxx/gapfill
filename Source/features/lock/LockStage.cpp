@@ -33,7 +33,7 @@ namespace
 
 void gather (EngineSettings& s, const ParamCache& params) noexcept
 {
-    s.perf.lockOn = pb (params.fillLock);
+    s.perf.lockOn = pb (params.fl01_lock);
 }
 
 RejectReason apply (const LockState& lock, FillPlan& plan, const GapContext& ctx,

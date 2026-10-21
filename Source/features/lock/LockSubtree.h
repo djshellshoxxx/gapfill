@@ -8,7 +8,7 @@
 // from FillEvent::LockSet / LockCleared, so the lock is saved correctly with the
 // editor closed. On load a valid subtree posts LockRecipe (restore cannot trigger
 // anything audible: nothing plays until the next natural gap); an absent or invalid
-// one posts Unlock, which leaves the lock ARMED when fillLock is on.
+// one posts Unlock, which leaves the lock ARMED when fl01_lock is on.
 
 #include "../../dsp/FillRecipe.h"
 

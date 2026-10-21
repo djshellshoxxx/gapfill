@@ -209,7 +209,7 @@ GF_TEST (History, lock_this_sets_selected_recipe)
     c.type = CommandType::LockRecipe;
     c.recipe = selected;
     GF_EXPECT (run.proc.postCommand (c));
-    setParams (run.proc, { { "fillLock", 1.0f } });
+    setParams (run.proc, { { "fl01_lock", 1.0f } });
 
     const auto quiet = steadyNoise();
     run.blockIndex = 0;

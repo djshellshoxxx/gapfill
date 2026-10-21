@@ -6,7 +6,7 @@
 //  * Owned and mutated by the audio thread only (FillEngine member). The message
 //    thread learns about changes through FillEvent::LockSet and drives the engine
 //    through the LockRecipe / LockLatest / Unlock commands.
-//  * "Engaged" follows the `fillLock` parameter. Engaging stores the latest
+//  * "Engaged" follows the `fl01_lock` parameter. Engaging stores the latest
 //    completed NATURAL recipe (previews are never natural). With no such recipe
 //    the lock is ARMED and the next natural fill becomes the lock. Disengaging
 //    keeps the recipe; re-engaging uses the latest fill again, unless the recipe
@@ -25,7 +25,7 @@ struct LockState
     bool valid = false;
     bool explicitSet = false;          ///< recipe came from LockRecipe, not "latest"
     bool armed = false;                ///< engaged with nothing to lock yet
-    bool engaged = false;              ///< last seen value of fillLock
+    bool engaged = false;              ///< last seen value of fl01_lock
     bool dirty = false;                ///< `recipe`/`valid` changed: publish LockSet
 
     FillRecipe lastNatural;            ///< latest started natural fill (previews excluded)
@@ -34,7 +34,7 @@ struct LockState
     /** True while fills must be replaced by `recipe`. */
     bool substituting() const noexcept     { return engaged && valid && ! armed; }
 
-    /** Once per block with the current value of the `fillLock` parameter. */
+    /** Once per block with the current value of the `fl01_lock` parameter. */
     void update (bool lockOn) noexcept
     {
         if (lockOn && ! engaged)

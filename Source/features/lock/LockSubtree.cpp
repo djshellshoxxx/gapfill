@@ -7,6 +7,9 @@ namespace gapfill::lock
 
 bool validate (const juce::ValueTree& tree)
 {
+    if (tree.getProperty ("v", 1).toString().trim() != "1")
+        return false;                                   // unknown subtree version: drop it, keep the rest
+
     const auto valid = tree.getProperty ("valid", 0).toString().trim();
 
     if (valid != "0" && valid != "1")
@@ -48,6 +51,7 @@ juce::ValueTree serialise (const GapFillAudioProcessor& proc)
         return {};
 
     juce::ValueTree tree ("Lock");
+    tree.setProperty ("v", 1, nullptr);
     tree.setProperty ("valid", 1, nullptr);
     tree.setProperty ("recipe", recipecodec::encode (mirror.recipe), nullptr);
     return tree;

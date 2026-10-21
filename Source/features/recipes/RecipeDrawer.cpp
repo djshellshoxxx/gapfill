@@ -8,7 +8,7 @@
 //
 // Layout (open): three rows of 24 px
 //   chips      the last 8 natural fills, newest first: family letter + describeRecipe
-//   row 2      LOCK toggle (fillLock) | lock summary | AUDITION | LOCK THIS | MORE LIKE
+//   row 2      LOCK toggle (fl01_lock) | lock summary | AUDITION | LOCK THIS | MORE LIKE
 //   row 3      SAVE... | LOAD... | EXPORT... | SET A | SET B | A/B | ...
 //
 // Everything is a real child component with a title and description, so keyboard
@@ -147,7 +147,7 @@ namespace
     public:
         explicit RecipeDrawer (GapFillAudioProcessor& p)
             : proc (p),
-              lockToggle (p.getValueTreeState(), "fillLock", "LOCK",
+              lockToggle (p.getValueTreeState(), "fl01_lock", "LOCK",
                           "Lock the character of the latest fill: algorithm, band, modifiers and pitch repeat in every "
                           "gap that gets a fill. Fit rules: a locked fill shortens to fit a gap; it is skipped when it "
                           "would be shorter than 60 percent of its minimum length. A forced Fill Type overrides Lock.",
@@ -419,7 +419,7 @@ namespace
             const auto like = proc.getRecipes().likeRemaining.load (std::memory_order_relaxed);
             const auto summary = lockSummary();
             const auto lockKey = (int) proc.getRecipes().lockMirror.valid * 2
-                               + (int) (proc.getValueTreeState().getRawParameterValue ("fillLock")->load() > 0.5f);
+                               + (int) (proc.getValueTreeState().getRawParameterValue ("fl01_lock")->load() > 0.5f);
 
             handle.setButtonText ("RECIPES " + juce::String (h.size()));
 
@@ -494,7 +494,7 @@ namespace
 
         juce::String lockSummary() const
         {
-            const auto lockOn = proc.getValueTreeState().getRawParameterValue ("fillLock")->load() > 0.5f;
+            const auto lockOn = proc.getValueTreeState().getRawParameterValue ("fl01_lock")->load() > 0.5f;
             const auto& mirror = proc.getRecipes().lockMirror;
             const auto& t = history::strings();
 
@@ -552,9 +552,9 @@ namespace
             const auto r = selectedRecipe();
             stampedCommand (CommandType::LockRecipe, &r);
 
-            // The command is drained before the next block reads fillLock, so the explicit
+            // The command is drained before the next block reads fl01_lock, so the explicit
             // recipe is in place when the parameter engages.
-            if (auto* p = proc.getValueTreeState().getParameter ("fillLock"))
+            if (auto* p = proc.getValueTreeState().getParameter ("fl01_lock"))
                 p->setValueNotifyingHost (1.0f);
 
             proc.getRecipes().postMessage ("Locked: " + history::describeRecipe (r, 0.0));
@@ -628,7 +628,7 @@ namespace
                 }
 
                 // Armed but off: the user decides when to engage it.
-                if (auto* p = safe->proc.getValueTreeState().getParameter ("fillLock"))
+                if (auto* p = safe->proc.getValueTreeState().getParameter ("fl01_lock"))
                     p->setValueNotifyingHost (0.0f);
 
                 safe->stampedCommand (CommandType::LockRecipe, &loaded.recipe);
