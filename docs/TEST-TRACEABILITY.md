@@ -66,6 +66,7 @@ Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md
 | E-2 Tempo-sync audit | clamp table 6 BPM x 12 divisions, tempo memory, fallback bounds, `<Perf>` round trip/malformed drop, Sync Mods formula, quantise grid, off identity (`TestSync.cpp`) | Reaper at 60 / 174 BPM, Standalone tempo option | Engine implemented; Options/Sync-panel UI and Reaper check unverified |
 | C-0 Effective-value display | id mapping, per-block publication, knob marker/description/clear (`TestEffectiveDisplay.cpp`) | screenshot and screen-reader check | Knob API, LookAndFeel marker, processor publication implemented; screenshot/screen-reader unverified |
 | C-4 Fill Intensity Envelope | five shape values, seed repeatability, flat/zero bit-identical, level/cutoff bounds, no click, protection/duck unchanged (`TestEnvelope.cpp`) | audible check on drum loop | Engine implemented; audible check unverified |
+| C-1 Fill Personalities | off identity, no parameter writes, zero weights, clamps, scalar table, distinct modes (unit-norm L2 > 0.15), forced Fill Type, histogram lift, determinism, state round trip, knob publication (`TestPersonality.cpp`) | audible check per personality | Engine implemented; absolute histogram floors replaced by lift over Off (see WP5 progress); audible check unverified |
 
 ## Test command policy
 
