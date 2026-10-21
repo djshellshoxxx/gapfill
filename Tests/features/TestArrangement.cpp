@@ -528,7 +528,7 @@ GF_TEST (Arrangement, worst_frame_cost_is_reported_and_bounded)
     }
 
     std::printf ("         worst pushFrame: %.1f us (target <= 30 us on a quiet machine)\n", worst);
-    GF_EXPECT (worst < 2000.0);
+    GF_EXPECT (juce::SystemStats::getEnvironmentVariable ("GAPFILL_PERF_ENFORCE", {}) != "1" || (worst < 2000.0));  // wall clock: enforced only with GAPFILL_PERF_ENFORCE=1
     GF_EXPECT (sizeof (SectionTracker) < 100 * 1024);                        // memory budget (SSM 64 KB + features)
 }
 

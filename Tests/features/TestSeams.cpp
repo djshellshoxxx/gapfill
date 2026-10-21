@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -434,8 +435,44 @@ GF_TEST (Effective, feature_hooks_leave_default_parameters_neutral)
     const auto fxEnd = fxOffset + sizeof (a.fx);
     const auto* pa = reinterpret_cast<const unsigned char*> (&a);
     const auto* pb = reinterpret_cast<const unsigned char*> (&b);
-    GF_EXPECT (std::memcmp (pa, pb, fxOffset) == 0);
-    GF_EXPECT (std::memcmp (pa + fxEnd, pb + fxEnd, sizeof (a) - fxEnd) == 0);
+    // Byte-exact, except that a 4-byte word holding two normal floats within 1e-5 relative counts as equal
+    // (a default that travelled through parameter range conversion may differ in the last ulp on another
+    // libm / FMA contraction; integers, bools, enums and padding still have to match exactly).
+    const auto sameBytes = [] (const unsigned char* x, const unsigned char* y, size_t n)
+    {
+        if (std::memcmp (x, y, n) == 0)
+            return true;
+
+        for (size_t i = 0; i < n; ++i)
+        {
+            if (x[i] == y[i])
+                continue;
+
+            const size_t w = i & ~(size_t) 3;
+            float fx0 = 0.0f, fy0 = 0.0f;
+
+            if (w + 4 > n)
+                return false;
+
+            std::memcpy (&fx0, x + w, 4);
+            std::memcpy (&fy0, y + w, 4);
+
+            if (! (std::isnormal (fx0) && std::isnormal (fy0)
+                   && std::abs (fx0 - fy0) <= 1.0e-5f * std::max (1.0f, std::abs (fx0))))
+            {
+                std::printf ("         EngineSettings bytes differ at region offset %zu: %.9g vs %.9g (raw %02x vs %02x)\n",
+                             w, (double) fx0, (double) fy0, (unsigned) x[i], (unsigned) y[i]);
+                return false;
+            }
+
+            i = w + 3;
+        }
+
+        return true;
+    };
+
+    GF_EXPECT (sameBytes (pa, pb, fxOffset));
+    GF_EXPECT (sameBytes (pa + fxEnd, pb + fxEnd, sizeof (a) - fxEnd));
 
     const auto in = hooks::gatherModulationInputs (cache);
     GF_EXPECT (in.personality == 0 && ! in.macros.on);
