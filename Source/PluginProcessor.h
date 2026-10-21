@@ -15,6 +15,7 @@
 #include "dsp/EventLogs.h"
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
+#include "features/recipes/RecipeServices.h"
 
 namespace gapfill
 {
@@ -97,6 +98,10 @@ public:
     int drainFillEvents();
 
     const RecipeHistory& getRecipeHistory() const noexcept   { return recipeHistory; }
+
+    /** WP4 facade: audition trigger, lock mirror, history, export, A/B match. */
+    recipes::RecipeServices& getRecipes() noexcept               { return recipeServices; }
+    const recipes::RecipeServices& getRecipes() const noexcept   { return recipeServices; }
     const GapOutcomeLog& getGapOutcomeLog() const noexcept   { return outcomeLog; }
     std::uint32_t getDroppedFillEvents() const noexcept      { return fillEvents.getDroppedCount(); }
 
@@ -196,6 +201,7 @@ private:
     FillEngine     engine;
 
     MidiLearnManager midiLearn;
+    recipes::RecipeServices recipeServices;
 
     MeterState meters;
     VisualisationFifo viz;

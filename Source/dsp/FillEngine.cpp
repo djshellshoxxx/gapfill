@@ -66,6 +66,7 @@ void FillEngine::prepare (double sampleRate, int /*maxBlockSize*/, int numChanne
     for (auto& v : voices)
         v.prepare (sr, channels);
 
+    preview.prepare (sr, channels);       // E-1
     spectral.prepare (sr, 2);
 
     // Keep the visualiser feed at a roughly constant rate across sample rates.
@@ -78,6 +79,8 @@ void FillEngine::reset()
 {
     for (auto& v : voices)
         v.reset();
+
+    resetPreview();                       // E-1: fades the preview, restarts its sequence
 
     spectral.reset();
     spectral.release();
@@ -110,6 +113,8 @@ void FillEngine::panic() noexcept
     for (auto& v : voices)
         if (v.isActive())
             v.requestStop (juce::jmax (16, (int) (sr * 0.004)));
+
+    preview.fadeOut (juce::jmax (48, (int) (sr * 0.004)));      // E-1
 }
 
 int FillEngine::getActiveVoiceCount() const noexcept
@@ -147,6 +152,8 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
     constexpr auto hop = AnalysisEngine::hopSize;
     int offset = 0;
 
+    servePendingPreview (outputStartPos, analysis, history, s, events);     // E-1
+
     while (offset < numSamples)
     {
         const auto outputPos = outputStartPos + offset;
@@ -161,8 +168,12 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
             if (v.isActive())
                 v.render (wet, wetStartSample + offset, chunk, history);
 
+        preview.render (wet, wetStartSample + offset, chunk, history);      // E-1
+
         offset += chunk;
     }
+
+    preview.endBlock();                                                     // E-1
 
     int algo = -1;
 
@@ -232,10 +243,10 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
 
     currentDuck = juce::jlimit (0.0f, 1.0f, duck);
 
-    for (auto& v : voices)
+    auto protectVoice = [&] (FillVoice& v)
     {
         if (! v.isActive())
-            continue;
+            return;
 
         v.setDuck (currentDuck);
 
@@ -246,7 +257,12 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
         {
             v.requestStop ((int) juce::jmax ((std::int64_t) 48, distanceToNext));
         }
-    }
+    };
+
+    for (auto& v : voices)
+        protectVoice (v);
+
+    protectVoice (preview.voice);          // E-1: a preview is ducked like a natural fill
 
     // ---- gap state machine ----------------------------------------------
     if (! inGap)
@@ -315,6 +331,17 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             {
                 activeAlgo = (int) v.getAlgo();
                 activeBand = v.getBand();
+            }
+        }
+
+        if (preview.isActive())            // E-1: drawn in the preview colour
+        {
+            vizAccum.flags |= VizFrame::flagPreview;
+
+            if (activeAlgo < 0)
+            {
+                activeAlgo = (int) preview.voice.getAlgo();
+                activeBand = preview.voice.getBand();
             }
         }
 
@@ -610,8 +637,18 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
 bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan,
                              const SourceHistory& history) noexcept
 {
+    // The recipe records what the voice decided for itself (U-1 / C-5 replay it).
+    auto record = [&]
+    {
+        plan.recipe.modifierMask = voice.getModifierMask();
+        plan.recipe.pitchSemis = voice.getPitchSemis();
+    };
+
     if (voice.start (setup, history, &spectral))
+    {
+        record();
         return true;
+    }
 
     // Spectral processor busy - fall back to a simpler algorithm.
     setup.algo = Algo::Granular;
@@ -624,6 +661,7 @@ bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan
 
     plan.algoIndex = (int) setup.algo;
     plan.recipe.algo = (std::uint8_t) plan.algoIndex;
+    record();
     return true;
 }
 

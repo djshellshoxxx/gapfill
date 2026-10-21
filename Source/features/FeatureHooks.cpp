@@ -1,5 +1,6 @@
 #include "FeatureHooks.h"
 #include "../dsp/FillEngine.h"
+#include "audition/Audition.h"
 
 namespace gapfill::hooks
 {
@@ -32,9 +33,11 @@ void gatherFeatureSettings (EngineSettings& /*s*/, const ParamCache& /*params*/)
     //   gatherLearn, gatherCoop, gatherQuality
 }
 
-void dispatchCommand (FillEngine& /*engine*/, const Command& /*command*/) noexcept
+void dispatchCommand (FillEngine& engine, const Command& command) noexcept
 {
-    // switch (command.type) { case CommandType::Preview: ...; }
+    // One line per feature that owns commands; each returns true when it handled `command`.
+    if (audition::handleCommand (engine, command))      // E-1: Preview, PreviewRecipe
+        return;
 }
 
 } // namespace gapfill::hooks

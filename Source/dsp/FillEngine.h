@@ -5,6 +5,7 @@
 #include "FillVoice.h"
 #include "SchedulerTypes.h"
 #include "VisualisationState.h"
+#include "../features/audition/PreviewChannel.h"
 
 #include <array>
 #include <limits>
@@ -42,6 +43,38 @@ public:
                   const EngineSettings& settings,
                   VisualisationFifo* viz,
                   FillEventQueue* events = nullptr) noexcept;
+
+    //--------------------------------------------------------------------------
+    // E-1 Fill Audition (audio thread; implemented in features/audition/AuditionEngine.cpp).
+    // A request is a one-slot mailbox: presses queued before the next block collapse
+    // to the last one. It is served at the start of the next process() call.
+
+    void requestPreview (std::uint8_t velocity) noexcept;
+    void requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity) noexcept;
+
+    /** PreviewChannel::code(): status, algorithm and sequence number. */
+    std::uint32_t getPreviewStatusCode() const noexcept   { return preview.code(); }
+    bool isPreviewActive() const noexcept                 { return preview.isActive(); }
+    bool isPreviewPending() const noexcept                { return preview.request.pending; }
+
+    /** The gap bookkeeping a preview must never change (E-1 acceptance; used by tests). */
+    struct GapBookkeeping
+    {
+        bool inGap = false, gapEvaluated = false;
+        std::int64_t gapStartPos = 0, lastFillStartPos = 0, gapIndex = 0;
+        int fillsStarted = 0, recent[4] { -1, -1, -1, -1 };
+
+        bool operator== (const GapBookkeeping& o) const noexcept
+        {
+            return inGap == o.inGap && gapEvaluated == o.gapEvaluated && gapStartPos == o.gapStartPos
+                && lastFillStartPos == o.lastFillStartPos && gapIndex == o.gapIndex
+                && fillsStarted == o.fillsStarted
+                && recent[0] == o.recent[0] && recent[1] == o.recent[1]
+                && recent[2] == o.recent[2] && recent[3] == o.recent[3];
+        }
+    };
+
+    GapBookkeeping getGapBookkeeping() const noexcept;
 
     int  getActiveVoiceCount() const noexcept;
     int  getCurrentAlgo() const noexcept { return lastRenderedAlgo; }
@@ -106,10 +139,20 @@ private:
     int chooseBand (const AnalysisFrame& frame, const EngineSettings& s, Rng& rng) noexcept;
     FillVoice* findFreeVoice() noexcept;
 
+    /** E-1: starts the preview voice. `recipe` (optional) replays that recipe
+        instead of choosing one. Sets the preview status. */
+    bool startPreview (std::uint8_t velocity, std::int64_t outputPos,
+                       const AnalysisEngine&, const SourceHistory&, const EngineSettings&,
+                       const FillRecipe* recipe, FillEventQueue* events) noexcept;
+    void resetPreview() noexcept;
+    void servePendingPreview (std::int64_t outputPos, const AnalysisEngine&, const SourceHistory&,
+                              const EngineSettings&, FillEventQueue* events) noexcept;
+
     double sr = 48000.0;
     int channels = 2;
 
     FillVoice voices[numVoices];
+    PreviewChannel preview;        // E-1: dedicated voice outside the pool of numVoices
     SpectralSmear spectral;
 
     // --- gap state machine ---

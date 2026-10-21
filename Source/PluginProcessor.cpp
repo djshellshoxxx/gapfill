@@ -194,6 +194,7 @@ void GapFillAudioProcessor::timerCallback()
     // indefinitely after the context menu closes.
     const bool learnChanged = midiLearn.applyPendingChanges();
     const bool learnTimedOut = midiLearn.advanceLearningTimeout();
+    recipeServices.tick();
 
     if (learnChanged || learnTimedOut)
         updateHostDisplay();
@@ -229,6 +230,9 @@ int GapFillAudioProcessor::drainFillEvents()
 
         for (int i = 0; i < n; ++i)
         {
+            if (recipeServices.onFillEvent (batch[i]))
+                continue;                                  // preview / lock events: not history, not outcomes
+
             if (batch[i].type == FillEventType::Started)
                 recipeHistory.push (batch[i].recipe);
 
@@ -414,6 +418,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     juce::ScopedNoDenormals noDenormals;
 
     midiLearn.processMidi (midi);
+    recipeServices.onMidi (engine, midi);
     drainCommands();
 
     const auto numSamples = buffer.getNumSamples();
@@ -442,6 +447,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     juce::ScopedNoDenormals noDenormals;
 
     midiLearn.processMidi (midi);
+    recipeServices.onMidi (engine, midi);
     drainCommands();
 
     const auto numSamples = buffer.getNumSamples();
@@ -585,6 +591,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
     auto engineSettings = gatherEngineSettings();
     engineSettings.sidechainActive = sidechainActive;
+    engineSettings.bypassed = bypassed;
     engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
 
@@ -825,6 +832,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         meters.activeVoices.store (engine.getActiveVoiceCount());
         meters.currentAlgo.store (engine.getCurrentAlgo());
         meters.blockCounter.store (meters.blockCounter.load (std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+        meters.previewStatus.store ((int) engine.getPreviewStatusCode(), std::memory_order_relaxed);
 
         for (int r = 0; r < MeterState::numReasonCounters; ++r)
             meters.reasonCount[r].store ((std::uint32_t) engine.getRejectCount ((RejectReason) r), std::memory_order_relaxed);

@@ -39,6 +39,7 @@ struct Command
     std::uint8_t velocity = 0;
     std::int16_t index = 0;        ///< history slot or similar, meaning depends on `type`
     FillRecipe recipe;             ///< payload of the *Recipe commands
+    std::uint32_t issuedMs = 0;    ///< juce::Time::getMillisecondCounter() at push; 0 = unstamped (never stale)
 };
 
 //==============================================================================
@@ -46,7 +47,9 @@ enum class FillEventType : std::uint8_t
 {
     None = 0,
     Started,       ///< a fill started; `recipe` describes it
-    Rejected       ///< a gap was evaluated and not filled; `reason` says why
+    Rejected,      ///< a gap was evaluated and not filled; `reason` says why
+    LockSet,       ///< C-5: the audio thread stored `recipe` as the Fill Lock recipe
+    PreviewStarted ///< E-1: an audition voice started; never listed in history or the outcome log
 };
 
 struct FillEvent
@@ -56,7 +59,8 @@ struct FillEvent
     FillRecipe recipe;
     float availMs = 0.0f;
     float needMs = 0.0f;
-    std::int64_t pos = 0;          ///< decision sample on the output timeline
+    std::int64_t pos = 0;          ///< decision sample on the output timeline (= first sample of a started fill)
+    std::int32_t lengthSamples = 0;///< Started / PreviewStarted: planned length in samples (U-2 export span)
 };
 
 //==============================================================================
