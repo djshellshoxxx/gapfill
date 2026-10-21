@@ -1,5 +1,5 @@
 // Help sections for the recipe features (registers itself; HelpView.cpp stays frozen).
-// WP4 help orders: 4010 audition, 4020 recipes (history, lock, like), 4030 export, 4040 A/B match.
+// WP4 help orders: 5010 audition, 5020 recipes (history, lock, like), 5030 export, 5040 A/B match.
 
 #include "../../gui/HelpRegistry.h"
 
@@ -8,7 +8,7 @@ namespace gapfill
 
 namespace
 {
-    const HelpRegistrar recipesHelp (4020, "Fill history, Lock and More Like That",
+    const HelpRegistrar recipesHelp (5020, "Fill history, Lock and More Like That",
         "Open the RECIPES tab at the bottom-left of the visualiser to see the last eight fills GapFill played, newest first. "
         "Each chip shows the algorithm, the subdivision, the band and the length, with a letter for the family "
         "(R rhythmic, T textural, P pitch and tape, D destructive). Previews are never listed. Click a chip to select it, "
@@ -24,7 +24,7 @@ namespace
         "Lock with Lock switched off, so you decide when to engage it. Files that are too large, damaged or out of range are "
         "refused with a message and change nothing.");
 
-    const HelpRegistrar exportHelp (4030, "Export Fill",
+    const HelpRegistrar exportHelp (5030, "Export Fill",
         "EXPORT... in the recipes drawer saves the audio GapFill added for the selected fill (or for the latest fill or "
         "audition when none is selected) as a 24-bit stereo WAV at the session sample rate, with 20 ms of lead-in and the "
         "fade-out tail. Only the wet bus is exported: what GapFill generated after Low Protect, Center Protect and Wet Width, "
@@ -35,7 +35,7 @@ namespace
         "older fills, and fills played before the editor was opened, show \"That fill is too old\". Only one export runs at a time. "
         "Nothing is recorded when the editor has never been opened, so a plugin you only mix with costs nothing.");
 
-    const HelpRegistrar matchHelp (4040, "A/B level matching",
+    const HelpRegistrar matchHelp (5040, "A/B level matching",
         "A louder side wins every comparison. MATCH (in the recipes drawer, or right-click AUDITION) switches on level matching "
         "for the header A/B: each side measures the loudness of the wet signal it produces (a 100 Hz high-pass, 400 ms windows, "
         "silence ignored, averaged over 10 seconds). Once both sides have 3 seconds of fills measured, switching trims the output "

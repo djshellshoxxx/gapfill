@@ -1,5 +1,5 @@
 // Help section for E-1 / U-3 (registers itself; HelpView.cpp stays frozen).
-// WP4 help orders: 4010 audition, 4020 recipes (history, lock, like), 4030 export, 4040 A/B match.
+// WP4 help orders: 5010 audition, 5020 recipes (history, lock, like), 5030 export, 5040 A/B match.
 
 #include "../../gui/HelpRegistry.h"
 
@@ -8,7 +8,7 @@ namespace gapfill
 
 namespace
 {
-    const HelpRegistrar auditionHelp (4010, "Fill Audition",
+    const HelpRegistrar auditionHelp (5010, "Fill Audition",
         "AUDITION plays one fill right now, built from the last few seconds of audio with your current "
         "settings, so you can hear a change without waiting for a gap. It needs audio playing through the plugin; "
         "in a stopped host it says \"Start playback to audition\".\n"

@@ -104,7 +104,7 @@ Migration notes: `GAPFILL_PARAMS` is now the core list plus the group chain; the
 
 ## WP4 recipe features (E-1, U-3, C-5, U-1, C-11, U-2, F-S06)
 
-One facade (`features/recipes/RecipeServices`) is held by the processor; every feature keeps its logic in its own directory and plugs in through the Phase 0 seams. Parameters: only `fillLock` (group `lock`, performance id). State: `<Lock>`, `<History>`, `<Perf>` rows of `StateSubtrees.cpp`. Commands used: 1 Preview, 2/3 Like, 4/5/6 Lock, 30 PreviewRecipe (ids unchanged). Help orders 4010-4040.
+One facade (`features/recipes/RecipeServices`) is held by the processor; every feature keeps its logic in its own directory and plugs in through the Phase 0 seams. Parameters: only `fillLock` (group `lock`, performance id). State: `<Lock>`, `<History>`, `<Perf>` rows of `StateSubtrees.cpp`. Commands used: 1 Preview, 2/3 Like, 4/5/6 Lock, 30 PreviewRecipe (ids unchanged). Help orders 5010-5040.
 
 | Module | Files | Contract | Depends on | Invariants / error cases |
 |---|---|---|---|---|

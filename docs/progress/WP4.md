@@ -15,7 +15,7 @@ Neutral defaults keep the golden scenarios and the 0.0.1 state fixtures byte-for
 * `Source/features/audition/` - `PreviewChannel.*` (preview voice mailbox, status packing), `AuditionEngine.cpp` (`FillEngine::startPreview` and friends, defined outside the hot file), `Audition.*` (command handler, stale rule), `MidiTrigger.*` (note / CC trigger, learn, state), `AuditionGui.cpp` (AUDITION button + footer status slot components), `Help.cpp`.
 * `Source/features/recipes/` - `RecipeServices.*` facade held by the processor (one member, a few hook calls), `RecipeState.cpp` (`<Perf>` subtree row).
 * `cmake/sources/audition.cmake`, `cmake/tests/audition.cmake`, `Tests/features/TestAudition.cpp`.
-* Help section orders reserved for WP4: 4010 audition, 4020 recipes, 4030 export, 4040 A/B match.
+* Help section orders reserved for WP4: 5010 audition, 5020 recipes, 5030 export, 5040 A/B match.
 
 ## Hot-file touches (hook lines only, all justified by "code reality")
 

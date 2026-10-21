@@ -87,7 +87,7 @@ GF_TEST (ReasonsGui, legend_collapses_and_the_choice_is_remembered_in_state)
     SlotHost host (proc, parent);
     host.setSlotBounds (Slot::VisualiserOverlay, { 0, 0, 1000, 400 });
 
-    GF_EXPECT (host.getNumComponents (Slot::VisualiserOverlay) == 1);
+    GF_EXPECT (host.getNumComponents (Slot::VisualiserOverlay) >= 1);   // WP3 legend + WP4 recipe drawer (order 200)
     auto* overlay = dynamic_cast<explain::VisualiserOverlayComponent*> (parent.getChildComponent (0));
 
     if (overlay == nullptr)
