@@ -39,7 +39,7 @@ bool isAllowedParameter (const juce::String& id) noexcept
     // The only parameters any rule may write (dry/wet/output/bypass/lookahead/seed
     // and anything that changes latency are deliberately absent).
     static const char* const allowed[] = { "fill", "minGap", "retrigGuard", "density", "maxFill", "fillType",
-                                           "bandLowOn", "bandMidOn", "bandHighOn", "fillLock", "detSource",
+                                           "bandLowOn", "bandMidOn", "bandHighOn", "fl01_lock", "detSource",
                                            "protNext", "qualityMode" };
 
     for (auto* a : allowed)
@@ -279,9 +279,9 @@ std::vector<Proposal> evaluateRules (const Evidence& e, const ParamAccess& pa)
     }
 
     // R8 lock_skipped (parameter arrives with C-5; inactive until then)
-    if (count (R::LockSkipped) >= 3 && pa.has ("fillLock") && pa.getReal ("fillLock") > 0.5f)
+    if (count (R::LockSkipped) >= 3 && pa.has ("fl01_lock") && pa.getReal ("fl01_lock") > 0.5f)
         out.push_back (makeProposal (RuleId::LockSkipped, (float) count (R::LockSkipped) / 3.0f,
-                                     { named ("fillLock", "Fill Lock", 1.0f, 0.0f, "Off") }));
+                                     { named ("fl01_lock", "Fill Lock", 1.0f, 0.0f, "Off") }));
 
     // R9 no_source: sidechain selected but absent or silent
     if (count (R::NoSource) >= 4 && pa.has ("detSource") && roundInt (pa.getReal ("detSource")) == 1

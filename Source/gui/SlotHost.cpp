@@ -108,6 +108,20 @@ void SlotHost::layout (Slot slot)
     const auto n = (int) comps.size();
     const bool vertical = (slot == Slot::OptionsExtra);
 
+    // The visualiser overlay is a layer, not a row: every component gets the whole rectangle and
+    // lets clicks through everywhere except on its own controls (hitTest). Splitting it would
+    // squeeze the WP3 legend / timeline and the WP4 recipe drawer into half the width each.
+    if (slot == Slot::VisualiserOverlay)
+    {
+        for (auto* c : comps)
+        {
+            c->setVisible (show);
+            c->setBounds (area);
+        }
+
+        return;
+    }
+
     const auto total = vertical ? area.getHeight() : area.getWidth();
     const auto each = juce::jmax (0, (total - spacing * (n - 1)) / n);
     auto pos = vertical ? area.getY() : area.getX();

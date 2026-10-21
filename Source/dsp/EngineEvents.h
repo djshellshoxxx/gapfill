@@ -39,6 +39,7 @@ struct Command
     std::uint8_t velocity = 0;
     std::int16_t index = 0;        ///< history slot or similar, meaning depends on `type`
     FillRecipe recipe;             ///< payload of the *Recipe commands
+    std::uint32_t issuedMs = 0;    ///< juce::Time::getMillisecondCounter() at push; 0 = unstamped (never stale)
 };
 
 //==============================================================================
@@ -53,7 +54,11 @@ enum class FillEventType : std::uint8_t
     FillEnd = 5,   ///< a fill voice finished
     // Values reserved for other tickets so they never collide: E-1 Preview = 6,
     // F-L07 SceneApplied = 7, N-USE-a Panic = 8 / Recover = 9.
-    Preview = 6, SceneApplied = 7, Panic = 8, Recover = 9
+    Preview = 6,   ///< E-1: an audition voice started (`pos`/`lengthSamples` locate it); never in history or the outcome log
+    SceneApplied = 7, Panic = 8, Recover = 9,
+    // WP4 (C-5 Fill Lock): kept clear of the values reserved above.
+    LockSet = 20,      ///< the audio thread stored `recipe` as the Fill Lock recipe
+    LockCleared = 21   ///< the audio thread forgot the locked recipe (Unlock command)
 };
 
 /** True for the two events that describe an evaluated gap (the GapOutcomeLog
@@ -71,7 +76,8 @@ struct FillEvent
     FillRecipe recipe;
     float availMs = 0.0f;
     float needMs = 0.0f;
-    std::int64_t pos = 0;          ///< decision sample on the output timeline
+    std::int64_t pos = 0;          ///< decision sample on the output timeline (= first sample of a started fill)
+    std::int32_t lengthSamples = 0;///< Started / Preview: planned length in samples (U-2 export span)
     std::uint32_t generation = 0;  ///< engine gap index (ties the events of one gap together)
     std::uint16_t protHoldMs = 0;  ///< Onset: protection hold that follows the event
     std::uint16_t lookaheadMs = 0; ///< Onset: lookahead window that precedes it

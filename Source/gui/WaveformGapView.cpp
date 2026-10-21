@@ -318,7 +318,9 @@ void WaveformGapView::paint (juce::Graphics& g)
         if ((c.flags & VizFrame::flagFillActive) == 0)
             continue;
 
-        const auto colour = c.band <= 2 ? colours::bandColour (c.band) : colours::accentWarm;
+        // E-1: auditioned fills use their own colour (and the "PREVIEW" caption below).
+        const auto colour = (c.flags & VizFrame::flagPreview) != 0 ? colours::accentGreen
+                          : (c.band <= 2 ? colours::bandColour (c.band) : colours::accentWarm);
         g.setColour (colour.withAlpha (0.85f));
         g.fillRect (plot.getX() + (float) i * colWidth, fillLane.getY(),
                     juce::jmax (1.0f, colWidth + 0.5f), fillLane.getHeight());
@@ -327,6 +329,7 @@ void WaveformGapView::paint (juce::Graphics& g)
     // Name the algorithm of the most recent fill.
     {
         int recentAlgo = -1;
+        bool recentIsPreview = false;
 
         for (int i = n - 1; i >= juce::jmax (0, n - 160); --i)
         {
@@ -336,13 +339,15 @@ void WaveformGapView::paint (juce::Graphics& g)
             if ((c.flags & VizFrame::flagFillActive) != 0 && c.algo != 0xFF)
             {
                 recentAlgo = c.algo;
+                recentIsPreview = (c.flags & VizFrame::flagPreview) != 0;
                 break;
             }
         }
 
-        g.setColour (recentAlgo >= 0 ? colours::accentWarm : colours::textDim);
+        g.setColour (recentAlgo >= 0 ? (recentIsPreview ? colours::accentGreen : colours::accentWarm) : colours::textDim);
         g.setFont (juce::Font (juce::FontOptions (10.5f)).withExtraKerningFactor (0.1f));
-        g.drawText (recentAlgo >= 0 ? juce::String (algoName ((Algo) recentAlgo)).toUpperCase()
+        g.drawText (recentAlgo >= 0 ? juce::String (recentIsPreview ? "PREVIEW  " : "")
+                                        + juce::String (algoName ((Algo) recentAlgo)).toUpperCase()
                                     : juce::String ("NO FILL"),
                     fillLane.reduced (7.0f, 0.0f).toNearestInt(), juce::Justification::centredRight);
     }
