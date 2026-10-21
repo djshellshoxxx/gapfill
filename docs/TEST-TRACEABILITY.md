@@ -42,6 +42,28 @@ Keep this table current. The file names below are expected test locations; adjus
 | Musical context | Fixed seed/PPQ phrase reproducibility, groove offset boundaries, confidence fallback, loop/seek | Host tempo/meter/transport session | Candidate specs; not implemented/verified |
 | Each new effect | Neutral golden; impulse/sine/silence/NaN; bounds; state migration; CPU and memory budget | Per-format validators; audible bypass/automation test | Add one row per effect before implementation; no effect is accepted from UI presence alone |
 
+Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md` (test names are listed in each ticket; all are **Specified, not implemented/verified** until a PR links evidence). Test files live in `Tests/features/Test<Feature>.cpp`.
+
+| Ticket | Unit/regression evidence (file) | CI/host evidence | Current status |
+|---|---|---|---|
+| F0-10 pre-registration | golden identical; `validate_repo.py` with 30 empty locks | all CI jobs | Specified |
+| X-1 MIDI command map | edge/momentary/toggle, duplicate refusal, flood bound, panic direct path (`TestCommands.cpp`) | Physical controller in a real DAW and Standalone | Specified; hardware unverified |
+| FX-0 effect-card framework | empty-chain identity, ramp, tail flush, panic clears, duck on tails (`TestFxChain.cpp`) | per-format validators | Specified |
+| SP-0 spectral core | identity reconstruction, latency exact, block invariance, 44.1-192 kHz (`TestSpectralCore.cpp`) | validators; CPU budget | Specified |
+| N-FX1 Reverse Swell | landing time +-1 sample, never overlaps protNext, curves, neutral (`TestSwell.cpp`) | audible check on drum loop in a DAW | Specified; audible check unverified |
+| N-FX2 Granular Cloud | <= 48 grains, density limit, jitter/pitch bounds, ends before protNext, neutral (`TestCloud.cpp`) | audible check; CPU per voice | Specified |
+| N-USE-a Panic & Recover | wet silent <= 5 ms, dry bit-identical, every algo/card, not quantised, not saved (`TestPanic.cpp`) | Hardware button + real DAW | Specified; hardware unverified |
+| N-USE-b / F-S01 Health & telemetry | each code with hysteresis, priority, zero cost closed (`TestHealth.cpp`) | Standalone + DAW without sidechain/transport | Specified |
+| N-MUS Scale Lock | 12 scales x 12 roots, tie rule, RNG untouched, comb in-scale (`TestScale.cpp`) | audible check in a key | Specified |
+| F-L07 / N-VAL Scenes and Bank | quantised boundary exact PPQ, block invariance, loop/seek re-arm, file round trip, hostile import (`TestScenes.cpp`, `TestSceneBank.cpp`) | Looping DAW project on the bar line; cross-OS bank import | Specified; host unverified |
+| N-EASY Fix-it | one log per rule, apply/undo bit-exact, forbidden IDs, cooldown (`TestFixit.cpp`) | DAW with automation lane present | Specified |
+| F-M10, F-S07, F-S08, F-P02 | hold/latch/timeout, storm pattern grid, roulette no-repeat, forced fill safety (`TestLive.cpp`) | hardware pads/MIDI | Specified; hardware unverified |
+| F-M03 timeline, F-D02 events | reason text equals engine record, ring wrap, replay reproduces outcomes (`TestTimeline.cpp`, `TestEvents.cpp`) | screenshots min/default/large | Specified |
+| F-D01 / F-D03 / F-D04 | budget and quiet zone, quality caps and Auto hysteresis, contrast ratios (`TestBudget.cpp`, `TestQuality.cpp`, `TestAccess.cpp`) | CPU-limited machine; contrast screenshot | Specified |
+| Musical context (F-L09, F-L10, F-L22, F-M21, F-X03, F-X04, F-X05) | groove estimate within 2 ms, motif table, hysteresis, curve shapes, 24-key detection, boundary detection (`TestGroove.cpp` etc.) | host tempo/meter session | Specified; heuristics need listening tests |
+| Effect cards (F-M14, F-M15, F-M16, F-M19, F-M20, F-L14, F-L15, F-L19, F-L20, F-L21, F-X01, F-X02) | per-card lists in doc 12 section 7 | per-format validators; audible bypass/automation | One row per card to be split out when its PR starts |
+| Routing (F-M17, F-L11, F-L12, F-L13, F-X06) | wet-solo identity, MIDI-out bounds, bus layout matrix, SC gate/snap, co-op lifecycle | pluginval 10, clap-validator, auval, real DAW | Specified; AU/Logic unverified |
+
 ## Test command policy
 
 Use the project scripts and current CI workflow as the source of truth; do not paste commands from an old branch without checking they still exist.

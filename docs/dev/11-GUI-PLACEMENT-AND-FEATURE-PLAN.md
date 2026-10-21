@@ -1,6 +1,6 @@
 # Feature candidates and GUI placement plan
 
-Status: proposal only. This document does not authorize implementation. Before coding a feature, update its specification, acceptance tests, and placement in this plan.
+Status (2026-10-21): placement plan for the features now authorized in `12-SPEC-BACKLOG-AND-NEW.md`. Before coding a UI ticket, run the GUI implementation sequence below and record the decision. All candidates in the table have a spec in `12` (N-USE-b health, F-D01 budget, F-L07/N-VAL scenes and banks, N-USE-a panic, N-VAL exchange, F-D02 events, F-D03 quality, F-D04 accessibility); UI-0 in `12` creates the Performance tab / Effects section shell.
 
 ## Current interface constraints
 

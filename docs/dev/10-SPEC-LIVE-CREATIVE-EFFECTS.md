@@ -1,6 +1,6 @@
-# 09 - Live, creative and effects specification
+# 10 - Live, creative and effects specification
 
-Status: proposal for prioritization after Gate A (verified release confidence) and Gate B (regression-safe modular foundation) in `08-STABILIZATION-MODULARITY-FEATURE-BACKLOG.md`. This document specifies candidate work; it does not claim that any item is implemented or approved for immediate coding.
+Status (2026-10-21): requirements approved for implementation (the Gate A/B sequencing gate in `08` is lifted). This document is the requirements overview; the implementable specs (parameter IDs, ranges, defaults, state, tests, work packages) are in `12-SPEC-BACKLOG-AND-NEW.md`, which wins on any conflict. Nothing here is implemented yet. Differences resolved in `12`: scenes hold up to 64 per bank (quick page of 8) instead of 8; the effects reuse existing `Crush`/`Comb`/`Reverse`/`Granular` algorithms only as separate cards, never replacing them.
 
 ## 1. Capability map and build order
 
@@ -87,7 +87,7 @@ These already have canonical requirements. Implement from the cited section and 
 **Objective.** Make GapFill safe and expressive on stage and in real-time recording sessions.
 
 **Scenes.**
-- Support 8 user scenes per instance initially. A scene stores only approved, versioned performance parameters and recipe/preset identity; it MUST NOT store audio buffers or hidden host state.
+- Support a bank of up to 64 scenes per instance with an 8-slot quick page (revised by `12` F-L07/N-VAL). A scene stores only approved, versioned performance parameters and recipe/preset identity; it MUST NOT store audio buffers or hidden host state.
 - Scene selection supports immediate, next-beat, next-bar, and next-phrase modes. If transport/tempo is unavailable or invalid, show the condition and use an explicitly configured immediate fallback.
 - Pending scene changes are visible and cancellable. A scene transition is sample-safe or uses a short click-free crossfade; no transition may cause an unbounded CPU spike.
 - Scene load must preserve global output safety, dry/wet mix, latency, bypass, and the panic state unless the user explicitly mapped a safe parameter for that purpose.

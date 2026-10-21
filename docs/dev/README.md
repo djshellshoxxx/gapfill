@@ -1,8 +1,8 @@
 # GapFill developer documentation set
 
-Status: documentation roadmap and maintenance index, checked 2026-10-21 against the current repository and active stabilization work. The docs/dev specifications describe intended work; their presence does not mean the feature is implemented. For shipped status, check the source, tests, compliance table, and release evidence.
+Status: documentation roadmap and maintenance index, updated 2026-10-21. The docs/dev specifications describe intended work; their presence does not mean the feature is implemented. For shipped status, check the source, tests, compliance table, and release evidence.
 
-The current implementation priority remains docs/dev/08-STABILIZATION-MODULARITY-FEATURE-BACKLOG.md. Stabilization and platform gates come before the new feature candidates. This set builds on docs/superpowers/specs/2026-10-06-creative-performance-features-design.md and records revisions in 02-FOUNDATIONS.md.
+**Sequencing gate lifted (2026-10-21):** beta1 has shipped on all platforms and the owner authorized implementing every catalogued feature. docs/dev/08-STABILIZATION-MODULARITY-FEATURE-BACKLOG.md stays as the per-PR quality bar (green CI on every supported platform, neutral-default goldens, old-state fixtures), but it no longer blocks feature work. Every backlog and candidate item now has a full spec in 12-SPEC-BACKLOG-AND-NEW.md; start there (section 13 work packages, section 12 merge order). This set builds on docs/superpowers/specs/2026-10-06-creative-performance-features-design.md and records revisions in 02-FOUNDATIONS.md.
 
 ## Read in this order
 
@@ -15,10 +15,11 @@ The current implementation priority remains docs/dev/08-STABILIZATION-MODULARITY
 | 05 | 05-SPEC-USABILITY-VALUE.md | History, export, presets, MIDI trigger, Simple/Advanced, calibration, first-run, scale, and status. |
 | 06 | 06-ENGINEERING-STANDARDS.md | Always. Real-time rules, state, determinism, performance, tests, accessibility, and review. |
 | 07 | 07-QA-AND-RELEASE.md | Before large merges and releases. Test matrix, manual checks, and release evidence. |
-| 08 | 08-STABILIZATION-MODULARITY-FEATURE-BACKLOG.md | Current priority override: stabilize platform gates, modularize safely, defer and rank feature work. |
+| 08 | 08-STABILIZATION-MODULARITY-FEATURE-BACKLOG.md | Release and stabilization gates (quality bar for every PR) and the original feature catalogue; the feature gate is lifted. |
 | 09 | 09-FAST-INCREMENTAL-BUILDS.md | Use target-specific builds during local development; it does not replace full CI/release gates. |
 | 10 | 10-SPEC-LIVE-CREATIVE-EFFECTS.md | Live performance workflow, scenes, MIDI/transport behavior, and creative effect specifications. |
-| 11 | 11-GUI-PLACEMENT-AND-FEATURE-PLAN.md | Evaluate useful feature candidates and plan their placement before changing the GUI. |
+| 11 | 11-GUI-PLACEMENT-AND-FEATURE-PLAN.md | Plan the placement of new controls before changing the GUI. |
+| 12 | 12-SPEC-BACKLOG-AND-NEW.md | Full implementable specs for every remaining backlog item and the six new features (Reverse Swell, Granular Cloud, Panic and Health, Scale Lock, Scene Bank, Fix-it), parameter ID index, merge order, work packages. Wins over 10 on conflicts. |
 
 ## Additional developer references
 
@@ -41,7 +42,7 @@ Use these status rules consistently:
 
 - A specification is a proposal until the implementation, tests, and acceptance evidence are complete.
 - Do not mark a feature shipped because it appears in a spec or GUI mockup.
-- The priority override in document 08 governs sequencing where older creative roadmap documents conflict.
+- Sequencing: document 12 (merge order, work packages) governs; document 08 supplies the quality gates.
 - Update docs/TEST-TRACEABILITY.md when the test/evidence state changes. Update docs/architecture/MODULES.md when code ownership or thread boundaries move.
 - Use MUST, SHOULD, and MAY in the RFC 2119 sense.
 - Neutral defaults must preserve the current output within the approved golden-test tolerance.
