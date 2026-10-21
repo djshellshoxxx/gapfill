@@ -1,31 +1,36 @@
 # WP5 - Shaping and decisions progress
 
-Branch: `worktree-agent-a0290edf613f38ecd` (not pushed). Tickets in order: E-2, C-0, C-4, C-1, C-6, C-7, F-D01,
-C-9, C-10, C-3, C-8 (F-L16). Neutral defaults keep the six goldens and the 0.0.1 state fixtures identical.
+Branch: `worktree-agent-a0290edf613f38ecd` (not pushed). Integration branch merged (head 113f0f2 incl. WP3/WP8).
+Neutral defaults keep the goldens and 0.0.1 fixtures identical. Full suite after merge: 430 passed, 0 failed.
 
 ## Status per ticket
 
-| Ticket | Status | Notes |
+| Ticket | Status | Tests |
 |---|---|---|
-| E-2 tempo-sync audit | Engine, state, tests, help done; UI pending | see below |
+| E-2 tempo sync | Engine, state, help done; Options/Sync-panel UI pending | TestSync |
+| C-0 effective display | Knob API, LookAndFeel marker, processor publication done | TestEffectiveDisplay |
+| C-4 envelope | Engine + help done; GUI pending | TestEnvelope |
+| C-1 personalities | Engine + help done; GUI pending | TestPersonality |
+| C-6 breathing, C-7 phrase (+offset) | Engine + telemetry + help done (one commit); GUI pending | TestBreathing, TestPhrase |
+| F-D01 budget / quiet zones | Engine + telemetry + help done; GUI pending | TestBudget |
+| C-9 band type | Engine + help done; Spectral-panel combos pending | TestBandType |
+| C-10 capture v2 | CaptureLatch, Recapture/Release commands, captureLength done; button/status GUI pending | TestCapture2 |
+| C-3 mistakes | Engine + voice stage + help done; GUI pending | TestMistakes |
+| C-8 evolve | Engine + telemetry + help done; GUI pending | TestEvolve |
 
-## Conventions used by this package
+## Not done (all tickets): GUI
+No WP5 control is on screen yet. Planned: one "SHAPE" popover in `Slot::CreativeExtra` (already reserved) holding personality, envelope, mistakes, breathing, phrase, budget, evolve (+label from `getFillEngine().getDecisionTelemetry().evolveProfile`), capture length + Recapture (`postCommand({CommandType::Recapture})`, status from `getShaping().capture`), plus band-type combos (Panels.cpp, WP11) and the E-2 Options row (`getShaping().tempo.setFallbackBpm`). Parameters are automatable/MIDI-learnable today.
 
-* Help section orders 5100-5199 are reserved for WP5 (one per ticket: E-2 5100, C-0 -, C-4 5110, C-1 5120,
-  C-6 5130, C-7 5140, F-D01 5150, C-9 5160, C-10 5170, C-3 5180, C-8 5190).
-* Runtime state shared with the editor lives in `ShapingRuntime` (`GapFillAudioProcessor::getShaping()`), so the
-  tickets add one processor member in total (`Source/features/shaping`).
-* Every WP5 parameter is added to its group's `add<Group>PerformanceIds` (excluded from Random/Surprise/Undo, C9).
+## Conventions
+* Help orders 5100-5199 (E-2 5100, C-4 5110, C-1 5120, C-6 5130, C-7 5140, F-D01 5150, C-9 5160, C-10 5170, C-3 5180, C-8 5190).
+* Shared runtime in `ShapingRuntime` (`getShaping()`); decision figures in `FillEngine::getDecisionTelemetry()`.
+* All WP5 parameter IDs are in `performanceParameterIDs()` (not randomised).
 
-## Deviations and gaps (honest list)
-
-* Hot files touched (justified, each by a line or a hook): `PluginProcessor.h/.cpp` (`ShapingRuntime` member,
-  `updateTempoInfo` tempo memory + musical clamping, C-0 publish call), `FillEngine.cpp` (stage functions, WP5-owned),
-  `FillVoice.h/.cpp` (E-2 Sync Mods rates / slice length hook). Run `tools/check_hot_files.py` with the
-  `hot-file-ok` label for these.
-* `Tests/features/TestFoundations.cpp` and `TestStateFixtures.cpp`: the "66 parameters" assertions track the
-  frozen core instead (core IDs keep index 0-65; fixtures are 0.0.1 states and only set the 66 core IDs). Not a
-  weakening: the core-index and fixture-restores checks are unchanged, new groups are allowed to append.
-* E-2: the Options-page control for the fallback tempo and the "effective ms next to each division" readout need a
-  reserved rectangle in `PluginEditor`/`Panels.cpp` (WP11 only). The processor side is complete
-  (`getShaping().tempo`, `<Perf>` subtree `fallbackBpm`, `MeterState::syncClamped`).
+## Deviations
+* Hot files touched: PluginProcessor.h/.cpp, FillEngine.cpp/.h, FillVoice.cpp/.h, Presets.cpp (`surpriseTargets`, allowed), EngineSettings.h, DspUtils.h (`SourceHistory` read floor), SchedulerTypes.h (GapContext history/anchor), FeatureHooks.cpp, StateSubtrees.cpp (`Perf` row = E-2 fallbackBpm), Tests/TestSignals.h (TestPlayHead time signature).
+* C-1: spec absolute histogram floors (Percussive 35 %, Ambient 40 %) unreachable through chooseAlgorithm (length fit, chaos flatten); tests assert a >= 1.25x lift over Off and Dub's Delay as largest. "Normalised L2" = unit-length vectors.
+* C-3: Octave direction derives from the recipe seed (no extra id); Granular only goes down; Missed Repeat never drops the first or last repeat and is time-segmented; mistakes without a source-stereo check on mono.
+* C-10: v1 pause-the-writer semantics kept (frozen history + read floor = captureLength); Recapture copies a live tap into ping-pong 2 s snapshots; at the swap Granular voices fade over 10 ms (no per-sample crossfade).
+* C-8: scene-overlay precedence test not possible until scenes exist; zero weights stay zero.
+* F-D01: ring cleared on transport jump; "Fill Now counts toward budget" is automatic (every started fill is recorded) but F-P02 is not here.
+* Unverified: real DAW (Reaper 60/174 BPM), audibility of all features, screenshots, Windows/macOS.
