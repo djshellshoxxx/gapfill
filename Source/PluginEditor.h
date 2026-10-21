@@ -13,6 +13,7 @@
 #include "gui/HelpView.h"
 #include "gui/OptionsView.h"
 #include "gui/SlotHost.h"
+#include "gui/SlotPanels.h"
 
 namespace gapfill
 {
@@ -32,10 +33,22 @@ public:
     void applyKeyboardNavigationSettingForTests() { applyKeyboardNavigationSetting(); }
     int getKeyboardFocusableControlCountForTests() const;
     int getUnnamedKeyboardFocusableControlCountForTests() const;
+    void selectPerformanceForTests()            { setTab (Tab::Performance); }
+    bool isPerformanceTabForTests() const noexcept { return performanceAsTab; }
+    bool isPerformanceShownForTests() const noexcept { return performancePanel != nullptr && performancePanel->isVisible(); }
+    StackPanel* getPerformancePanelForTests() noexcept { return performancePanel.get(); }
+    EffectsDrawer* getEffectsDrawerForTests() noexcept { return effectsDrawer.get(); }
+    juce::Rectangle<int> getVisualiserBoundsForTests() const { return visualiser.getBounds(); }
+    juce::Rectangle<int> getTabBoundsForTests (int index) const
+    {
+        const juce::Component* const tabs[] = { &tabCreative, &tabWeights, &tabSpectral, &tabPerformance };
+        return tabs[juce::jlimit (0, 3, index)]->isVisible() ? tabs[juce::jlimit (0, 3, index)]->getBounds()
+                                                              : juce::Rectangle<int>();
+    }
    #endif
 
 private:
-    enum class Tab { Creative = 0, Weights, Spectral };
+    enum class Tab { Creative = 0, Weights, Spectral, Performance };
 
     void timerCallback() override;
     juce::Rectangle<int> footerBounds() const;
@@ -89,14 +102,21 @@ private:
     ProtectionPanel protectionPanel;
     MixPanel mixPanel;
 
-    juce::TextButton tabCreative { "CREATIVE" }, tabWeights { "AUTO WEIGHTS" }, tabSpectral { "SPECTRAL" };
+    juce::TextButton tabCreative { "CREATIVE" }, tabWeights { "AUTO WEIGHTS" }, tabSpectral { "SPECTRAL" },
+                     tabPerformance { "PERFORMANCE" };
     Tab currentTab = Tab::Creative;
+    bool performanceAsTab = false;      ///< else reached from the FILE menu (UI-0 tab plan)
 
     HelpView helpView;
     OptionsView optionsView;
 
     // Feature-owned components (docs/dev/02 F0-9); created after the panels so they sit on top.
     std::unique_ptr<SlotHost> slots;
+
+    // UI-0 containers for the Stack slots. Declared after `slots` so they are
+    // destroyed first; null when no feature registered a component for the slot.
+    std::unique_ptr<StackPanel> performancePanel;
+    std::unique_ptr<EffectsDrawer> effectsDrawer;
 
     // --- A/B ---
     juce::ValueTree slotA, slotB;

@@ -27,6 +27,8 @@ namespace
     constexpr int kMixHeight    = 124;
     constexpr int kTabHeight    = 26;
     constexpr int kFooterHeight = 22;   // status line (WP3 FooterStatus slot) + version marker, bottom-right
+    constexpr int kEffectsBody  = 140;   // UI-0: unfolded Effects section, scrolls inside itself
+    constexpr int kMinVisualiserHeight = 70;
     constexpr int kMinWidth     = 1020;
     constexpr int kMinHeight    = 620;
 
@@ -277,7 +279,20 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     slots = std::make_unique<SlotHost> (proc, *this);
 
-    for (auto* b : { &tabCreative, &tabWeights, &tabSpectral })
+    if (slots->getNumComponents (Slot::PerformanceTab) > 0)
+    {
+        performancePanel = std::make_unique<StackPanel> (*slots, Slot::PerformanceTab, "Performance", colours::accent);
+        addChildComponent (*performancePanel);
+    }
+
+    if (slots->getNumComponents (Slot::EffectsSection) > 0)
+    {
+        effectsDrawer = std::make_unique<EffectsDrawer> (*slots);
+        effectsDrawer->onExpandedChanged = [this] { resized(); };
+        addAndMakeVisible (*effectsDrawer);
+    }
+
+    for (auto* b : { &tabCreative, &tabWeights, &tabSpectral, &tabPerformance })
     {
         b->setClickingTogglesState (true);
         b->setRadioGroupId (1001);
@@ -288,6 +303,8 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     tabCreative.onClick = [this] { setTab (Tab::Creative); };
     tabWeights.onClick  = [this] { setTab (Tab::Weights); };
     tabSpectral.onClick = [this] { setTab (Tab::Spectral); };
+    tabPerformance.onClick = [this] { setTab (Tab::Performance); };
+    tabPerformance.setVisible (false);      // shown by resized() when it fits and the slot is populated
     tabCreative.setToggleState (true, juce::dontSendNotification);
 
     helpView.onClose = [this] { helpView.setVisible (false); };
@@ -386,12 +403,19 @@ void GapFillAudioProcessorEditor::setTab (Tab newTab)
     weightsPanel.setVisible (newTab == Tab::Weights);
     spectralPanel.setVisible (newTab == Tab::Spectral);
 
+    if (performancePanel != nullptr)
+        performancePanel->setVisible (newTab == Tab::Performance);
+
+    if (effectsDrawer != nullptr)
+        effectsDrawer->setVisible (newTab == Tab::Creative);
+
     if (slots != nullptr)
         slots->setSlotVisible (Slot::CreativeExtra, newTab == Tab::Creative);
 
     tabCreative.setToggleState (newTab == Tab::Creative, juce::dontSendNotification);
     tabWeights.setToggleState (newTab == Tab::Weights, juce::dontSendNotification);
     tabSpectral.setToggleState (newTab == Tab::Spectral, juce::dontSendNotification);
+    tabPerformance.setToggleState (newTab == Tab::Performance, juce::dontSendNotification);
 
     resized();
 }
@@ -508,7 +532,7 @@ void GapFillAudioProcessorEditor::saveUserPreset()
 //==============================================================================
 void GapFillAudioProcessorEditor::showFileMenu()
 {
-    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions };
+    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance };
 
     juce::PopupMenu menu;
     menu.setLookAndFeel (&lookAndFeel);
@@ -525,6 +549,10 @@ void GapFillAudioProcessorEditor::showFileMenu()
     menu.addSeparator();
     menu.addItem (kOptions, "Options...");
 
+    // UI-0: when a fourth tab does not fit, the Performance section lives here.
+    if (performancePanel != nullptr && ! performanceAsTab)
+        menu.addItem (kPerformance, "Performance...");
+
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&fileButton),
                         [this] (int result)
     {
@@ -535,6 +563,7 @@ void GapFillAudioProcessorEditor::showFileMenu()
             case kOpen:       doOpen(); break;
             case kSavePreset: saveUserPreset(); break;
             case kOptions:    showOptions(); break;
+            case kPerformance: setTab (Tab::Performance); break;
             default: break;
         }
     });
@@ -865,7 +894,20 @@ void GapFillAudioProcessorEditor::resized()
     b.removeFromBottom (8);
 
     // ---- control row ------------------------------------------------------
-    const auto controlHeight = juce::jlimit (250, 360, (int) ((float) b.getHeight() * 0.54f));
+    auto controlHeight = juce::jlimit (250, 360, (int) ((float) b.getHeight() * 0.54f));
+
+    // UI-0: the Effects section (Creative tab only) takes its header, and its body
+    // when unfolded, from the visualiser; it never shrinks the existing controls.
+    int effectsExtra = 0;
+
+    if (effectsDrawer != nullptr && currentTab == Tab::Creative)
+    {
+        effectsExtra = EffectsDrawer::headerHeight + (effectsDrawer->isExpanded() ? kEffectsBody : 0);
+        effectsExtra = juce::jmin (effectsExtra, juce::jmax (EffectsDrawer::headerHeight,
+                                                              b.getHeight() - 8 - controlHeight - kMinVisualiserHeight));
+        controlHeight += effectsExtra;
+    }
+
     auto controls = b.removeFromBottom (controlHeight);
     b.removeFromBottom (8);
 
@@ -882,9 +924,24 @@ void GapFillAudioProcessorEditor::resized()
     tabWeights.setBounds (tabs.removeFromLeft (tabWidth + 20).reduced (1));
     tabSpectral.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
 
+    const auto plan = planTabs (tabs.getWidth() + tabWidth * 2 + tabWidth + 20, performancePanel != nullptr);
+    performanceAsTab = plan.performanceAsTab;
+    tabPerformance.setVisible (performanceAsTab);
+
+    if (performanceAsTab)
+        tabPerformance.setBounds (tabs.removeFromLeft (plan.performanceTabWidth).reduced (1));
+    else if (currentTab == Tab::Performance && performancePanel == nullptr)
+        setTab (Tab::Creative);              // the tab vanished (window narrowed): fall back safely
+
+    if (effectsDrawer != nullptr)
+        effectsDrawer->setBounds (controls.removeFromBottom (effectsExtra));
+
     creativePanel.setBounds (controls);
     weightsPanel.setBounds (controls);
     spectralPanel.setBounds (controls);
+
+    if (performancePanel != nullptr)
+        performancePanel->setBounds (controls);
 
     // One reserved rectangle per slot. Slots no feature has claimed yet stay
     // empty (their components are hidden); a feature reserves its rectangle

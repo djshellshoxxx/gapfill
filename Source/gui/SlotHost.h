@@ -49,8 +49,19 @@ struct SlotRegistrar
 std::vector<SlotComponentFactory> getSlotFactories (Slot);
 
 //==============================================================================
+/** How a slot arranges its components inside its rectangle (UI-0).
+    Row: left to right, the width split evenly (default).
+    Column: top to bottom, the height split evenly (OptionsExtra).
+    Stack: top to bottom at the full width, each component keeping its OWN
+    height (the height it had when created, or what it later sets itself, e.g.
+    a foldable effect card). Used by PerformanceTab and EffectsSection; the
+    stack's total height is reported so a scrolling panel can size its content. */
+enum class SlotLayout { Row, Column, Stack };
+
+SlotLayout defaultLayoutFor (Slot) noexcept;
+
 /** Owns the slot component instances of one editor and lays them out. */
-class SlotHost
+class SlotHost : private juce::ComponentListener
 {
 public:
     /** Instantiates every registered factory and adds the components to `parent`. */
@@ -69,6 +80,16 @@ public:
 
     int getNumComponents (Slot) const;
 
+    /** UI-0: re-parents the slot's components into `container` (a scrolling panel's
+        content, say) and from then on lays them out in the container's coordinates.
+        The container must outlive the host or be released with nullptr first. */
+    void setSlotContainer (Slot, juce::Component* container);
+
+    /** Total height a Stack slot needs at its current width (0 for other layouts). */
+    int getStackHeight (Slot) const;
+
+    SlotLayout getLayout (Slot slot) const noexcept   { return defaultLayoutFor (slot); }
+
     static constexpr int spacing = 8;
 
 private:
@@ -77,14 +98,18 @@ private:
         Slot slot;
         int order;
         std::unique_ptr<juce::Component> component;
+        int preferredHeight = 96;      ///< Stack layout only
     };
 
     void layout (Slot);
+    void componentMovedOrResized (juce::Component&, bool wasMoved, bool wasResized) override;
 
     juce::Component& parent;
     std::vector<Entry> entries;
     juce::Rectangle<int> bounds[(size_t) Slot::Count];
     bool visible[(size_t) Slot::Count];
+    juce::Component* containers[(size_t) Slot::Count] = {};
+    bool inLayout = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (SlotHost)
 };

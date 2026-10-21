@@ -33,6 +33,17 @@ std::vector<SlotComponentFactory> getSlotFactories (Slot slot)
     return out;
 }
 
+SlotLayout defaultLayoutFor (Slot slot) noexcept
+{
+    switch (slot)
+    {
+        case Slot::OptionsExtra:   return SlotLayout::Column;
+        case Slot::PerformanceTab:
+        case Slot::EffectsSection: return SlotLayout::Stack;
+        default:                   return SlotLayout::Row;
+    }
+}
+
 //==============================================================================
 SlotHost::SlotHost (GapFillAudioProcessor& proc, juce::Component& parentComponent)
     : parent (parentComponent)
@@ -52,8 +63,13 @@ SlotHost::SlotHost (GapFillAudioProcessor& proc, juce::Component& parentComponen
             if (comp == nullptr)
                 continue;
 
+            const auto height = comp->getHeight() > 0 ? comp->getHeight() : 96;
             parent.addAndMakeVisible (*comp);
-            entries.push_back ({ (Slot) i, factory.order, std::move (comp) });
+
+            if (defaultLayoutFor ((Slot) i) == SlotLayout::Stack)
+                comp->addComponentListener (this);
+
+            entries.push_back ({ (Slot) i, factory.order, std::move (comp), height });
         }
     }
 }
@@ -61,7 +77,57 @@ SlotHost::SlotHost (GapFillAudioProcessor& proc, juce::Component& parentComponen
 SlotHost::~SlotHost()
 {
     for (auto& e : entries)
-        parent.removeChildComponent (e.component.get());
+    {
+        e.component->removeComponentListener (this);
+
+        if (auto* p = e.component->getParentComponent())
+            p->removeChildComponent (e.component.get());
+    }
+}
+
+void SlotHost::setSlotContainer (Slot slot, juce::Component* container)
+{
+    containers[(size_t) slot] = container;
+    auto* target = container != nullptr ? container : &parent;
+
+    for (auto& e : entries)
+        if (e.slot == slot)
+            target->addAndMakeVisible (*e.component);
+
+    layout (slot);
+}
+
+int SlotHost::getStackHeight (Slot slot) const
+{
+    if (defaultLayoutFor (slot) != SlotLayout::Stack)
+        return 0;
+
+    int total = 0;
+    int n = 0;
+
+    for (const auto& e : entries)
+        if (e.slot == slot)
+        {
+            total += e.preferredHeight;
+            ++n;
+        }
+
+    return n > 0 ? total + spacing * (n - 1) : 0;
+}
+
+void SlotHost::componentMovedOrResized (juce::Component& c, bool, bool wasResized)
+{
+    if (inLayout || ! wasResized)
+        return;
+
+    for (auto& e : entries)
+        if (e.component.get() == &c && c.getHeight() > 0 && c.getHeight() != e.preferredHeight)
+        {
+            // A card folded or unfolded itself: remember the new height and re-stack.
+            e.preferredHeight = c.getHeight();
+            layout (e.slot);
+            return;
+        }
 }
 
 void SlotHost::setSlotBounds (Slot slot, juce::Rectangle<int> newBounds)
@@ -107,6 +173,28 @@ void SlotHost::layout (Slot slot)
     const bool show = visible[(size_t) slot] && ! area.isEmpty();
     const auto n = (int) comps.size();
     const bool vertical = (slot == Slot::OptionsExtra);
+    const juce::ScopedValueSetter<bool> guard (inLayout, true);
+
+    if (defaultLayoutFor (slot) == SlotLayout::Stack)
+    {
+        auto y = area.getY();
+
+        for (auto& e : entries)
+        {
+            if (e.slot != slot)
+                continue;
+
+            e.component->setVisible (show);
+            e.component->setBounds (area.getX(), y, area.getWidth(), e.preferredHeight);
+            y += e.preferredHeight + spacing;
+        }
+
+        // A scrolling container is sized to its content; the viewport scrolls it.
+        if (auto* container = containers[(size_t) slot])
+            container->setSize (area.getWidth(), juce::jmax (1, y - spacing - area.getY()));
+
+        return;
+    }
 
     const auto total = vertical ? area.getHeight() : area.getWidth();
     const auto each = juce::jmax (0, (total - spacing * (n - 1)) / n);
