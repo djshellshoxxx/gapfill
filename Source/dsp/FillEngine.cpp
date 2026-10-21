@@ -1,5 +1,6 @@
 #include "FillEngine.h"
 #include "../features/effective/Effective.h"
+#include "../features/sync/Sync.h"
 
 namespace gapfill
 {
@@ -497,6 +498,12 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
     auto lengthSamples = (std::int64_t) ((double) ctx.usable * juce::jlimit (0.2f, 1.2f, scale));
     lengthSamples = juce::jlimit (juce::jmin (ctx.minGapSamples, ctx.usable), ctx.usable, lengthSamples);
 
+    // E-2: optional fill-length grid (never lengthens, never exceeds usable).
+    if (s.perf.quantDivision >= 0 && s.transportValid && s.samplesPerBeat > 1.0)
+        lengthSamples = sync::quantiseFillLength (lengthSamples,
+                                                  sync::fillQuantBeats (s.perf.quantDivision + 1) * s.samplesPerBeat,
+                                                  ctx.minGapSamples, ctx.usable);
+
     const auto lengthMs = (float) (1000.0 * (double) lengthSamples / sr);
 
     // ---- algorithm ---------------------------------------------------------
@@ -582,6 +589,7 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     setup.stutterSeconds = s.stutterSeconds;
     setup.delaySeconds = s.delaySeconds;
     setup.pingPong = s.pingPong;
+    setup.modSyncSeconds = s.perf.modSyncSeconds;   // E-2 (0 = off)
     setup.rngSeed = hashCombine (ctx.key, (std::uint64_t) (plan.algoIndex + 1) * 0x27D4EB2FULL);
 
     for (int b = 0; b < 3; ++b)

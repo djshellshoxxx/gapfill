@@ -46,6 +46,11 @@ struct VoiceSetup
     float delaySeconds   = 0.125f;   // musical subdivision for delay taps
     bool  pingPong       = true;
 
+    /** E-2 Sync Mods: > 0 locks Tremolo / Pan Motion rates and the Scramble
+        slice length to the tempo (value = the stutter time in seconds). 0 = off,
+        and the voice behaves exactly as before. */
+    float modSyncSeconds = 0.0f;
+
     float bandEnergy[3] { 0.3f, 0.3f, 0.3f };   // shapes the Texture algorithm
 
     std::uint64_t rngSeed = 1;

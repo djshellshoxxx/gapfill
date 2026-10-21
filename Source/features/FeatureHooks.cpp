@@ -13,8 +13,13 @@ Effective::ModulationInputs gatherModulationInputs (const ParamCache& /*params*/
     return in;
 }
 
-void gatherFeatureSettings (EngineSettings& /*s*/, const ParamCache& /*params*/) noexcept
+void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcept
 {
+    // E-2 sync: fill-length grid (-1 = Off) and Sync Mods (the stutter time is added
+    // in updateTempoInfo, where the tempo is known).
+    s.perf.quantDivision = pi (params.fillQuant) - 1;
+    s.perf.modSync       = pb (params.modSync);
+
     // One explicit call per feature, in this order (add yours below):
     //   gatherLock (s, params);          // C-5
     //   gatherMistakes (s, params);      // C-3

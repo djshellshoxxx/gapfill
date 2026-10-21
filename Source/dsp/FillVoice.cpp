@@ -1,4 +1,5 @@
 #include "FillVoice.h"
+#include "../features/sync/Sync.h"
 
 namespace gapfill
 {
@@ -318,6 +319,14 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
         modPanRate     = rng.range (0.6f, 5.0f);
         modPanDepth    = lerp (0.2f, 0.95f, intensity);
         modPanPhase    = rng.nextFloat();
+
+        // E-2 Sync Mods: replace the random rates (after the draws, so the RNG
+        // sequence is the same with the option on or off).
+        if (setup.modSyncSeconds > 0.0f)
+        {
+            modTremRate = sync::modSyncTremoloHz (setup.modSyncSeconds);
+            modPanRate  = sync::modSyncPanHz (setup.delaySeconds);
+        }
     }
 
     // --- spectral-lane isolation -------------------------------------------
@@ -547,6 +556,12 @@ void FillVoice::configureAlgorithm()
                 const auto usable = juce::jmax (128, captureLength - sliceOffset);
                 numSlices = juce::jlimit (4, maxSlices, 4 + (int) std::round (complexity * 20.0f));
                 sliceLen = juce::jmax (48, usable / numSlices);
+
+                // E-2 Sync Mods: slices land on the stutter grid (at most half the material).
+                if (setupData.modSyncSeconds > 0.0f)
+                    sliceLen = juce::jlimit (48, juce::jmax (48, usable / 2),
+                                             (int) std::lround (setupData.modSyncSeconds * sr));
+
                 numSlices = juce::jlimit (2, maxSlices, juce::jmax (2, usable / sliceLen));
             }
 

@@ -96,3 +96,4 @@ Manual steps and observed result:
 Audio metrics or crash trace:
 Known unverified checks:
 ```
+| E-2 Tempo-sync audit | clamp table 6 BPM x 12 divisions, tempo memory, fallback bounds, `<Perf>` round trip/malformed drop, Sync Mods formula, quantise grid, off identity (`TestSync.cpp`) | Reaper at 60 / 174 BPM, Standalone tempo option | Engine implemented; Options/Sync-panel UI and Reaper check unverified |

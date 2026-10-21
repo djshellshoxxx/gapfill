@@ -384,28 +384,41 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
     if (startSample == 0)
         lastTransportPlaying = playing;
 
-    // Tempo-synced lengths, with a musical fallback when the host has no tempo.
-    const auto beatSeconds = tempoValid ? 60.0 / bpm : 0.5;
+    // Tempo-synced lengths (E-2): the host tempo, else the last one it reported,
+    // else the Options fallback (120 BPM by default). Out-of-range lengths are
+    // clamped by halving/doubling the DIVISION, not by clipping milliseconds.
+    const auto beatSeconds = 60.0 / shaping.tempo.resolve (tempoValid, bpm, numSamples);
+    bool syncClamped = false;
 
     if (pb (params.syncEnable))
     {
-        s.stutterSeconds = (float) (divisionInBeats (pi (params.stutterDiv)) * beatSeconds);
-        s.delaySeconds   = (float) (divisionInBeats (pi (params.delayDiv)) * beatSeconds);
+        const auto st = sync::clampToDivision ((float) (divisionInBeats (pi (params.stutterDiv)) * beatSeconds),
+                                               0.008f, 0.5f, pi (params.stutterDiv));
+        const auto dl = sync::clampToDivision ((float) (divisionInBeats (pi (params.delayDiv)) * beatSeconds),
+                                               0.01f, 1.0f, pi (params.delayDiv));
+        s.stutterSeconds = st.seconds;
+        s.delaySeconds   = dl.seconds;
+        syncClamped = st.clamped || dl.clamped;
+
+        if (s.perf.modSync)
+            s.perf.modSyncSeconds = s.stutterSeconds;
     }
     else
     {
         s.stutterSeconds = 0.0625f;
         s.delaySeconds   = 0.125f;
+        s.perf.modSyncSeconds = 0.0f;
     }
-
-    s.stutterSeconds = juce::jlimit (0.008f, 0.5f, s.stutterSeconds);
-    s.delaySeconds   = juce::jlimit (0.01f, 1.0f, s.delaySeconds);
 
     if (pb (params.maxFillSync))
     {
-        const auto ms = (float) (divisionInBeats (pi (params.maxFillDiv)) * beatSeconds * 1000.0);
-        s.maxFillMs = juce::jlimit (20.0f, 2000.0f, ms);
+        const auto mf = sync::clampToDivision ((float) (divisionInBeats (pi (params.maxFillDiv)) * beatSeconds),
+                                               0.02f, 2.0f, pi (params.maxFillDiv));
+        s.maxFillMs = mf.seconds * 1000.0f;
+        syncClamped = syncClamped || mf.clamped;
     }
+
+    meters.syncClamped.store (syncClamped, std::memory_order_relaxed);
 }
 
 //==============================================================================
@@ -587,6 +600,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     engineSettings.sidechainActive = sidechainActive;
     engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
+    shaping.effective.publish (engineSettings);   // C-0
 
     if (bypassed)
     {

@@ -15,6 +15,7 @@
 #include "dsp/EventLogs.h"
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
+#include "features/shaping/ShapingRuntime.h"
 
 namespace gapfill
 {
@@ -85,6 +86,11 @@ public:
     MeterState& getMeterState() noexcept                            { return meters; }
     VisualisationFifo& getVisualisationFifo() noexcept              { return viz; }
     MidiLearnManager& getMidiLearnManager() noexcept                { return midiLearn; }
+
+    /** WP5 runtime state: tempo memory (E-2), effective creative values (C-0). */
+    ShapingRuntime& getShaping() noexcept                           { return shaping; }
+    const ShapingRuntime& getShaping() const noexcept               { return shaping; }
+    const EffectiveCreative& getEffectiveCreative() const noexcept  { return shaping.effective; }
 
     //==========================================================================
     // Cross-thread queues (docs/dev/02 F0-4)
@@ -199,6 +205,7 @@ private:
 
     MeterState meters;
     VisualisationFifo viz;
+    ShapingRuntime shaping;
 
     CommandQueue    commands;        // message -> audio, drained once per block
     FillEventQueue  fillEvents;      // audio -> message, drained by the timer

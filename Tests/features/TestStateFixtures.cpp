@@ -106,10 +106,13 @@ namespace
 
         if (name == "session_extreme")
         {
-            int i = 0;
+            // The fixture is a 0.0.1 state: only the 66 core parameters existed then.
+            // Parameters appended by later feature groups are absent from it and must
+            // load at their defaults.
+            const auto ids = allParameterIDs();
 
-            for (const auto& id : allParameterIDs())
-                state.getParameter (id)->setValueNotifyingHost ((i++ % 2) == 0 ? 0.0f : 1.0f);
+            for (int i = 0; i < juce::jmin (66, ids.size()); ++i)
+                state.getParameter (ids[i])->setValueNotifyingHost ((i % 2) == 0 ? 0.0f : 1.0f);
         }
         else if (name == "session_zero_weights")
         {
