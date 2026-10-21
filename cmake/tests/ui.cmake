@@ -2,4 +2,5 @@
 list(APPEND GAPFILL_TEST_SOURCES
     Tests/features/TestUi0.cpp
     Tests/features/TestInfo.cpp
+    Tests/features/TestPresetBrowser.cpp
 )

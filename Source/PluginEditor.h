@@ -15,6 +15,7 @@
 #include "gui/SlotHost.h"
 #include "gui/SlotPanels.h"
 #include "features/info/HoverStatus.h"
+#include "features/presetbrowser/PresetBrowser.h"
 
 namespace gapfill
 {
@@ -55,7 +56,11 @@ private:
     juce::Rectangle<int> footerBounds() const;
     void setTab (Tab newTab);
     void refreshPresetList();
-    void presetSelected();
+    void setPresetDisplay (const juce::String&);
+    int  currentPresetIndex() const;
+    void stepPreset (int delta);
+    bool loadCatalogEntry (const presets::PresetEntry&);
+    void showPresetBrowser();
     void saveUserPreset();
     void showFileMenu();
     bool savePresetToFile (const juce::File&);
@@ -80,7 +85,7 @@ private:
 
     // --- top bar ---
     juce::Label logo, tagline, latencyLabel;
-    juce::ComboBox presetBox;
+    juce::TextButton presetBox;     // shows the current preset name; opens the browser (U-4)
     // Momentary actions flash the accent for 100ms; abButton and bypassButton
     // are stateful, so they show their state instead.
     FlashButton prevPreset { "<" }, nextPreset { ">" }, fileButton { "FILE" };
@@ -124,7 +129,7 @@ private:
     juce::ValueTree slotA, slotB;
     bool usingSlotB = false;
 
-    juce::Array<juce::File> userPresetFiles;
+    presets::PresetCatalog navCatalog;     // factory + user entries for the < and > buttons
 
     // The file "Save" writes to. Empty until the user has saved or opened one.
     juce::File currentPresetFile;

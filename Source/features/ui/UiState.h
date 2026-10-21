@@ -35,6 +35,22 @@ public:
     ViewMode getViewMode() const noexcept          { return (ViewMode) viewMode.load (std::memory_order_relaxed); }
     void setViewMode (ViewMode m) noexcept         { viewMode.store ((int) m, std::memory_order_relaxed); }
 
+    //--- U-4: preset stepping requested from outside the editor ---------------------
+    /** Any thread (a MIDI command handler, say): ask the open editor to step to the
+        previous (-1) / next (+1) preset. Requests are summed and clamped to +-64; the
+        editor's timer applies them on the message thread. Without an open editor they
+        wait for the next one. */
+    void requestPresetStep (int delta) noexcept
+    {
+        int current = presetStep.load (std::memory_order_relaxed);
+        int next;
+        do { next = juce::jlimit (-64, 64, current + delta); }
+        while (! presetStep.compare_exchange_weak (current, next, std::memory_order_relaxed));
+    }
+
+    /** Message thread: returns the accumulated request and resets it. */
+    int takePresetStep() noexcept                  { return presetStep.exchange (0, std::memory_order_relaxed); }
+
     //--- persistence -------------------------------------------------------------
     /** Root property written by getStateInformation. */
     static constexpr const char* viewModeProperty = "viewMode";
@@ -48,6 +64,7 @@ public:
 
 private:
     std::atomic<int> viewMode { (int) ViewMode::Simple };
+    std::atomic<int> presetStep { 0 };
 };
 
 } // namespace gapfill::ui

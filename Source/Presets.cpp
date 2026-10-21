@@ -15,10 +15,11 @@ const std::vector<Preset>& getFactoryPresets()
 {
     static const std::vector<Preset> presets =
     {
-        { "Init", "Plain defaults - a good neutral starting point.", {} },
+        { "Init", "Plain defaults - a good neutral starting point.", "Utility", {} },
 
         { "Subtle Ear Candy",
           "Occasional short reverses and filtered echoes that never fight the groove.",
+          "Subtle",
           { { "fill", 18.0f }, { "intensity", 28.0f }, { "complexity", 15.0f },
             { "chaos", 12.0f }, { "density", 45.0f }, { "fillType", kAuto },
             { "minGap", 90.0f }, { "maxFill", 260.0f }, { "sensitivity", 48.0f },
@@ -28,6 +29,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Drum Gap Glitch",
           "Classic between-the-hits glitching for loops and drum buses.",
+          "Glitch",
           { { "fill", 52.0f }, { "intensity", 58.0f }, { "complexity", 48.0f },
             { "chaos", 35.0f }, { "density", 70.0f }, { "minGap", 55.0f },
             { "maxFill", 320.0f }, { "sensitivity", 58.0f }, { "gapThresh", 58.0f },
@@ -38,6 +40,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "DnB Micro Fills",
           "Fast micro-edits between breakbeat hits with the attacks left intact.",
+          "Rhythmic",
           { { "fill", 62.0f }, { "intensity", 62.0f }, { "complexity", 55.0f },
             { "chaos", 40.0f }, { "density", 78.0f }, { "minGap", 35.0f },
             { "maxFill", 190.0f }, { "sensitivity", 66.0f }, { "gapThresh", 62.0f },
@@ -50,6 +53,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Breakcore Destroyer",
           "Everything on, everywhere - still keeps the original hits punching through.",
+          "Destructive",
           { { "fill", 92.0f }, { "intensity", 88.0f }, { "complexity", 86.0f },
             { "chaos", 78.0f }, { "density", 95.0f }, { "minGap", 22.0f },
             { "maxFill", 420.0f }, { "sensitivity", 72.0f }, { "gapThresh", 72.0f },
@@ -61,6 +65,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Ghost Reverses",
           "Reverse swells rising into each hit.",
+          "Ambient",
           { { "fill", 45.0f }, { "intensity", 40.0f }, { "complexity", 22.0f },
             { "chaos", 18.0f }, { "density", 60.0f }, { "fillType", algoChoice (Algo::Reverse) },
             { "minGap", 110.0f }, { "maxFill", 600.0f }, { "lookahead", 90.0f },
@@ -68,6 +73,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Industrial Debris",
           "Metallic comb resonances and crushed shrapnel in the spaces.",
+          "Destructive",
           { { "fill", 58.0f }, { "intensity", 78.0f }, { "complexity", 62.0f },
             { "chaos", 48.0f }, { "density", 66.0f }, { "minGap", 70.0f },
             { "maxFill", 480.0f }, { "protLow", 120.0f }, { "protTrans", 78.0f },
@@ -77,6 +83,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Vocal Ghosts",
           "Phrase-aware granular and reverse tails after vocal lines.",
+          "Ambient",
           { { "detMode", (float) DetMode::Phrase }, { "fill", 38.0f }, { "intensity", 45.0f },
             { "complexity", 52.0f }, { "chaos", 30.0f }, { "density", 55.0f },
             { "minGap", 180.0f }, { "maxFill", 900.0f }, { "sensitivity", 42.0f },
@@ -89,6 +96,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Vocal Delay Fills",
           "Rhythmic ping-pong echoes that appear only where the singer breathes.",
+          "Dub",
           { { "detMode", (float) DetMode::Phrase }, { "fill", 46.0f }, { "intensity", 42.0f },
             { "complexity", 26.0f }, { "chaos", 16.0f }, { "density", 60.0f },
             { "fillType", algoChoice (Algo::Delay) },
@@ -99,6 +107,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Bass Between Kicks",
           "Sidechain the drums in: fills appear only where the kick is not.",
+          "Utility",
           { { "detSource", (float) DetSource::Sidechain }, { "fill", 50.0f },
             { "intensity", 45.0f }, { "complexity", 38.0f }, { "chaos", 22.0f },
             { "density", 65.0f }, { "minGap", 90.0f }, { "maxFill", 380.0f },
@@ -108,6 +117,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Granular Spaces",
           "Wide granular clouds filling the longer gaps.",
+          "Ambient",
           { { "fill", 55.0f }, { "intensity", 52.0f }, { "complexity", 72.0f },
             { "chaos", 42.0f }, { "density", 58.0f }, { "fillType", algoChoice (Algo::Granular) },
             { "minGap", 160.0f }, { "maxFill", 1100.0f }, { "lookahead", 100.0f },
@@ -116,6 +126,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Trance Transitions",
           "Long filtered and pitched risers between phrases.",
+          "Rhythmic",
           { { "detMode", (float) DetMode::Phrase }, { "fill", 42.0f }, { "intensity", 66.0f },
             { "complexity", 58.0f }, { "chaos", 26.0f }, { "density", 50.0f },
             { "minGap", 260.0f }, { "maxFill", 1800.0f }, { "maxFillSync", 1.0f },
@@ -127,6 +138,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Trip Hop Dust",
           "Quiet, dusty debris in the spaces of a slow beat.",
+          "Subtle",
           { { "fill", 26.0f }, { "intensity", 32.0f }, { "complexity", 34.0f },
             { "chaos", 24.0f }, { "density", 42.0f }, { "minGap", 140.0f },
             { "maxFill", 520.0f }, { "sensitivity", 45.0f }, { "gapThresh", 45.0f },
@@ -136,6 +148,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Spectral High Fill",
           "Leaves the kick alone and drops glitches into the empty top end.",
+          "Glitch",
           { { "detMode", (float) DetMode::Spectral }, { "fill", 55.0f },
             { "intensity", 55.0f }, { "complexity", 50.0f }, { "chaos", 34.0f },
             { "density", 72.0f }, { "minGap", 45.0f }, { "maxFill", 300.0f },
@@ -145,6 +158,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Spectral Mid Mutation",
           "Mutates the midrange while lows and highs carry on untouched.",
+          "Glitch",
           { { "detMode", (float) DetMode::Spectral }, { "fill", 58.0f },
             { "intensity", 62.0f }, { "complexity", 68.0f }, { "chaos", 45.0f },
             { "density", 70.0f }, { "minGap", 70.0f }, { "maxFill", 520.0f },
@@ -156,6 +170,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Sparse Texture",
           "Rare, synthesised textures shaped by the track's own spectrum.",
+          "Ambient",
           { { "fill", 20.0f }, { "intensity", 38.0f }, { "complexity", 40.0f },
             { "chaos", 30.0f }, { "density", 28.0f }, { "fillType", algoChoice (Algo::Texture) },
             { "minGap", 200.0f }, { "maxFill", 800.0f }, { "protCenter", 55.0f },
@@ -163,6 +178,7 @@ const std::vector<Preset>& getFactoryPresets()
 
         { "Extreme Chaos",
           "Maximum variation. Bounded, but only just.",
+          "Destructive",
           { { "fill", 100.0f }, { "intensity", 95.0f }, { "complexity", 95.0f },
             { "chaos", 100.0f }, { "density", 100.0f }, { "minGap", 18.0f },
             { "maxFill", 700.0f }, { "sensitivity", 78.0f }, { "gapThresh", 80.0f },

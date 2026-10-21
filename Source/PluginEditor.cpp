@@ -5,6 +5,7 @@
 
 #include "PluginEditor.h"
 #include "features/info/ParamInfo.h"
+#include "features/presetbrowser/PresetBrowser.h"
 
 // The standalone wrapper owns the audio and MIDI devices, so the options page
 // can only offer device settings when we are running inside it. The macro is
@@ -32,9 +33,6 @@ namespace
     constexpr int kMinVisualiserHeight = 70;
     constexpr int kMinWidth     = 1020;
     constexpr int kMinHeight    = 620;
-
-    constexpr int kFactoryOffset = 1;
-    constexpr int kUserOffset    = 1000;
 
     bool isKeyboardInteractive (const juce::Component& component)
     {
@@ -145,13 +143,13 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     presetBox.setName ("Preset");
     presetBox.setTitle ("Preset");
-    presetBox.setDescription ("Factory and user preset selector");
-    presetBox.setHelpText ("Choose a factory or user preset.");
-    presetBox.setTooltip ("Factory and user presets. Use < and > to step through them.");
+    presetBox.setDescription ("Current preset. Opens the preset browser: search, categories, favourites and user presets.");
+    presetBox.setHelpText ("Open the preset browser.");
+    presetBox.setTooltip ("Presets - click to browse, search and favourite. Use < and > to step through them.");
     presetBox.setWantsKeyboardFocus (false);
-    presetBox.onChange = [this] { presetSelected(); };
+    presetBox.onClick = [this] { showPresetBrowser(); };
     addAndMakeVisible (presetBox);
-    refreshPresetList();
+    navCatalog.setFactory (presets::factoryEntries());
 
     prevPreset.setTooltip ("Previous preset");
     nextPreset.setTooltip ("Next preset");
@@ -170,20 +168,8 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
                            "(up to 32 steps).");
     bypassButton.setTooltip (info::tooltipFor ("bypass", "Bypass GapFill. Latency compensation stays correct."));
 
-    prevPreset.onClick = [this]
-    {
-        const auto n = (int) getFactoryPresets().size();
-        auto index = proc.getCurrentProgram() - 1;
-        proc.selectPreset ((index + n) % n);
-        presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
-    };
-
-    nextPreset.onClick = [this]
-    {
-        const auto n = (int) getFactoryPresets().size();
-        proc.selectPreset ((proc.getCurrentProgram() + 1) % n);
-        presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
-    };
+    prevPreset.onClick = [this] { stepPreset (-1); };
+    nextPreset.onClick = [this] { stepPreset (+1); };
 
     fileButton.onClick = [this] { showFileMenu(); };
     abButton.onClick = [this] { toggleAB(); };
@@ -192,22 +178,19 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     randomButton.onClick = [this]
     {
         proc.randomise (false);
-        presetBox.setSelectedId (0, juce::dontSendNotification);
-        presetBox.setText ("Random", juce::dontSendNotification);
+        setPresetDisplay ("Random");
     };
 
     randomAllButton.onClick = [this]
     {
         proc.randomise (true);
-        presetBox.setSelectedId (0, juce::dontSendNotification);
-        presetBox.setText ("Random All", juce::dontSendNotification);
+        setPresetDisplay ("Random All");
     };
 
     surpriseButton.onClick = [this]
     {
         const auto name = proc.surprise();
-        presetBox.setSelectedId (0, juce::dontSendNotification);
-        presetBox.setText ("Surprise: " + name, juce::dontSendNotification);
+        setPresetDisplay ("Surprise: " + name);
     };
 
     undoButton.onClick = [this]
@@ -217,12 +200,11 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
         if (proc.getCurrentPresetName() == "Custom")
         {
-            presetBox.setSelectedId (0, juce::dontSendNotification);
-            presetBox.setText ("Custom", juce::dontSendNotification);
+            setPresetDisplay ("Custom");
         }
         else
         {
-            presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
+            setPresetDisplay (proc.getCurrentPresetName());
         }
     };
 
@@ -230,7 +212,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     {
         proc.resetAllParameters();
         mixPanel.resetMeterPeaks();
-        presetBox.setSelectedId (kFactoryOffset, juce::dontSendNotification);
+        setPresetDisplay (proc.getCurrentPresetName());
     };
 
     helpButton.onClick = [this]
@@ -380,12 +362,11 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     if (proc.getCurrentPresetName() == "Custom")
     {
-        presetBox.setSelectedId (0, juce::dontSendNotification);
-        presetBox.setText ("Custom", juce::dontSendNotification);
+        setPresetDisplay ("Custom");
     }
     else
     {
-        presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
+        setPresetDisplay (proc.getCurrentPresetName());
     }
 
     startTimerHz (24);
@@ -430,116 +411,163 @@ void GapFillAudioProcessorEditor::setTab (Tab newTab)
 //==============================================================================
 juce::File GapFillAudioProcessorEditor::userPresetDirectory()
 {
-    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
-             .getChildFile ("GapFill").getChildFile ("Presets");
+    return presets::userPresetRoot();
+}
+
+void GapFillAudioProcessorEditor::setPresetDisplay (const juce::String& text)
+{
+    presetBox.setButtonText (text);
+    presetBox.setTitle ("Preset: " + text);
+    presetBox.repaint();
 }
 
 void GapFillAudioProcessorEditor::refreshPresetList()
 {
-    presetBox.clear (juce::dontSendNotification);
-    userPresetFiles.clear();
-
-    presetBox.addSectionHeading ("Factory");
-
-    const auto& factory = getFactoryPresets();
-
-    for (int i = 0; i < (int) factory.size(); ++i)
-        presetBox.addItem (factory[(size_t) i].name, i + kFactoryOffset);
-
-    auto dir = userPresetDirectory();
-
-    if (dir.isDirectory())
-    {
-        for (const auto& f : dir.findChildFiles (juce::File::findFiles, false, "*.gapfill"))
-            userPresetFiles.add (f);
-
-        if (! userPresetFiles.isEmpty())
-        {
-            presetBox.addSectionHeading ("User");
-
-            for (int i = 0; i < userPresetFiles.size(); ++i)
-                presetBox.addItem (userPresetFiles[i].getFileNameWithoutExtension(), i + kUserOffset);
-        }
-    }
+    // Factory entries are fixed; user presets are rescanned (message thread, capped at 2000 files).
+    navCatalog.setFactory (presets::factoryEntries());
+    navCatalog.setUser (presets::scanUserPresets (presets::defaultScanRoots()).entries);
 }
 
-void GapFillAudioProcessorEditor::presetSelected()
+int GapFillAudioProcessorEditor::currentPresetIndex() const
 {
-    const auto id = presetBox.getSelectedId();
-
-    if (id >= kUserOffset)
+    if (currentPresetFile != juce::File())
     {
-        const auto index = id - kUserOffset;
+        const auto& all = navCatalog.entries();
 
-        if (juce::isPositiveAndBelow (index, userPresetFiles.size()))
-            loadPresetFromFile (userPresetFiles[index]);
+        for (int i = 0; i < (int) all.size(); ++i)
+            if (all[(size_t) i].file == currentPresetFile)
+                return i;
     }
-    else if (id >= kFactoryOffset)
+
+    if (proc.getCurrentPresetName() != "Custom")
+        return navCatalog.indexOfIdentity ("f:" + proc.getCurrentPresetName());
+
+    return -1;
+}
+
+void GapFillAudioProcessorEditor::stepPreset (int delta)
+{
+    refreshPresetList();
+    const auto index = navCatalog.step (currentPresetIndex(), delta);
+
+    if (index < 0)
+        return;
+
+    loadCatalogEntry (navCatalog.entries()[(size_t) index]);
+}
+
+bool GapFillAudioProcessorEditor::loadCatalogEntry (const presets::PresetEntry& entry)
+{
+    juce::String error;
+
+    if (! presets::loadPreset (proc, entry, error))
     {
-        proc.selectPreset (id - kFactoryOffset);
-        currentPresetFile = juce::File();
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                "Could not open preset", error, "OK", this);
+        setPresetDisplay (proc.getCurrentPresetName());
+        return false;
     }
+
+    currentPresetFile = entry.origin == presets::PresetEntry::Origin::User ? entry.file : juce::File();
+    setPresetDisplay (entry.name);
+    return true;
+}
+
+void GapFillAudioProcessorEditor::showPresetBrowser()
+{
+    auto browser = std::make_unique<presets::PresetBrowser> (proc, settings::GlobalSettings::shared());
+    browser->onLoaded = [this] (const presets::PresetEntry& entry)
+    {
+        currentPresetFile = entry.origin == presets::PresetEntry::Origin::User ? entry.file : juce::File();
+        setPresetDisplay (entry.name);
+    };
+    // The call-out box is created after the browser, so the callbacks reach it through a shared handle.
+    auto boxHandle = std::make_shared<juce::Component::SafePointer<juce::CallOutBox>>();
+    browser->onCloseRequested = [boxHandle] { if (auto* box = boxHandle->getComponent()) box->dismiss(); };
+    browser->onSaveRequested = [this, boxHandle]
+    {
+        if (auto* box = boxHandle->getComponent())
+            box->dismiss();
+
+        saveUserPreset();
+    };
+
+    auto& box = juce::CallOutBox::launchAsynchronously (std::move (browser), presetBox.getScreenBounds(), this);
+    box.setDismissalMouseClicksAreAlwaysConsumed (false);
+    *boxHandle = &box;
 }
 
 void GapFillAudioProcessorEditor::saveUserPreset()
 {
-    auto* window = new juce::AlertWindow ("Save preset",
-                                          "Name this preset:",
+    auto* window = new juce::AlertWindow ("Save user preset",
+                                          "Name, category and an optional description:",
                                           juce::MessageBoxIconType::NoIcon);
-    window->setLookAndFeel (&lookAndFeel);
-    window->addTextEditor ("name", "My GapFill", {});
+    gapfill::applyPaletteTo (*window);
+    window->addTextEditor ("name", "My GapFill", "Name");
+    window->addComboBox ("category", [] { auto c = presets::presetCategories(); c.add (presets::kUncategorised); return c; }(), "Category");
+    window->addTextEditor ("description", {}, "Description");
     window->addButton ("Save", 1);
     window->addButton ("Cancel", 0);
 
     window->enterModalState (true, juce::ModalCallbackFunction::create (
         [this, window] (int result)
         {
-            const auto name = window->getTextEditorContents ("name").trim();
-            window->setLookAndFeel (nullptr);
+            presets::PresetMeta meta;
+            meta.name = window->getTextEditorContents ("name");
+            meta.category = window->getComboBoxComponent ("category")->getText();
+            meta.description = window->getTextEditorContents ("description");
             delete window;
 
-            if (result != 1 || name.isEmpty())
+            if (result != 1)
                 return;
 
-            auto dir = userPresetDirectory();
+            const auto name = presets::sanitisePresetName (meta.name);
 
-            if (! dir.isDirectory() && ! dir.createDirectory().wasOk())
-            {
-                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
-                                                        "Could not save preset",
-                                                        "GapFill could not create the user preset folder.",
-                                                        "OK",
-                                                        this);
-                return;
-            }
-
-            const auto legalName = juce::File::createLegalFileName (name);
-
-            if (legalName.isEmpty())
+            if (name.isEmpty())
             {
                 juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
                                                         "Could not save preset",
                                                         "Please choose a preset name that contains valid filename characters.",
-                                                        "OK",
-                                                        this);
+                                                        "OK", this);
                 return;
             }
 
-            auto file = dir.getChildFile (legalName + ".gapfill");
+            meta.name = name;
+            const auto file = presets::presetPathFor (presets::userPresetRoot(), meta.category, name);
 
-            if (! savePresetToFile (file))
+            const auto write = [this, file, meta]
+            {
+                juce::String error;
+
+                if (! presets::writeUserPreset (proc, file, meta, error))
+                {
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                            "Could not save preset", error, "OK", this);
+                    return;
+                }
+
+                currentPresetFile = file;
+                refreshPresetList();
+                setPresetDisplay (meta.name);
+            };
+
+            if (file.existsAsFile())
+            {
+                juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Replace preset?",
+                                                    "A preset called \"" + name + "\" already exists in that category. Replace it?",
+                                                    "Replace", "Cancel", this,
+                                                    juce::ModalCallbackFunction::create ([write] (int r) { if (r == 1) write(); }));
                 return;
+            }
 
-            for (int i = 0; i < userPresetFiles.size(); ++i)
-                if (userPresetFiles[i] == file)
-                    presetBox.setSelectedId (i + kUserOffset, juce::dontSendNotification);
+            write();
         }), false);
 }
 
 //==============================================================================
 void GapFillAudioProcessorEditor::showFileMenu()
 {
-    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance };
+    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance, kBrowse };
 
     juce::PopupMenu menu;
     menu.setLookAndFeel (&lookAndFeel);
@@ -552,6 +580,7 @@ void GapFillAudioProcessorEditor::showFileMenu()
     menu.addItem (kSaveAs, "Save As...");
     menu.addItem (kOpen, "Open...");
     menu.addSeparator();
+    menu.addItem (kBrowse, "Preset browser...");
     menu.addItem (kSavePreset, "Save as user preset...");
     menu.addSeparator();
     menu.addItem (kOptions, "Options...");
@@ -569,6 +598,7 @@ void GapFillAudioProcessorEditor::showFileMenu()
             case kSaveAs:     doSaveAs(); break;
             case kOpen:       doOpen(); break;
             case kSavePreset: saveUserPreset(); break;
+            case kBrowse:     showPresetBrowser(); break;
             case kOptions:    showOptions(); break;
             case kPerformance: setTab (Tab::Performance); break;
             default: break;
@@ -615,14 +645,12 @@ void GapFillAudioProcessorEditor::loadPresetFromFile (const juce::File& file)
 
         // The current sound was deliberately left untouched, so do not leave
         // the browser visually claiming that the rejected file is active.
-        presetBox.setSelectedId (0, juce::dontSendNotification);
-        presetBox.setText (proc.getCurrentPresetName(), juce::dontSendNotification);
+        setPresetDisplay (proc.getCurrentPresetName());
         return;
     }
 
     currentPresetFile = file;
-    presetBox.setSelectedId (0, juce::dontSendNotification);
-    presetBox.setText (file.getFileNameWithoutExtension(), juce::dontSendNotification);
+    setPresetDisplay (file.getFileNameWithoutExtension());
 }
 
 void GapFillAudioProcessorEditor::doSave()
@@ -744,8 +772,7 @@ void GapFillAudioProcessorEditor::toggleAB()
         state.replaceState (target.createCopy());
 
     abButton.setButtonText (usingSlotB ? "B" : "A");
-    presetBox.setSelectedId (0, juce::dontSendNotification);
-    presetBox.setText (usingSlotB ? "B" : "A", juce::dontSendNotification);
+    setPresetDisplay (usingSlotB ? "B" : "A");
 }
 
 void GapFillAudioProcessorEditor::copyToOtherSlot()
@@ -818,6 +845,11 @@ void GapFillAudioProcessorEditor::timerCallback()
     undoButton.setEnabled (proc.canUndo());
 
     mixPanel.setStatusText (status);
+
+    // U-4: previous / next preset requests from MIDI commands (X-1) or other threads.
+    if (const auto step = proc.getUiState().takePresetStep(); step != 0)
+        for (int i = 0; i < juce::jmin (8, std::abs (step)); ++i)
+            stepPreset (step > 0 ? 1 : -1);
 
     // U-9: the footer shows the highest-priority message (learn > ... > capture here).
     auto& board = proc.getUiState().status;
