@@ -13,7 +13,10 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_PHRASE(X)
+#define GAPFILL_PARAMS_PHRASE(X) \
+    X (phraseBars,   "phraseBars") \
+    X (phraseBias,   "phraseBias") \
+    X (phraseOffset, "phraseOffset")
 
 namespace gapfill
 {

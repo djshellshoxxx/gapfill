@@ -1,6 +1,8 @@
 #include "FillEngine.h"
 #include "../features/effective/Effective.h"
 #include "../features/sync/Sync.h"
+#include "../features/breathing/Breathing.h"
+#include "../features/phrase/Phrase.h"
 
 namespace gapfill
 {
@@ -97,6 +99,7 @@ void FillEngine::reset()
     fillsStarted = 0;
     gapsTooShort = 0;
     rejectCounts.fill (0);
+    telemetry.reset();
     vizCounter = 0;
     vizAccum = {};
 
@@ -336,6 +339,18 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
 }
 
 //==============================================================================
+void FillEngine::publishDecisionTelemetry (const EngineSettings& base, const EngineSettings& decided, double ppq,
+                                           const Effective::TransportInfo& transport) noexcept
+{
+    const auto breath = breathing::phaseAt (base.perf.breath, ppq, transport);
+    telemetry.breathPhase.store ((float) breath, std::memory_order_relaxed);
+    telemetry.breathOffset.store (breath >= 0.0 ? decided.density01 - base.density01 : 0.0f, std::memory_order_relaxed);
+
+    telemetry.phrasePosition.store ((float) phrase::positionAt (base.perf.phrase, ppq, transport), std::memory_order_relaxed);
+    telemetry.phraseMultiplier.store (decided.perf.probabilityMul, std::memory_order_relaxed);
+    telemetry.decisions.fetch_add (1, std::memory_order_relaxed);
+}
+
 ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
                                        const AnalysisFrame& frame, const AnalysisEngine& analysis,
                                        const SourceHistory& history, const EngineSettings& base) noexcept
@@ -347,8 +362,10 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
                              : 0.0;
 
     EngineSettings s = base;
-    Effective::applyAtDecision (s, ppq, { havePpq, ppq, base.perf.tsNum, base.perf.tsDen,
-                                          havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0 });
+    const Effective::TransportInfo transport { havePpq, ppq, base.perf.tsNum, base.perf.tsDen,
+                                               havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0 };
+    Effective::applyAtDecision (s, ppq, transport);
+    publishDecisionTelemetry (base, s, ppq, transport);
 
     GapContext ctx;
     ctx.outputPos = outputPos;
@@ -468,6 +485,7 @@ RejectReason FillEngine::rollDecision (GapContext& ctx, Rng& rng, const EngineSe
     // ---- should this gap be filled at all? -------------------------------
     ctx.conf = juce::jlimit (0.0f, 1.0f, ctx.frame->conf);
     auto probability = s.fill01 * (0.4f + 0.6f * s.density01) * (0.6f + 0.4f * ctx.conf) * 1.15f;
+    probability *= s.perf.probabilityMul;   // C-7 phrase ramp (exactly 1.0 when neutral)
 
     // ---- spectral lane ----------------------------------------------------
     band = -1;

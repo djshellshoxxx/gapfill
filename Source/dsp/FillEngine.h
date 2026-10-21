@@ -2,6 +2,8 @@
 
 #include "EngineEvents.h"
 #include "EngineSettings.h"
+#include "../features/effective/Effective.h"
+#include "../features/shaping/DecisionTelemetry.h"
 #include "FillVoice.h"
 #include "SchedulerTypes.h"
 #include "VisualisationState.h"
@@ -58,11 +60,18 @@ public:
         audio-thread owned, read by tests and published to the meters). */
     int  getRejectCount (RejectReason r) const noexcept { return rejectCounts[(size_t) r]; }
 
+    /** Last decision-stage figures for the editor (breathing LED, phrase bar ...). */
+    const DecisionTelemetry& getDecisionTelemetry() const noexcept { return telemetry; }
+
 private:
     void controlUpdate (std::int64_t outputPos, std::int64_t blockStartPos,
                         const AnalysisEngine& analysis, const SourceHistory& history,
                         const EngineSettings& s, VisualisationFifo* viz,
                         FillEventQueue* events) noexcept;
+
+    /** Stores the decision-stage figures for the editor (relaxed atomics). */
+    void publishDecisionTelemetry (const EngineSettings& base, const EngineSettings& decided, double ppq,
+                                   const Effective::TransportInfo& transport) noexcept;
 
     // --- scheduler stages (docs/dev/02-FOUNDATIONS.md F0-2) -------------------
     // trySchedule is a short orchestrator; each stage below is owned by the
@@ -139,6 +148,7 @@ private:
     int fillsStarted = 0;
     int gapsTooShort = 0;
     std::array<int, (size_t) numRejectReasons> rejectCounts {};
+    DecisionTelemetry telemetry;
 
     // --- visualiser decimation ---
     int vizDecim = 2;

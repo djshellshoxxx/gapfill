@@ -1,5 +1,7 @@
 #include "FeatureHooks.h"
 #include "../dsp/FillEngine.h"
+#include "breathing/Breathing.h"
+#include "phrase/Phrase.h"
 
 namespace gapfill::hooks
 {
@@ -23,6 +25,17 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     // C-4 intensity envelope
     s.perf.envShape    = pi (params.fillShape);
     s.perf.envAmount01 = pv (params.fillShapeAmount) * 0.01f;
+
+    // C-6 density breathing (choice 0..3 -> 1, 2, 4, 8 bars)
+    s.perf.breath.on       = pb (params.densityBreath);
+    s.perf.breath.bars     = breathing::kBarChoices[juce::jlimit (0, 3, pi (params.densityBreathBars))];
+    s.perf.breath.depth01  = pv (params.densityBreathDepth) * 0.01f;
+    s.perf.breath.curve    = juce::jlimit (0, breathing::NumCurves - 1, pi (params.densityBreathCurve));
+
+    // C-7 phrase awareness (choice 0..4 -> Off, 2, 4, 8, 16 bars)
+    s.perf.phrase.bars       = phrase::kBarChoices[juce::jlimit (0, 4, pi (params.phraseBars))];
+    s.perf.phrase.bias01     = pv (params.phraseBias) * 0.01f;
+    s.perf.phrase.offsetBars = juce::jlimit (0, 15, pi (params.phraseOffset));
 
     // One explicit call per feature, in this order (add yours below):
     //   gatherLock (s, params);          // C-5

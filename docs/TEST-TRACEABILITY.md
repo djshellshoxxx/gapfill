@@ -67,6 +67,8 @@ Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md
 | C-0 Effective-value display | id mapping, per-block publication, knob marker/description/clear (`TestEffectiveDisplay.cpp`) | screenshot and screen-reader check | Knob API, LookAndFeel marker, processor publication implemented; screenshot/screen-reader unverified |
 | C-4 Fill Intensity Envelope | five shape values, seed repeatability, flat/zero bit-identical, level/cutoff bounds, no click, protection/duck unchanged (`TestEnvelope.cpp`) | audible check on drum loop | Engine implemented; audible check unverified |
 | C-1 Fill Personalities | off identity, no parameter writes, zero weights, clamps, scalar table, distinct modes (unit-norm L2 > 0.15), forced Fill Type, histogram lift, determinism, state round trip, knob publication (`TestPersonality.cpp`) | audible check per personality | Engine implemented; absolute histogram floors replaced by lift over Off (see WP5 progress); audible check unverified |
+| C-6 Density Breathing | neutral cases, curve quarter points, formula, loop wrap, bounds, 6/8 and 7/4, block-size invariance (`TestBreathing.cpp`) | host loop/seek check | Engine implemented; host check unverified |
+| C-7 Phrase Awareness (+ offset) | identity, ramp values, invalid transport, loop/seek, offset shift/modulo, never fills ineligible gaps, block-size invariance (`TestPhrase.cpp`) | host loop/seek check | Engine implemented; host check unverified |
 
 ## Test command policy
 

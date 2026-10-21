@@ -13,7 +13,7 @@ namespace gapfill
 // the feature that owns the field existed.
 
 struct BreathSettings  { bool on = false; int bars = 4; float depth01 = 0.0f; int curve = 0; };   // C-6
-struct PhraseSettings  { int bars = 0; float bias01 = 0.0f; };                                    // C-7
+struct PhraseSettings  { int bars = 0; float bias01 = 0.0f; int offsetBars = 0; };                // C-7 (+F-L08 offset)
 struct EvolveSettings  { int periodBars = 0; };                                                   // C-8
 
 struct PerformanceSettings
@@ -31,6 +31,10 @@ struct PerformanceSettings
     float modSyncSeconds = 0.0f;
     int   bandType[3] { 0, 0, 0 };    // C-9: 0 Auto, else Algo+1
     int   tsNum = 0, tsDen = 0;       // host time signature, valid when both > 0
+
+    /** Decision-stage OUTPUT (never a parameter): multiplier on the fill probability
+        of the gap being decided. Exactly 1.0 means neutral (C-7 Phrase). */
+    float probabilityMul = 1.0f;
 };
 
 //==============================================================================
