@@ -4,12 +4,16 @@
 namespace gapfill::hooks
 {
 
-Effective::ModulationInputs gatherModulationInputs (const ParamCache& /*params*/) noexcept
+Effective::ModulationInputs gatherModulationInputs (const ParamCache& params) noexcept
 {
     Effective::ModulationInputs in;
 
     // C-1: in.personality = pi (params.personality);
-    // C-2: in.macros = { pb (params.macrosOn), pv (params.macroActivity), ... };
+    in.macros.on = pb (params.macrosOn);
+    in.macros.activity = pv (params.macroActivity);
+    in.macros.chaos = pv (params.macroChaos);
+    in.macros.space = pv (params.macroSpace);
+    in.macros.destruction = pv (params.macroDestruction);
     return in;
 }
 

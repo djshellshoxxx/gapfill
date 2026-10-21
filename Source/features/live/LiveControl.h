@@ -16,10 +16,12 @@
 // locks or does IO on the audio thread.
 
 #include "../commands/CommandMap.h"
+#include "../macros/MacroModel.h"
 #include "../panic/Panic.h"
 #include "../scenes/SceneController.h"
 #include "Roulette.h"
 #include "../../dsp/EngineSettings.h"
+#include "../effective/Effective.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -66,6 +68,8 @@ public:
     const commands::BindingModel& bindings() const noexcept { return bindingModel; }
     scenes::SceneController& scenes() noexcept           { return sceneCtl; }
     const scenes::SceneController& scenes() const noexcept { return sceneCtl; }
+    macros::MacroModel& macroMappings() noexcept         { return macroModel; }
+    const macros::MacroModel& macroMappings() const noexcept { return macroModel; }
     GlitchRoulette& roulette() noexcept                  { return rouletteState; }
     panic::PanicController& panic() noexcept             { return panicCtl; }
     const panic::PanicController& panic() const noexcept { return panicCtl; }
@@ -100,6 +104,15 @@ public:
     /** One command drained from the processor's message-thread queue. */
     void handleCommand (const Command&, FillEngine&) noexcept;
 
+    /** Block stage inputs: adopts a newly published macro table and attaches the runtime. */
+    void fillModulationInputs (Effective::ModulationInputs&, int seed) noexcept;
+
+    /** Latest effective NORMALISED value of a macro target (any thread, for the UI). */
+    float getMacroEffective01 (int target) const noexcept
+    {
+        return target >= 0 && target < macros::kNumTargets ? uiEffective[target].load (std::memory_order_relaxed) : 0.0f;
+    }
+
     /** Per processed chunk, after the transport fields of `s` are filled. */
     void prepareChunk (EngineSettings& s, int numSamples) noexcept;
 
@@ -131,6 +144,9 @@ private:
     scenes::SceneController sceneCtl;
     scenes::SceneEngine sceneEngine;
     panic::PanicController panicCtl;
+    macros::MacroModel macroModel;
+    macros::MacroRuntime macroRuntime;
+    std::atomic<float> uiEffective[macros::kNumTargets] {};
     GlitchRoulette rouletteState { juce::Random::getSystemRandom() };
 
     // audio-thread-local ring of MIDI-originated commands (drained next block)

@@ -40,6 +40,8 @@ struct PerformanceSettings
     const scenes::OverlayView* sceneView = nullptr;   // F-L07: audio-thread-owned overlay
     const macros::MacroRuntime* macroRuntime = nullptr;   // F-M23: LFO macros re-evaluated per decision
     std::uint32_t macroOwnedMask = 0; // C-2: macro target bits claimed by macros (scenes skip them)
+    bool  macroWidthOn = false;       // C-2: the Space macro drives the wet width
+    float macroWidth01 = 1.0f;
 };
 
 //==============================================================================

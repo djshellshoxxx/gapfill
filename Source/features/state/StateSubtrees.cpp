@@ -21,6 +21,17 @@ namespace
     void cmdApply (GapFillAudioProcessor& p, const juce::ValueTree& t)  { p.getLiveControl().bindings().restore (t); }
     void cmdReset (GapFillAudioProcessor& p)                            { p.getLiveControl().bindings().restore ({}); }
 
+    juce::ValueTree macrosSerialise (const GapFillAudioProcessor& p)
+    {
+        const auto& m = p.getLiveControl().macroMappings();
+        macros::MacroModel factory;
+        const auto tree = m.toValueTree();
+        return tree.isEquivalentTo (factory.toValueTree()) ? juce::ValueTree() : tree;     // defaults write nothing
+    }
+
+    void macrosApply (GapFillAudioProcessor& p, const juce::ValueTree& t)  { p.getLiveControl().macroMappings().restore (t); }
+    void macrosReset (GapFillAudioProcessor& p)                            { p.getLiveControl().macroMappings().resetAll(); }
+
     juce::ValueTree perfSerialise (const GapFillAudioProcessor& p)
     {
         const auto o = p.getLiveControl().getPerfOptions();
@@ -54,7 +65,7 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
     // (and only its row): validate / apply / serialise / reset.
     static const std::vector<SubtreeDesc> table =
     {
-        { "Macros",  2 * Ki,  nullptr, nullptr, nullptr, nullptr },   // C-2
+        { "Macros",  2 * Ki,  &macros::MacroModel::validateTree, &macrosApply, &macrosSerialise, &macrosReset },   // C-2
         { "Lock",    1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // C-5
         { "History", 1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // U-1
         { "Perf",    4 * Ki,  &live::LiveControl::perfValidate, &perfApply, &perfSerialise, &perfReset },   // U prefs + panic options (WP6)

@@ -9,6 +9,8 @@ list(APPEND GAPFILL_SOURCES
     Source/features/scenes/SceneController.cpp
     Source/features/effective/StageScene.cpp
     Source/features/bank/BankFile.cpp
+    Source/features/macros/MacroEngine.cpp
+    Source/features/macros/MacroModel.cpp
     Source/features/live/LiveControl.cpp
     Source/features/live/Roulette.cpp
     Source/gui/slots/PanicSlot.cpp

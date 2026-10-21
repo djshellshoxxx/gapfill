@@ -275,7 +275,7 @@ AnalysisSettings GapFillAudioProcessor::gatherAnalysisSettings (bool sidechainAc
     return s;
 }
 
-EngineSettings GapFillAudioProcessor::gatherEngineSettings() const
+EngineSettings GapFillAudioProcessor::gatherEngineSettings()
 {
     EngineSettings s;
     s.mode         = (DetMode) juce::jlimit (0, 2, pi (params.detMode));
@@ -321,7 +321,9 @@ EngineSettings GapFillAudioProcessor::gatherEngineSettings() const
     // (docs/dev/02 F0-5). Both are the identity while every feature is neutral.
     hooks::gatherFeatureSettings (s, params);
     Effective::MacroOutputs macroOut;
-    Effective::applyBlock (s, hooks::gatherModulationInputs (params), macroOut);
+    auto modulation = hooks::gatherModulationInputs (params);
+    liveControl.fillModulationInputs (modulation, s.seed);
+    Effective::applyBlock (s, modulation, macroOut);
 
     return s;
 }
@@ -692,7 +694,8 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         }
 
         centreProtect.setTargetValue (pv (params.protCenter) * 0.01f);
-        widthAmount.setTargetValue (pv (params.width) * 0.01f);
+        // C-2: the Space macro owns the wet width while it maps it.
+        widthAmount.setTargetValue (engineSettings.perf.macroWidthOn ? engineSettings.perf.macroWidth01 : pv (params.width) * 0.01f);
         const bool monoWet = pb (params.wetMono);
 
         for (int i = 0; i < numSamples; ++i)

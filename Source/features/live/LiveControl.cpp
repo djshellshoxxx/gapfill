@@ -18,6 +18,15 @@ LiveControl::LiveControl (juce::AudioProcessorValueTreeState& state)
 {
     phraseBarsParam = state.getRawParameterValue ("phraseBars");        // null until the phrase group has parameters
     phraseOffsetParam = state.getRawParameterValue ("phraseOffset");
+
+    macros::initTargets();
+    bool available[macros::kNumTargets] {};
+
+    for (int i = 0; i < macros::kNumTargets; ++i)
+        available[i] = state.getParameter (macros::targetInfo (i).id) != nullptr;
+
+    macroModel.setTargetAvailability (available);
+    macroRuntime.cfg = macros::defaultConfig();
 }
 
 //==============================================================================
@@ -152,8 +161,29 @@ void LiveControl::handleCommand (const Command& c, FillEngine& engine) noexcept
     execute (c.type, c.index, holdType ? c.velocity != 0 : true, 0, engine);
 }
 
+void LiveControl::fillModulationInputs (Effective::ModulationInputs& in, int seed) noexcept
+{
+    macros::MacroConfig fresh;
+
+    if (macroModel.publisher().consume (fresh))
+    {
+        macroRuntime.cfg = fresh;
+
+        for (auto& h : macroRuntime.hasSmoothed)
+            h = false;
+    }
+
+    macroRuntime.seed = seed;
+    in.macros.runtime = &macroRuntime;
+}
+
 void LiveControl::prepareChunk (EngineSettings& s, int numSamples) noexcept
 {
+    macroRuntime.chunkSeconds = (float) ((double) std::max (1, numSamples) / sampleRate);
+
+    for (int t = 0; t < macros::kNumTargets; ++t)
+        uiEffective[t].store (macroRuntime.effective01[t], std::memory_order_relaxed);
+
     scenes::TransportSnap t;
     t.valid = s.transportValid && s.samplesPerBeat > 1.0;
     t.ppq = s.ppqAtBlockStart;

@@ -106,10 +106,17 @@ namespace
 
         if (name == "session_extreme")
         {
+            // The fixture was written by the 0.0.1 format, which only knew the 66 core parameters:
+            // parameters added later are absent from it and must load as their defaults.
             int i = 0;
 
             for (const auto& id : allParameterIDs())
+            {
+                if (i >= 66)
+                    break;
+
                 state.getParameter (id)->setValueNotifyingHost ((i++ % 2) == 0 ? 0.0f : 1.0f);
+            }
         }
         else if (name == "session_zero_weights")
         {

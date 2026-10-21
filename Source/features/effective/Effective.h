@@ -42,6 +42,9 @@ struct MacroState
 {
     bool  on = false;
     float activity = 50.0f, chaos = 25.0f, space = 25.0f, destruction = 15.0f;   // percent
+
+    /** Mappings and smoothing state (audio-thread owned, set by LiveControl); null = no mappings. */
+    macros::MacroRuntime* runtime = nullptr;
 };
 
 /** Values the macro stage hands to later processing stages (C-2). */

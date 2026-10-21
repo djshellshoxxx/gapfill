@@ -12,9 +12,20 @@ F-M23, F-M18, F-L24, then the E-1-dependent ones (F-M10, F-S07, F-P02).
 | F-L07 | Done (core) | `features/scenes/*`: `SceneModel` (sparse scenes, scopes, bank, `<Scenes>` codec), `SceneOverlay` (quantiser + audio-thread `SceneEngine`), `SceneController` (message thread, commit). Recall is an overlay applied in the decision stage (`Effective::applyScene`), committed to the APVTS with host gestures after the boundary. |
 | F-S08 | Done | `features/live/Roulette.*`: spins the existing Surprise profiles through `surpriseParameters` (Undo snapshot + randomisable rules inherited), injected RNG, no immediate repeat, command 18. |
 | F-L25 | Done (core) | `wetSafety` param (group `safety`), `panic/WetSafety.h` soft limiter after the width stage, SceneGoto(arg -1) = last good scene. |
+| C-2 | Done (engine + state) | `features/macros/MacroEngine.*` (curves, mapping, runtime, factory table), `MacroModel.*` (rules, `<Macros>` codec, 2 KiB), params `macroActivity/Chaos/Space/Destruction`, `macrosOn` (off), `Effective::applyMacros`. Macros own a target (`perf.macroOwnedMask`); the Space macro drives `widthAmount` through `perf.macroWidth01`. |
+| F-M23 | Done (engine + state) | Targets 21..35 (effect Amount ids) appended to the table, per-mapping `smoothMs` and `bipolar`, one LFO per macro (sine/tri/saw/square/seeded S&H, Hz or division), PPQ-locked decision-stage re-evaluation `Effective::applyMacroLfos`. |
 | N-VAL | Done (core) | `features/bank/BankFile.*`: `.gapbank` export/import (256 KiB, 64 scenes, SHA-256 digest, atomic apply, one-step undo), PC -> scene and Next/Prev/Cancel commands. |
 
 ## Deviations and gaps (honest list)
+
+* **Macro editor UI** (4 knobs, MACROS LED, mapping popover) is not built: it needs the `PerformanceStrip`/Performance-tab rectangle that
+  UI-0 (WP11) reserves. All behaviour is reachable through `LiveControl::macroMappings()`, MIDI learn on the four value parameters and
+  host automation.
+* F-M23 targets 21..35 are `Unavailable` until the owning feature adds its Amount parameter (`MacroModel::addMapping` checks the layout).
+  Their effective value is computed and published (`getMacroEffective01`) but only becomes sound when that feature's gather stage reads it.
+* The block stage has no PPQ yet (transport is read later in the chunk), so a tempo-synced LFO is evaluated at the free-run clock there and
+  re-evaluated at the PPQ of every scheduling decision; continuous targets (width, FX amounts) therefore follow the block-rate value.
+* Fixtures: `StateCompat.session_extreme` toggled *every* parameter; it now toggles the 66 core parameters the 0.0.1 fixture knows.
 
 * **wetSafety**: with the spec's formula and c = 0.89 the deviation from unity is 0.086 dB at -8 dBFS and 0.21 dB at -6 dBFS, so the
   spec's "< 0.1 dB below -6 dBFS" is met below -8 dBFS only (tests assert exactly that). The "overload fallback" part of F-L25 depends on

@@ -185,7 +185,7 @@ private:
     void drainCommands() noexcept;
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
-    EngineSettings gatherEngineSettings() const;
+    EngineSettings gatherEngineSettings();
     AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
     bool isParameterStateValid (const juce::ValueTree& state) const;
