@@ -60,4 +60,5 @@ State what evidence would justify changing this decision.
 
 | ADR | Decision | Status |
 |---|---|---|
-| None recorded | — | — |
+| [0001](0001-no-free-pro-split-in-1x.md) | No Free/Pro edition split in 1.x (F-P01) | Proposed |
+| [0002](0002-aax-auv3-ios-out-of-scope-in-1x.md) | AAX, AUv3 and iOS out of scope in 1.x (F-P03) | Proposed |

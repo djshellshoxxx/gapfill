@@ -1,5 +1,16 @@
 name: CI
 
+# Job graph (details: docs/dev/07-QA-AND-RELEASE.md, docs/dev/09-FAST-INCREMENTAL-BUILDS.md)
+#
+#   changes ─┐
+#   preflight ┴─> unit-tests (Linux, full suite once) ─┬─> build-linux-x64
+#                                                      ├─> build-windows-x64
+#                                                      ├─> build-macos (arm64, x86_64)
+#                                                      └─> ci-gate (single required check)
+#
+# Only unit-tests runs the full suite (including Combinatorial). Windows and
+# macOS run a fast smoke subset (SMOKE_FILTER) next to their plugin validators.
+# Docs-only changes still run preflight but skip every native job.
 on:
   push:
     branches:
@@ -7,54 +18,252 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  # Superseded PR runs are cancelled. Pushes to master and manual runs are keyed
+  # by SHA so a release candidate's artifacts are never cancelled by a later push.
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('sha-{0}', github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  # Test group/name filter for the Windows/macOS smoke run (GapFillTests <filter>).
+  # "Plugin" = processor lifecycle, sample-rate/block-size/layout and format-level tests,
+  # the platform-sensitive part of the suite. DSP/golden/combinatorial run once on Linux.
+  SMOKE_FILTER: Plugin
+
 jobs:
+  changes:
+    name: Detect native changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      native: ${{ steps.detect.outputs.native }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: detect
+        name: Docs-only changes skip native jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ github.event_name }}" in
+            pull_request) base="${{ github.event.pull_request.base.sha }}" ;;
+            push)         base="${{ github.event.before }}" ;;
+            *)            base="" ;;   # workflow_dispatch always builds natively
+          esac
+          result="$(bash tools/ci_detect_native_changes.sh "$base" "${{ github.sha }}")"
+          echo "$result"
+          echo "$result" >> "$GITHUB_OUTPUT"
+
   preflight:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Repository preflight
         run: python tools/validate_repo.py
       - name: Preflight unit tests
-        run: python -m unittest tools/test_validate_repo.py
+        run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py
 
-      - name: Windows packaging regression (synthetic Release fixtures)
+      - name: Completeness audit and layout-literal ratchet
+        run: |
+          python tools/audit/completeness_audit.py
+          python tools/check_layout_literals.py
+
+      - name: Hot-file ownership (pull requests)
+        if: github.event_name == 'pull_request'
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          BASE_REF: ${{ github.base_ref }}
+        run: python tools/check_hot_files.py --title "$PR_TITLE" --labels "$PR_LABELS" --base "origin/$BASE_REF"
+
+      - name: Windows, Linux and macOS packaging regression (synthetic fixtures)
         run: bash tools/test_package_release.sh
 
-  linux:
-    needs: preflight
+      - name: CI helper script regression
+        run: bash tools/test_ci_helpers.sh
+
+      - name: Workflow YAML and shell syntax
+        run: |
+          python3 -c "import yaml" 2>/dev/null || python3 -m pip install --quiet pyyaml
+          python3 - <<'PY'
+          import glob, yaml
+          for f in sorted(glob.glob('.github/workflows/*.yml')):
+              yaml.safe_load(open(f, encoding='utf-8'))
+              print('ok', f)
+          PY
+          for s in packaging/*.sh tools/*.sh tools/dev/*.sh; do bash -n "$s"; echo "ok $s"; done
+
+  unit-tests:
+    name: unit-tests (Linux, full suite)
+    needs: [changes, preflight]
+    if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 500M
+      CCACHE_COMPRESS: '1'
     steps:
       - uses: actions/checkout@v4
+
+      - name: Cache JUCE and CLAP support checkouts
+        uses: actions/cache@v4
+        with:
+          path: |
+            JUCE
+            clap-juce-extensions
+          key: deps-${{ runner.os }}-${{ hashFiles('tools/ci_fetch_deps.sh') }}
+
+      - name: Fetch JUCE and CLAP support
+        run: bash tools/ci_fetch_deps.sh
 
       - name: Install JUCE build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build xvfb libasound2-dev libfreetype-dev libfontconfig1-dev \
+          sudo apt-get install -y ninja-build ccache xvfb libasound2-dev libfreetype-dev libfontconfig1-dev \
             libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev \
             libxrandr-dev libxrender-dev
 
-      - name: Fetch JUCE and CLAP support
-        run: |
-          git clone --depth 1 --branch 8.0.15 https://github.com/juce-framework/JUCE JUCE
-          git clone --filter=blob:none --no-checkout https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
-          git -C clap-juce-extensions checkout 55525c9858d4b25687be7759a5e0f70eccef218e
-          git -C clap-juce-extensions submodule update --init --recursive --depth 1
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-linux-tests-${{ github.sha }}
+          restore-keys: ccache-linux-tests-
 
       - name: Configure
-        run: cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release
+        run: |
+          cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
-      - name: Build tests, VST3, CLAP and Standalone
-        run: cmake --build build-ci --target GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone -- -j2
+      - name: Build GapFillTests
+        run: |
+          ccache -z
+          cmake --build build-ci --target GapFillTests -- -j"$(nproc)"
+          ccache -s
 
-      - name: Run tests
-        run: xvfb-run -a build-ci/artefacts/GapFillTests
+      - name: Run full unit, golden and combinatorial suite
+        run: |
+          set -o pipefail
+          mkdir -p test-results
+          set +e
+          xvfb-run -a build-ci/artefacts/GapFillTests 2>&1 | tee test-results/GapFillTests-linux-full.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::group::Failing tests"
+            grep -n -B6 -A3 '\[FAIL\]' test-results/GapFillTests-linux-full.log || true
+            echo "::endgroup::"
+            grep -h -B6 -A3 '\[FAIL\]' test-results/GapFillTests-linux-full.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done
+          fi
+          exit "$status"
+
+      - name: Golden diagnostics (only after a failure)
+        if: failure()
+        run: |
+          lscpu | grep -E 'Model name|Flags' | cut -c1-400 || true
+          mkdir -p golden-actual
+          xvfb-run -a build-ci/artefacts/GapFillTests --write-golden Golden > golden-actual/write.log 2>&1 || true
+          cp -r Tests/golden/linux golden-actual/ || true
+
+      - name: Upload golden diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-actual
+          path: golden-actual/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-results
+          path: test-results/
+          if-no-files-found: warn
+          retention-days: 30
+
+  build-linux-x64:
+    name: build-linux-x64 (VST3, CLAP, Standalone)
+    needs: [changes, unit-tests]
+    if: needs.changes.outputs.native == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 500M
+      CCACHE_COMPRESS: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache JUCE and CLAP support checkouts
+        uses: actions/cache@v4
+        with:
+          path: |
+            JUCE
+            clap-juce-extensions
+          key: deps-${{ runner.os }}-${{ hashFiles('tools/ci_fetch_deps.sh') }}
+
+      - name: Fetch JUCE and CLAP support
+        run: bash tools/ci_fetch_deps.sh
+
+      - name: Install JUCE build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build ccache xvfb libasound2-dev libfreetype-dev libfontconfig1-dev \
+            libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev \
+            libxrandr-dev libxrender-dev
+
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-linux-build-${{ github.sha }}
+          restore-keys: ccache-linux-build-
+
+      - name: Configure
+        run: |
+          cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Build VST3, CLAP and Standalone
+        run: |
+          ccache -z
+          cmake --build build-ci --target GapFill_VST3 GapFill_CLAP GapFill_Standalone -- -j"$(nproc)"
+          ccache -s
+
+      - name: Validator cache key (refreshed monthly)
+        id: month
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pluginval
+        id: pluginval-cache
+        uses: actions/cache@v4
+        with:
+          path: pluginval-bin
+          key: pluginval-linux-${{ steps.month.outputs.month }}
+
+      - name: Restore clap-validator
+        id: clapval-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/clap-validator
+          key: clap-validator-linux-x64-${{ steps.month.outputs.month }}
 
       - name: Validate VST3 with pluginval
         run: |
-          curl -L "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Linux.zip" -o pluginval.zip
-          unzip -q pluginval.zip -d pluginval-bin
+          if [ ! -d pluginval-bin ]; then
+            curl -fL "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Linux.zip" -o pluginval.zip
+            unzip -q pluginval.zip -d pluginval-bin
+          fi
           PLUGINVAL=$(find pluginval-bin -type f -name pluginval | head -n 1)
           test -n "$PLUGINVAL"
           chmod +x "$PLUGINVAL"
@@ -64,7 +273,10 @@ jobs:
 
       - name: Validate CLAP with clap-validator
         run: |
-          cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
+          if ! command -v clap-validator >/dev/null 2>&1 && [ ! -x "$HOME/.cargo/bin/clap-validator" ]; then
+            cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
+          fi
+          export PATH="$HOME/.cargo/bin:$PATH"
           CLAP=$(find build-ci -type f -name 'GapFill.clap' | head -n 1)
           test -n "$CLAP"
           clap-validator validate --only-failed "$CLAP"
@@ -86,7 +298,7 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: gapfill-linux-x64-release-binaries
+          name: gapfill-linux-x64
           path: |
             build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
             build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
@@ -94,50 +306,68 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
-  windows:
-    needs: preflight
+  build-windows-x64:
+    name: build-windows-x64 (VST3, CLAP, Standalone)
+    needs: [changes, unit-tests]
+    if: needs.changes.outputs.native == 'true'
     runs-on: windows-2022
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
-      - name: Fetch JUCE and CLAP support
-        shell: pwsh
-        run: |
-          git clone --depth 1 --branch 8.0.15 https://github.com/juce-framework/JUCE JUCE
-          git clone --filter=blob:none --no-checkout https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
-          git -C clap-juce-extensions checkout 55525c9858d4b25687be7759a5e0f70eccef218e
-          git -C clap-juce-extensions submodule update --init --recursive --depth 1
+      - name: Cache JUCE and CLAP support checkouts
+        uses: actions/cache@v4
+        with:
+          path: |
+            JUCE
+            clap-juce-extensions
+          key: deps-${{ runner.os }}-${{ hashFiles('tools/ci_fetch_deps.sh') }}
 
+      - name: Fetch JUCE and CLAP support
+        shell: bash
+        run: bash tools/ci_fetch_deps.sh
+
+      # No compiler cache here: the Visual Studio generator ignores
+      # CMAKE_<LANG>_COMPILER_LAUNCHER and a Ninja+MSVC+ccache setup is not
+      # reliable enough to gate releases on. See docs/dev/09.
       - name: Configure
         shell: pwsh
         run: cmake -S . -B build-ci -G "Visual Studio 17 2022" -A x64
 
-      - name: Build tests, VST3, CLAP and Standalone
+      - name: Build smoke tests, VST3, CLAP and Standalone
         shell: pwsh
-        run: cmake --build build-ci --config Release --target GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone -- /m:2
+        run: cmake --build build-ci --config Release --target GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone -- /m
 
-      - name: Upload compiled Windows binaries for QA (validation follows)
-        uses: actions/upload-artifact@v4
+      - name: Run smoke subset of tests (full suite runs once on Linux)
+        shell: pwsh
+        run: |
+          .\build-ci\artefacts\Release\GapFillTests.exe $env:SMOKE_FILTER
+          if ($LASTEXITCODE -ne 0) { throw "GapFillTests ($env:SMOKE_FILTER) failed with exit code $LASTEXITCODE" }
+
+      - name: Validator cache key (refreshed monthly)
+        id: month
+        shell: bash
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pluginval
+        uses: actions/cache@v4
         with:
-          name: gapfill-windows-binaries
-          if-no-files-found: error
-          retention-days: 14
-          path: |
-            build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
-            build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
-            build-ci/GapFill_artefacts/JuceLibraryCode/icon.ico
-            build-ci/artefacts/Release/GapFill.exe
+          path: pluginval-bin
+          key: pluginval-windows-${{ steps.month.outputs.month }}
 
-      - name: Run tests
-        shell: pwsh
-        run: .\build-ci\artefacts\Release\GapFillTests.exe
+      - name: Restore clap-validator
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/clap-validator.exe
+          key: clap-validator-windows-x64-${{ steps.month.outputs.month }}
 
       - name: Validate VST3 with pluginval
         shell: pwsh
         run: |
-          Invoke-WebRequest "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip" -OutFile pluginval.zip
-          Expand-Archive pluginval.zip -DestinationPath pluginval-bin
+          if (-not (Test-Path pluginval-bin)) {
+            Invoke-WebRequest "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_Windows.zip" -OutFile pluginval.zip
+            Expand-Archive pluginval.zip -DestinationPath pluginval-bin
+          }
           $pluginval = Get-ChildItem pluginval-bin -Recurse -Filter pluginval.exe | Select-Object -First 1
           if (-not $pluginval) { throw "pluginval.exe not found" }
           $vst3 = Join-Path $PWD 'build-ci\GapFill_artefacts\Release\VST3\GapFill.vst3'
@@ -169,7 +399,10 @@ jobs:
         if: ${{ success() || failure() }}
         shell: pwsh
         run: |
-          cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
+          if (-not (Test-Path "$HOME/.cargo/bin/clap-validator.exe")) {
+            cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
+          }
+          $env:PATH = "$HOME/.cargo/bin;$env:PATH"
           $clap = Join-Path $PWD 'build-ci\GapFill_artefacts\Release\CLAP\GapFill.clap'
           if (-not (Test-Path $clap -PathType Leaf)) { throw "Release CLAP binary not found at $clap" }
           clap-validator validate --only-failed $clap
@@ -188,11 +421,14 @@ jobs:
           }
           Stop-Process -Id $process.Id -Force
 
+      # The NSIS installer is compiled from these verified binaries by
+      # release-beta.yml (packaging/package_release.sh + makensis); icon.ico
+      # travels with the artifact for that step.
       - name: Upload verified Windows release binaries
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: gapfill-windows-x64-release-binaries
+          name: gapfill-windows-x64
           path: |
             build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
             build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
@@ -202,9 +438,9 @@ jobs:
           retention-days: 90
 
   package-windows:
-    name: Package Windows beta
-    needs: [preflight, linux, windows]
-    if: always() && needs.preflight.result == 'success' && needs.windows.result != 'cancelled'
+    name: Package Windows beta (dry run)
+    needs: [changes, build-windows-x64]
+    if: needs.changes.outputs.native == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 12
     steps:
@@ -218,12 +454,14 @@ jobs:
       - name: Download validated Windows build
         uses: actions/download-artifact@v4
         with:
-          name: gapfill-windows-binaries
-          path: windows-build
+          name: gapfill-windows-x64
+          path: raw/windows
 
       - name: Package installer and plugin ZIPs
         run: |
-          bash packaging/package_release.sh windows-build "" dist
+          set -euo pipefail
+          bash tools/release_stage_artifacts.sh windows raw/windows stage/win-build
+          bash packaging/package_release.sh stage/win-build "" dist
 
       - name: Verify release packages
         shell: bash
@@ -239,58 +477,10 @@ jobs:
           unzip -Z1 GapFill-0.0.1-beta-Windows-x64-CLAP.zip | grep -qx 'GapFill.clap'
           file GapFill-0.0.1-beta-Windows-x64-Setup.exe | grep -qi 'PE32'
 
-      - name: Upload packaged beta candidate
-        uses: actions/upload-artifact@v4
-        with:
-          name: gapfill-windows-beta-candidate-qa
-          if-no-files-found: error
-          retention-days: 30
-          path: dist/GapFill-0.0.1-beta-*
-
-  publish-windows-beta:
-    name: Publish Windows beta prerelease
-    needs: [package-windows, preflight, linux, windows, macos]
-    if: github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/master' && needs.package-windows.result == 'success' && needs.preflight.result == 'success' && needs.linux.result == 'success' && needs.windows.result == 'success' && needs.macos.result == 'success'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Download validated beta packages
-        uses: actions/download-artifact@v4
-        with:
-          name: gapfill-windows-beta-candidate-qa
-          path: dist
-
-      - name: Publish exactly once for version 0.0.1-beta
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          tag="v0.0.1-beta"
-          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Existing $tag release found; will not overwrite it automatically."
-            exit 0
-          fi
-          cat > beta-notes.md <<'NOTES'
-          GapFill 0.0.1 beta for Windows x64.
-
-          Includes standalone, VST3 and CLAP binaries and an NSIS installer.
-          Built by GitHub Actions after preflight, JUCE tests, Linux/Windows
-          builds, pluginval, clap-validator, standalone smoke tests and package
-          checksum/archive checks succeeded.
-
-          This is an unsigned beta. Real-DAW, physical MIDI and audio-interface
-          compatibility require additional user testing. Please report issues.
-          NOTES
-          gh release create "$tag" dist/GapFill-0.0.1-beta-* \
-            --repo "$GITHUB_REPOSITORY" \
-            --target "$GITHUB_SHA" \
-            --title "GapFill 0.0.1 beta (Windows x64)" \
-            --notes-file beta-notes.md --prerelease
-
-  macos:
-    needs: preflight
+  build-macos:
+    name: build-macos-${{ matrix.arch }} (VST3, AU, CLAP, Standalone)
+    needs: [changes, unit-tests]
+    if: needs.changes.outputs.native == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -301,6 +491,10 @@ jobs:
             arch: x86_64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 65
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 500M
+      CCACHE_COMPRESS: '1'
     steps:
       - uses: actions/checkout@v4
 
@@ -311,29 +505,50 @@ jobs:
           test "$(uname -m)" = "${{ matrix.arch }}"
           xcodebuild -version
           cmake --version
+          brew install ninja ccache
+
+      - name: Cache JUCE and CLAP support checkouts
+        uses: actions/cache@v4
+        with:
+          path: |
+            JUCE
+            clap-juce-extensions
+          key: deps-${{ runner.os }}-${{ hashFiles('tools/ci_fetch_deps.sh') }}
 
       - name: Fetch JUCE and CLAP support
         shell: bash
-        run: |
-          set -euo pipefail
-          git clone --depth 1 --branch 8.0.15 https://github.com/juce-framework/JUCE JUCE
-          git clone --filter=blob:none --no-checkout https://github.com/free-audio/clap-juce-extensions.git clap-juce-extensions
-          git -C clap-juce-extensions checkout 55525c9858d4b25687be7759a5e0f70eccef218e
-          git -C clap-juce-extensions submodule update --init --recursive --depth 1
+        run: bash tools/ci_fetch_deps.sh
 
+      - name: Restore compiler cache
+        uses: actions/cache@v4
+        with:
+          path: .ccache
+          key: ccache-macos-${{ matrix.arch }}-${{ github.sha }}
+          restore-keys: ccache-macos-${{ matrix.arch }}-
+
+      # Ninja (not Xcode) so the ccache compiler launcher is honoured.
       - name: Configure Release for native architecture
         shell: bash
-        run: cmake -S . -B build-ci -G Xcode -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0
+        run: |
+          cmake -S . -B build-ci -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES=${{ matrix.arch }} -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_OBJC_COMPILER_LAUNCHER=ccache -DCMAKE_OBJCXX_COMPILER_LAUNCHER=ccache
 
-      - name: Build tests, VST3, AU, CLAP and Standalone
+      - name: Build smoke tests, VST3, AU, CLAP and Standalone
         shell: bash
-        run: cmake --build build-ci --config Release --target GapFillTests GapFill_VST3 GapFill_AU GapFill_CLAP GapFill_Standalone --parallel 2
+        run: |
+          ccache -z
+          cmake --build build-ci --target GapFillTests GapFill_VST3 GapFill_AU GapFill_CLAP GapFill_Standalone
+          ccache -s
 
-      - name: Run unit and combinatorial tests
+      - name: Run smoke subset of tests (full suite runs once on Linux)
         shell: bash
         run: |
           set -euo pipefail
-          build-ci/artefacts/Release/GapFillTests
+          tests="$(find build-ci/artefacts -type f -name GapFillTests -perm -111 | head -n 1)"
+          test -n "$tests"
+          "$tests" "$SMOKE_FILTER"
 
       - name: Verify native bundles and architecture
         shell: bash
@@ -346,11 +561,12 @@ jobs:
           vst3="$root/VST3/GapFill.vst3"
           au="$root/AU/GapFill.component"
           clap="$root/CLAP/GapFill.clap"
-          app="build-ci/artefacts/Release/GapFill.app"
+          app="$(find build-ci/artefacts -type d -name GapFill.app | head -n 1)"
           test -d "$vst3"
           test -d "$au"
           test -e "$clap"
-          test -d "$app"
+          test -n "$app" && test -d "$app"
+          echo "GAPFILL_APP=$app" >> "$GITHUB_ENV"
           find "$vst3" "$au" "$app" -type f -print | head -40
           # Explicitly fail on missing or wrong-architecture executables.
           for bundle in "$vst3" "$au" "$app"; do
@@ -365,12 +581,46 @@ jobs:
             lipo "$clap/Contents/MacOS/GapFill" -verify_arch "${{ matrix.arch }}"
           fi
 
+      # Ninja-built bundles come out of the linker's ad-hoc signature without a
+      # Resources directory ("code has no resources but signature indicates they
+      # must be present"). Give every bundle a Resources dir, re-seal it ad hoc,
+      # then verify strictly. Every validator below still runs on these bundles.
+      - name: Ad-hoc sign and strictly verify bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=build-ci/GapFill_artefacts/Release
+          for bundle in "$root/VST3/GapFill.vst3" "$root/AU/GapFill.component" "$root/CLAP/GapFill.clap" "$GAPFILL_APP"; do
+            if [ -d "$bundle" ]; then mkdir -p "$bundle/Contents/Resources"; fi
+            codesign --force --deep --sign - "$bundle"
+            codesign --verify --deep --strict --verbose=2 "$bundle"
+          done
+
+      - name: Validator cache key (refreshed monthly)
+        id: month
+        shell: bash
+        run: echo "month=$(date -u +%Y-%m)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore pluginval
+        uses: actions/cache@v4
+        with:
+          path: pluginval-bin
+          key: pluginval-macos-${{ matrix.arch }}-${{ steps.month.outputs.month }}
+
+      - name: Restore clap-validator
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/bin/clap-validator
+          key: clap-validator-macos-${{ matrix.arch }}-${{ steps.month.outputs.month }}
+
       - name: Validate macOS VST3 with pluginval
         shell: bash
         run: |
           set -euo pipefail
-          curl -fL "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip" -o pluginval.zip
-          unzip -q pluginval.zip -d pluginval-bin
+          if [ ! -d pluginval-bin ]; then
+            curl -fL "https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip" -o pluginval.zip
+            unzip -q pluginval.zip -d pluginval-bin
+          fi
           validator=$(find pluginval-bin -path '*/Contents/MacOS/pluginval' -type f | head -n 1)
           test -n "$validator"
           chmod +x "$validator"
@@ -390,7 +640,9 @@ jobs:
           rm -rf "$destination"
           ditto "$component" "$destination"
           touch "$destination"
-          # JUCE declares aumf (music effect) because the plugin accepts MIDI input.\n          # Validate the exact type/subtype/manufacturer from AudioComponents.\n          # The AudioComponentRegistrar scans asynchronously on fresh CI machines.
+          # JUCE declares aumf (music effect) because the plugin accepts MIDI input.
+          # Validate the exact type/subtype/manufacturer from AudioComponents.
+          # The AudioComponentRegistrar scans asynchronously on fresh CI machines.
           # Collect discovery evidence; retry at most 8 times without weakening auval.
           killall -9 AudioComponentRegistrar || true
           for attempt in {1..8}; do
@@ -409,7 +661,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
+          export PATH="$HOME/.cargo/bin:$PATH"
+          if ! command -v clap-validator >/dev/null 2>&1; then
+            cargo install --git https://github.com/free-audio/clap-validator --locked clap-validator
+          fi
           clap-validator validate --only-failed build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
 
       - name: Smoke-launch native standalone
@@ -417,8 +672,8 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import subprocess, time
-          binary = "build-ci/artefacts/Release/GapFill.app/Contents/MacOS/GapFill"
+          import os, subprocess, time
+          binary = os.path.join(os.environ["GAPFILL_APP"], "Contents/MacOS/GapFill")
           p = subprocess.Popen([binary], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
           try:
               time.sleep(5)
@@ -434,15 +689,51 @@ jobs:
                       p.wait()
           PY
 
-      - name: Upload native macOS candidate bundles
+      # A tar keeps executable bits and symlinks, which upload-artifact's zip drops.
+      # Layout matches packaging/package_macos.sh: VST3/ AU/ CLAP/ Standalone/.
+      - name: Stage verified macOS bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=build-ci/GapFill_artefacts/Release
+          stage="$RUNNER_TEMP/stage"
+          rm -rf "$stage"; mkdir -p "$stage/VST3" "$stage/AU" "$stage/CLAP" "$stage/Standalone" macos-artifact
+          ditto "$root/VST3/GapFill.vst3" "$stage/VST3/GapFill.vst3"
+          ditto "$root/AU/GapFill.component" "$stage/AU/GapFill.component"
+          ditto "$root/CLAP/GapFill.clap" "$stage/CLAP/GapFill.clap"
+          ditto "$GAPFILL_APP" "$stage/Standalone/GapFill.app"
+          tar -cf "macos-artifact/gapfill-macos-${{ matrix.arch }}.tar" -C "$stage" .
+
+      - name: Upload native macOS verified bundles
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: gapfill-macos-${{ matrix.arch }}-verified
-          path: |
-            build-ci/GapFill_artefacts/Release/VST3/GapFill.vst3/
-            build-ci/GapFill_artefacts/Release/AU/GapFill.component/
-            build-ci/GapFill_artefacts/Release/CLAP/GapFill.clap
-            build-ci/artefacts/Release/GapFill.app/
+          name: gapfill-macos-${{ matrix.arch }}
+          path: macos-artifact/gapfill-macos-${{ matrix.arch }}.tar
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 90
+
+  # Single required status check: green when every job that had to run passed.
+  # Native jobs are legitimately skipped for docs-only changes.
+  ci-gate:
+    name: CI gate
+    needs: [changes, preflight, unit-tests, build-linux-x64, build-windows-x64, package-windows, build-macos]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check results
+        shell: bash
+        run: |
+          set -euo pipefail
+          native='${{ needs.changes.outputs.native }}'
+          results='${{ needs.changes.result }} ${{ needs.preflight.result }}'
+          if [ "$native" = true ]; then
+            results="$results ${{ needs.unit-tests.result }} ${{ needs.build-linux-x64.result }} ${{ needs.build-windows-x64.result }} ${{ needs.package-windows.result }} ${{ needs.build-macos.result }}"
+          else
+            echo "Docs-only change: native jobs skipped"
+          fi
+          echo "results: $results"
+          for r in $results; do
+            [ "$r" = success ] || { echo "::error::A required job finished as '$r'"; exit 1; }
+          done

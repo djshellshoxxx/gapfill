@@ -197,6 +197,15 @@ juce::String MidiLearnManager::getLearningParameterID() const
     return juce::isPositiveAndBelow (index, parameterIDs.size()) ? parameterIDs[index] : juce::String();
 }
 
+juce::String MidiLearnManager::getParameterIDForCC (int cc) const
+{
+    if (cc < 0 || cc >= numCCs)
+        return {};
+
+    const auto index = ccToParam[(size_t) cc].load (std::memory_order_relaxed);
+    return index >= 0 && index < parameterIDs.size() ? parameterIDs[index] : juce::String();
+}
+
 int MidiLearnManager::getMappedCC (const juce::String& parameterID) const
 {
     const auto index = indexOf (parameterID);

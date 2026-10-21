@@ -60,6 +60,8 @@ E-5 (macOS) independent of features after F0-1; goldens added per platform
 * The UI overhaul (Phase 5) is deliberately **late and serial**: it edits `Panels.cpp`,
   `PluginEditor.cpp` and tooltips everywhere, so no other UI work runs beside it.
 
+**Addendum 2026-10-21:** the tickets in `12-SPEC-BACKLOG-AND-NEW.md` (N-*, F-*, X-1, FX-0, SP-0, UI-0, F0-10) extend this list; their phases, merge order and parallel work packages are `12` sections 12-14. Rule 7 below is relaxed to one open PR per work package (`12` section 11).
+
 ## 2. Branch, PR and merge rules
 
 1. **Trunk-based.** `master` is always buildable and releasable. Work happens on

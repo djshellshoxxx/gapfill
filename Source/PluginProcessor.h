@@ -11,8 +11,22 @@
 #include "Presets.h"
 #include "MidiLearn.h"
 #include "dsp/AnalysisEngine.h"
+#include "dsp/EngineEvents.h"
+#include "dsp/EventLogs.h"
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
+#include "features/live/LiveControl.h"
+#include "features/shaping/ShapingRuntime.h"
+#include "features/recipes/RecipeServices.h"
+#include "features/fx/FxChain.h"
+#include "features/fx/FxUiState.h"
+#include "features/explain/ExplainState.h"
+#include "features/context/ContextState.h"
+#include "features/ui/UiState.h"
+#include "features/scdrive/ScDrive.h"
+#include "features/midiout/MidiOut.h"
+#include "features/quality/Quality.h"
+#include "features/coop/Coop.h"
 
 namespace gapfill
 {
@@ -40,9 +54,10 @@ public:
     bool hasEditor() const override                      { return true; }
 
     const juce::String getName() const override          { return "GapFill"; }
-    // MIDI is accepted for CC-based parameter control (MIDI learn) only.
+    // MIDI input is accepted for CC-based parameter control (MIDI learn) and the command map.
+    // MIDI OUTPUT (gap / fill notes, F-L11) is declared only when the build option GAPFILL_MIDI_OUT is on.
     bool acceptsMidi() const override                    { return true; }
-    bool producesMidi() const override                   { return false; }
+    bool producesMidi() const override                   { return midiout::kDeclared; }
     bool isMidiEffect() const override                   { return false; }
     double getTailLengthSeconds() const override         { return 2.5; }
 
@@ -65,7 +80,12 @@ public:
     /** Validates and atomically applies a bare APVTS parameter tree.
         Unknown parameters are ignored for forward compatibility; malformed
         values for known parameters reject the whole state. */
-    bool applyParameterState (const juce::ValueTree& state);
+    bool applyParameterState (const juce::ValueTree& state, bool keepPerformance = false);
+
+    /** Replaces the parameter values with `state` but keeps the CURRENT value of every performance parameter
+        (performanceParameterIDs(): Lock, holds, scrub, macros on, battle, routing ...). Used by Undo and the
+        header A/B swap: docs/dev/02 F0-1 keeps performance state out of Undo snapshots and A/B. Message thread. */
+    void replaceParameterStateKeepingPerformance (const juce::ValueTree& state);
 
     static constexpr std::int64_t maxPresetFileBytes = 1024 * 1024;
 
@@ -80,9 +100,56 @@ public:
     //==========================================================================
     // Editor-facing helpers (message thread only)
     juce::AudioProcessorValueTreeState& getValueTreeState() noexcept { return apvts; }
+    const juce::AudioProcessorValueTreeState& getValueTreeState() const noexcept { return apvts; }
     MeterState& getMeterState() noexcept                            { return meters; }
     VisualisationFifo& getVisualisationFifo() noexcept              { return viz; }
     MidiLearnManager& getMidiLearnManager() noexcept                { return midiLearn; }
+
+    /** WP6 live control hub (panic, scenes, MIDI command map). */
+    live::LiveControl& getLiveControl() noexcept                    { return liveControl; }
+    const live::LiveControl& getLiveControl() const noexcept        { return liveControl; }
+    /** WP5 runtime state: tempo memory (E-2), effective creative values (C-0). */
+    ShapingRuntime& getShaping() noexcept                           { return shaping; }
+    const ShapingRuntime& getShaping() const noexcept               { return shaping; }
+    const EffectiveCreative& getEffectiveCreative() const noexcept  { return shaping.effective; }
+    /** WP3 Explain & assist: health codes, telemetry, fix-it, timeline, event recorder. */
+    const context::ContextState& getContextState() const noexcept   { return contextState; }
+    context::ContextState& getContextState() noexcept               { return contextState; }
+    explain::ExplainState& getExplainState() noexcept               { return explainState; }
+    const explain::ExplainState& getExplainState() const noexcept   { return explainState; }
+
+    /** WP10 routing & system. */
+    const scdrive::SidechainOnsetTracker& getScTracker() const noexcept   { return scTracker; }       // F-L13
+    midiout::MidiOutEmitter& getMidiOut() noexcept                         { return midiOut; }         // F-L11
+    /** F-L11 Options value: shifts the note time-stamps by -100..+100 ms (hosts that do not delay MIDI by PDC). */
+    void setMidiOutOffsetMs (double ms) noexcept    { midiOutOffsetMs.store (juce::jlimit (-(double) midiout::kMaxOffsetMs, (double) midiout::kMaxOffsetMs, ms), std::memory_order_relaxed); }
+    double getMidiOutOffsetMs() const noexcept      { return midiOutOffsetMs.load (std::memory_order_relaxed); }
+    const quality::QualityController& getQualityController() const noexcept { return qualityCtl; }    // F-D03
+    int getAppliedQualityLevel() const noexcept     { return appliedQuality.load (std::memory_order_relaxed); }
+    const coop::CoopMember& getCoop() const noexcept                       { return coopMember; }      // F-X06
+
+    /** WP11 UI shell state: status board, Simple/Advanced view mode (message thread). */
+    ui::UiState& getUiState() noexcept                              { return uiState; }
+    const ui::UiState& getUiState() const noexcept                  { return uiState; }
+
+    //==========================================================================
+    // Cross-thread queues (docs/dev/02 F0-4)
+
+    /** Message thread only (single producer). Returns false if the queue is full. */
+    bool postCommand (const Command& command) noexcept   { return commands.push (command); }
+
+    /** Message thread. Moves audio-thread fill events into the history and the
+        outcome log; also called by the 15 Hz timer. Returns how many were drained. */
+    int drainFillEvents();
+
+    const RecipeHistory& getRecipeHistory() const noexcept   { return recipeHistory; }
+    RecipeHistory& getRecipeHistory() noexcept               { return recipeHistory; }   // state restore (message thread)
+
+    /** WP4 facade: audition trigger, lock mirror, history, export, A/B match. */
+    recipes::RecipeServices& getRecipes() noexcept               { return recipeServices; }
+    const recipes::RecipeServices& getRecipes() const noexcept   { return recipeServices; }
+    const GapOutcomeLog& getGapOutcomeLog() const noexcept   { return outcomeLog; }
+    std::uint32_t getDroppedFillEvents() const noexcept      { return fillEvents.getDroppedCount(); }
 
     void resetAllParameters();
     /** Randomises creative (or, with `everything`, a wider) parameter set.
@@ -102,6 +169,10 @@ public:
     void pushUndoSnapshot();
     bool canUndo() const noexcept { return ! undoStack.empty(); }
     int  getUndoDepth() const noexcept { return (int) undoStack.size(); }
+    /** F-S11: drops the newest snapshot, so a burst of preset steps leaves ONE undo entry (the sound before the burst). */
+    void discardNewestUndoSnapshot() noexcept { if (! undoStack.empty()) undoStack.pop_back(); }
+    /** Number of snapshots ever pushed (also when the oldest was evicted): lets a caller see that something pushed one. */
+    unsigned getUndoPushCount() const noexcept { return undoPushCount; }
     /** Restores the sound from before the most recent big action. */
     bool undo();
 
@@ -152,6 +223,10 @@ public:
     //==========================================================================
     // Test-facing accessors
     const FillEngine& getFillEngine() const noexcept  { return engine; }
+    fx::FxChain& getFxChain() noexcept { return fxChain; }
+    const fx::FxMeters& getFxMeters() const noexcept { return fxChain.getMeters(); }
+    fx::FxUiState& getFxUiState() noexcept { return fxUi; }
+    const fx::FxUiState& getFxUiState() const noexcept { return fxUi; }
     const AnalysisEngine& getAnalysis() const noexcept { return analysis; }
     int getActiveLatencySamples() const noexcept { return meters.latencySamples.load(); }
     std::int64_t getSourceHistoryWritePosition() const noexcept { return history.getWritePosition(); }
@@ -162,13 +237,20 @@ public:
 
 private:
     void timerCallback() override;
+    void drainCommands() noexcept;
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
-    EngineSettings gatherEngineSettings() const;
+    EngineSettings gatherEngineSettings();
     AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
     bool isParameterStateValid (const juce::ValueTree& state) const;
     void snapParametersToState();
+    void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); midiOut.requestFlush(); }
+    void clearWetBus (juce::AudioBuffer<float>&) noexcept;          // F-L12
+    /** Input, Output, Sidechain, plus the optional "Wet" output (F-L12; not for Audio Unit, see wetbus::isDeclared).
+        A static member because BusesProperties is protected in juce::AudioProcessor. */
+    static BusesProperties makeBuses();
+    midiout::Settings gatherMidiOutSettings() const noexcept;       // F-L11
 
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
@@ -178,11 +260,34 @@ private:
     AnalysisEngine analysis;
     SourceHistory  history;
     FillEngine     engine;
+    fx::FxChain    fxChain;       // WP8: bus effect chain (voice cards live in the voices)
+    fx::FxUiState  fxUi;          // WP8: <Fx> state subtree (fold state, remembered amounts)
 
     MidiLearnManager midiLearn;
+    live::LiveControl liveControl { apvts };
+    recipes::RecipeServices recipeServices;
+
+    // WP10 routing & system (docs/architecture/MODULES.md)
+    scdrive::SidechainOnsetTracker scTracker;        // F-L13: fed only while a gate / snap is set and the sidechain is connected
+    midiout::MidiOutEmitter midiOut;                 // F-L11
+    std::atomic<double> midiOutOffsetMs { 0.0 };
+    quality::QualityController qualityCtl;           // F-D03
+    std::atomic<int> appliedQuality { 0 };
+    coop::CoopMember coopMember;                     // F-X06: claims a registry slot only while coopGroup != Off
 
     MeterState meters;
     VisualisationFifo viz;
+    ShapingRuntime shaping;
+
+    CommandQueue    commands;        // message -> audio, drained once per block
+    FillEventQueue  fillEvents;      // audio -> message, drained by the timer
+    RecipeHistory   recipeHistory;   // message thread only (survives the editor)
+    GapOutcomeLog   outcomeLog;      // message thread only
+    // WP7: musical-context trackers. Heap-allocated so the processor stays under the stack budget (TestStackBudget).
+    std::unique_ptr<context::ContextState> contextStateOwner { std::make_unique<context::ContextState>() };
+    context::ContextState& contextState { *contextStateOwner };
+    explain::ExplainState explainState;   // WP3; attached to apvts in the constructor
+    ui::UiState uiState;                  // WP11: status board, view mode
 
     // --- buffers (all sized in prepareToPlay) ---
     juce::AudioBuffer<float> mainBuffer, wetBuffer, delayRing;
@@ -236,6 +341,7 @@ private:
     juce::Random randomSource;
     int lastSurpriseProfile = -1;
     std::vector<juce::ValueTree> undoStack;
+    unsigned undoPushCount = 0;
     std::atomic<int> latencyToReport { 0 };
     std::atomic<bool> prepared { false };
 

@@ -1,4 +1,5 @@
 #include "Panels.h"
+#include "../features/info/ParamInfo.h"
 
 namespace gapfill
 {
@@ -71,11 +72,37 @@ DetectionPanel::DetectionPanel (juce::AudioProcessorValueTreeState& s)
                                                              &lookahead, &protectHold, &retrigger,
                                                              &maxFillSync, &audition })
         addAndMakeVisible (c);
+
+    learnButton.setTitle ("Learn");
+    learnButton.setTooltip ("Listen to your track for a few seconds and suggest Sensitivity, Gap Threshold and Min Gap. "
+                            "Needs audio playing through GapFill.");
+    learnButton.setWantsKeyboardFocus (false);
+    learnButton.onClick = [this] { if (onLearn != nullptr) onLearn(); };
+    addAndMakeVisible (learnButton);
+}
+
+void DetectionPanel::setSimple (bool simple)
+{
+    simpleView = simple;
+
+    for (auto* c : std::initializer_list<juce::Component*> { &mode, &source, &maxFillDiv, &gapThreshold, &minGap, &maxFill,
+                                                             &gapRelease, &lookahead, &protectHold, &retrigger,
+                                                             &maxFillSync, &audition })
+        c->setVisible (! simple);
+
+    resized();
 }
 
 void DetectionPanel::resized()
 {
+    learnButton.setBounds (getWidth() - 10 - 56, 4, 56, 18);
     auto b = contentArea();
+
+    if (simpleView)
+    {
+        sensitivity.setBounds (b.withSizeKeepingCentre (juce::jmin (b.getWidth(), 96), juce::jmin (b.getHeight(), 110)));
+        return;
+    }
 
     // Fixed-height furniture first so the knobs absorb whatever slack is left.
     auto toggles = b.removeFromBottom (24);
@@ -125,22 +152,51 @@ CreativePanel::CreativePanel (juce::AudioProcessorValueTreeState& s)
              colours::accentGreen),
       sync (s, "syncEnable", "TEMPO SYNC", "Derive stutter and delay timings from the host tempo."),
       pingPong (s, "pingPong", "PING PONG", "Alternate delay taps between left and right."),
-      monoWet (s, "wetMono", "MONO WET", "Collapse the generated material to mono for maximum mono compatibility."),
-      capture (s, "capture", "CAPTURE",
-               "Freeze the source: fills keep using the audio heard when Capture was switched on, "
-               "while detection, protection and the dry signal follow the live input. Switch off to release.")
+      monoWet (s, "wetMono", "MONO WET", "Collapse the generated material to mono for maximum mono compatibility.")
 {
     for (auto* c : std::initializer_list<juce::Component*> { &fill, &intensity, &complexity, &chaos, &density,
                                                              &fillType, &stutterDiv, &delayDiv, &seed, &width,
-                                                             &sync, &pingPong, &monoWet, &capture })
+                                                             &sync, &pingPong, &monoWet })
         addAndMakeVisible (c);
+}
+
+void CreativePanel::setSimple (bool simple)
+{
+    simpleView = simple;
+
+    for (auto* c : std::initializer_list<juce::Component*> { &stutterDiv, &delayDiv, &seed, &width, &sync, &pingPong, &monoWet })
+        c->setVisible (! simple);
+
+    resized();
 }
 
 void CreativePanel::resized()
 {
     auto b = contentArea();
 
-    layoutRow (b.removeFromBottom (24), { &sync, &pingPong, &monoWet, &capture });
+    if (simpleView)
+    {
+        // Simple: the five macros on top, Fill Type underneath; the CreativeExtra cell (Capture) keeps a spot.
+        auto row = b.removeFromBottom (24);
+        constexpr int gap = 6;
+        const auto cell = juce::jmax (190, (row.getWidth() - gap * 3) / 4);   // CAPTURE + AUDITION + SHAPE share this cell (>= 3 x 60 px so no label is cut)
+        extraSlotBounds = row.removeFromLeft (cell);
+        b.removeFromBottom (5);
+        fillType.setBounds (b.removeFromBottom (34).withWidth (juce::jmax (140, b.getWidth() / 3)));
+        b.removeFromBottom (6);
+        layoutRow (b, { &fill, &intensity, &complexity, &chaos, &density }, 8);
+        return;
+    }
+
+    {
+        // Four equal cells; the fourth is reserved for Slot::CreativeExtra.
+        auto row = b.removeFromBottom (24);
+        constexpr int gap = 6;
+        const auto w = juce::jmax (190, (row.getWidth() - gap * 3) / 4);   // CAPTURE + AUDITION + SHAPE share this cell (>= 3 x 60 px so no label is cut)
+        layoutRow (row.removeFromLeft (row.getWidth() - w - gap), { &sync, &pingPong, &monoWet });
+        row.removeFromLeft (gap);
+        extraSlotBounds = row.withWidth (w);
+    }
     b.removeFromBottom (5);
 
     layoutRow (b.removeFromBottom (34), { &fillType, &stutterDiv, &delayDiv });
@@ -223,10 +279,19 @@ void WeightsPanel::resized()
     layoutRow (buttons, { &allOn, &allOff, &drumsOnly, &texturesOnly });
     b.removeFromBottom (6);
 
-    const auto columnsCount = b.getWidth() > 540 ? 2 : 1;
+    // 2 columns when wide, otherwise 1; then add columns (up to 4, each >= 120 px) until all 16 rows fit the height
+    // instead of letting the lower weights run out of the panel under the preset buttons.
+    constexpr int minRowHeight = 26;
+    auto columnsCount = b.getWidth() > 540 ? 2 : 1;
+
+    while (columnsCount < 4
+           && ((bars.size() + columnsCount - 1) / columnsCount) * minRowHeight > b.getHeight()
+           && b.getWidth() / (columnsCount + 1) >= 120)
+        ++columnsCount;
+
     const auto perColumn = (bars.size() + columnsCount - 1) / columnsCount;
     const auto colWidth = b.getWidth() / columnsCount;
-    const auto rowHeight = juce::jmax (26, b.getHeight() / juce::jmax (1, perColumn));
+    const auto rowHeight = juce::jmax (minRowHeight, b.getHeight() / juce::jmax (1, perColumn));
 
     for (int i = 0; i < bars.size(); ++i)
     {
@@ -267,9 +332,25 @@ ProtectionPanel::ProtectionPanel (juce::AudioProcessorValueTreeState& s)
     addAndMakeVisible (note);
 }
 
+void ProtectionPanel::setSimple (bool simple)
+{
+    simpleView = simple;
+
+    for (auto* c : std::initializer_list<juce::Component*> { &lowProtect, &centreProtect, &nextProtect, &sidechainProtect, &note })
+        c->setVisible (! simple);
+
+    resized();
+}
+
 void ProtectionPanel::resized()
 {
     auto b = contentArea();
+
+    if (simpleView)
+    {
+        transientProtect.setBounds (b.withSizeKeepingCentre (juce::jmin (b.getWidth(), 96), juce::jmin (b.getHeight(), 110)));
+        return;
+    }
     note.setBounds (b.removeFromBottom (16));
 
     const auto rowHeight = juce::jmax (58, (b.getHeight() - 6) / 2);
@@ -308,6 +389,24 @@ SpectralPanel::SpectralPanel (juce::AudioProcessorValueTreeState& s)
                                                     "Processing strength for fills in this lane.", colour);
         lane.probability = std::make_unique<GapKnob> (s, defs[i].prob, "Prob",
                                                       "How likely a usable space in this lane is to be filled.", colour);
+
+        // C-9: per-lane fill type (Auto + the 15 algorithms), only used in Spectral mode.
+        {
+            static const char* typeIds[3] { "bandLowType", "bandMidType", "bandHighType" };
+            static const char* typeNames[3] { "Low band fill type", "Mid band fill type", "High band fill type" };
+            lane.fillType = std::make_unique<ParamComboBox>();
+            lane.fillType->setTitle (typeNames[i]);
+            lane.fillType->setDescription ("Forces a fill type for gaps found in this lane. Auto keeps the normal choice.");
+            lane.fillType->setTooltip (info::tooltipFor (typeIds[i], "Forces a fill type for gaps found in this lane (Spectral mode)."));
+            tagParameter (*lane.fillType, typeIds[i]);
+            lane.fillType->setWantsKeyboardFocus (false);
+
+            if (auto* choice = dynamic_cast<juce::AudioParameterChoice*> (s.getParameter (typeIds[i])))
+                lane.fillType->addItemList (choice->choices, 1);
+            lane.fillType->onRightClick = [comp = lane.fillType.get(), &s, id = juce::String (typeIds[i])] { showParameterMenu (*comp, s, id); };
+            addAndMakeVisible (*lane.fillType);
+            lane.fillTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (s, typeIds[i], *lane.fillType);
+        }
 
         addAndMakeVisible (*lane.enabled);
         addAndMakeVisible (*lane.amount);
@@ -383,8 +482,9 @@ void SpectralPanel::resized()
         auto lane = b.removeFromTop (laneHeight);
         auto left = lane.removeFromLeft (juce::jmin (110, lane.getWidth() / 4));
 
-        lanes[i].enabled->setBounds (left.removeFromTop (22).reduced (0, 1));
-        lanes[i].meterBounds = left.removeFromTop (16).reduced (0, 2);
+        lanes[i].enabled->setBounds (left.removeFromTop (20).reduced (0, 1));
+        lanes[i].meterBounds = left.removeFromTop (14).reduced (0, 1);
+        lanes[i].fillType->setBounds (left.removeFromTop (18).reduced (0, 1));
 
         layoutRow (lane.reduced (4, 2), { lanes[i].amount.get(), lanes[i].intensity.get(),
                                           lanes[i].probability.get() });
@@ -394,11 +494,18 @@ void SpectralPanel::resized()
 //==============================================================================
 MixPanel::MixPanel (juce::AudioProcessorValueTreeState& s)
     : PanelBase ("Mix", colours::accentGreen),
+      state (s),
       dry (s, "dry", "Dry", "Level of the original signal.", colours::accentGreen),
       wet (s, "wet", "Wet", "Level of the generated fills.", colours::accentWarm),
-      output (s, "output", "Output", "Final output trim.", colours::accentGreen)
+      output (s, "output", "Output", "Final output trim.", colours::accentGreen),
+      outputMode (s, "wetSolo", "OUTPUT: NORMAL",
+                  "Output only what GapFill generates, at unity, with no dry signal. Dry and Wet are ignored. Use it for stems and parallel setups.",
+                  colours::accentWarm)
 {
-    for (auto* c : std::initializer_list<juce::Component*> { &dry, &wet, &output })
+    outputMode.getButton().setTitle ("Output mode: normal");
+    refreshOutputMode();
+
+    for (auto* c : std::initializer_list<juce::Component*> { &dry, &wet, &output, &outputMode })
         addAndMakeVisible (c);
 
     for (auto* m : std::initializer_list<juce::Component*> { &inputMeter, &outputMeter, &wetMeter })
@@ -432,8 +539,30 @@ void MixPanel::resetMeterPeaks()
     wetMeter.resetPeak();
 }
 
+/** F-M17: the selector text and the dimming of the two level controls follow the (automatable) parameter. */
+void MixPanel::refreshOutputMode()
+{
+    const bool on = state.getRawParameterValue ("wetSolo")->load() > 0.5f;
+    auto& button = outputMode.getButton();
+    const juce::String text = on ? "OUTPUT: WET ONLY" : "OUTPUT: NORMAL";
+
+    if (button.getButtonText() != text)
+    {
+        button.setButtonText (text);
+        button.setTitle (on ? "Output mode: wet only. Dry and wet level controls bypassed" : "Output mode: normal");
+    }
+
+    if (on != wetOnlyShown)
+    {
+        wetOnlyShown = on;
+        dry.setAlpha (on ? 0.45f : 1.0f);         // still readable, still holds its value
+        wet.setAlpha (on ? 0.45f : 1.0f);
+    }
+}
+
 void MixPanel::setLevels (float in, float out, float wetLevel)
 {
+    refreshOutputMode();
     inputMeter.setLevel (in);
     outputMeter.setLevel (out);
     wetMeter.setLevel (wetLevel);
@@ -469,6 +598,8 @@ void MixPanel::resized()
     confidence.setBounds (readouts.removeFromTop (18));
     readouts.removeFromTop (6);
     status.setBounds (readouts.removeFromTop (18));
+    readouts.removeFromTop (4);
+    outputMode.setBounds (readouts.removeFromTop (28));
 
     b.removeFromRight (10);
 

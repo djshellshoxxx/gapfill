@@ -1,4 +1,5 @@
 #include "Parameters.h"
+#include "params/ParamBuilders.h"
 
 namespace gapfill
 {
@@ -67,63 +68,7 @@ juce::StringArray divisionNames()
 }
 
 //==============================================================================
-namespace
-{
-    using APF   = juce::AudioParameterFloat;
-    using APC   = juce::AudioParameterChoice;
-    using APB   = juce::AudioParameterBool;
-    using APInt = juce::AudioParameterInt;
-    using Attr  = juce::AudioParameterFloatAttributes;
-
-    constexpr int kVersionHint = 1;
-
-    juce::ParameterID makeID (const char* id) { return { id, kVersionHint }; }
-
-    std::unique_ptr<APF> percent (const char* id, const char* name, float def)
-    {
-        return std::make_unique<APF> (makeID (id), name,
-                                      juce::NormalisableRange<float> (0.0f, 100.0f, 0.01f), def,
-                                      Attr().withLabel ("%")
-                                            .withStringFromValueFunction ([] (float v, int)
-                                                { return juce::String (v, 1) + " %"; }));
-    }
-
-    std::unique_ptr<APF> millis (const char* id, const char* name, float lo, float hi,
-                                 float def, float centre)
-    {
-        auto r = juce::NormalisableRange<float> (lo, hi);
-        r.setSkewForCentre (centre);
-        return std::make_unique<APF> (makeID (id), name, r, def,
-                                      Attr().withLabel ("ms")
-                                            .withStringFromValueFunction ([] (float v, int)
-                                                { return juce::String (v, v < 100.0f ? 1 : 0) + " ms"; }));
-    }
-
-    std::unique_ptr<APF> hertz (const char* id, const char* name, float lo, float hi,
-                                float def, float centre, bool offAtMinimum)
-    {
-        auto r = juce::NormalisableRange<float> (lo, hi);
-        r.setSkewForCentre (centre);
-        return std::make_unique<APF> (makeID (id), name, r, def,
-                                      Attr().withLabel ("Hz")
-                                            .withStringFromValueFunction ([offAtMinimum] (float v, int)
-                                            {
-                                                if (offAtMinimum && v < 20.5f) return juce::String ("Off");
-                                                if (v >= 1000.0f)              return juce::String (v / 1000.0f, 2) + " kHz";
-                                                return juce::String (v, 0) + " Hz";
-                                            })
-                                            .withValueFromStringFunction ([offAtMinimum, lo] (const juce::String& text)
-                                            {
-                                                const auto t = text.trim();
-
-                                                if (offAtMinimum && t.equalsIgnoreCase ("off"))
-                                                    return lo;
-
-                                                const auto v = t.getFloatValue();
-                                                return t.containsIgnoreCase ("k") ? v * 1000.0f : v;
-                                            }));
-    }
-}
+using namespace builders;
 
 //==============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
@@ -240,6 +185,51 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     // ---------------- performance ----------------
     add (std::make_unique<APB> (makeID ("capture"), "Capture", false));
 
+    // ---------------- feature groups ----------------
+    // One call per group, in the permanent group order (see GAPFILL_PARAMS).
+    addMacrosParameters (layout);
+    addPersonalityParameters (layout);
+    addCapture2Parameters (layout);
+    addEnvelopeParameters (layout);
+    addLockParameters (layout);
+    addBreathingParameters (layout);
+    addPhraseParameters (layout);
+    addMistakesParameters (layout);
+    addSyncParameters (layout);
+    addBandtypeParameters (layout);
+    addEvolveParameters (layout);
+    addSwellParameters (layout);
+    addCloudParameters (layout);
+    addScaleParameters (layout);
+    addKeydetParameters (layout);
+    addBudgetParameters (layout);
+    addRatchetParameters (layout);
+    addRcrushParameters (layout);
+    addTapedestrParameters (layout);
+    addResonatorParameters (layout);
+    addFsdelayParameters (layout);
+    addDubParameters (layout);
+    addFormantParameters (layout);
+    addSpfreezeParameters (layout);
+    addConvoParameters (layout);
+    addScrubParameters (layout);
+    addHgranParameters (layout);
+    addWetoutParameters (layout);
+    addSafetyParameters (layout);
+    addMidioutParameters (layout);
+    addScdriveParameters (layout);
+    addBandfxParameters (layout);
+    addGrooveParameters (layout);
+    addCallParameters (layout);
+    addEnergyParameters (layout);
+    addTensionParameters (layout);
+    addBattleParameters (layout);
+    addSectionParameters (layout);
+    addLearnParameters (layout);
+    addCoopParameters (layout);
+    addQualityParameters (layout);
+    addFm10Parameters (layout);
+
     return layout;
 }
 
@@ -275,6 +265,60 @@ juce::StringArray randomisableParameterIDs()
                                "bandLowProb", "bandMidProb", "bandHighProb" })
         ids.add (extra);
 
+    return ids;
+}
+
+juce::StringArray routingParameterIDs()
+{
+    return { "wetSolo" };
+}
+
+juce::StringArray performanceParameterIDs()
+{
+    juce::StringArray ids { "capture" };
+
+    addMacrosPerformanceIds (ids);
+    addPersonalityPerformanceIds (ids);
+    addCapture2PerformanceIds (ids);
+    addEnvelopePerformanceIds (ids);
+    addLockPerformanceIds (ids);
+    addBreathingPerformanceIds (ids);
+    addPhrasePerformanceIds (ids);
+    addMistakesPerformanceIds (ids);
+    addSyncPerformanceIds (ids);
+    addBandtypePerformanceIds (ids);
+    addEvolvePerformanceIds (ids);
+    addSwellPerformanceIds (ids);
+    addCloudPerformanceIds (ids);
+    addScalePerformanceIds (ids);
+    addKeydetPerformanceIds (ids);
+    addBudgetPerformanceIds (ids);
+    addRatchetPerformanceIds (ids);
+    addRcrushPerformanceIds (ids);
+    addTapedestrPerformanceIds (ids);
+    addResonatorPerformanceIds (ids);
+    addFsdelayPerformanceIds (ids);
+    addDubPerformanceIds (ids);
+    addFormantPerformanceIds (ids);
+    addSpfreezePerformanceIds (ids);
+    addConvoPerformanceIds (ids);
+    addScrubPerformanceIds (ids);
+    addHgranPerformanceIds (ids);
+    addWetoutPerformanceIds (ids);
+    addSafetyPerformanceIds (ids);
+    addMidioutPerformanceIds (ids);
+    addScdrivePerformanceIds (ids);
+    addBandfxPerformanceIds (ids);
+    addGroovePerformanceIds (ids);
+    addCallPerformanceIds (ids);
+    addEnergyPerformanceIds (ids);
+    addTensionPerformanceIds (ids);
+    addBattlePerformanceIds (ids);
+    addSectionPerformanceIds (ids);
+    addLearnPerformanceIds (ids);
+    addCoopPerformanceIds (ids);
+    addQualityPerformanceIds (ids);
+    addFm10PerformanceIds (ids);
     return ids;
 }
 

@@ -1,0 +1,11 @@
+# Append-only parameter ID lock for group 'tension' (one id per line, in order).
+# Adding an id is a deliberate act: add it here and in Source/params/tension.h.
+fm21_on
+fm21_bars
+fm21_start
+fm21_shape
+fm21_end
+fm21_depthDensity
+fm21_depthIntensity
+fm21_depthWidth
+fm21_depthFx

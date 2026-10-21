@@ -1,0 +1,4 @@
+# Append-only parameter ID lock for group 'learn' (one id per line, in order).
+# Adding an id is a deliberate act: add it here and in Source/params/learn.h.
+fx05_on
+fx05_strength

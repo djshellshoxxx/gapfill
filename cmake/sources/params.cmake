@@ -1,0 +1,45 @@
+# Parameter group builders (docs/dev/02-FOUNDATIONS.md F0-1). A new group's .cpp is
+# added here by the feature that claims it.
+list(APPEND GAPFILL_SOURCES
+    Source/params/macros.cpp
+    Source/params/personality.cpp
+    Source/params/capture2.cpp
+    Source/params/envelope.cpp
+    Source/params/lock.cpp
+    Source/params/breathing.cpp
+    Source/params/phrase.cpp
+    Source/params/mistakes.cpp
+    Source/params/sync.cpp
+    Source/params/bandtype.cpp
+    Source/params/evolve.cpp
+    Source/params/swell.cpp
+    Source/params/cloud.cpp
+    Source/params/scale.cpp
+    Source/params/keydet.cpp
+    Source/params/budget.cpp
+    Source/params/ratchet.cpp
+    Source/params/rcrush.cpp
+    Source/params/tapedestr.cpp
+    Source/params/resonator.cpp
+    Source/params/fsdelay.cpp
+    Source/params/dub.cpp
+    Source/params/formant.cpp
+    Source/params/spfreeze.cpp
+    Source/params/convo.cpp
+    Source/params/scrub.cpp
+    Source/params/hgran.cpp
+    Source/params/wetout.cpp
+    Source/params/safety.cpp
+    Source/params/midiout.cpp
+    Source/params/scdrive.cpp
+    Source/params/bandfx.cpp
+    Source/params/groove.cpp
+    Source/params/call.cpp
+    Source/params/energy.cpp
+    Source/params/tension.cpp
+    Source/params/battle.cpp
+    Source/params/section.cpp
+    Source/params/learn.cpp
+    Source/params/coop.cpp
+    Source/params/quality.cpp
+)

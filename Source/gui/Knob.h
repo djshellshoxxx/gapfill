@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <optional>
 #include "LookAndFeel.h"
 
 namespace gapfill
@@ -21,6 +22,16 @@ class MidiLearnManager;
 void showParameterMenu (juce::Component& owner,
                         juce::AudioProcessorValueTreeState& state,
                         const juce::String& parameterID);
+
+/** Component property naming the parameter a control edits. Set by every Gap*
+    control (and by the editor for bypass) so the U-9 status line can find the
+    parameter under the mouse without knowing the control types. */
+inline constexpr const char* kParamIdProperty = "gapfillParamId";
+
+inline void tagParameter (juce::Component& c, const juce::String& parameterID)
+{
+    c.getProperties().set (kParamIdProperty, parameterID);
+}
 
 /** Applies the GapFill palette to a transient window by colour id. */
 void applyPaletteTo (juce::AlertWindow& window);
@@ -75,7 +86,8 @@ private:
 
     Per the identity spec the label sits below the knob and the value readout
     sits above it, appearing only while the knob is hovered or being dragged. */
-class GapKnob : public juce::Component
+class GapKnob : public juce::Component,
+                private juce::Timer
 {
 public:
     GapKnob (juce::AudioProcessorValueTreeState& state,
@@ -84,6 +96,7 @@ public:
              const juce::String& tooltip,
              juce::Colour accent,
              bool large = false);
+    ~GapKnob() override;
 
     void resized() override;
     void paint (juce::Graphics&) override;
@@ -91,18 +104,37 @@ public:
     juce::Slider& getSlider() noexcept { return slider; }
     void setAccentColour (juce::Colour c);
 
+    /** C-0: shows the value the engine actually uses when personality, macros
+        or evolve move it away from the parameter. `v01` is normalised (0..1 of
+        the parameter's range); null hides the marker. Draws a thin inner arc
+        plus a tick on the value arc (not colour alone), extends the hover
+        readout to "base -> effective" and the accessibility description to
+        "effective value N percent". The default paint path is untouched while null. */
+    void setEffectiveValue (std::optional<double> v01);
+    std::optional<double> getEffectiveValue() const noexcept { return effective01; }
+
+    /** Property on the slider read by the LookAndFeel (normalised value, or < 0 for none). */
+    static constexpr const char* effectiveProperty = "gapfillEffective01";
+
+    /** Normalised effective value drawn by default if the difference is smaller than this it is hidden. */
+    static constexpr double effectiveEpsilon = 0.005;
+
 private:
+    void timerCallback() override;
     void refreshValueText();
     void setReadoutVisible (bool shouldBeVisible);
 
     juce::AudioProcessorValueTreeState& state;
     juce::String paramID;
+    juce::String baseDescription;
     juce::RangedAudioParameter* parameter = nullptr;
     FineSlider slider;
     juce::Label nameLabel, valueLabel;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> attachment;
     bool large = false;
     bool readoutVisible = false;
+    std::optional<double> effective01;
+    int effectiveIndex = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GapKnob)
 };

@@ -84,12 +84,17 @@ namespace
             return;
 
         g.setColour (colours::primary.withAlpha (0.95f));
-        g.drawRoundedRectangle (bounds.reduced (1.0f), radius, 2.0f);
+        g.drawRoundedRectangle (bounds.reduced (1.0f), radius, focusRingWidth);
     }
 }
 
 //==============================================================================
 GapFillLookAndFeel::GapFillLookAndFeel()
+{
+    refreshColours();
+}
+
+void GapFillLookAndFeel::refreshColours()
 {
     setColour (juce::ResizableWindow::backgroundColourId, colours::background);
     setColour (juce::Label::textColourId,                 colours::text);
@@ -111,7 +116,7 @@ GapFillLookAndFeel::GapFillLookAndFeel()
     setColour (juce::TextButton::textColourOffId,         colours::textMuted);
     setColour (juce::TextButton::textColourOnId,          colours::primary);
     setColour (juce::ToggleButton::textColourId,          colours::text);
-    setColour (juce::TooltipWindow::backgroundColourId,   juce::Colour (0xf20e1116));
+    setColour (juce::TooltipWindow::backgroundColourId,   colours::background.withAlpha (0.95f));
     setColour (juce::TooltipWindow::textColourId,         colours::textMuted);
     setColour (juce::TooltipWindow::outlineColourId,      colours::edge);
     setColour (juce::ScrollBar::thumbColourId,            colours::edge.brighter (0.4f));
@@ -191,6 +196,34 @@ void GapFillLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int 
             g.setColour (accent.brighter (lift));
             g.strokePath (filled, juce::PathStrokeType (arcWidth, juce::PathStrokeType::curved,
                                                         juce::PathStrokeType::rounded));
+        }
+    }
+
+    // --- C-0 effective value: a thin inner arc from the base value to the value
+    // the engine really uses, plus a radial tick on the value arc (shape, not
+    // colour alone). Only drawn when GapKnob::setEffectiveValue supplied one.
+    if (enabled)
+    {
+        const auto eff = (double) slider.getProperties().getWithDefault ("gapfillEffective01", -1.0);
+
+        if (eff >= 0.0 && eff <= 1.0)
+        {
+            const auto effAngle = rotaryStartAngle + (float) eff * (rotaryEndAngle - rotaryStartAngle);
+            const auto innerRadius = juce::jmax (4.0f, arcRadius - arcWidth * 0.5f - gap * 0.5f);
+
+            juce::Path delta;
+            delta.addCentredArc (centre.x, centre.y, innerRadius, innerRadius, 0.0f,
+                                 juce::jmin (angle, effAngle), juce::jmax (angle, effAngle), true);
+            g.setColour (colours::text.withAlpha (0.85f));
+            g.strokePath (delta, juce::PathStrokeType (1.5f * scale, juce::PathStrokeType::curved,
+                                                       juce::PathStrokeType::butt));
+
+            juce::Path tick;
+            tick.startNewSubPath (0.0f, -(arcRadius - arcWidth * 1.1f));
+            tick.lineTo (0.0f, -(arcRadius + arcWidth * 0.9f));
+            tick.applyTransform (juce::AffineTransform::rotation (effAngle).translated (centre));
+            g.setColour (colours::text);
+            g.strokePath (tick, juce::PathStrokeType (1.5f * scale));
         }
     }
 

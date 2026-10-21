@@ -44,6 +44,7 @@ docs/progress/<ticket>.md           per-ticket session notes (see 01-PLAN)
        GAPFILL_PARAMS_PHRASE(X) GAPFILL_PARAMS_MISTAKES(X) \
        GAPFILL_PARAMS_SYNC(X) GAPFILL_PARAMS_BANDTYPE(X) GAPFILL_PARAMS_EVOLVE(X)
    ```
+   (Doc `12` §2.1 / F0-10 appends 30 more empty groups after `EVOLVE`, in this order: `SWELL CLOUD SCALE KEYDET BUDGET RATCHET RCRUSH TAPEDESTR RESONATOR FSDELAY DUB FORMANT SPFREEZE CONVO SCRUB HGRAN WETOUT SAFETY MIDIOUT SCDRIVE BANDFX GROOVE CALL ENERGY TENSION BATTLE SECTION LEARN COOP QUALITY`; `phraseOffset` is appended to the existing `PHRASE` group.)
    The group order is **permanent** (it fixes parameter index order). All 11
    group macros are created now, each defined empty (`#define GAPFILL_PARAMS_LOCK(X)`).
    After Phase 0 no feature edits `Parameters.h` or `Parameters.cpp`; it edits only
@@ -62,7 +63,7 @@ docs/progress/<ticket>.md           per-ticket session notes (see 01-PLAN)
 * fail if any ID in a `.lock` file is missing, renamed, or reordered;
 * fail if a new ID exists in a group header but not in its `.lock` (the author
   must add the line; this makes "adding a permanent ID" a deliberate act);
-* fail on duplicates across all groups, and on IDs not matching `^[a-z][A-Za-z0-9]*$`;
+* fail on duplicates across all groups, and on IDs not matching `^[a-z][A-Za-z0-9_]*$`;
 * keep checking that every factory preset ID resolves.
 
 Per-group lock files mean two feature PRs never touch the same lock file.
@@ -117,7 +118,9 @@ feature needs *every* early `return false` labelled. Split it:
 ```cpp
 enum class RejectReason : std::uint8_t {
     None = 0, FillOff, NoSource, TooSoon, NoVoice, TooShort, GuardEaten,
-    NoBand, DensityRoll, NoAlgoFits, SourceUnavailable, LockSkipped, Count };
+    NoBand, DensityRoll, NoAlgoFits, SourceUnavailable, LockSkipped,
+    BudgetFull, QuietZone, ScGated, Panicked, CoopYield, ForcedUnsafe,   // added by doc 12 §2.2
+    Count };
 
 struct GapContext {                    // everything stage code may read
     std::int64_t outputPos, blockStartPos, available, usable, maxFillSamples,
@@ -227,7 +230,8 @@ Two instances, both owned by the processor:
 | `fillEvents` | audio -> message thread | `FillEvent { type, FillRecipe recipe, RejectReason reason, float availMs, float needMs, std::int64_t pos }` | 64 | recipes always, rejections only while `viz` enabled |
 
 * `Command::type`: `Preview`, `LikeLatest`, `LikeRecipe`, `LockLatest`, `LockRecipe`,
-  `Unlock`, `Recapture`, `ReleaseCapture`.
+  `Unlock`, `Recapture`, `ReleaseCapture`; the full append-only list (Panic, Recover, scene,
+  preset, momentary, ... values 9-30) is in `12` §2.3. Panic bypasses the queue (atomic flag).
 * Producers: **only the message thread** pushes commands (single producer). MIDI
   triggers handled on the audio thread (E-1) act directly, never via the queue.
 * The audio thread drains `commands` once per block, at the top of `processBlock`.
@@ -333,7 +337,8 @@ nav, editor size, MIDI mappings). Add:
   valid preset (creative spec §4.8). A bad APVTS value still rejects everything (existing rule).
 * Subtrees (each owned by one feature): `<Macros>` (C-2), `<Lock>` (C-5),
   `<History>` (U-1), `<Perf>` (U prefs: simple/advanced, ui scale, first-run flag, trigger note).
-* Total subtree budget 32 KiB, each subtree capped individually; over-cap => dropped.
+* Total subtree budget **64 KiB** (raised from 32 KiB by `12` §2.3 for `<Scenes>`), each subtree capped individually; over-cap => dropped.
+  `stateVersion` 3 is written once doc-12 subtrees exist (`<Scenes> <Tension> <Groove> <Cmd> <Fx> <Health> <Learn>`); v2 -> v3 sets nothing.
 * `migrate (ValueTree&, int fromVersion)`: v1 -> v2 sets nothing (all new
   parameters default to neutral). The function exists so v3 has a place to go.
 * Never serialise: audio samples, active capture latch contents, momentary/command
@@ -410,7 +415,8 @@ hand-placed additions with named slots so features never edit `resized()`:
 
 ```cpp
 enum class Slot { TopBarRight, CreativeExtra, PerformanceStrip, VisualiserOverlay,
-                  OptionsExtra, FooterStatus };
+                  OptionsExtra, FooterStatus,
+                  PerformanceTab, EffectsSection, FileMenuExtra, HistoryDrawerExtra };   // last four: doc 12 F0-10
 struct SlotComponentFactory {
     Slot slot; int order;                       // order sorts within a slot
     std::function<std::unique_ptr<juce::Component> (GapFillAudioProcessor&)> make;
@@ -474,6 +480,115 @@ All appended, all permanent once released. `Default` is the neutral value.
 | bandtype | `bandLowType` / `bandMidType` / `bandHighType` | choice: Auto + 15 algorithms | Auto | C-9 |
 | evolve | `evolve` | choice: Off, 8 bars, 16 bars, 32 bars | Off | C-8 |
 
+**Appended by doc `12` (F0-10; group order as listed, IDs permanent).** `phraseOffset` goes into the existing `phrase` group.
+
+| Group (file) | ID | Type / range | Default | Ticket |
+|---|---|---|---|---|
+| swell | `swellAmount` | float 0-100 (0 = off) | 0 | N-FX1 |
+| swell | `swellCurve` | choice: Linear, Exponential, S-curve, Late | Exponential | N-FX1 |
+| swell | `swellFilter` | float 0-100 | 60 | N-FX1 |
+| swell | `swellTarget` | choice: Gap end, Next beat, Next bar | Gap end | N-FX1 |
+| cloud | `cloudAmount` | float 0-100 (0 = off) | 0 | N-FX2 |
+| cloud | `cloudDensity` | float 2-80 grains/s (log) | 20 | N-FX2 |
+| cloud | `cloudSize` | float 10-250 ms | 60 | N-FX2 |
+| cloud | `cloudSpan` | float 100-2000 ms | 600 | N-FX2 |
+| cloud | `cloudJitter` | float 0-100 | 40 | N-FX2 |
+| cloud | `cloudPitch` | float 0-1200 cents (+/- spread) | 100 | N-FX2 |
+| cloud | `cloudSpread` | float 0-100 | 60 | N-FX2 |
+| scale | `scaleRoot` | choice: C, C#, D, D#, E, F, F#, G, G#, A, A#, B | C | N-MUS |
+| scale | `scaleType` | choice: Off, Major, Natural Minor, Dorian, Phrygian, Lydian, Mixolydian, Harmonic Minor, Melodic Minor, Major Pentatonic, Minor Pentatonic, Blues, Whole Tone | Off | N-MUS |
+| scale | `scaleAmount` | float 0-100 | 100 | N-MUS |
+| keydet | `scaleFollow` | bool | off | F-X03 |
+| budget | `fillBudget` | choice: Off, 1, 2, 3, 4, 6, 8 fills per bar | Off | F-D01 |
+| budget | `quietZone` | choice: Off, Beat 1, Last beat, Last 2 beats, Last bar of phrase | Off | F-D01 |
+| ratchet | `ratAmount` | float 0-100 (0 = off) | 0 | F-M16 |
+| ratchet | `ratDiv` | choice: 12 divisions (1/1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/4T, 1/8T, 1/16T, 1/4D, 1/8D, 1/16D) | 1/16 | F-M16 |
+| ratchet | `ratRepeats` | int 2-16 | 4 | F-M16 |
+| ratchet | `ratAccel` | float -100..100 (negative = decelerate) | 0 | F-M16 |
+| ratchet | `ratGate` | float 10-100 % | 70 | F-M16 |
+| rcrush | `rcAmount` | float 0-100 (0 = off) | 0 | F-M14 |
+| rcrush | `rcBits` | int 1-16 | 8 | F-M14 |
+| rcrush | `rcRate` | int 1-64 (sample-hold factor) | 4 | F-M14 |
+| rcrush | `rcHold` | choice: Free + 12 divisions | Free | F-M14 |
+| rcrush | `rcTone` | float -100..100 | 0 | F-M14 |
+| tapedestr | `tdAmount` | float 0-100 (0 = off) | 0 | F-M20 |
+| tapedestr | `tdWow` | float 0-100 | 30 | F-M20 |
+| tapedestr | `tdFlutter` | float 0-100 | 30 | F-M20 |
+| tapedestr | `tdSat` | float 0-100 | 20 | F-M20 |
+| tapedestr | `tdDropout` | float 0-100 | 20 | F-M20 |
+| tapedestr | `tdSplice` | float 0-100 | 0 | F-M20 |
+| resonator | `resAmount` | float 0-100 (0 = off) | 0 | F-M15 |
+| resonator | `resNote` | int 24-96 (MIDI note) | 60 | F-M15 |
+| resonator | `resMode` | choice: Manual, Scale degrees | Manual | F-M15 |
+| resonator | `resDecay` | float 0-100 | 50 | F-M15 |
+| resonator | `resDamp` | float 0-100 | 40 | F-M15 |
+| resonator | `resSpread` | float 0-100 | 30 | F-M15 |
+| fsdelay | `fsdAmount` | float 0-100 (0 = off) | 0 | F-L19 |
+| fsdelay | `fsdShift` | float -2000..2000 Hz | 50 | F-L19 |
+| fsdelay | `fsdTime` | choice: 12 divisions | 1/8 | F-L19 |
+| fsdelay | `fsdFeedback` | float 0-85 % | 40 | F-L19 |
+| fsdelay | `fsdDamp` | float 0-100 | 30 | F-L19 |
+| fsdelay | `fsdStereo` | float 0-100 | 40 | F-L19 |
+| dub | `dubAmount` | float 0-100 (0 = off) | 0 | F-L15 |
+| dub | `dubDiv` | choice: 12 divisions | 1/8 | F-L15 |
+| dub | `dubFeedback` | float 0-90 % | 50 | F-L15 |
+| dub | `dubLow` | float 20-2000 Hz (log) | 120 | F-L15 |
+| dub | `dubHigh` | float 500-18000 Hz (log) | 4000 | F-L15 |
+| dub | `dubMove` | float 0-100 | 30 | F-L15 |
+| dub | `dubSat` | float 0-100 | 20 | F-L15 |
+| dub | `dubPing` | bool | on | F-L15 |
+| formant | `fmtAmount` | float 0-100 (0 = off) | 0 | F-L20 |
+| formant | `fmtShift` | float -12..12 formant semitones | 0 | F-L20 |
+| formant | `fmtTilt` | float -100..100 | 0 | F-L20 |
+| formant | `fmtVowel` | choice: Shift only, A, E, I, O, U | Shift only | F-L20 |
+| spfreeze | `sfzAmount` | float 0-100 (0 = off) | 0 | F-X02 |
+| spfreeze | `sfzLength` | float 50-4000 ms | 800 | F-X02 |
+| spfreeze | `sfzDecay` | float 0-100 | 50 | F-X02 |
+| spfreeze | `sfzSmear` | float 0-100 | 30 | F-X02 |
+| spfreeze | `sfzMorph` | float 0-100 | 0 | F-X02 |
+| spfreeze | `sfzPitch` | float -12..12 semitones | 0 | F-X02 |
+| spfreeze | `sfzWidth` | float 0-100 | 50 | F-X02 |
+| convo | `cvAmount` | float 0-100 (0 = off) | 0 | F-L21 |
+| convo | `cvSize` | float 20-500 ms | 120 | F-L21 |
+| convo | `cvDamp` | float 0-100 | 40 | F-L21 |
+| scrub | `scrubOn` | bool | off | F-M19 |
+| scrub | `scrubPos` | float 0-100 | 50 | F-M19 |
+| scrub | `scrubWidth` | float 10-500 ms | 80 | F-M19 |
+| hgran | `hgAmount` | float 0-100 (0 = off) | 0 | F-X01 |
+| hgran | `hgVoices` | int 1-6 | 3 | F-X01 |
+| hgran | `hgMotion` | float 0-100 | 30 | F-X01 |
+| hgran | `hgTone` | float -100..100 | 0 | F-X01 |
+| wetout | `wetSolo` | bool | off | F-M17 |
+| safety | `wetSafety` | bool | off | F-L25 |
+| midiout | `midiOutMode` | choice: Off, Gaps, Fills, Both | Off | F-L11 |
+| midiout | `midiOutNote` | int 0-127 | 36 | F-L11 |
+| midiout | `midiOutChan` | int 1-16 | 10 | F-L11 |
+| scdrive | `scSnap` | float 0-100 | 0 | F-L13 |
+| scdrive | `scGate` | choice: Off, Fill when SC quiet, Fill when SC active | Off | F-L13 |
+| scdrive | `scThresh` | float -60..0 dB | -30 | F-L13 |
+| bandfx | `bandLowFx` | bool | on | F-L14 |
+| bandfx | `bandMidFx` | bool | on | F-L14 |
+| bandfx | `bandHighFx` | bool | on | F-L14 |
+| groove | `grooveAmount` | float 0-100 | 0 | F-L09 |
+| groove | `grooveBars` | choice: 1, 2, 4 bars | 2 | F-L09 |
+| call | `callMode` | choice: Off, Echo, Answer | Off | F-L10 |
+| call | `callLength` | choice: 1, 2, 3, 4 fills | 2 | F-L10 |
+| call | `callStrength` | float 0-100 | 50 | F-L10 |
+| energy | `energyAdapt` | float 0-100 (0 = off) | 0 | F-L22 |
+| energy | `energyTarget` | choice: Density, Intensity, Both | Both | F-L22 |
+| tension | `tensionAmount` | float 0-100 (0 = off) | 0 | F-M21 |
+| tension | `tensionBars` | choice: 4, 8, 16 bars | 8 | F-M21 |
+| tension | `tensionShape` | choice: Build, Exp build, Saw, Swell, Drop, User A, User B, User C | Build | F-M21 |
+| battle | `battleEvery` | choice: Off, 1, 2, 4, 8 bars | Off | F-M18 |
+| section | `sectionAware` | float 0-100 (0 = off) | 0 | F-X04 |
+| learn | `learnBias` | float 0-100 (0 = off) | 0 | F-X05 |
+| coop | `coopGroup` | choice: Off, A, B, C, D | Off | F-X06 |
+| coop | `coopMode` | choice: Avoid overlap, Alternate, Follow | Avoid overlap | F-X06 |
+| quality | `qualityMode` | choice: Full, Balanced, Lite, Auto | Full | F-D03 |
+| phrase | `phraseOffset` | int 0-15 bars | 0 | C-7 (fix) |
+
+Semantics, state, tests: `12-SPEC-BACKLOG-AND-NEW.md`. All 102 IDs are excluded from Random / Random All / Surprise (`performanceParameterIDs()`); `*Amount` = 0 (or the stated Off value) is neutral.
+
 Not parameters (state subtree or runtime only): Audition, Like, Lock-latest,
 Recapture, Surprise, Undo (commands); macro mappings/names, history, lock
 recipe (subtrees); Simple/Advanced, UI scale, first-run flag, trigger note (`<Perf>`).
@@ -484,7 +599,11 @@ band assignments unless stated in the owning ticket. Add them to a new
 `performanceParameterIDs()` list next to `randomisableParameterIDs()` and a test
 that the two lists are disjoint.
 
-## Phase 0 definition of done (applies to F0-1 .. F0-9)
+## F0-10 Pre-registration of doc-12 features   (size S-M)
+
+Specified in `12-SPEC-BACKLOG-AND-NEW.md` §2.1: 30 empty parameter groups with lock files, `Salts.h`, the full `FeatureHooks.h` call list, the permanent `Command` and `RejectReason` values, four extra editor slots and reserved subtree names, so no later feature PR edits a hot file.
+
+## Phase 0 definition of done (applies to F0-1 .. F0-10)
 
 * All nine F0 tickets merged in one PR train (or one PR if reviewable), CI green.
 * Golden files generated **from `master` before the refactor** and committed in

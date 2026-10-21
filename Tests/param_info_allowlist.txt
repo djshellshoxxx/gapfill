@@ -1,0 +1,4 @@
+# U-9 allow-list: parameter ids that may ship without a ParamInfo entry.
+# Shrinking only: delete a line when the owning feature adds its Source/features/<f>/Info.cpp.
+# A line whose id already has an entry (or no longer exists) fails Info.allowlist_only_shrinks.
+# Empty since the 2026-10-21 completeness audit: every parameter has an entry (do not add lines).

@@ -1,5 +1,7 @@
 #include "Knob.h"
 #include "../MidiLearn.h"
+#include "../features/info/ParamInfo.h"
+#include "../PluginProcessor.h"
 
 namespace gapfill
 {
@@ -356,7 +358,9 @@ GapKnob::GapKnob (juce::AudioProcessorValueTreeState& s,
     slider.setDescription (tooltip);
     slider.setHelpText (tooltip);
     slider.setColour (juce::Slider::thumbColourId, accent);
-    slider.setTooltip (tooltip);
+    slider.setTooltip (info::tooltipFor (parameterID, tooltip));    // U-9: generated from the info table
+    tagParameter (*this, parameterID);
+    tagParameter (slider, parameterID);
 
     if (parameter != nullptr)
         slider.setDoubleClickReturnValue (true, parameter->convertFrom0to1 (parameter->getDefaultValue()));
@@ -368,6 +372,7 @@ GapKnob::GapKnob (juce::AudioProcessorValueTreeState& s,
     // Label below the knob, always visible.
     nameLabel.setText (displayName.toUpperCase(), juce::dontSendNotification);
     nameLabel.setJustificationType (juce::Justification::centred);
+    nameLabel.setBorderSize ({ 0, 0, 0, 0 });      // the default 5 px side border cut "PROTECT HOLD" to "PROTECT HO..." in a 53 px knob
     nameLabel.setColour (juce::Label::textColourId, colours::textMuted);
     nameLabel.setInterceptsMouseClicks (false, false);
     addAndMakeVisible (nameLabel);
@@ -380,7 +385,65 @@ GapKnob::GapKnob (juce::AudioProcessorValueTreeState& s,
     addAndMakeVisible (valueLabel);
 
     attachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (state, parameterID, slider);
+    baseDescription = tooltip;
+    slider.getProperties().set (effectiveProperty, -1.0);
     refreshValueText();
+
+    // C-0: knobs of the macro-targetable controls follow the engine's effective value.
+    effectiveIndex = effectiveControlIndex (parameterID.toRawUTF8());
+
+    if (effectiveIndex >= 0 && dynamic_cast<GapFillAudioProcessor*> (&state.processor) != nullptr)
+        startTimerHz (15);
+}
+
+GapKnob::~GapKnob()
+{
+    stopTimer();
+}
+
+void GapKnob::timerCallback()
+{
+    auto* proc = dynamic_cast<GapFillAudioProcessor*> (&state.processor);
+
+    if (proc == nullptr || parameter == nullptr)
+        return;
+
+    const auto& eff = proc->getEffectiveCreative();
+
+    if (! eff.valid.load (std::memory_order_relaxed))
+        return;
+
+    // Engine values are 0..1 fractions of a 0-100 % control.
+    const auto effNorm = (double) parameter->convertTo0to1 (eff.get (effectiveIndex) * 100.0f);
+    const auto baseNorm = (double) parameter->getValue();
+
+    if (std::abs (effNorm - baseNorm) > effectiveEpsilon)
+        setEffectiveValue (juce::jlimit (0.0, 1.0, effNorm));
+    else
+        setEffectiveValue (std::nullopt);
+}
+
+void GapKnob::setEffectiveValue (std::optional<double> v01)
+{
+    if (v01.has_value())
+        v01 = juce::jlimit (0.0, 1.0, *v01);
+
+    if (v01 == effective01)
+        return;
+
+    effective01 = v01;
+    slider.getProperties().set (effectiveProperty, effective01.has_value() ? *effective01 : -1.0);
+
+    if (parameter != nullptr)
+    {
+        slider.setDescription (effective01.has_value()
+                                   ? baseDescription + " Effective value " + parameter->getText ((float) *effective01, 0)
+                                       .replace ("%", " percent") + "."
+                                   : baseDescription);
+    }
+
+    refreshValueText();
+    slider.repaint();
 }
 
 void GapKnob::setAccentColour (juce::Colour c)
@@ -413,8 +476,15 @@ void GapKnob::setReadoutVisible (bool shouldBeVisible)
 
 void GapKnob::refreshValueText()
 {
-    if (parameter != nullptr)
-        valueLabel.setText (parameter->getCurrentValueAsText(), juce::dontSendNotification);
+    if (parameter == nullptr)
+        return;
+
+    auto text = parameter->getCurrentValueAsText();
+
+    if (effective01.has_value())
+        text << " -> " << parameter->getText ((float) *effective01, 0);
+
+    valueLabel.setText (text, juce::dontSendNotification);
 }
 
 void GapKnob::resized()
@@ -480,13 +550,20 @@ GapCombo::GapCombo (juce::AudioProcessorValueTreeState& state,
     combo.setTitle (displayName);
     combo.setDescription (tooltip);
     combo.setHelpText (tooltip);
-    combo.setTooltip (tooltip);
+    combo.setTooltip (info::tooltipFor (parameterID, tooltip));
+    tagParameter (*this, parameterID);
+    tagParameter (combo, parameterID);
     combo.setWantsKeyboardFocus (false);
     combo.onRightClick = [this, &state, parameterID]
     {
         showParameterMenu (*this, state, parameterID);
     };
     addAndMakeVisible (combo);
+
+    // JUCE's ComboBoxAttachment does not populate the list (it only maps the index), so without this every
+    // GapCombo (Mode, Detector Source, Fill Type, divisions ...) was an empty, unselectable box.
+    if (auto* choice = dynamic_cast<juce::AudioParameterChoice*> (state.getParameter (parameterID)))
+        combo.addItemList (choice->choices, 1);
 
     attachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (state, parameterID, combo);
 }
@@ -514,7 +591,9 @@ GapToggle::GapToggle (juce::AudioProcessorValueTreeState& state,
     button.setDescription (tooltip);
     button.setHelpText (tooltip);
     button.setClickingTogglesState (true);
-    button.setTooltip (tooltip);
+    button.setTooltip (info::tooltipFor (parameterID, tooltip));
+    tagParameter (*this, parameterID);
+    tagParameter (button, parameterID);
     button.setWantsKeyboardFocus (false);
     button.setColour (juce::TextButton::buttonOnColourId, accent);
     button.setColour (juce::TextButton::textColourOnId, accent);
@@ -549,7 +628,9 @@ GapBar::GapBar (juce::AudioProcessorValueTreeState& s,
     slider.setHelpText (tooltip);
     slider.setDescription (tooltip);
     slider.setColour (juce::Slider::thumbColourId, accent);
-    slider.setTooltip (tooltip);
+    slider.setTooltip (info::tooltipFor (parameterID, tooltip));
+    tagParameter (*this, parameterID);
+    tagParameter (slider, parameterID);
     slider.onValueChange = [this] { refreshValueText(); };
     slider.onRightClick = [this] { showParameterMenu (*this, state, paramID); };
 

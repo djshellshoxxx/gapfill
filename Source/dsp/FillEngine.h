@@ -1,63 +1,32 @@
 #pragma once
 
+#include "EngineEvents.h"
+#include "EngineTransitions.h"
+#include "EngineSettings.h"
+#include "../features/budget/Budget.h"
+#include "../features/effective/Effective.h"
+#include "../features/shaping/DecisionTelemetry.h"
 #include "FillVoice.h"
+#include "../features/callresponse/Responder.h"
+#include "SchedulerTypes.h"
 #include "VisualisationState.h"
+#include "../features/audition/PreviewChannel.h"
+#include "../features/lock/LikeBias.h"
+#include "../features/lock/LockState.h"
+#include "../features/fx/EngineBlockIO.h"
+#include "../features/fx/FxMeters.h"
+#include "../features/scrub/ScrubVoice.h"
+#include "../features/momentary/HoldVoices.h"
 
+#include <array>
 #include <limits>
 
 namespace gapfill
 {
 
-//==============================================================================
-/** Everything the scheduler needs, captured once per block from the parameters
-    and the host playhead. */
-struct EngineSettings
-{
-    DetMode mode = DetMode::Transient;
-
-    float fill01       = 0.35f;
-    float intensity01  = 0.50f;
-    float complexity01 = 0.40f;
-    float chaos01      = 0.25f;
-    float density01    = 0.65f;
-
-    /** 0 = Auto, otherwise (Algo index + 1). */
-    int   fillTypeIndex = 0;
-    float weights[numAlgos] {};
-
-    int   seed = 1;
-
-    float minGapMs      = 60.0f;
-    float maxFillMs     = 400.0f;
-    float protectHoldMs = 40.0f;
-    float lookaheadMs   = 40.0f;
-
-    float protTrans01 = 0.60f;
-    float protNext01  = 0.70f;
-    float protSC01    = 0.70f;
-
-    float stutterSeconds = 0.125f;
-    float delaySeconds   = 0.125f;
-    bool  pingPong       = true;
-
-    float xoverLM = 180.0f;
-    float xoverMH = 3500.0f;
-
-    bool  bandOn[3]   { true, true, true };
-    float bandAmt[3]  { 1.0f, 1.0f, 1.0f };
-    float bandInt[3]  { 0.5f, 0.5f, 0.5f };
-    float bandProb[3] { 0.45f, 0.75f, 0.9f };
-
-    double ppqAtBlockStart = 0.0;
-    double samplesPerBeat  = 0.0;
-    bool   transportValid  = false;
-    bool   sidechainActive = false;
-
-    /** Output position minus source-history position. Zero while the history
-        follows the input; it grows while Capture holds the history frozen so
-        fills keep reading the latched material. */
-    std::int64_t historyOffset = 0;
-};
+/** Gap confidence at which a region becomes an eligible gap. Exported so the
+    visualiser (E-3 threshold line) draws the engine's own number. */
+inline constexpr float kEnterGapConf = 0.55f;
 
 //==============================================================================
 /** Schedules fills into detected gaps and renders the voices that result.
@@ -66,6 +35,8 @@ struct EngineSettings
     the same sample positions no matter how the host slices its blocks. */
 class FillEngine
 {
+    friend struct SchedulerTestAccess;   // unit tests drive single stages directly
+
 public:
     static constexpr int numVoices = 4;
 
@@ -75,8 +46,17 @@ public:
     /** Fades every voice out quickly (bypass, transport jumps, reset). */
     void panic() noexcept;
 
-    /** Forgets the deterministic gap counter, used when the transport jumps. */
-    void noteTransportJump() noexcept { gapIndex = 0; }
+    /** User Panic only (not transport stop / jump / bypass): fades the F-M10 hold voices over <= 48 samples. */
+    void panicHolds() noexcept                            { holdVoices.panic(); }
+    const momentary::HoldVoices& getHoldVoices() const noexcept { return holdVoices; }
+    /** C-10: the object fills read their source from changed (Capture recapture swap or
+        release). Voices that read the source while rendering (Granular) are faded out over
+        10 ms; every other voice already holds its own copy of the material. */
+    void sourceChanged() noexcept;
+
+    /** Forgets the deterministic gap counter, used when the transport jumps. A jump
+        also ends a More Like That bias (C-11) and the F-D01 bar count. */
+    void noteTransportJump() noexcept { gapIndex = 0; like.cancel(); recentFills.clear(); responder.reset(); }
 
     /** Renders into `wet` (which must already be cleared) and returns the
         protection duck that the processor should apply to the wet bus. */
@@ -85,11 +65,87 @@ public:
                   const AnalysisEngine& analysis,
                   const SourceHistory& history,
                   const EngineSettings& settings,
-                  VisualisationFifo* viz) noexcept;
+                  VisualisationFifo* viz,
+                  FillEventQueue* events = nullptr,
+                  fx::EngineBlockIO* io = nullptr) noexcept;
+
+    /** Effect telemetry sink shared with the voices (owned by the processor's FxChain). */
+    void setFxMeters (fx::FxMeters* meters) noexcept;
+
+    //--------------------------------------------------------------------------
+    // E-1 Fill Audition (audio thread; implemented in features/audition/AuditionEngine.cpp).
+    // A request is a one-slot mailbox: presses queued before the next block collapse
+    // to the last one. It is served at the start of the next process() call.
+
+    void requestPreview (std::uint8_t velocity) noexcept;
+    void requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb = 0) noexcept;
+
+    /** PreviewChannel::code(): status, algorithm and sequence number. */
+    std::uint32_t getPreviewStatusCode() const noexcept   { return preview.code(); }
+    bool isPreviewActive() const noexcept                 { return preview.isActive(); }
+    bool isPreviewPending() const noexcept                { return preview.request.pending; }
+    std::size_t getPreviewBufferBytes() const noexcept    { return preview.getBufferBytes(); }
+
+    /** F-S06: RMS of the last preview that finished (voice only) and a counter that moves with it. */
+    float getLastPreviewRms() const noexcept              { return preview.lastRms; }
+    std::uint32_t getPreviewDoneCount() const noexcept    { return preview.doneCount; }
+
+    //--------------------------------------------------------------------------
+    // C-5 Fill Lock / C-11 More Like That (audio thread; features/lock/LockEngine.cpp).
+    // The same entry points serve the commands LockLatest, LockRecipe, Unlock,
+    // LikeLatest and LikeRecipe.
+
+    void lockLatest() noexcept;
+    void lockRecipe (const FillRecipe&) noexcept;
+    void unlockRecipe() noexcept;
+    void likeLatest() noexcept;
+    void likeRecipe (const FillRecipe&) noexcept;
+
+    const LockState& getLockState() const noexcept   { return lockState; }
+    const LikeState& getLikeState() const noexcept   { return like; }
+    const callresponse::Responder& getResponder() const noexcept { return responder; }
+
+    /** The gap bookkeeping a preview must never change (E-1 acceptance; used by tests). */
+    struct GapBookkeeping
+    {
+        bool inGap = false, gapEvaluated = false;
+        std::int64_t gapStartPos = 0, lastFillStartPos = 0, gapIndex = 0;
+        int fillsStarted = 0, recent[4] { -1, -1, -1, -1 };
+
+        bool operator== (const GapBookkeeping& o) const noexcept
+        {
+            return inGap == o.inGap && gapEvaluated == o.gapEvaluated && gapStartPos == o.gapStartPos
+                && lastFillStartPos == o.lastFillStartPos && gapIndex == o.gapIndex
+                && fillsStarted == o.fillsStarted
+                && recent[0] == o.recent[0] && recent[1] == o.recent[1]
+                && recent[2] == o.recent[2] && recent[3] == o.recent[3];
+        }
+    };
+
+    GapBookkeeping getGapBookkeeping() const noexcept;
 
     int  getActiveVoiceCount() const noexcept;
+    const fx::ScrubVoice& getScrubVoice() const noexcept { return scrub; }
     int  getCurrentAlgo() const noexcept { return lastRenderedAlgo; }
     float getCurrentDuck() const noexcept { return currentDuck; }
+
+    //--------------------------------------------------------------------------
+    // WP10 routing & system
+
+    /** Gap / fill transitions of the last process() call (F-L11 MIDI out, F-X06 co-op). The processor
+        clears the log before process() so a chunk that skips the engine reports nothing. */
+    const TransitionLog& getTransitions() const noexcept   { return transitions; }
+    void clearTransitions() noexcept                       { transitions.clear(); }
+
+    /** F-D03: nothing is sounding (no fill, preview, hold or scrub voice): a quality change may apply. */
+    bool isIdle() const noexcept;
+
+    /** F-D03: level in force (0 Full, 1 Balanced, 2 Lite). Call only when isIdle(): resets the spectral smear. */
+    void setQualityLevel (int level) noexcept;
+    int  getQualityLevel() const noexcept   { return qualityLevel; }
+
+    /** Number of fill voices the scheduler may use at the level in force. */
+    int  getVoicePoolSize() const noexcept;
 
     /** Total number of fills started since the last reset (used by tests). */
     int  getFillsStarted() const noexcept { return fillsStarted; }
@@ -98,31 +154,112 @@ public:
         Minimum Gap setting (used by tests). */
     int  getGapsRejectedTooShort() const noexcept { return gapsTooShort; }
 
+    /** Gaps rejected for each RejectReason since the last reset (index = reason;
+        audio-thread owned, read by tests and published to the meters). */
+    int  getRejectCount (RejectReason r) const noexcept { return rejectCounts[(size_t) r]; }
+
+    /** Last decision-stage figures for the editor (breathing LED, phrase bar ...). */
+    const DecisionTelemetry& getDecisionTelemetry() const noexcept { return telemetry; }
+
+    /** F-D01: the last 16 fill starts (tests; audio-thread data, do not read while rendering). */
+    const budget::RecentFills& getRecentFills() const noexcept { return recentFills; }
+
 private:
     void controlUpdate (std::int64_t outputPos, std::int64_t blockStartPos,
                         const AnalysisEngine& analysis, const SourceHistory& history,
-                        const EngineSettings& s, VisualisationFifo* viz) noexcept;
+                        const EngineSettings& s, VisualisationFifo* viz,
+                        FillEventQueue* events) noexcept;
 
-    bool trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
-                      const AnalysisFrame& frame, const AnalysisEngine& analysis,
-                      const SourceHistory& history, const EngineSettings& s) noexcept;
+    /** Stores the decision-stage figures for the editor (relaxed atomics). */
+    void publishDecisionTelemetry (const EngineSettings& base, const EngineSettings& decided, double ppq,
+                                   const Effective::TransportInfo& transport) noexcept;
+
+    // --- scheduler stages (docs/dev/02-FOUNDATIONS.md F0-2) -------------------
+    // trySchedule is a short orchestrator; each stage below is owned by the
+    // feature tickets named in the spec. The RNG draw order is FROZEN:
+    // chooseBand (spectral) -> chance(probability) -> nextBipolar (length scale)
+    // -> chooseAlgorithm. New features never draw from `rng`.
+
+    ScheduleResult trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
+                                const AnalysisFrame& frame, const AnalysisEngine& analysis,
+                                const SourceHistory& history, const EngineSettings& s,
+                                bool forced = false) noexcept;
+
+    /** Fill on, source present, voices free, not too soon, enough room.
+        Fills `ctx` (room figures) on success; counts TooShort gaps. */
+    RejectReason checkEligibility (GapContext& ctx, const AnalysisEngine& analysis,
+                                   const EngineSettings& s, float& neededMs) noexcept;
+
+    /** Spectral lane choice and the probability roll. Draws from `rng`. */
+    RejectReason rollDecision (GapContext& ctx, Rng& rng, const EngineSettings& s,
+                               int& band) noexcept;
+
+    /** Length and algorithm. Draws from `rng`. */
+    RejectReason buildRecipe (const GapContext& ctx, Rng& rng, const EngineSettings& s,
+                              int band, FillPlan& plan) noexcept;
+
+    /** HOOK for Lock (C-5) and Mistakes (C-3): may rewrite the plan, or return
+        a reject reason (LockSkipped). Empty in Phase 0. */
+    RejectReason adjustRecipe (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept;
+
+    /** C-3: rolls (or clears) the recipe's mistake with the salted sub-RNG. */
+    void rollMistake (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept;
+
+    VoiceSetup toVoiceSetup (const FillPlan& plan, const GapContext& ctx, const EngineSettings& s,
+                             const SourceHistory& history) const noexcept;
+
+    /** Starts the voice, with the Granular/Reverse fallback when the spectral
+        processor is busy. Updates `plan` if the algorithm changed. */
+    bool startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan,
+                     const SourceHistory& history) noexcept;
+
+    void noteFillStarted (const FillPlan& plan, std::int64_t outputPos) noexcept;
+    void noteRejected (RejectReason r) noexcept;
 
     int chooseAlgorithm (float lengthMs, const EngineSettings& s, Rng& rng) noexcept;
     int chooseBand (const AnalysisFrame& frame, const EngineSettings& s, Rng& rng) noexcept;
-    FillVoice* findFreeVoice() noexcept;
+    FillVoice* findFreeVoice (int pool = numVoices) noexcept;
+
+    /** F-L13: true while the evaluation of the open gap is postponed to a nearby sidechain onset. */
+    bool snapDefers (std::int64_t outputPos, const AnalysisEngine&, const EngineSettings&) noexcept;
+
+    /** E-1: starts the preview voice. `recipe` (optional) replays that recipe
+        instead of choosing one. Sets the preview status. */
+    bool startPreview (std::uint8_t velocity, std::int64_t outputPos,
+                       const AnalysisEngine&, const SourceHistory&, const EngineSettings&,
+                       const FillRecipe* recipe, int gainCentiDb, FillEventQueue* events) noexcept;
+    /** C-11: the bias is ignored while Fill Lock is on. */
+    bool likeApplies (const EngineSettings& s) const noexcept   { return like.active() && ! s.perf.lockOn; }
+
+    void resetPreview() noexcept;
+    void flushLockEvents (std::int64_t pos, FillEventQueue* events) noexcept;
+    void servePendingPreview (std::int64_t outputPos, const AnalysisEngine&, const SourceHistory&,
+                              const EngineSettings&, FillEventQueue* events) noexcept;
 
     double sr = 48000.0;
     int channels = 2;
 
     FillVoice voices[numVoices];
+    PreviewChannel preview;        // E-1: dedicated voice outside the pool of numVoices
+    LockState lockState;           // C-5
+    LikeState like;                // C-11
+    callresponse::Responder responder;   // F-L10
+    bool decisionPpqValid = false;
+    double decisionPpq = 0.0;
+    fx::ScrubVoice scrub;                     // F-M19 performance voice (independent of the scheduler)
+    momentary::HoldVoices holdVoices;         // F-M10 / F-S07 hold voices (outside the pool and the preview)
     SpectralSmear spectral;
+    fx::FxMeters* fxMeters = nullptr;
+    fx::EngineBlockIO* blockIO = nullptr;     ///< valid only inside process()
 
     // --- gap state machine ---
     bool inGap = false;
+    int prevActiveVoices = 0;          // F-M03: detects voices finishing between control updates
     bool gapEvaluated = false;
     std::int64_t gapStartPos = 0;
     std::int64_t lastFillStartPos = -1000000;
     std::int64_t lastEventPos = 0;
+    std::uint32_t lastFillNowId = 0;       // F-P02
     float lastEventTransient = 0.5f;
     std::int64_t gapIndex = 0;
 
@@ -143,6 +280,13 @@ private:
     int lastRenderedAlgo = -1;
     int fillsStarted = 0;
     int gapsTooShort = 0;
+    std::array<int, (size_t) numRejectReasons> rejectCounts {};
+    DecisionTelemetry telemetry;
+    budget::RecentFills recentFills;   // F-D01: last 16 fill starts (ppq ticks)
+    TransitionLog transitions;         // WP10: gap / fill transitions of the last process() call
+    std::int64_t snapTarget = -1;      // F-L13: hop-aligned evaluation target of the open gap (-1 none)
+    bool snapChecked = false;          // F-L13: the open gap was already looked at
+    int qualityLevel = 0;              // F-D03
 
     // --- visualiser decimation ---
     int vizDecim = 2;

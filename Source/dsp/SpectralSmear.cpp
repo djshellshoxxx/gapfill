@@ -10,6 +10,16 @@ void SpectralSmear::prepare (double, int)
     for (int i = 0; i < fftSize; ++i)
         window[(size_t) i] = hann ((float) i / (float) fftSize);
 
+    windowLow.resize ((size_t) fftSize / 2);
+
+    for (int i = 0; i < fftSize / 2; ++i)
+        windowLow[(size_t) i] = hann ((float) i / (float) (fftSize / 2));
+
+    lowerOrder = false;
+    curSize = fftSize;
+    curHop = hopSize;
+    curBins = numBins;
+
     for (auto& c : channels)
     {
         c.fifo.assign ((size_t) fftSize, 0.0f);
@@ -21,6 +31,18 @@ void SpectralSmear::prepare (double, int)
     }
 
     reset();
+}
+
+void SpectralSmear::setLowerOrder (bool lower) noexcept
+{
+    if (lower == lowerOrder)
+        return;
+
+    lowerOrder = lower;
+    curSize = lower ? fftSize / 2 : fftSize;
+    curHop = curSize / 4;
+    curBins = curSize / 2 + 1;
+    reset();                                   // different frame length: restart from silence
 }
 
 void SpectralSmear::reset()
@@ -74,10 +96,10 @@ void SpectralSmear::process (float inL, float inR, float& outL, float& outR) noe
     cl.accum[idx] = 0.0f;
     cr.accum[idx] = 0.0f;
 
-    cl.writeIdx = (cl.writeIdx + 1) % fftSize;
+    cl.writeIdx = (cl.writeIdx + 1) % curSize;
     cr.writeIdx = cl.writeIdx;
 
-    if (++hopCounter >= hopSize)
+    if (++hopCounter >= curHop)
     {
         hopCounter = 0;
         computeFrame (cl);
@@ -88,19 +110,22 @@ void SpectralSmear::process (float inL, float inR, float& outL, float& outR) noe
 void SpectralSmear::computeFrame (Channel& c) noexcept
 {
     auto* data = c.fftData.data();
+    const int N = curSize;
+    const auto& win = lowerOrder ? windowLow : window;
+    auto& transform = lowerOrder ? fftLow : fft;
 
     // The oldest sample sits at writeIdx (it is about to be overwritten).
-    for (int i = 0; i < fftSize; ++i)
-        data[i] = c.fifo[(size_t) ((c.writeIdx + i) % fftSize)] * window[(size_t) i];
+    for (int i = 0; i < N; ++i)
+        data[i] = c.fifo[(size_t) ((c.writeIdx + i) % N)] * win[(size_t) i];
 
-    std::fill (c.fftData.begin() + fftSize, c.fftData.end(), 0.0f);
+    std::fill (c.fftData.begin() + N, c.fftData.begin() + 2 * N, 0.0f);
 
-    fft.performRealOnlyForwardTransform (data, false);
+    transform.performRealOnlyForwardTransform (data, false);
 
     // Nominal phase advance per hop for each bin.
-    constexpr float omega = juce::MathConstants<float>::twoPi * (float) hopSize / (float) fftSize;
+    const float omega = juce::MathConstants<float>::twoPi * (float) curHop / (float) N;
 
-    for (int k = 0; k < numBins; ++k)
+    for (int k = 0; k < curBins; ++k)
     {
         const auto re = data[2 * k];
         const auto im = data[2 * k + 1];
@@ -130,25 +155,25 @@ void SpectralSmear::computeFrame (Channel& c) noexcept
 
         // Mirror into the negative-frequency half so the inverse transform sees
         // a properly conjugate-symmetric spectrum.
-        if (k > 0 && k < fftSize / 2)
+        if (k > 0 && k < N / 2)
         {
-            data[2 * (fftSize - k)]     = outRe;
-            data[2 * (fftSize - k) + 1] = -outIm;
+            data[2 * (N - k)]     = outRe;
+            data[2 * (N - k) + 1] = -outIm;
         }
     }
 
     data[1] = 0.0f;                       // DC imaginary part
-    data[2 * (fftSize / 2) + 1] = 0.0f;   // Nyquist imaginary part
+    data[2 * (N / 2) + 1] = 0.0f;         // Nyquist imaginary part
 
-    fft.performRealOnlyInverseTransform (data);
+    transform.performRealOnlyInverseTransform (data);
 
     // Hann analysis * Hann synthesis at 75% overlap sums to 1.5.
     constexpr float normalise = 2.0f / 3.0f;
 
-    for (int i = 0; i < fftSize; ++i)
+    for (int i = 0; i < N; ++i)
     {
-        const auto v = data[i] * window[(size_t) i] * normalise;
-        auto& dst = c.accum[(size_t) ((c.writeIdx + i) % fftSize)];
+        const auto v = data[i] * win[(size_t) i] * normalise;
+        auto& dst = c.accum[(size_t) ((c.writeIdx + i) % N)];
         dst += std::isfinite (v) ? v : 0.0f;
     }
 }

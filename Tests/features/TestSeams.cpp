@@ -1,0 +1,494 @@
+// Phase 0 seams: FillRecipe, SPSC queues, scheduler stages, effective settings
+// (docs/dev/02-FOUNDATIONS.md F0-2 .. F0-5).
+
+#include "../support/AllocGuard.h"
+#include "../support/TestRig.h"
+
+#include "dsp/EngineEvents.h"
+#include "dsp/EventLogs.h"
+#include "features/FeatureHooks.h"
+
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdio>
+#include <cstring>
+#include <iostream>
+#include <map>
+
+using namespace gapfill;
+using namespace gftest;
+
+//==============================================================================
+// F0-3 FillRecipe
+
+GF_TEST (Recipe, is_exactly_sixteen_bytes_and_trivially_copyable)
+{
+    static_assert (sizeof (FillRecipe) == 16);
+    static_assert (std::is_trivially_copyable_v<FillRecipe>);
+    GF_EXPECT (isValid (FillRecipe {}));
+}
+
+GF_TEST (Recipe, byte_round_trip_preserves_every_field)
+{
+    FillRecipe r;
+    r.algo = 14; r.band = 2; r.lengthClass = 3; r.division = 11; r.pitchSemis = -24;
+    r.modifierMask = 0x15; r.stereoMode = 3; r.mistakeType = 5; r.lengthMs = 1999;
+    r.mistakeAmt = 100; r.flags = FillRecipe::flagPreview | FillRecipe::flagBiased; r.seed = 0xDEADBEEFu;
+    GF_EXPECT (isValid (r));
+
+    std::uint8_t bytes[FillRecipe::serialisedBytes];
+    toBytes (r, bytes);
+    const auto back = fromBytes (bytes);
+    GF_EXPECT (std::memcmp (&r, &back, sizeof (r)) == 0);
+}
+
+GF_TEST (Recipe, validity_rejects_every_out_of_range_field)
+{
+    auto bad = [] (auto mutate) { FillRecipe r; mutate (r); return ! isValid (r); };
+    GF_EXPECT (bad ([] (FillRecipe& r) { r.algo = 15; }));
+    GF_EXPECT (bad ([] (FillRecipe& r) { r.band = 3; }));
+    GF_EXPECT (bad ([] (FillRecipe& r) { r.band = -2; }));
+    GF_EXPECT (bad ([] (FillRecipe& r) { r.lengthClass = 4; }));
+    GF_EXPECT (bad ([] (FillRecipe& r) { r.division = 12; }));
+    GF_EXPECT (bad ([] (FillRecipe& r) { r.pitchSemis = 60; }));
+    GF_EXPECT (bad ([] (FillRecipe& r) { r.modifierMask = 0x20; }));
+    GF_EXPECT (bad ([] (FillRecipe& r) { r.stereoMode = 4; }));
+    GF_EXPECT (bad ([] (FillRecipe& r) { r.mistakeType = 16; }));
+    GF_EXPECT (bad ([] (FillRecipe& r) { r.mistakeAmt = 101; }));
+    GF_EXPECT (! bad ([] (FillRecipe& r) { r.flags = 0xFF; }));       // the flags byte is fully assigned since F-L10 (bit 7 = response)
+}
+
+GF_TEST (Recipe, started_fills_report_valid_recipes_matching_the_engine)
+{
+    GapFillAudioProcessor proc;
+    setParams (proc, { { "fill", 80.0f } });
+    const auto result = renderGoldenScenarioA (proc);
+    GF_EXPECT (result.fills > 0);
+
+    GF_EXPECT (proc.drainFillEvents() > 0);
+    GF_EXPECT (proc.getRecipeHistory().size() > 0);
+
+    for (int i = 0; i < proc.getRecipeHistory().size(); ++i)
+    {
+        const auto& r = proc.getRecipeHistory().get (i);
+        GF_EXPECT_MSG (isValid (r), "recipe " + juce::String (i) + " must be valid");
+        GF_EXPECT (r.lengthMs > 0 && r.seed != 0);
+    }
+}
+
+GF_TEST (Recipe, voice_overrides_are_neutral_by_default)
+{
+    VoiceSetup s;
+    GF_EXPECT (s.modifierOverride == 0xFF);
+    GF_EXPECT (s.pitchOverride == 127);
+}
+
+//==============================================================================
+// F0-4 queues
+
+GF_TEST (Queues, spsc_preserves_order_and_wraps)
+{
+    SpscQueue<int, 4> q;
+    int next = 0, expect = 0;
+
+    for (int round = 0; round < 20; ++round)
+    {
+        for (int i = 0; i < 3; ++i)
+            GF_EXPECT (q.push (next++));
+
+        int out[4];
+        const auto n = q.pop (out, 4);
+        GF_EXPECT (n == 3);
+
+        for (int i = 0; i < n; ++i)
+            GF_EXPECT (out[i] == expect++);
+    }
+}
+
+GF_TEST (Queues, full_queue_rejects_newest_and_holds_exactly_capacity)
+{
+    SpscQueue<int, 4> q;
+
+    for (int i = 0; i < 4; ++i)
+        GF_EXPECT (q.push (i));
+
+    GF_EXPECT (! q.push (99));
+    int out[8];
+    GF_EXPECT (q.pop (out, 8) == 4);
+    GF_EXPECT (out[0] == 0 && out[3] == 3);
+}
+
+GF_TEST (Queues, fill_event_queue_counts_dropped_events)
+{
+    FillEventQueue q;
+
+    for (int i = 0; i < FillEventQueue::capacity + 5; ++i)
+        q.push ({});
+
+    GF_EXPECT (q.getDroppedCount() == 5);
+    FillEvent out[FillEventQueue::capacity];
+    GF_EXPECT (q.pop (out, FillEventQueue::capacity) == FillEventQueue::capacity);
+}
+
+GF_TEST (Queues, command_ids_are_permanent)
+{
+    GF_EXPECT ((int) CommandType::Preview == 1);
+    GF_EXPECT ((int) CommandType::ReleaseCapture == 8);
+    GF_EXPECT ((int) CommandType::Panic == 9);
+    GF_EXPECT ((int) CommandType::SceneGoto == 11);
+    GF_EXPECT ((int) CommandType::PreviewRecipe == 30);
+    GF_EXPECT ((int) RejectReason::LockSkipped == 11);
+    GF_EXPECT ((int) RejectReason::ForcedUnsafe == 17);
+    GF_EXPECT (numRejectReasons == 18);
+}
+
+GF_TEST (Queues, commands_posted_from_the_message_thread_are_drained_by_processBlock)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 256, false);
+
+    Command c;
+    c.type = CommandType::Preview;
+    GF_EXPECT (proc.postCommand (c));
+
+    juce::AudioBuffer<float> buffer (2, 256);
+    buffer.clear();
+    juce::MidiBuffer midi;
+    proc.processBlock (buffer, midi);
+
+    // A second post succeeds only because the first was drained (capacity 16 not reached either way);
+    // fill the queue to prove draining frees space.
+    for (int i = 0; i < CommandQueue::capacity; ++i)
+        GF_EXPECT (proc.postCommand (c));
+    GF_EXPECT (! proc.postCommand (c));
+    proc.processBlock (buffer, midi);
+    GF_EXPECT (proc.postCommand (c));
+}
+
+GF_TEST (Queues, history_and_outcome_log_are_newest_first_and_bounded)
+{
+    RecipeHistory h;
+
+    for (int i = 0; i < 12; ++i)
+    {
+        FillRecipe r;
+        r.lengthMs = (std::uint16_t) (i + 1);
+        h.push (r);
+    }
+
+    GF_EXPECT (h.size() == RecipeHistory::capacity);
+    GF_EXPECT (h.get (0).lengthMs == 12 && h.get (7).lengthMs == 5);
+
+    GapOutcomeLog log;
+
+    for (int i = 0; i < 70; ++i)
+    {
+        FillEvent e;
+        e.pos = i;
+        log.push (e);
+    }
+
+    GF_EXPECT (log.size() == GapOutcomeLog::capacity);
+    GF_EXPECT (log.get (0).pos == 69 && log.get (63).pos == 6);
+}
+
+//==============================================================================
+// F0-2 scheduler stages
+
+namespace
+{
+    /** Reject counts after rendering the drum loop with the given parameters. */
+    std::array<int, (size_t) numRejectReasons> rejectCountsFor (std::initializer_list<std::pair<const char*, float>> p,
+                                                                int bars = 4)
+    {
+        GapFillAudioProcessor proc;
+        setParams (proc, p);
+        TestPlayHead ph;
+        ph.bpm = goldenBpm;
+        RenderOptions o;
+        o.playHead = &ph;
+        renderOffline (proc, drumLoop (goldenSampleRate, goldenBpm, bars), 512, goldenSampleRate, o);
+
+        std::array<int, (size_t) numRejectReasons> counts {};
+
+        for (int i = 0; i < numRejectReasons; ++i)
+            counts[(size_t) i] = proc.getFillEngine().getRejectCount ((RejectReason) i);
+
+        return counts;
+    }
+}
+
+GF_TEST (Scheduler, fill_off_is_reported)
+{
+    GF_EXPECT (rejectCountsFor ({ { "fill", 0.0f } })[(size_t) RejectReason::FillOff] > 0);
+}
+
+GF_TEST (Scheduler, too_short_is_reported_and_matches_the_legacy_counter)
+{
+    GapFillAudioProcessor proc;
+    setParams (proc, { { "minGap", 500.0f } });
+    const auto r = renderGoldenScenarioA (proc);
+    const auto& e = proc.getFillEngine();
+    GF_EXPECT (r.gapsTooShort > 0);
+    GF_EXPECT (e.getRejectCount (RejectReason::TooShort) + e.getRejectCount (RejectReason::GuardEaten) == r.gapsTooShort);
+}
+
+GF_TEST (Scheduler, density_roll_no_algo_fits_and_no_band_are_reported)
+{
+    GF_EXPECT (rejectCountsFor ({ { "fill", 1.0f }, { "density", 0.0f } })[(size_t) RejectReason::DensityRoll] > 0);
+
+    // Granular needs >= 66 ms; maxFill 20 ms can never hold it.
+    GF_EXPECT (rejectCountsFor ({ { "fill", 100.0f }, { "density", 100.0f }, { "fillType", 4.0f },
+                                  { "maxFill", 20.0f }, { "minGap", 10.0f } })[(size_t) RejectReason::NoAlgoFits] > 0);
+
+    GF_EXPECT (rejectCountsFor ({ { "detMode", 2.0f }, { "fill", 100.0f }, { "bandLowOn", 0.0f },
+                                  { "bandMidOn", 0.0f }, { "bandHighOn", 0.0f } })[(size_t) RejectReason::NoBand] > 0);
+}
+
+namespace gapfill
+{
+/** Test-only access to single scheduler stages. */
+struct SchedulerTestAccess
+{
+    static RejectReason eligibility (FillEngine& e, GapContext& ctx, const AnalysisEngine& a,
+                                     const EngineSettings& s) noexcept
+    {
+        float needed = 0.0f;
+        return e.checkEligibility (ctx, a, s, needed);
+    }
+
+    static void setLastFillStart (FillEngine& e, std::int64_t pos) noexcept { e.lastFillStartPos = pos; }
+};
+}
+
+GF_TEST (Scheduler, no_source_and_too_soon_are_reachable_through_the_eligibility_stage)
+{
+    FillEngine engine;
+    engine.prepare (48000.0, 512, 2);
+    AnalysisEngine analysis;
+    analysis.prepare (48000.0, 512);
+    EngineSettings s;
+
+    AnalysisFrame frame;
+    frame.reference = 0.0f;
+    GapContext ctx;
+    ctx.outputPos = 100000;
+    ctx.frame = &frame;
+    GF_EXPECT (SchedulerTestAccess::eligibility (engine, ctx, analysis, s) == RejectReason::NoSource);
+
+    frame.reference = 1.0f;
+    SchedulerTestAccess::setLastFillStart (engine, ctx.outputPos - 10);
+    GF_EXPECT (SchedulerTestAccess::eligibility (engine, ctx, analysis, s) == RejectReason::TooSoon);
+
+    SchedulerTestAccess::setLastFillStart (engine, ctx.outputPos - 1000000);
+    GF_EXPECT (SchedulerTestAccess::eligibility (engine, ctx, analysis, s) == RejectReason::None);
+    GF_EXPECT (ctx.usable > 0 && ctx.available >= ctx.minGapSamples);
+}
+
+GF_TEST (Scheduler, no_voice_and_guard_eaten_are_reachable_from_audio)
+{
+    std::array<int, (size_t) numRejectReasons> total {};
+
+    auto add = [&total] (std::array<int, (size_t) numRejectReasons> c)
+    {
+        for (size_t i = 0; i < total.size(); ++i)
+            total[i] += c[i];
+    };
+
+    // Long fills in short gaps keep the voice busy => NoVoice.
+    for (float maxFill : { 300.0f, 1500.0f })
+        add (rejectCountsFor ({ { "fill", 100.0f }, { "density", 100.0f }, { "complexity", 90.0f },
+                                { "minGap", 10.0f }, { "maxFill", maxFill }, { "protNext", 0.0f },
+                                { "retrigGuard", 5.0f }, { "gapRelease", 5.0f } }));
+
+    std::cout << "         NoVoice=" << total[(size_t) RejectReason::NoVoice]
+              << " GuardEaten=" << total[(size_t) RejectReason::GuardEaten]
+              << " TooShort=" << total[(size_t) RejectReason::TooShort] << std::endl;
+
+    GF_EXPECT (total[(size_t) RejectReason::NoVoice] > 0);
+}
+
+GF_TEST (Scheduler, guard_eaten_is_distinguished_from_too_short)
+{
+    // Room before the next event is 200 samples; Minimum Gap is 150: the gap was long enough,
+    // the pre-event guard ate it.
+    GF_EXPECT (noRoomReason (1200, 1000, 150) == RejectReason::GuardEaten);
+    GF_EXPECT (noRoomReason (1100, 1000, 150) == RejectReason::TooShort);
+    GF_EXPECT (noRoomReason (-1, 1000, 150) == RejectReason::TooShort);     // no event known
+    GF_EXPECT (noRoomReason (900, 1000, 150) == RejectReason::TooShort);    // stale boundary
+}
+
+GF_TEST (Scheduler, rejections_reach_the_outcome_log_only_while_a_visualiser_listens)
+{
+    GapFillAudioProcessor quiet;
+    setParams (quiet, { { "fill", 0.0f } });
+    renderGoldenScenarioA (quiet);
+    quiet.drainFillEvents();
+    GF_EXPECT (quiet.getGapOutcomeLog().size() == 0);
+
+    GapFillAudioProcessor watched;
+    watched.getVisualisationFifo().setEnabled (true);
+    setParams (watched, { { "fill", 0.0f } });
+    renderGoldenScenarioA (watched);
+    watched.drainFillEvents();
+    GF_EXPECT (watched.getGapOutcomeLog().size() > 0);
+    GF_EXPECT (watched.getGapOutcomeLog().get (0).type == FillEventType::Rejected);
+    GF_EXPECT (watched.getGapOutcomeLog().get (0).reason == RejectReason::FillOff);
+}
+
+GF_TEST (Scheduler, fill_start_positions_are_independent_of_host_block_size)
+{
+    std::vector<std::int64_t> reference;
+
+    for (int block : { 32, 64, 128, 480, 512, 1024, 4096 })
+    {
+        GapFillAudioProcessor proc;
+        setParams (proc, { { "fill", 80.0f } });
+        TestPlayHead ph;
+        ph.bpm = goldenBpm;
+        RenderOptions o;
+        o.playHead = &ph;
+        renderOffline (proc, drumLoop (goldenSampleRate, goldenBpm, goldenBars), block, goldenSampleRate, o);
+        proc.drainFillEvents();
+
+        std::vector<std::int64_t> starts;
+
+        for (int i = proc.getGapOutcomeLog().size() - 1; i >= 0; --i)
+            if (proc.getGapOutcomeLog().get (i).type == FillEventType::Started)
+                starts.push_back (proc.getGapOutcomeLog().get (i).pos);
+
+        GF_EXPECT_MSG (! starts.empty(), "no fills at block size " + juce::String (block));
+
+        if (reference.empty())
+            reference = starts;
+        else
+            GF_EXPECT_MSG (starts == reference, "fill starts differ at block size " + juce::String (block));
+    }
+}
+
+//==============================================================================
+// F0-5 effective settings
+
+GF_TEST (Effective, block_and_decision_stages_are_the_identity_at_neutral_settings)
+{
+    EngineSettings a;
+    EngineSettings b;
+    std::memcpy (&b, &a, sizeof (a));
+
+    Effective::MacroOutputs out;
+    const Effective::MacroOutputs outBefore = out;
+    Effective::applyBlock (b, Effective::ModulationInputs {}, out);
+    GF_EXPECT (std::memcmp (&a, &b, sizeof (a)) == 0);
+    GF_EXPECT (std::memcmp (&out, &outBefore, sizeof (out)) == 0);
+
+    Effective::applyAtDecision (b, 123.456, { true, 123.456, 4, 4, 120.0 });
+    GF_EXPECT (std::memcmp (&a, &b, sizeof (a)) == 0);
+
+    Effective::applyAtDecision (b, 0.0, {});
+    GF_EXPECT (std::memcmp (&a, &b, sizeof (a)) == 0);
+}
+
+GF_TEST (Effective, feature_hooks_leave_default_parameters_neutral)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+
+    ParamCache cache;
+    cache.connect (proc.getValueTreeState());
+
+    // `b` starts as a byte copy of `a`, so padding is identical by construction and
+    // only fields written by the hooks can differ. Float defaults travel through
+    // parameter range conversion (pow/log skews), which may differ in the last ulp
+    // between libm implementations, so the feature fields are compared with a
+    // tolerance and every other byte exactly.
+    EngineSettings a;
+    EngineSettings b;
+    std::memcpy (&b, &a, sizeof (a));
+    hooks::gatherFeatureSettings (b, cache);
+
+    const auto near = [] (float x, float y) { return std::abs (x - y) <= 1.0e-5f * std::max (1.0f, std::abs (x)); };
+    const auto& fa = a.fx;
+    const auto& fb = b.fx;
+
+    GF_EXPECT (near (fa.swell.amount01, fb.swell.amount01) && fa.swell.curve == fb.swell.curve
+               && near (fa.swell.filter01, fb.swell.filter01) && fa.swell.target == fb.swell.target);
+    GF_EXPECT (near (fa.cloud.amount01, fb.cloud.amount01) && near (fa.cloud.densityHz, fb.cloud.densityHz)
+               && near (fa.cloud.sizeMs, fb.cloud.sizeMs) && near (fa.cloud.spanMs, fb.cloud.spanMs)
+               && near (fa.cloud.jitter01, fb.cloud.jitter01) && near (fa.cloud.pitchCents, fb.cloud.pitchCents)
+               && near (fa.cloud.spread01, fb.cloud.spread01));
+    GF_EXPECT (near (fa.ratchet.amount01, fb.ratchet.amount01) && fa.ratchet.division == fb.ratchet.division
+               && fa.ratchet.repeats == fb.ratchet.repeats && near (fa.ratchet.accel, fb.ratchet.accel)
+               && near (fa.ratchet.gate01, fb.ratchet.gate01));
+    GF_EXPECT (near (fa.rcrush.amount01, fb.rcrush.amount01) && fa.rcrush.bits == fb.rcrush.bits
+               && fa.rcrush.rate == fb.rcrush.rate && fa.rcrush.hold == fb.rcrush.hold
+               && near (fa.rcrush.tone, fb.rcrush.tone));
+    GF_EXPECT (near (fa.tape.amount01, fb.tape.amount01) && near (fa.tape.wow01, fb.tape.wow01)
+               && near (fa.tape.flutter01, fb.tape.flutter01) && near (fa.tape.sat01, fb.tape.sat01)
+               && near (fa.tape.dropout01, fb.tape.dropout01) && near (fa.tape.splice01, fb.tape.splice01));
+    GF_EXPECT (fa.scrub.on == fb.scrub.on && near (fa.scrub.pos01, fb.scrub.pos01)
+               && near (fa.scrub.widthMs, fb.scrub.widthMs) && near (fa.scrub.windowMs, fb.scrub.windowMs));
+    GF_EXPECT (fa.bandFx.low == fb.bandFx.low && fa.bandFx.mid == fb.bandFx.mid && fa.bandFx.high == fb.bandFx.high);
+
+    // Everything outside `fx` must be untouched, byte for byte.
+    const auto fxOffset = (size_t) (reinterpret_cast<const unsigned char*> (&a.fx) - reinterpret_cast<const unsigned char*> (&a));
+    const auto fxEnd = fxOffset + sizeof (a.fx);
+    const auto* pa = reinterpret_cast<const unsigned char*> (&a);
+    const auto* pb = reinterpret_cast<const unsigned char*> (&b);
+    // Byte-exact, except that a 4-byte word holding two normal floats within 1e-5 relative counts as equal
+    // (a default that travelled through parameter range conversion may differ in the last ulp on another
+    // libm / FMA contraction; integers, bools, enums and padding still have to match exactly).
+    const auto sameBytes = [] (const unsigned char* x, const unsigned char* y, size_t n)
+    {
+        if (std::memcmp (x, y, n) == 0)
+            return true;
+
+        for (size_t i = 0; i < n; ++i)
+        {
+            if (x[i] == y[i])
+                continue;
+
+            const size_t w = i & ~(size_t) 3;
+            float fx0 = 0.0f, fy0 = 0.0f;
+
+            if (w + 4 > n)
+                return false;
+
+            std::memcpy (&fx0, x + w, 4);
+            std::memcpy (&fy0, y + w, 4);
+
+            // Exact zero counts as a float (a bipolar default may come back as -2e-8 after range conversion on
+            // another libm / FMA contraction), but denormals do not: those are integers/bools read as floats.
+            const auto isFloatLike = [] (float v) { return v == 0.0f || std::isnormal (v); };
+
+            if (! (isFloatLike (fx0) && isFloatLike (fy0)
+                   && std::abs (fx0 - fy0) <= 1.0e-5f * std::max (1.0f, std::abs (fx0))))
+            {
+                std::printf ("         EngineSettings bytes differ at region offset %zu: %.9g vs %.9g (raw %02x vs %02x)\n",
+                             w, (double) fx0, (double) fy0, (unsigned) x[i], (unsigned) y[i]);
+                return false;
+            }
+
+            i = w + 3;
+        }
+
+        return true;
+    };
+
+    GF_EXPECT (sameBytes (pa, pb, fxOffset));
+    GF_EXPECT (sameBytes (pa + fxEnd, pb + fxEnd, sizeof (a) - fxEnd));
+
+    const auto in = hooks::gatherModulationInputs (cache);
+    GF_EXPECT (in.personality == 0 && ! in.macros.on);
+}
+
+GF_TEST (Effective, scheduler_does_not_draw_extra_rng_values_for_neutral_features)
+{
+    // Same seed, same transport => bit-identical output with the pipeline in place.
+    // (The golden scenarios are the strict proof; this guards the determinism contract in-process.)
+    GapFillAudioProcessor a, b;
+    const auto ra = renderGoldenScenarioA (a);
+    const auto rb = renderGoldenScenarioA (b);
+    GF_EXPECT (compareBuffers (ra.out, rb.out, 0.0).firstBad < 0);
+    GF_EXPECT (ra.fills == rb.fills);
+}

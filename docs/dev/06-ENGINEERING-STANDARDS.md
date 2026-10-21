@@ -45,7 +45,14 @@ Rules:
   the test binary with a counter that a scope (`AllocGuard g;`) turns into a test
   failure while active. Each feature adds a `*_no_audio_thread_allocation` test that
   renders its scenario under the guard (JUCE internals that allocate on first use are
-  warmed up before the guard).
+  warmed up before the guard). On Linux/glibc (outside a sanitizer build) the guard also
+  counts `malloc`/`calloc`/`realloc`, which is what `juce::HeapBlock`, `juce::Array` and
+  `juce::MidiBuffer` use; a buffer copy inside a guarded scope therefore counts, so copy
+  inputs before constructing the guard. `GF_ALLOC_TRAP=1` prints a raw backtrace per guarded
+  allocation (resolve with `addr2line -f -C -e GapFillTests <offset>`).
+* `Tests/features/TestIntegratedStress.cpp` is the everything-on stress/fuzz harness (seeded;
+  `GF_STRESS_SEEDS=N GF_STRESS_SEED0=S` runs N more scenarios): run it under `ulimit -s 1024` and,
+  in the sanitizer jobs, under ASan/TSan (it has a concurrent audio-thread / editor-cycle test).
 * Nightly CI: ASan+UBSan build runs the full suite; a TSan build runs the queue,
   Audition, Capture and Export tests.
 

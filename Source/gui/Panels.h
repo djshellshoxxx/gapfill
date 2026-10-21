@@ -33,7 +33,17 @@ public:
     explicit DetectionPanel (juce::AudioProcessorValueTreeState&);
     void resized() override;
 
+    /** U-6: the LEARN button in the panel header (Auto-Calibrate). */
+    std::function<void()> onLearn;
+    juce::TextButton& getLearnButton() noexcept { return learnButton; }
+
+    /** U-5 / F-M04: Simple view keeps only Sensitivity. Hidden controls keep their parameters. */
+    void setSimple (bool simple);
+    bool isSimple() const noexcept { return simpleView; }
+
 private:
+    bool simpleView = false;
+    juce::TextButton learnButton { "LEARN" };
     GapCombo mode, source, maxFillDiv;
     GapKnob sensitivity, gapThreshold, minGap, maxFill, gapRelease, lookahead, protectHold, retrigger;
     GapToggle maxFillSync, audition;
@@ -46,11 +56,21 @@ public:
     explicit CreativePanel (juce::AudioProcessorValueTreeState&);
     void resized() override;
 
+    /** Cell (in this panel's coordinates) reserved for Slot::CreativeExtra: the
+        fourth toggle position the CAPTURE button used to occupy. */
+    juce::Rectangle<int> getExtraSlotBounds() const noexcept { return extraSlotBounds; }
+
+    /** U-5 / F-M04: Simple view keeps the five macros, Fill Type and the CreativeExtra cell. */
+    void setSimple (bool simple);
+    bool isSimple() const noexcept { return simpleView; }
+
 private:
+    bool simpleView = false;
+    juce::Rectangle<int> extraSlotBounds;
     GapKnob fill, intensity, complexity, chaos, density;
     GapCombo fillType, stutterDiv, delayDiv;
     GapKnob seed, width;
-    GapToggle sync, pingPong, monoWet, capture;
+    GapToggle sync, pingPong, monoWet;
 };
 
 //==============================================================================
@@ -76,7 +96,12 @@ public:
     explicit ProtectionPanel (juce::AudioProcessorValueTreeState&);
     void resized() override;
 
+    /** U-5 / F-M04: Simple view keeps only Transient Protect. */
+    void setSimple (bool simple);
+    bool isSimple() const noexcept { return simpleView; }
+
 private:
+    bool simpleView = false;
     GapKnob transientProtect, lowProtect, centreProtect, nextProtect, sidechainProtect;
     juce::Label note;
 };
@@ -95,6 +120,8 @@ private:
     {
         std::unique_ptr<GapToggle> enabled;
         std::unique_ptr<GapKnob> amount, intensity, probability;
+        std::unique_ptr<ParamComboBox> fillType;       // C-9: Auto or a forced fill type for this lane
+        std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> fillTypeAttachment;
         float confidence = 0.0f;
         juce::Rectangle<int> meterBounds;
     };
@@ -120,8 +147,17 @@ public:
         settings have been thrown away, so RESET clears it. */
     void resetMeterPeaks();
 
+    /** F-M17: true while the OUTPUT selector reads WET ONLY (the Dry and Wet knobs are shown dimmed). */
+    bool isWetOnlyShown() const noexcept { return wetOnlyShown; }
+    juce::TextButton& getOutputModeButton() noexcept { return outputMode.getButton(); }
+
 private:
+    void refreshOutputMode();
+
+    juce::AudioProcessorValueTreeState& state;
+    bool wetOnlyShown = false;
     GapKnob dry, wet, output;
+    GapToggle outputMode;
     // The gradient is the same on every meter, per the identity spec, so
     // these are no longer tinted individually.
     LevelMeter inputMeter, outputMeter, wetMeter;

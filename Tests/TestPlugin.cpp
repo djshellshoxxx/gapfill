@@ -2076,6 +2076,7 @@ GF_TEST (Plugin, random_normalised_values_survive_a_state_round_trip)
         for (int i = 0; i < proc.getParameters().size(); ++i)
         {
             auto* p = proc.getParameters()[i];
+
             GF_EXPECT_MSG (std::abs (p->getValue() - expected[i]) < 1.0e-3f,
                            p->getName (32) + " not restored: " + juce::String (p->getValue())
                                + " vs " + juce::String (expected[i]));

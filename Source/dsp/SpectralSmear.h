@@ -16,11 +16,15 @@ namespace gapfill
     building up.
 
     A single instance is shared by the engine: only one spectral fill runs at a
-    time, which bounds the CPU cost. */
+    time, which bounds the CPU cost.
+
+    F-D03 (Balanced / Lite): the processor can run one FFT order lower (512 instead of
+    1024). The buffers are always allocated for the full size in prepare(), so the
+    switch never allocates; it is only legal while no voice holds the smear. */
 class SpectralSmear
 {
 public:
-    static constexpr int fftOrder = 10;
+    static constexpr int fftOrder = 10;                 // the full (Quality: Full) order and the allocation size
     static constexpr int fftSize  = 1 << fftOrder;      // 1024
     static constexpr int hopSize  = fftSize / 4;        // 75% overlap
     static constexpr int numBins  = fftSize / 2 + 1;
@@ -35,8 +39,16 @@ public:
         samples - callers prime the processor before rendering. */
     void process (float inL, float inR, float& outL, float& outR) noexcept;
 
-    /** Latency in samples between an input sample and its contribution. */
+    /** Latency in samples between an input sample and its contribution at the FULL order. */
     static constexpr int latency() { return fftSize; }
+
+    /** F-D03: runs one FFT order lower (true) or at the full order (false). Idempotent; resets the
+        processor when it changes. Never call while a voice holds the smear (isClaimed()). */
+    void setLowerOrder (bool lower) noexcept;
+    bool isLowerOrder() const noexcept   { return lowerOrder; }
+
+    /** Latency in samples at the order in force (what a voice must prime). */
+    int latencyNow() const noexcept   { return curSize; }
 
     bool isClaimed() const noexcept { return claimed; }
     void claim() noexcept   { claimed = true; }
@@ -54,7 +66,10 @@ private:
     void scramblePhases() noexcept;
 
     juce::dsp::FFT fft { fftOrder };
-    std::vector<float> window;
+    juce::dsp::FFT fftLow { fftOrder - 1 };
+    std::vector<float> window, windowLow;
+    bool lowerOrder = false;
+    int curSize = fftSize, curHop = hopSize, curBins = numBins;
     Channel channels[2];
     int hopCounter = 0;
     float smear = 0.7f;
