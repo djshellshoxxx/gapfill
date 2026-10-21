@@ -38,4 +38,41 @@ unzip -Z1 "$OUT/GapFill-0.0.1-beta-Windows-x64-Portable.zip" | grep -qx 'GapFill
 unzip -Z1 "$OUT/GapFill-0.0.1-beta-Windows-x64-Portable.zip" | grep -q 'GapFill.vst3/Contents/x86_64-win/GapFill.vst3'
 (cd "$OUT" && sha256sum -c GapFill-0.0.1-beta-SHA256SUMS.txt > /dev/null)
 
-echo 'PASS: Windows release packaging (synthetic multi-config tree)'
+# Version override used by release-beta.yml, plus Linux packaging.
+LIN="$TMP/lin-build"
+mkdir -p "$LIN/artefacts" "$LIN/GapFill_artefacts/Release/VST3/GapFill.vst3/Contents/x86_64-linux" \
+         "$LIN/GapFill_artefacts/Release/CLAP"
+printf 'elf fixture' > "$LIN/artefacts/GapFill"
+printf 'so fixture' > "$LIN/GapFill_artefacts/Release/VST3/GapFill.vst3/Contents/x86_64-linux/GapFill.so"
+printf 'clap fixture' > "$LIN/GapFill_artefacts/Release/CLAP/GapFill.clap"
+OUT2="$TMP/dist2"
+GAPFILL_ASSET_TAG=9.9.9-beta7 GAPFILL_DISPLAY_VERSION='9.9.9 beta7' \
+    PATH="$TMP/bin:$PATH" bash "$ROOT/packaging/package_release.sh" "$WIN" "$LIN" "$OUT2" > /dev/null
+for a in Windows-x64-Setup.exe Windows-x64-Portable.zip Linux-x64-Portable.zip Linux-x64-VST3.zip Linux-x64-CLAP.zip; do
+    test -s "$OUT2/GapFill-9.9.9-beta7-$a"
+done
+(cd "$OUT2" && sha256sum -c GapFill-9.9.9-beta7-SHA256SUMS.txt > /dev/null)
+
+# macOS archive (lipo/codesign checks are skipped only when explicitly requested off-macOS).
+MAC="$TMP/mac-stage"
+mkdir -p "$MAC/VST3/GapFill.vst3/Contents/MacOS" "$MAC/AU/GapFill.component/Contents/MacOS" \
+         "$MAC/CLAP" "$MAC/Standalone/GapFill.app/Contents/MacOS"
+for b in VST3/GapFill.vst3 AU/GapFill.component Standalone/GapFill.app; do
+    printf 'macho' > "$MAC/$b/Contents/MacOS/GapFill"
+done
+printf 'clap' > "$MAC/CLAP/GapFill.clap"
+OUT3="$TMP/dist3"
+GAPFILL_SKIP_NATIVE_CHECKS=1 GAPFILL_ASSET_TAG=9.9.9-beta7 GAPFILL_DISPLAY_VERSION='9.9.9 beta7' \
+    bash "$ROOT/packaging/package_macos.sh" "$MAC" arm64 "$OUT3" > /dev/null
+Z="$OUT3/GapFill-9.9.9-beta7-macOS-arm64.zip"
+test -s "$Z"
+unzip -Z1 "$Z" | grep -q 'AU/GapFill.component/Contents/MacOS/GapFill'
+unzip -Z1 "$Z" | grep -q 'Standalone/GapFill.app/Contents/MacOS/GapFill'
+unzip -Z1 "$Z" | grep -q 'INSTALL.txt'
+if [ "$(uname -s)" != Darwin ]; then
+    if bash "$ROOT/packaging/package_macos.sh" "$MAC" arm64 "$TMP/dist4" > /dev/null 2>&1; then
+        echo 'FAIL: macOS packaging must not silently skip native checks off-macOS'; exit 1
+    fi
+fi
+
+echo 'PASS: release packaging (Windows, Linux, macOS synthetic trees)'
