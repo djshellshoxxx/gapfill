@@ -1,0 +1,74 @@
+name: Bug report
+description: Report a reproducible GapFill problem
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Share only information you have permission to publish. Do not upload private audio, DAW sessions, licensed material, or personal data. A synthetic signal and minimal reproduction are preferred.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and the expected behavior.
+      placeholder: Include the user-visible result.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest reliable sequence of actions and whether it happens every time.
+      placeholder: "1. Load ... 2. Set ... 3. Play ..."
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: GapFill version or commit
+      placeholder: Version, release asset, or full commit SHA
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system and architecture
+      options:
+        - Windows x64
+        - macOS Apple silicon
+        - macOS Intel
+        - Linux x64
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: host
+    attributes:
+      label: DAW or standalone host and version
+      placeholder: Include version and plugin format (VST3, AU, CLAP, Standalone)
+    validations:
+      required: true
+  - type: input
+    id: audio
+    attributes:
+      label: Sample rate and callback size
+      placeholder: "For example: 48000 Hz; 32/512/8192 samples"
+  - type: textarea
+    id: transport
+    attributes:
+      label: Transport and MIDI details
+      description: Include tempo, meter, play/stop/seek/loop actions, controller, and whether the issue occurs while stopped.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or crash details
+      description: Include exact command, exit code, validator version, binary hash, or stack trace as relevant. Remove secrets and private paths.
+      render: shell
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Sharing check
+      options:
+        - label: I have checked that this report contains no private audio, session, licensed content, secrets, or personal data.
+          required: true

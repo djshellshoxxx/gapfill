@@ -1,0 +1,124 @@
+
+name: Publish verified GapFill Windows and Linux beta assets
+
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/publish-win-linux.yml']
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  package:
+    name: Add verified Win/Linux VST3 CLAP Standalone to macOS release
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN_ID: '39283572460'
+      SOURCE_SHA: 7a33fb2440eea4c86af51a590024ba3feae37fa6
+      TAG: v0.0.1-beta1
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify exact passing build and existing Mac release
+        run: |
+          set -euo pipefail
+          test "$(gh run view "$RUN_ID" --json conclusion --jq .conclusion)" = success
+          test "$(gh run view "$RUN_ID" --json headSha --jq .headSha)" = "$SOURCE_SHA"
+          test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = false
+          assets="$(gh release view "$TAG" --json assets --jq '[.assets[].name] | join(",")')"
+          for name in GapFill-0.0.1-beta1-Windows-x64.zip GapFill-0.0.1-beta1-Linux-x64.tar.gz SHA256SUMS-windows-linux.txt; do
+            if grep -qF "$name" <<<"$assets"; then
+              echo "::error::Release asset $name already exists; will not overwrite"
+              exit 1
+            fi
+          done
+
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 39283572460
+          github-token: ${{ github.token }}
+          name: gapfill-windows-x64-release-binaries
+          path: raw/windows
+
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 39283572460
+          github-token: ${{ github.token }}
+          name: gapfill-linux-x64-release-binaries
+          path: raw/linux
+
+      - name: Inspect and assemble portable plugin packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p prepared/windows/VST3 prepared/windows/CLAP prepared/linux/VST3 prepared/linux/CLAP release
+          for os in windows linux; do
+            vst3="$(find "raw/$os" -type d -name GapFill.vst3 -print -quit)"
+            clap="$(find "raw/$os" -type f -name GapFill.clap -print -quit)"
+            test -n "$vst3" && test -d "$vst3"
+            test -n "$clap" && test -s "$clap"
+            cp -R "$vst3" "prepared/$os/VST3/"
+            cp "$clap" "prepared/$os/CLAP/"
+            if [ "$os" = windows ]; then
+              exe="$(find raw/windows -type f -name GapFill.exe -print -quit)"
+              test -n "$exe" && test -s "$exe"
+              cp "$exe" prepared/windows/GapFill.exe
+            else
+              exe="$(find raw/linux -type f -name GapFill -print -quit)"
+              test -n "$exe" && test -s "$exe"
+              cp "$exe" prepared/linux/GapFill
+              chmod +x prepared/linux/GapFill
+            fi
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          import struct
+          for os in ('windows','linux'):
+              root=Path('prepared')/os
+              vst3=list((root/'VST3'/'GapFill.vst3').rglob('*.vst3')) if os=='windows' else list((root/'VST3'/'GapFill.vst3').rglob('*.so'))
+              assert len(vst3)==1, f'{os}: invalid VST3 plugin binary layout {vst3}'
+              files=[vst3[0],root/'CLAP'/'GapFill.clap',root/('GapFill.exe' if os=='windows' else 'GapFill')]
+              for f in files:
+                  b=f.read_bytes()
+                  if os=='windows':
+                      assert b.startswith(b'MZ')
+                      offset=struct.unpack_from('<I',b,0x3c)[0]
+                      assert b[offset:offset+4]==b'PE\0\0'
+                      assert struct.unpack_from('<H',b,offset+4)[0]==0x8664
+                  else:
+                      assert b[:4]==b'\x7fELF'
+                      assert struct.unpack_from('<H',b,18)[0]==62
+                  print(os,f,len(b))
+          PY
+          cat > prepared/windows/README-INSTALL.txt <<'DOC'
+          GapFill 0.0.1 beta1 for Windows x64
+          VST3: copy the complete GapFill.vst3 bundle to
+          C:\Program Files\Common Files\VST3
+          CLAP: copy GapFill.clap to C:\Program Files\Common Files\CLAP
+          Standalone: run GapFill.exe
+          DOC
+          cat > prepared/linux/README-INSTALL.txt <<'DOC'
+          GapFill 0.0.1 beta1 for Linux x86-64
+          VST3: copy GapFill.vst3 to ~/.vst3/
+          CLAP: copy GapFill.clap to ~/.clap/
+          Standalone: execute ./GapFill after satisfying JUCE Linux dependencies.
+          DOC
+          (cd prepared/windows && zip -qr ../../release/GapFill-0.0.1-beta1-Windows-x64.zip .)
+          tar -czf release/GapFill-0.0.1-beta1-Linux-x64.tar.gz -C prepared/linux .
+          (cd release && sha256sum GapFill-* > SHA256SUMS-windows-linux.txt)
+          (cd release && sha256sum -c SHA256SUMS-windows-linux.txt)
+
+      - name: Upload without changing existing macOS assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release upload "$TAG" release/GapFill-0.0.1-beta1-Windows-x64.zip             release/GapFill-0.0.1-beta1-Linux-x64.tar.gz             release/SHA256SUMS-windows-linux.txt
+          gh release edit "$TAG" --title 'GapFill 0.0.1 beta1 (macOS, Windows, Linux)'
+          mkdir -p "$RUNNER_TEMP/verify"
+          gh release download "$TAG" --pattern 'GapFill-0.0.1-beta1-Windows-x64.zip'             --pattern 'GapFill-0.0.1-beta1-Linux-x64.tar.gz'             --pattern 'SHA256SUMS-windows-linux.txt' --dir "$RUNNER_TEMP/verify"
+          (cd "$RUNNER_TEMP/verify" && sha256sum -c SHA256SUMS-windows-linux.txt)
+          gh release view "$TAG" --json url,assets --jq '{url: .url, assets: [.assets[].name]}'

@@ -85,6 +85,34 @@ GF_TEST (VisualisationFifo, visualisation_fifo_preserves_activity_flags)
 }
 
 //==============================================================================
+GF_TEST (Dsp, svf_coefficient_copy_does_not_replace_channel_memory)
+{
+    SVF left, right, reference;
+    left.set (48000.0, 700.0f, 1.4f);
+    right.set (48000.0, 700.0f, 1.4f);
+    reference.set (48000.0, 700.0f, 1.4f);
+
+    float lp = 0.0f, bp = 0.0f, hp = 0.0f;
+    right.process (0.8f, lp, bp, hp);
+    reference.process (0.8f, lp, bp, hp);
+
+    // Right retains its own filter state; only the coefficients are shared.
+    left.set (48000.0, 3400.0f, 2.1f);
+    right.copyCoefficientsFrom (left);
+    reference.set (48000.0, 3400.0f, 2.1f);
+
+    const auto secondInput = -0.37f;
+    float actualLP = 0.0f, actualBP = 0.0f, actualHP = 0.0f;
+    float expectedLP = 0.0f, expectedBP = 0.0f, expectedHP = 0.0f;
+    right.process (secondInput, actualLP, actualBP, actualHP);
+    reference.process (secondInput, expectedLP, expectedBP, expectedHP);
+
+    GF_EXPECT_NEAR (actualLP, expectedLP, 1.0e-7f);
+    GF_EXPECT_NEAR (actualBP, expectedBP, 1.0e-7f);
+    GF_EXPECT_NEAR (actualHP, expectedHP, 1.0e-7f);
+}
+
+//==============================================================================
 GF_TEST (SourceHistory, ramp_read_is_exact_inside_window)
 {
     SourceHistory history;

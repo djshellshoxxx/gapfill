@@ -1,0 +1,123 @@
+name: Publish verified GapFill macOS beta
+
+# One-shot macOS release, pinned to the successful native CI run. The
+# manifest and binary-architecture/signature checks prevent partial releases.
+on:
+  push:
+    branches: [master]
+    paths: ['.github/workflows/macos-release.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    name: Validate and publish both Mac architectures
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      SOURCE_SHA: 7a33fb2440eea4c86af51a590024ba3feae37fa6
+      VERIFIED_RUN: '39283572460'
+      TAG: v0.0.1-beta1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Confirm source has not changed since successful CI
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$SOURCE_SHA" HEAD
+          changed="$(git diff --name-only "$SOURCE_SHA" HEAD)"
+          if [ "$changed" != '.github/workflows/macos-release.yml' ]; then
+            echo "::error::Verified binary source no longer matches this release; rebuild first"
+            printf 'Changes since CI:\n%s\n' "$changed"
+            exit 1
+          fi
+          conclusion="$(gh run view "$VERIFIED_RUN" --json conclusion --jq .conclusion)"
+          test "$conclusion" = success
+          actual_sha="$(gh run view "$VERIFIED_RUN" --json headSha --jq .headSha)"
+          test "$actual_sha" = "$SOURCE_SHA"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists; refusing to overwrite"
+            exit 1
+          fi
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "::error::Tag $TAG already exists; refusing to overwrite"
+            exit 1
+          fi
+
+      - name: Recover verified architecture-specific binaries and verify bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-out
+          for arch in arm64 x86_64; do
+            raw="$RUNNER_TEMP/gapfill-raw-$arch"
+            stage="$RUNNER_TEMP/GapFill-macos-$arch"
+            mkdir -p "$raw" "$stage/VST3" "$stage/AU" "$stage/CLAP" "$stage/Standalone"
+            gh run download "$VERIFIED_RUN" --name "gapfill-macos-$arch-verified" --dir "$raw"
+            vst3="$(find "$raw" -type d -name 'GapFill.vst3' -print -quit)"
+            au="$(find "$raw" -type d -name 'GapFill.component' -print -quit)"
+            clap="$(find "$raw" -name 'GapFill.clap' -print -quit)"
+            app="$(find "$raw" -type d -name 'GapFill.app' -print -quit)"
+            for item in "$vst3" "$au" "$clap" "$app"; do
+              test -n "$item" && test -e "$item" || { echo "::error::Missing $arch bundle"; exit 1; }
+            done
+            cp -R "$vst3" "$stage/VST3/"
+            cp -R "$au" "$stage/AU/"
+            cp -R "$clap" "$stage/CLAP/"
+            cp -R "$app" "$stage/Standalone/"
+            for bundle in "$stage/VST3/GapFill.vst3" "$stage/AU/GapFill.component" "$stage/Standalone/GapFill.app"; do
+              binary="$bundle/Contents/MacOS/GapFill"
+              test -f "$binary"
+              chmod +x "$binary"
+              lipo "$binary" -verify_arch "$arch"
+              codesign --verify --deep --strict --verbose=2 "$bundle"
+            done
+            if [ -d "$stage/CLAP/GapFill.clap" ]; then
+              clapbin="$stage/CLAP/GapFill.clap/Contents/MacOS/GapFill"
+            else
+              clapbin="$stage/CLAP/GapFill.clap"
+            fi
+            test -f "$clapbin"
+            chmod +x "$clapbin"
+            lipo "$clapbin" -verify_arch "$arch"
+            if [ -d "$stage/CLAP/GapFill.clap" ]; then
+              codesign --verify --deep --strict --verbose=2 "$stage/CLAP/GapFill.clap"
+            fi
+            cat > "$stage/INSTALL.txt" <<'DOC'
+          GapFill 0.0.1 beta1 (macOS 12 or newer)
+          Copy VST3/GapFill.vst3 to ~/Library/Audio/Plug-Ins/VST3/
+          Copy AU/GapFill.component to ~/Library/Audio/Plug-Ins/Components/
+          Copy CLAP/GapFill.clap to ~/Library/Audio/Plug-Ins/CLAP/
+          Copy Standalone/GapFill.app to /Applications/
+          Packages are not Apple-notarized. This is a pre-release beta.
+          DOC
+            ditto -c -k --sequesterRsrc --keepParent "$stage" "release-out/GapFill-0.0.1-beta1-macos-$arch.zip"
+          done
+          (cd release-out && shasum -a 256 ./*.zip > SHA256SUMS.txt)
+          cat release-out/SHA256SUMS.txt
+
+      - name: Publish macOS beta release without replacing prior assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > "$RUNNER_TEMP/RELEASE_NOTES.md" <<'NOTES'
+          Initial macOS beta: native Apple Silicon (arm64) and Intel (x86_64) builds.
+          Each archive contains VST3, Audio Unit (AU), CLAP and standalone app.
+          Compiled and validated on the native GitHub macOS runners in CI run 39283572460,
+          including unit tests, pluginval, AU validation and clap-validator.
+          Artifacts were recovered from that successful run; binaries and code
+          signatures rechecked before archiving. SHA-256 digests are supplied.
+          These packages are not Apple-notarized or Developer ID signed.
+          NOTES
+          gh release create "$TAG" release-out/*.zip release-out/SHA256SUMS.txt             --target "$GITHUB_SHA"             --title 'GapFill 0.0.1 beta1 (macOS)'             --notes-file "$RUNNER_TEMP/RELEASE_NOTES.md"             --prerelease
+          mkdir -p "$RUNNER_TEMP/release-check"
+          gh release download "$TAG" --dir "$RUNNER_TEMP/release-check"
+          (cd "$RUNNER_TEMP/release-check" && shasum -a 256 -c SHA256SUMS.txt)
+          gh release view "$TAG" --json url,assets             --jq '{url: .url, assets: [.assets[].name]}'
