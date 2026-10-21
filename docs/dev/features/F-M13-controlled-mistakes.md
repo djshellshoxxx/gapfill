@@ -15,7 +15,7 @@ Status: implementation spec, Gate C candidate (08). Category FUN/MUS, value M, s
 - CPU: stage on, 5 voices, scenario E: <= +2 % mean block time vs stage off (`Tests/Perf.cpp`).
 
 ## 3 Design
-Files (all new, `Source/features/mistakes/`, the C-3 location): `Mistakes.h/.cpp` (C-3 `MistakeStage`), `MistakeTypes.h` (enum + applicability table), `Gui.h/.cpp`, `Help.cpp`, `cmake/sources/mistakes.cmake`, `Tests/features/TestMistakes.cpp`. Hooks (C-3, plus 1 line): `FillVoice` member + `start()/process()/rateMultiplier()`; `adjustRecipe` sets `FillRecipe::mistakeType/mistakeAmt`; `gatherMistakes (EngineSettings&, const ParamCache&)` in `FeatureHooks.h`.
+Files (all new, `Source/features/mistakes/`, the C-3 location): `Mistakes.h/.cpp` (C-3 `MistakeStage`), `MistakeTypes.h` (enum + applicability table), `Gui.h/.cpp`, `Help.cpp`, `cmake/sources/mistakes.cmake`, `Tests/features/TestMistakes.cpp`, `Source/params/fm13.{h,cpp}`. Hooks (C-3, plus 1 line): `FillVoice` member + `start()/process()/rateMultiplier()`; `adjustRecipe` sets `FillRecipe::mistakeType/mistakeAmt`; `gatherMistakes (EngineSettings&, const ParamCache&)` in `FeatureHooks.h`.
 
 ```cpp
 enum class MistakeType : std::uint8_t { None, Wobble, OctaveDisplace, MissedRepeat, Brake, StereoBounce, Flam, Slip, Count };
@@ -46,11 +46,11 @@ Format note: IDs below contain `_`; `tools/validate_repo.py` currently allows `^
 
 | ID | Type | Range | Default | Unit | Notes |
 |---|---|---|---|---|---|
-| `mistakes` | float | 0-100 | 0 | % | **Already registered by 02** (C-3). Not new; do not duplicate or rename. |
-| `fm13_variation` | int, step 1 | 0-99 | 0 | - | Re-roll index. Appended after `mistakes`. |
+| `fm13_amount` | float | 0-100 | 0 | % | Replaces the unreleased `mistakes` ID of the 02 registry (same MISTAKES group slot, first position), the same way F-M05/F-M07 replaced theirs. Needs owner OK (see report). |
+| `fm13_variation` | int, step 1 | 0-99 | 0 | - | Re-roll index. |
 | `fm13_types` | int, step 1 | 1-127 | 31 | bitmask | bit0 Wobble ... bit6 Slip; text shown as type names. |
 
-Group `GAPFILL_PARAMS_MISTAKES(X)` in `Source/params/mistakes.h` (C-3 group; two lines appended), lock file `tools/param_ids/mistakes.lock` gains the two IDs. Both new IDs go in `performanceParameterIDs()` (excluded from Random/Surprise/Undo snapshots, 02) and are not changed by presets. No state subtree; `FillRecipe` already carries `mistakeType` (0-7 fits the byte) and `mistakeAmt`. **Neutral proof:** `mistakes = 0` => stage not entered, zero draws; `variation`/`types` are read only after `chance` passes. An old session lacks the two IDs and loads them at 0 / 31, which reproduces C-3 bit for bit. Test `old_state_loads_c3_identical`.
+Group `GAPFILL_PARAMS_MISTAKES(X)` in `Source/params/fm13.{h,cpp}` (the C-3 group slot of 02, three entries), lock `tools/param_ids/fm13.lock`. All three IDs go in `performanceParameterIDs()` (excluded from Random/Surprise/Undo snapshots, 02) and are not changed by presets. No state subtree; `FillRecipe` already carries `mistakeType` (0-7 fits the byte) and `mistakeAmt`. **Neutral proof:** `fm13_amount = 0` => stage not entered, zero draws; `variation`/`types` are read only after `chance` passes. An old session lacks the IDs and loads 0 / 0 / 31 (amount / variation / mask), which reproduces C-3 bit for bit. Test `old_state_loads_c3_identical`.
 
 ## 5 Real-time safety
 Audio thread: one roll per started fill (4 RNG draws), then O(1) per sample. Ring (`40 ms` at 192 kHz = 7 688 samples x 2 ch x 5 voices ~ 300 KB) allocated in `prepare()` only, cleared in `start()`. No `rateMultiplier` outside Brake/Octave. Reset table (06 s1.6): `reset()`, `releaseResources`, sample-rate change (re-prepare), bypass (`panic` fade), transport jump: stage holds only per-fill state, so all five events end the fill and `type = None`.
@@ -70,13 +70,13 @@ All three params are automatable and MIDI-learnable through `allParameterIDs()`;
 C-3 list (11 tests) plus: `flam_peak_bounded` (<= 1.0 + 0.5g of source peak, normalised) | `flam_only_inside_window` | `flam_skipped_short_or_sustained` | `slip_restores_alignment_outside_window` (render minus baseline is 0 outside `[ts-3ms, ts+hold+3ms]`) | `slip_never_early` | `slip_window_inside_fill` | `variation_zero_equals_c3` | `variation_changes_only_mistake` (fill start positions, algos, lengths identical for variation 0 vs 7) | `typemask_default_is_c3_set` | `typemask_single_type_forced` | `candidate_set_uniform` (chi-square on 10k rolls) | `ring_size_192k` | `no_audio_thread_allocation` | `mono_stays_mono_all_types` | `state_roundtrip_and_old_state`. Golden: scenario A-I unchanged at `mistakes=0`; new golden `M13` (scenario A, `mistakes=100`, each type forced via mask) tagged `[golden]` in its own PR.
 
 ## 9 Dependencies & build order
-Needs F0-2 (`adjustRecipe`), F0-3 (`FillRecipe`), F0-5 (settings gather), F0-6, F0-9, and C-3 (this ticket completes C-3; same PR train, C-3 first). Soft: C-5 (Lock), U-1 (chips). Independent of every other F-M ticket.
+Needs F0-2 (`adjustRecipe`), F0-3 (`FillRecipe`), F0-5 (settings gather), F0-6, F0-9. This ticket is the implementation ticket for C-3 (C-3's text stays canonical for the five original types; nothing of C-3 ships separately). Soft: F-L01/C-5 (Lock re-rolls the mistake per fill, as C-5 says), U-1/F-L02 (history chips), F-M06 (the 'Unhinged' personality raises effective `mistakes01` to >= 0.35 through the no-op hook F-M06 leaves; `EngineSettings::perf.mistakes01` is that effective value). F-M23 target index 21. Independent of the effect-seam tickets.
 
 ## 10 Effort & risks
 M (C-3 itself is L; this adds two types, one param pair and the UI). Risks: Flam/Slip add audible cost to every fill if mask widened (default off); ring memory x5 voices; Slip re-reads earlier audio, so on very sparse material it can repeat a transient (mitigation: skipped when `reference` energy of the window is below the fill's start level, test `slip_skipped_on_silence`).
 
 ## 11 Acceptance checklist
-- [ ] `mistakes=0` golden A-I bit-identical; RNG probe unchanged
+- [ ] `fm13_amount=0` golden A-I bit-identical; RNG probe unchanged
 - [ ] 7 types finite, bounded, click-free on all 15 algorithms
 - [ ] Variation preserves the fill schedule; variation 0 == C-3
 - [ ] Old (pre-F-M13 and C-3-era) sessions load unchanged

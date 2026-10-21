@@ -3,7 +3,7 @@ Status: implementation spec, Gate C candidate (08). Category UX/VAL, value M, si
 
 ## 1 Summary & user-visible behaviour
 - **Suggest presets...** (preset browser header, or the File menu until U-4 lands). First use shows a plain consent line: "GapFill will listen to your input for about 10 seconds on this computer. Nothing is recorded or sent anywhere." Consent is remembered and can be revoked in Options. Every measurement starts only when the user clicks **Listen**.
-- Progress bar for 4-30 s (default 10). Cancel, closing the editor or bypass-free silence handling: "Not enough signal, play something and try again".
+- Progress bar for 4-30 s (default 10). Cancel, closing the editor or bypassing the plugin abandons the run. If the input is mostly silent the card says "Not enough signal, play something and try again".
 - Result card: up to 3 presets with a one-line reason ("dense hits, 7.2 per second, short gaps: rhythmic family"), a confidence word (Good / Fair / Weak match), **Load** (existing validated path, pushes Undo) and the measured numbers. Nothing is applied automatically.
 - Measurements use your current detector settings (stated on the card); after Auto-Calibrate (U-6) they are more meaningful.
 
