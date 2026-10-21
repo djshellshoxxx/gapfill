@@ -268,6 +268,11 @@ juce::StringArray randomisableParameterIDs()
     return ids;
 }
 
+juce::StringArray routingParameterIDs()
+{
+    return { "wetSolo" };
+}
+
 juce::StringArray performanceParameterIDs()
 {
     juce::StringArray ids { "capture" };

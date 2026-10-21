@@ -280,7 +280,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     addChildComponent (*calibrateCard);
     detectionPanel.onLearn = [this] { calibrateCard->begin(); calibrateCard->toFront (false); };
 
-    slots->setSlotContainer (Slot::OptionsExtra, &optionsView);
+    slots->setSlotContainer (Slot::OptionsExtra, &optionsView.getExtraContent());
 
     if (slots->getNumComponents (Slot::PerformanceTab) > 0)
     {
@@ -762,7 +762,7 @@ void GapFillAudioProcessorEditor::saveUserPreset()
 //==============================================================================
 void GapFillAudioProcessorEditor::showFileMenu()
 {
-    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance, kBrowse, kTour, kLab };
+    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance, kBrowse, kTour, kLab, kAudition, kHistory, kExportFill, kFavourite };
 
     juce::PopupMenu menu;
     menu.setLookAndFeel (&lookAndFeel);
@@ -776,7 +776,20 @@ void GapFillAudioProcessorEditor::showFileMenu()
     menu.addItem (kOpen, "Open...");
     menu.addSeparator();
     menu.addItem (kBrowse, "Preset browser...");
+
+    // F-S11: favourite the current factory preset from the menu (the browser stars every preset, user presets included).
+    const bool factoryPreset = proc.getCurrentPresetName() != "Custom";
+    const auto favouriteId = "F:" + proc.getCurrentPresetName();
+    const bool isFavourite = factoryPreset && settingsFile->isFavourite (favouriteId);
+    menu.addItem (kFavourite, isFavourite ? "Remove preset from favourites" : "Add preset to favourites", factoryPreset);
     menu.addItem (kSavePreset, "Save as user preset...");
+    menu.addSeparator();
+
+    // Fills: the same actions as the AUDITION button and the RECIPES drawer (greyed out while those do not exist).
+    const auto& actions = proc.getUiState().editorActions;
+    menu.addItem (kAudition, "Audition a fill", actions.auditionNow != nullptr);
+    menu.addItem (kHistory, "Fill history...", actions.openHistory != nullptr);
+    menu.addItem (kExportFill, "Export last fill...", actions.exportLatestFill != nullptr);
     menu.addSeparator();
     menu.addItem (kOptions, "Options...");
     menu.addItem (kLab, "Mutation Lab...");
@@ -796,8 +809,17 @@ void GapFillAudioProcessorEditor::showFileMenu()
             case kOpen:       doOpen(); break;
             case kSavePreset: saveUserPreset(); break;
             case kBrowse:     showPresetBrowser(); break;
+            case kFavourite:  if (proc.getCurrentPresetName() != "Custom")
+                              {
+                                  const auto id = "F:" + proc.getCurrentPresetName();
+                                  settingsFile->setFavourite (id, ! settingsFile->isFavourite (id));
+                              }
+                              break;
             case kTour:       showTour (true); break;
             case kLab:        showMutationLab(); break;
+            case kAudition:   if (auto f = proc.getUiState().editorActions.auditionNow) f(); break;
+            case kHistory:    if (auto f = proc.getUiState().editorActions.openHistory) f(); break;
+            case kExportFill: if (auto f = proc.getUiState().editorActions.exportLatestFill) f(); break;
             case kOptions:    showOptions(); break;
             case kPerformance: setTab (Tab::Performance); break;
             default: break;
@@ -968,7 +990,7 @@ void GapFillAudioProcessorEditor::toggleAB()
     auto& target = usingSlotB ? slotB : slotA;
 
     if (target.isValid())
-        state.replaceState (target.createCopy());
+        proc.replaceParameterStateKeepingPerformance (target);      // A/B never flips performance state (docs/dev/02 F0-1)
 
     proc.getRecipes().noteHeaderAbSide (usingSlotB);        // F-S06: level matching follows the sounding side
     abButton.setButtonText (usingSlotB ? "B" : "A");
@@ -1255,9 +1277,13 @@ void GapFillAudioProcessorEditor::resized()
 
     // The options page is a small panel rather than a full overlay; the OptionsExtra slot (interface size,
     // accessibility) lives in the free area under the device row, so the panel grew by 140 px.
-    optionsView.setBounds (juce::Rectangle<int> (520, juce::jmin (580, getHeight() - 16))
+    optionsView.setBounds (juce::Rectangle<int> (520, juce::jmin (640, getHeight() - 16))
                              .withCentre (getLocalBounds().getCentre()));
-    slots->setSlotBounds (Slot::OptionsExtra, optionsView.getExtraBounds());
+
+    // The extra rows scroll inside the panel's viewport; each keeps its own height (Stack slot).
+    for (int pass = 0; pass < 2; ++pass)      // the second pass accounts for a scroll bar that the first one made necessary
+        slots->setSlotBounds (Slot::OptionsExtra, { 0, 0, juce::jmax (1, optionsView.getExtraViewport().getMaximumVisibleWidth()),
+                                                    juce::jmax (1, slots->getStackHeight (Slot::OptionsExtra)) });
 }
 
 } // namespace gapfill

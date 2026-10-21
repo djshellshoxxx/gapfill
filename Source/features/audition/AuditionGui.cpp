@@ -57,10 +57,15 @@ public:
         onClick = [this] { trigger(); };
 
         heartbeat.poll (proc.getMeterState());
+        proc.getUiState().editorActions.auditionNow = [this] { trigger(); };     // FILE > Audition a fill
         startTimerHz (15);
     }
 
-    ~AuditionButton() override { stopTimer(); }
+    ~AuditionButton() override
+    {
+        proc.getUiState().editorActions.auditionNow = nullptr;
+        stopTimer();
+    }
 
     void mouseDown (const juce::MouseEvent& e) override
     {

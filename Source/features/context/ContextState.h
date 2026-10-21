@@ -48,6 +48,9 @@ public:
     /** Audio thread: width target delta for this chunk (F-M21); 0 while Tension is off. */
     float tensionWidthDelta (const EngineSettings& s, float baseWidth01, int numSamples) const noexcept;
 
+    /** F-M21 FX-send lane at the middle of the block: 1 when Tension is off or its FX depth is 0. */
+    float tensionFxSend (const EngineSettings& s, int numSamples) const noexcept;
+
     /** Any thread: the section tracker's last published state (a torn read costs one wrong label). */
     arrangement::ArrangementState arrangementState() const noexcept;
     int arrangementFrames() const noexcept { return arrFrames.load (std::memory_order_relaxed); }

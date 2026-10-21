@@ -210,7 +210,7 @@ GF_TEST (ShapeGui, slots_register_the_shape_button_and_the_tempo_option)
     bool shape = false, tempo = false;
 
     for (const auto& f : getSlotFactories (Slot::CreativeExtra))
-        shape = shape || f.order == 110;
+        shape = shape || f.order == 120;
 
     for (const auto& f : getSlotFactories (Slot::OptionsExtra))
         tempo = tempo || f.order == 260;

@@ -25,16 +25,24 @@ namespace
                        "Listen to the music and use its key for Scale Lock instead of the Key and Scale you set by hand. "
                        "Drums and noise give no key; then your manual setting is used."),
               lockKey (p.getValueTreeState(), "fx03_hold", "LOCK KEY",
-                       "Freeze the detected key and save it with the project, so renders are reproducible.")
+                       "Freeze the detected key and save it with the project, so renders are reproducible."),
+              window (p.getValueTreeState(), "fx03_window", "Window",
+                      "How many seconds of music the key is estimated from. Longer is steadier, shorter follows key changes sooner.",
+                      colours::secondary),
+              minConf (p.getValueTreeState(), "fx03_minConf", "Min conf",
+                       "How sure the detector must be before Scale Lock follows the detected key. Below this your manual key is used.",
+                       colours::secondary)
         {
             setTitle ("Automatic key");
             addAndMakeVisible (autoKey);
             addAndMakeVisible (lockKey);
+            addAndMakeVisible (window);
+            addAndMakeVisible (minConf);
             readout.setJustificationType (juce::Justification::centredLeft);
             readout.setFont (fonts::label (11.0f));
             readout.setColour (juce::Label::textColourId, colours::textMuted);
             addAndMakeVisible (readout);
-            setSize (musical::kStripWidth, 44);
+            setSize (musical::kStripWidth, 64);
             applyView();
             refresh();
             startTimerHz (4);
@@ -49,11 +57,15 @@ namespace
             r.removeFromLeft (8);
             lockKey.setBounds (r.removeFromLeft (juce::jmax (84, r.getWidth() / 5)).withHeight (28));
             r.removeFromLeft (8);
+            window.setBounds (r.removeFromLeft (juce::jmax (56, r.getWidth() / 6)));
+            r.removeFromLeft (8);
+            minConf.setBounds (r.removeFromLeft (juce::jmax (56, r.getWidth() / 5)));
+            r.removeFromLeft (8);
             readout.setBounds (r);
         }
 
     private:
-        void applyView() { musical::fit (*this, musical::advancedView (proc), 44); }
+        void applyView() { musical::fit (*this, musical::advancedView (proc), 64); }
 
         void timerCallback() override { applyView(); refresh(); }
 
@@ -97,6 +109,7 @@ namespace
 
         GapFillAudioProcessor& proc;
         GapToggle autoKey, lockKey;
+        GapKnob window, minConf;
         juce::Label readout;
     };
 

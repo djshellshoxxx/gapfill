@@ -4,6 +4,7 @@
 #include "../lock/LockSubtree.h"
 #include "../history/HistorySubtree.h"
 #include "../fx/FxUiState.h"
+#include "../midiout/MidiOutState.h"
 
 #include "../../PluginProcessor.h"
 #include "../explain/ExplainState.h"
@@ -67,13 +68,14 @@ namespace
     // distinct attributes of the same subtree. The composite validates/applies both and merges the properties.
     bool perfValidateAll (const juce::ValueTree& t)
     {
-        return recipes::validatePerf (t) && sync::validatePerf (t) && live::LiveControl::perfValidate (t);
+        return recipes::validatePerf (t) && sync::validatePerf (t) && midiout::validatePerf (t) && live::LiveControl::perfValidate (t);
     }
 
     void perfApplyAll (GapFillAudioProcessor& p, const juce::ValueTree& t)
     {
         recipes::applyPerf (p, t);
         sync::applyPerf (p, t);
+        midiout::applyPerf (p, t);
         p.getLiveControl().perfRestore (t);
     }
 
@@ -81,6 +83,7 @@ namespace
     {
         recipes::resetPerf (p);
         sync::resetPerf (p);
+        midiout::resetPerf (p);
         p.getLiveControl().perfRestore ({});
     }
 
@@ -89,7 +92,7 @@ namespace
         // Three participants (WP4 recipes, WP5 sync, WP6 live control) with distinct attributes: merge them.
         juce::ValueTree merged;
 
-        for (const auto& part : { recipes::serialisePerf (p), sync::serialisePerf (p), perfSerialise (p) })
+        for (const auto& part : { recipes::serialisePerf (p), sync::serialisePerf (p), midiout::serialisePerf (p), perfSerialise (p) })
         {
             if (! part.isValid())
                 continue;

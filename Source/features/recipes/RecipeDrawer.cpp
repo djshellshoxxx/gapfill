@@ -223,10 +223,21 @@ namespace
 
             heartbeat.poll (proc.getMeterState());
             lastGeneration = proc.getRecipeHistory().getGeneration() - 1;
+
+            // FILE menu entries (Fill history..., Export last fill...) reach the drawer through the UI state.
+            auto& actions = proc.getUiState().editorActions;
+            actions.openHistory = [this] { setOpen (true); };
+            actions.exportLatestFill = [this] { setOpen (true); beginExport (ExportPurpose::File); };
             startTimerHz (15);
         }
 
-        ~RecipeDrawer() override { stopTimer(); }
+        ~RecipeDrawer() override
+        {
+            auto& actions = proc.getUiState().editorActions;
+            actions.openHistory = nullptr;
+            actions.exportLatestFill = nullptr;
+            stopTimer();
+        }
 
         bool hitTest (int x, int y) override
         {

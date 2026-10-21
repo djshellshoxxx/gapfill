@@ -21,6 +21,8 @@ list(APPEND GAPFILL_SOURCES
     Source/features/live/Roulette.cpp
     Source/features/live/Info.cpp
     Source/gui/slots/PanicSlot.cpp
+    Source/gui/slots/LiveSafetySlot.cpp
+    Source/gui/slots/BattleSlot.cpp
     Source/gui/slots/HoldPadsSlot.cpp
     Source/gui/slots/ScenePanelSlot.cpp
     Source/gui/slots/MacroEditorSlot.cpp

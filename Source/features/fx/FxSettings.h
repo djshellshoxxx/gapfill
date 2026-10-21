@@ -61,7 +61,7 @@ struct ScrubSettings
     bool  on = false;
     float pos01 = 0.5f;
     float widthMs = 80.0f;
-    float windowMs = 1000.0f;   ///< snapshot length; C-10 `captureLength` once Capture v2 exists
+    float windowMs = 1000.0f;   ///< snapshot length = C-10 `captureLength` (250-2000 ms, default 1000)
 };
 
 struct BandFxSettings
@@ -166,6 +166,21 @@ struct FxSettings
             || spfreeze.amount01 > kOffThreshold || convo.amount01 > kOffThreshold;
     }
 };
+
+/** F-M21 "FX send" lane: scales every effect Amount by `send01` (0..1). Identity at 1, so the neutral path
+    stays byte-identical; Amounts at 0 stay 0. Applied once per block to the block-level settings, which both the
+    voice cards (latched at fill start) and the bus cards read. */
+inline void applyEffectSend (FxSettings& f, float send01) noexcept
+{
+    if (send01 >= 1.0f)
+        return;
+
+    const float k = send01 < 0.0f ? 0.0f : send01;
+    f.swell.amount01 *= k;    f.cloud.amount01 *= k;   f.ratchet.amount01 *= k;
+    f.rcrush.amount01 *= k;   f.tape.amount01 *= k;    f.resonator.amount01 *= k;
+    f.fsdelay.amount01 *= k;  f.dub.amount01 *= k;     f.formant.amount01 *= k;
+    f.spfreeze.amount01 *= k; f.convo.amount01 *= k;
+}
 
 /** What a voice's effect chain learns when a fill starts. */
 struct VoiceFxStart

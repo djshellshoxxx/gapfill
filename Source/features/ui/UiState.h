@@ -23,6 +23,7 @@
 #include <juce_data_structures/juce_data_structures.h>
 
 #include <atomic>
+#include <functional>
 
 namespace gapfill::ui
 {
@@ -46,6 +47,19 @@ public:
 
     /** U-8: "Reduced to 125 % to fit this screen" (empty = none). Written by the editor, shown in Options. */
     juce::String scaleNote;
+
+    /** Entry points of editor components that the FILE menu also offers (completeness audit 2026-10-21).
+        Message thread only. A component registers its action when it is created and clears it when it is
+        destroyed, so an empty function means "no editor / no such component right now" (the menu greys the
+        item out). */
+    struct EditorActions
+    {
+        std::function<void()> openHistory;       ///< recipes drawer: open it (F-L02)
+        std::function<void()> exportLatestFill;  ///< wet-only WAV of the selected / latest fill (F-L04)
+        std::function<void()> auditionNow;       ///< same as the AUDITION button (E-1)
+    };
+
+    EditorActions editorActions;
 
     //--- U-5 ---------------------------------------------------------------------
     ViewMode getViewMode() const noexcept          { return (ViewMode) viewMode.load (std::memory_order_relaxed); }

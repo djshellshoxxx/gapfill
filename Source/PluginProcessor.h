@@ -80,7 +80,12 @@ public:
     /** Validates and atomically applies a bare APVTS parameter tree.
         Unknown parameters are ignored for forward compatibility; malformed
         values for known parameters reject the whole state. */
-    bool applyParameterState (const juce::ValueTree& state);
+    bool applyParameterState (const juce::ValueTree& state, bool keepPerformance = false);
+
+    /** Replaces the parameter values with `state` but keeps the CURRENT value of every performance parameter
+        (performanceParameterIDs(): Lock, holds, scrub, macros on, battle, routing ...). Used by Undo and the
+        header A/B swap: docs/dev/02 F0-1 keeps performance state out of Undo snapshots and A/B. Message thread. */
+    void replaceParameterStateKeepingPerformance (const juce::ValueTree& state);
 
     static constexpr std::int64_t maxPresetFileBytes = 1024 * 1024;
 

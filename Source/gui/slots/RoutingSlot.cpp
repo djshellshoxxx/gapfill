@@ -172,7 +172,8 @@ namespace
     const HelpRegistrar helpRouting (6400, "Routing and system", [] (HelpWriter& w)
     {
         w.body ("WET ONLY makes the main output carry only what GapFill generates, at unity: Dry and Wet are ignored, Output still applies, "
-                "bypass wins and Panic still silences it. It is a routing switch, so presets, Random and scenes never change it. "
+                "bypass wins and Panic still silences it. It is a routing switch, so presets, Reset, Undo, opening a preset file, Random and scenes never change it "
+                "(only your DAW project restores it). "
                 "The optional Wet output bus (VST3 and CLAP, off until your DAW enables it) carries the same signal on its own output, "
                 "aligned with the main output; Dry, Wet and Output do not touch it and bypass silences it.");
         w.body ("SIDECHAIN GATE fills only while the sidechain is quiet (ducking) or only while it is active, using the threshold. "

@@ -1,7 +1,8 @@
 // C-2 / F-M23 macro panel (docs/dev/12, docs/dev/11): the four macro knobs, the Macros On switch and a
 // compact mapping editor for the selected macro (target, min, max, curve, smoothing, remove).
-// Registered in Slot::PerformanceTab (Stack; fixed height). The tempo-synced LFO and sample-and-hold
-// source of F-M23 are edited in the saved state / controller layer only; this panel shows whether one runs.
+// Registered in Slot::PerformanceTab (Stack; fixed height). Each mapping row has its own smoothing (F-M23, 0-500 ms);
+// the row under the mappings edits the selected macro's LFO (sine / triangle / saw / square / sample-and-hold, free in Hz or
+// locked to a tempo division, depth and phase).
 
 #include "../Knob.h"
 #include "../HelpRegistry.h"
@@ -16,6 +17,7 @@ namespace
     using namespace macros;
 
     constexpr int kRowHeight = 26;
+    constexpr int kLfoHeight = 30;
 
     class MappingRow : public juce::Component
     {
@@ -25,6 +27,14 @@ namespace
 
         MappingRow()
         {
+            smooth.setSliderStyle (juce::Slider::LinearBar);
+            smooth.setRange (0.0, 500.0, 1.0);
+            smooth.setTextValueSuffix (" ms");
+            smooth.setTitle ("Smoothing");
+            smooth.setTooltip ("Glide time of this mapping: how slowly the target follows the macro (0 = immediately).");
+            smooth.onValueChange = [this] { if (! loading) emit(); };
+            addAndMakeVisible (smooth);
+
             label.setFont (fonts::ui (11.0f));
             label.setMinimumHorizontalScale (0.7f);
             for (auto* s : { &lo, &hi })
@@ -62,6 +72,7 @@ namespace
             hi.setValue (m.max01 * 100.0, juce::dontSendNotification);
             curve.setSelectedId (juce::jlimit (0, 3, (int) m.curve) + 1, juce::dontSendNotification);
             bipolar.setToggleState (m.bipolar != 0, juce::dontSendNotification);
+            smooth.setValue (m.smoothMs, juce::dontSendNotification);
         }
 
         void resized() override
@@ -69,6 +80,7 @@ namespace
             auto r = getLocalBounds();
             remove.setBounds (r.removeFromRight (24).reduced (0, 1));
             bipolar.setBounds (r.removeFromRight (34).reduced (0, 1));
+            smooth.setBounds (r.removeFromRight (78).reduced (2, 1));
             curve.setBounds (r.removeFromRight (84).reduced (2, 1));
             const int w = juce::jmax (40, r.getWidth() / 3);
             label.setBounds (r.removeFromLeft (w));
@@ -84,16 +96,122 @@ namespace
             m.max01 = (float) (hi.getValue() / 100.0);
             m.curve = (std::uint8_t) juce::jmax (0, curve.getSelectedId() - 1);
             m.bipolar = bipolar.getToggleState() ? 1 : 0;
+            m.smoothMs = (float) smooth.getValue();
             current = m;
             if (onEdit != nullptr)
                 onEdit (m);
         }
 
         juce::Label label;
-        juce::Slider lo, hi;
+        juce::Slider lo, hi, smooth;
         juce::ComboBox curve;
         juce::TextButton bipolar, remove;
         Mapping current;
+        bool loading = false;
+    };
+
+    /** The selected macro's LFO (F-M23): one per macro. */
+    class LfoRow : public juce::Component
+    {
+    public:
+        std::function<void (const LfoSettings&)> onEdit;
+
+        LfoRow()
+        {
+            enabled.setButtonText ("LFO");
+            enabled.setClickingTogglesState (true);
+            enabled.setTooltip ("Moves this macro by itself with a low-frequency oscillator, on top of the knob.");
+            enabled.onClick = [this] { if (! loading) emit(); };
+            sync.setButtonText ("SYNC");
+            sync.setClickingTogglesState (true);
+            sync.setTooltip ("Lock the LFO to the host tempo (a tempo division). Without host transport it runs at the Rate instead.");
+            sync.onClick = [this] { if (! loading) emit(); };
+            shape.addItemList ({ "Sine", "Triangle", "Saw", "Square", "Sample & hold" }, 1);
+            shape.setTooltip ("Shape of the LFO. Sample & hold picks a new seeded value on each cycle.");
+            shape.setTitle ("LFO shape");
+            shape.onChange = [this] { if (! loading) emit(); };
+            const auto divs = divisionNames();
+            for (int i = 0; i < divs.size(); ++i)
+                division.addItem (divs[i], i + 1);
+            division.setTooltip ("Cycle length as a tempo division (used while SYNC is on and the host has a transport).");
+            division.setTitle ("LFO division");
+            division.onChange = [this] { if (! loading) emit(); };
+
+            rate.setSliderStyle (juce::Slider::LinearBar);
+            rate.setRange (0.01, 20.0, 0.01);
+            rate.setSkewFactorFromMidPoint (1.0);
+            rate.setTextValueSuffix (" Hz");
+            rate.setTitle ("LFO rate");
+            rate.setTooltip ("Free-running speed in Hz (used when SYNC is off or the host has no transport).");
+            depth.setSliderStyle (juce::Slider::LinearBar);
+            depth.setRange (0.0, 100.0, 1.0);
+            depth.setTextValueSuffix (" %");
+            depth.setTitle ("LFO depth");
+            depth.setTooltip ("How far the LFO swings the macro around its middle.");
+            phase.setSliderStyle (juce::Slider::LinearBar);
+            phase.setRange (0.0, 360.0, 1.0);
+            phase.setTextValueSuffix (" deg");
+            phase.setTitle ("LFO phase");
+            phase.setTooltip ("Where in its cycle the LFO starts.");
+
+            for (auto* s : { &rate, &depth, &phase })
+                s->onValueChange = [this] { if (! loading) emit(); };
+
+            for (auto* c : std::initializer_list<juce::Component*> { &enabled, &sync, &shape, &division, &rate, &depth, &phase })
+                addAndMakeVisible (*c);
+        }
+
+        void set (const LfoSettings& l)
+        {
+            const juce::ScopedValueSetter<bool> guard (loading, true);
+            current = l;
+            enabled.setToggleState (l.enabled != 0, juce::dontSendNotification);
+            sync.setToggleState (l.tempoSync != 0, juce::dontSendNotification);
+            shape.setSelectedId (juce::jlimit (0, 4, (int) l.shape) + 1, juce::dontSendNotification);
+            division.setSelectedId (juce::jlimit (0, (int) Division::NumDivisions - 1, (int) l.division) + 1, juce::dontSendNotification);
+            rate.setValue (l.rateHz, juce::dontSendNotification);
+            depth.setValue (l.depth01 * 100.0, juce::dontSendNotification);
+            phase.setValue (l.phaseDeg, juce::dontSendNotification);
+        }
+
+        void resized() override
+        {
+            auto r = getLocalBounds();
+            enabled.setBounds (r.removeFromLeft (44).reduced (0, 1));
+            r.removeFromLeft (4);
+            sync.setBounds (r.removeFromLeft (46).reduced (0, 1));
+            r.removeFromLeft (4);
+            shape.setBounds (r.removeFromLeft (juce::jmax (80, r.getWidth() / 5)).reduced (0, 1));
+            r.removeFromLeft (4);
+            division.setBounds (r.removeFromLeft (juce::jmax (52, r.getWidth() / 7)).reduced (0, 1));
+            r.removeFromLeft (4);
+            const int w = juce::jmax (50, r.getWidth() / 3);
+            rate.setBounds (r.removeFromLeft (w).reduced (2, 1));
+            depth.setBounds (r.removeFromLeft (w).reduced (2, 1));
+            phase.setBounds (r.reduced (2, 1));
+        }
+
+    private:
+        void emit()
+        {
+            LfoSettings l = current;
+            l.enabled = enabled.getToggleState() ? 1 : 0;
+            l.tempoSync = sync.getToggleState() ? 1 : 0;
+            l.shape = (std::uint8_t) juce::jmax (0, shape.getSelectedId() - 1);
+            l.division = (std::uint8_t) juce::jmax (0, division.getSelectedId() - 1);
+            l.rateHz = (float) rate.getValue();
+            l.depth01 = (float) (depth.getValue() / 100.0);
+            l.phaseDeg = (float) phase.getValue();
+            current = l;
+
+            if (onEdit != nullptr)
+                onEdit (l);
+        }
+
+        juce::TextButton enabled, sync;
+        juce::ComboBox shape, division;
+        juce::Slider rate, depth, phase;
+        LfoSettings current;
         bool loading = false;
     };
 
@@ -151,7 +269,10 @@ namespace
             for (auto& r : rows)
                 addChildComponent (r);
 
-            setSize (400, 4 + 72 + 4 + 28 + kMaxMappings * kRowHeight + 22);
+            lfoRow.onEdit = [this] (const LfoSettings& l) { proc.getLiveControl().macroMappings().setLfo (selected, l); };
+            addAndMakeVisible (lfoRow);
+
+            setSize (400, 4 + 72 + 4 + 28 + kMaxMappings * kRowHeight + 22 + kLfoHeight);
             rebuild();
             startTimerHz (4);
         }
@@ -175,6 +296,7 @@ namespace
 
             for (auto& row : rows)
                 row.setBounds (r.removeFromTop (kRowHeight));
+            lfoRow.setBounds (r.removeFromTop (kLfoHeight).reduced (0, 2));
             info.setBounds (r.removeFromTop (20));
         }
 
@@ -184,6 +306,7 @@ namespace
             auto& model = proc.getLiveControl().macroMappings();
             const auto& cfg = model.get();
             shownCount = cfg.count[selected];
+            lfoRow.set (cfg.lfo[selected]);
 
             for (int i = 0; i < kNumMacros; ++i)
                 select[i].setColour (juce::TextButton::buttonColourId, i == selected ? colours::primary : colours::panel);
@@ -228,6 +351,7 @@ namespace
         juce::TextButton select[kNumMacros], reset;
         juce::ComboBox addTarget;
         MappingRow rows[kMaxMappings];
+        LfoRow lfoRow;
         juce::Label info;
         int selected = 0;
         int shownCount = -1;
@@ -243,9 +367,12 @@ namespace
     {
         w.body ("The four macro knobs each move several settings at once. Turn MACROS on to let them drive their targets; "
                 "a target that a macro owns follows the macro, and the knob shows where it really is. "
-                "Pick M1 to M4 to see what a macro moves. Min and Max set the range, the curve shapes it, +/- makes it move both ways "
-                "around the middle, X removes a mapping, and + Add target maps another setting. A setting belongs to one macro at a time. "
-                "RESET restores the factory mappings of the selected macro.");
+                "Pick M1 to M4 to see what a macro moves. Min and Max set the range, the curve shapes it, the last slider smooths how fast the "
+                "target follows (0 to 500 ms), +/- makes it move both ways around the middle, X removes a mapping, and + Add target maps another "
+                "setting. A setting belongs to one macro at a time. RESET restores the factory mappings of the selected macro.");
+        w.body ("Each macro can also have an LFO: switch LFO on, pick a shape (Sine, Triangle, Saw, Square or Sample & hold), and either "
+                "lock it to the tempo with SYNC and a division, or let it run free at a rate in Hz. Depth is how far it swings the macro, "
+                "Phase is where in its cycle it starts.");
     });
 }
 

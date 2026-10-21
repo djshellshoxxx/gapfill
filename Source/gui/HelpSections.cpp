@@ -246,6 +246,11 @@ namespace
                                       "Enable it to use Tab / Shift+Tab between controls, arrow keys on "
                                       "sliders and menus, and Space/Return on buttons.");
         w.entry ("Hover Tooltips", "can be turned off globally without changing the sound.");
+        w.entry ("More options", "The lower part of the Options page scrolls. It holds Interface size, Accessibility, "
+                               "the tempo to use when the host provides none, the Auto-Calibrate listening time (4 to 15 seconds) "
+                               "and whether its result is applied automatically (off by default), the MIDI output offset (-100 to +100 ms, "
+                               "saved with the project), the Fill Audition trigger note, channel and CC, and the controller profile. "
+                               "These are preferences, not parameters: they are never automated and never part of a preset.");
     });
 
     const HelpRegistrar helpSection9000 (9000, "Troubleshooting", [] (HelpWriter& w)

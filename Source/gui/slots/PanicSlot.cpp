@@ -115,7 +115,7 @@ namespace
         JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PanicChip)
     };
 
-    const SlotRegistrar panicChip ({ Slot::FooterStatus, 100,
+    const SlotRegistrar panicChip ({ Slot::FooterStatus, 90,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<PanicChip> (proc);

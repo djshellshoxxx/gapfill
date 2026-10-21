@@ -94,6 +94,7 @@ void ExplainState::onChunk (const ChunkInfo& c) noexcept
     lastDropped = c.droppedTotal;
     o.bypassed = c.bypassed;
     o.panicActive = c.panicActive;
+    o.freeTimingFallback = c.freeTimingFallback;
 
     healthMonitor.update (o);
 

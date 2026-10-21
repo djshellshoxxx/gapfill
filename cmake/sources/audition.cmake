@@ -11,5 +11,6 @@ list(APPEND GAPFILL_SOURCES
 )
 list(APPEND GAPFILL_SOURCES
     Source/features/audition/AuditionGui.cpp
+    Source/features/audition/OptionsRow.cpp
     Source/features/audition/Help.cpp
 )

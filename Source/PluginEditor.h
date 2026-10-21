@@ -56,6 +56,7 @@ public:
     void applyScaleForTests()                   { applyScale(); }
     juce::Rectangle<int> getOptionsExtraBoundsForTests() const { return optionsView.getExtraBounds(); }
     juce::Rectangle<int> getOptionsBoundsForTests() const { return optionsView.getBounds(); }
+    OptionsView& getOptionsViewForTests() noexcept { return optionsView; }
     tour::TourOverlay* getTourOverlayForTests() noexcept { return tourOverlay.get(); }
     bool maybeAutoShowTourForTests()            { return maybeAutoShowTour(); }
     void applyAccessibilityForTests()           { applyAccessibility(); }

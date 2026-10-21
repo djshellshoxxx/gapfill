@@ -14,6 +14,12 @@ OptionsView::OptionsView()
 {
     setOpaque (false);
 
+    extraViewport.setViewedComponent (&extraContent, false);
+    extraViewport.setScrollBarsShown (true, false);
+    extraViewport.setScrollBarThickness (8);
+    extraViewport.setTitle ("More options");
+    addAndMakeVisible (extraViewport);
+
     tooltipToggle.setColour (juce::ToggleButton::textColourId, colours::text);
     tooltipToggle.setColour (juce::ToggleButton::tickColourId, colours::accent);
     tooltipToggle.onClick = [this]
@@ -157,6 +163,8 @@ void OptionsView::resized()
                             .removeFromRight (90));
     b.removeFromBottom (metrics::halfGrid);
     extraBounds = b.getHeight() >= 40 ? b : juce::Rectangle<int>();
+    extraViewport.setBounds (extraBounds);
+    extraViewport.setVisible (! extraBounds.isEmpty());
 }
 
 } // namespace gapfill
