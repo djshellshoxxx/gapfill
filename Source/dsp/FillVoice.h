@@ -6,6 +6,7 @@
 #include "../features/cloud/CloudMode.h"
 #include "../features/fx/FxSettings.h"
 #include "../features/fx/VoiceFxChain.h"
+#include "../features/scale/VoiceQuantiser.h"
 #include "../features/swell/SwellMode.h"
 
 namespace gapfill
@@ -67,6 +68,9 @@ struct VoiceSetup
     fx::VoiceFxStart    fxStart;
     fx::VoiceRenderModes modes;
     bool excludeFromBus = false;     ///< F-L14: band voice whose effects are switched off
+
+    /** N-MUS Scale Lock for the voice's own pitch choices (Granular ratios, Cloud, Comb). Off = neutral. */
+    scale::ScaleSettings scaleLock;
 };
 
 //==============================================================================
@@ -292,6 +296,7 @@ private:
     // --- effects (docs/dev/12 FX-0, WP8) ---
     fx::SwellMode swellMode;
     fx::CloudMode cloudMode;
+    scale::VoiceQuantiser scaleQ;      ///< N-MUS Scale Lock (identity when off)
     fx::VoiceFxChain fxChain;
     float fxPostGain[fx::kMaxVoiceBlock] {};     ///< duck x kill, applied after the chain
     float fxScratchL[fx::kMaxVoiceBlock] {};

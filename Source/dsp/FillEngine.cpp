@@ -1,6 +1,7 @@
 #include "FillEngine.h"
 #include "../features/effective/Effective.h"
 #include "../features/fx/FxHooks.h"
+#include "../features/scale/ScaleHooks.h"
 
 namespace gapfill
 {
@@ -637,6 +638,7 @@ RejectReason FillEngine::adjustRecipe (FillPlan& plan, const GapContext& ctx, co
     // Features draw from their own salted sub-RNG (Source/features/Salts.h),
     // never from the scheduler's Rng.
     fx::decideRenderModes (plan, ctx, s);       // WP8: Reverse Swell / Granular Cloud flags
+    scale::decidePitch (plan, ctx, s);          // WP7 N-MUS: Scale Lock snaps the pitch decision
     return RejectReason::None;
 }
 
@@ -688,6 +690,7 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     }
 
     fx::prepareVoiceSetup (setup, plan, ctx, s, fxMeters);      // WP8: effect cards, swell landing, band routing
+    scale::prepareVoiceSetup (setup, plan, s);                  // WP7 N-MUS: scale for the voice, recipe pitch override
     return setup;
 }
 

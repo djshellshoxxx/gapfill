@@ -2,6 +2,7 @@
 
 #include "../Parameters.h"
 #include "../features/fx/FxSettings.h"
+#include "../features/scale/ScaleLock.h"
 
 #include <cstdint>
 
@@ -89,6 +90,9 @@ struct EngineSettings
 
     /** Voice / bus effect settings (docs/dev/12 FX-0, WP8). Neutral = every Amount 0. */
     fx::FxSettings fx;
+
+    /** Scale Lock (docs/dev/12 N-MUS). Neutral = type Off. */
+    scale::ScaleSettings scaleLock;
 };
 
 } // namespace gapfill

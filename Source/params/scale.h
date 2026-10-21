@@ -13,7 +13,10 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_SCALE(X)
+#define GAPFILL_PARAMS_SCALE(X) \
+    X (scaleRoot, "scaleRoot") \
+    X (scaleType, "scaleType") \
+    X (scaleAmount, "scaleAmount")
 
 namespace gapfill
 {

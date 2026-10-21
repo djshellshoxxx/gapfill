@@ -191,6 +191,7 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
     setupData = setup;
     rng.seed (setup.rngSeed);
     noiseRng.seed (hashCombine (setup.rngSeed, 0x51ED270Bu));
+    scaleQ.begin (setup.scaleLock, setup.rngSeed);      // HOOK (N-MUS): salted sub-RNG, no legacy draws
 
     totalLength = juce::jmax (32, setup.lengthSamples);
     fadeIn  = juce::jlimit (4, totalLength / 3, setup.fadeInSamples);
@@ -467,6 +468,7 @@ void FillVoice::configureAlgorithm()
             // HOOK (WP8, N-FX2): Granular Cloud replaces the derived grain parameters.
             cloudMode.configure (setupData.modes.cloud, setupData.fxStart.settings.cloud, chaos,
                                  setupData.sourceAnchor, setupData.rngSeed, sr);
+            cloudMode.setPitchQuantiser (scaleQ.active() ? &scale::VoiceQuantiser::cloudQuantise : nullptr, &scaleQ);   // N-MUS
             break;
         }
 
@@ -610,7 +612,7 @@ void FillVoice::configureAlgorithm()
             // Tune the resonator to a musical pitch rather than an arbitrary one.
             static constexpr float semitones[] = { 0.0f, 3.0f, 5.0f, 7.0f, 10.0f, 12.0f, 15.0f, 19.0f };
             const auto note = semitones[rng.nextInt ((int) (sizeof (semitones) / sizeof (semitones[0])))];
-            const auto freq = 110.0f * std::pow (2.0f, (note + 12.0f * (float) rng.nextInt (3)) / 12.0f);
+            const auto freq = scaleQ.snapFrequency (110.0f * std::pow (2.0f, (note + 12.0f * (float) rng.nextInt (3)) / 12.0f));   // N-MUS
 
             combDelay = juce::jlimit (8, combSize - 4, (int) (sr / juce::jmax (30.0f, freq)));
 
@@ -906,9 +908,9 @@ void FillVoice::genGranular (float& l, float& r, const SourceHistory& history) n
             const auto back = (double) rng.range (0.02f, (float) grainWindowSeconds) * sr;
             g.dur = juce::jmax (32, (int) ((float) grainDuration * rng.range (1.0f - grainSpread * 0.5f,
                                                                               1.0f + grainSpread * 0.5f)));
-            const auto baseRatio = kRatios[juce::jlimit (0, kNumRatios - 1,
+            const auto baseRatio = scaleQ.snapRatio (kRatios[juce::jlimit (0, kNumRatios - 1,      // N-MUS: in-scale ratio
                                                           (int) (kNumRatios * 0.5f)
-                                                            + (int) std::round (rng.nextBipolar() * grainPitchSpread * 5.0f))];
+                                                            + (int) std::round (rng.nextBipolar() * grainPitchSpread * 5.0f))]);
             g.rate = (double) baseRatio * (1.0 + (double) (rng.nextBipolar() * grainPitchSpread * 0.03f));
 
             const auto reverse = rng.chance (grainReverseProb);
