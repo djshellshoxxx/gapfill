@@ -123,7 +123,7 @@ class ParamLockTests(unittest.TestCase):
             make_minimal_repo(root)
             add_group(root, "macros", ["Bad_Id"])
 
-        self.assertTrue(any("^[a-z][A-Za-z0-9]*$" in e for e in self.errors(build)))
+        self.assertTrue(any("^[a-z][A-Za-z0-9_]*$" in e for e in self.errors(build)))
 
     def test_group_with_ids_but_no_lock_file_fails(self):
         def build(root):
