@@ -15,6 +15,8 @@
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_data_structures/juce_data_structures.h>
 
+#include <atomic>
+
 namespace gapfill
 {
 
@@ -37,8 +39,15 @@ public:
         trigger. No allocation, no locks. */
     void onMidi (FillEngine&, const juce::MidiBuffer&) noexcept;
 
+    /** End of every chunk: copies the few engine figures the editor shows (LIKED xN,
+        "lock armed"). Relaxed atomics; the editor never reads engine memory. */
+    void publish (const FillEngine&) noexcept;
+
     //==========================================================================
     // Message thread
+
+    std::atomic<int>  likeRemaining { 0 };      ///< C-11 starts left, written by the audio thread
+    std::atomic<bool> lockArmed { false };      ///< C-5 engaged with nothing to lock yet
 
     /** 15 Hz processor timer. Returns true when something visible changed. */
     bool tick() noexcept;

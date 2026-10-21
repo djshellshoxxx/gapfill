@@ -1,16 +1,17 @@
 // E-1 Fill Audition, editor side (docs/dev/03 E-1, docs/dev/05 U-3, docs/dev/11).
 //
-// Two slot components, no edits to the editor:
+// One slot component, no edits to the editor:
 //   Slot::CreativeExtra  (order 110)  AUDITION button, next to CAPTURE. Right-click:
 //                                     MIDI learn CC, trigger note / channel (U-3).
-//   Slot::FooterStatus   (order 100)  one-line status: "Preview: <Algorithm>",
-//                                     rejection text for 2 s, learn countdown.
+// The status line ("Preview: <Algorithm>", rejections, learn countdown) is part of the
+// shared footer in features/recipes/RecipeFooter.cpp.
 //
 // The button never pushes a command unless the audio callback has been seen to
 // run in the last 400 ms (heartbeat via MeterState::blockCounter), so a stopped
 // host cannot hold a trigger.
 
 #include "Audition.h"
+#include "Heartbeat.h"
 #include "PreviewChannel.h"
 #include "../../gui/LookAndFeel.h"
 #include "../../gui/SlotHost.h"
@@ -34,19 +35,6 @@ namespace
     }
 
     juce::String channelName (int c)   { return c == 0 ? juce::String ("Any") : juce::String (c); }
-
-    /** What the user sees for the packed MeterState::previewStatus. */
-    juce::String describeStatus (std::uint32_t code)
-    {
-        if (previewStatusOf (code) == PreviewStatus::Playing)
-        {
-            const auto algo = previewAlgoOf (code);
-            return algo >= 0 && algo < numAlgos ? "Preview: " + juce::String (algoName ((Algo) algo))
-                                                : juce::String ("Preview");
-        }
-
-        return {};
-    }
 }
 
 //==============================================================================
@@ -68,7 +56,7 @@ public:
         setColour (juce::TextButton::textColourOnId, colours::accentGreen);
         onClick = [this] { trigger(); };
 
-        lastBlocks = proc.getMeterState().blockCounter.load (std::memory_order_relaxed);
+        heartbeat.poll (proc.getMeterState());
         startTimerHz (15);
     }
 
@@ -97,18 +85,11 @@ public:
         g.drawFittedText (getButtonText(), getLocalBounds().reduced (2, 0), juce::Justification::centred, 1, 0.5f);
     }
 
-    /** True when the audio callback has run within the heartbeat window. */
-    bool isHostRunning() const noexcept
-    {
-        return lastAdvanceMs != 0
-            && (juce::Time::getMillisecondCounter() - lastAdvanceMs) <= kPreviewHeartbeatMs;
-    }
-
     void trigger()
     {
-        pollHeartbeat();
+        heartbeat.poll (proc.getMeterState());
 
-        if (! isHostRunning())
+        if (! heartbeat.isRunning())
         {
             proc.getRecipes().postMessage ("Start playback to audition");
             return;
@@ -122,20 +103,9 @@ public:
     }
 
 private:
-    void pollHeartbeat()
-    {
-        const auto blocks = proc.getMeterState().blockCounter.load (std::memory_order_relaxed);
-
-        if (blocks != lastBlocks)
-        {
-            lastBlocks = blocks;
-            lastAdvanceMs = juce::jmax<std::uint32_t> (1u, juce::Time::getMillisecondCounter());
-        }
-    }
-
     void timerCallback() override
     {
-        pollHeartbeat();
+        heartbeat.poll (proc.getMeterState());
 
         const bool playing = previewStatusOf ((std::uint32_t) proc.getMeterState().previewStatus.load (std::memory_order_relaxed))
                                == PreviewStatus::Playing;
@@ -208,93 +178,9 @@ private:
     }
 
     GapFillAudioProcessor& proc;
-    std::uint32_t lastBlocks = 0;
-    std::uint32_t lastAdvanceMs = 0;
+    audition::Heartbeat heartbeat;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AuditionButton)
-};
-
-//==============================================================================
-/** The footer status line for audition. Draws nothing when there is nothing to say. */
-class AuditionStatusLine : public juce::Component,
-                           private juce::Timer
-{
-public:
-    explicit AuditionStatusLine (GapFillAudioProcessor& p)
-        : proc (p)
-    {
-        setInterceptsMouseClicks (false, false);
-        setTitle ("Audition status");
-        lastSeq = previewSeqOf ((std::uint32_t) proc.getMeterState().previewStatus.load (std::memory_order_relaxed));
-        startTimerHz (15);
-    }
-
-    ~AuditionStatusLine() override { stopTimer(); }
-
-    void paint (juce::Graphics& g) override
-    {
-        if (text.isEmpty())
-            return;
-
-        g.setColour (isRejection ? colours::warning : colours::accentGreen);
-        g.setFont (fonts::mono (9.5f));
-        g.drawText (text, getLocalBounds(), juce::Justification::centredLeft, true);
-    }
-
-private:
-    void timerCallback() override
-    {
-        const auto code = (std::uint32_t) proc.getMeterState().previewStatus.load (std::memory_order_relaxed);
-        const auto now = juce::Time::getMillisecondCounter();
-
-        // A new rejection (the sequence number moved while the status is a rejection) shows for 2 s.
-        if (previewSeqOf (code) != lastSeq)
-        {
-            lastSeq = previewSeqOf (code);
-
-            if (auto* why = previewRejectionText (previewStatusOf (code)))
-            {
-                proc.getRecipes().postMessage (why);
-                (void) now;
-            }
-        }
-
-        auto& trig = proc.getRecipes().trigger;
-        juce::String next;
-        bool warn = false;
-
-        if (trig.getLearn() != audition::MidiTrigger::Learn::None)
-        {
-            const auto seconds = (trig.getLearnTicksRemaining() + audition::MidiTrigger::timerHz - 1)
-                                   / audition::MidiTrigger::timerHz;
-            next = juce::String ("MIDI LEARN  |  Fill Audition  |  ")
-                 + (trig.getLearn() == audition::MidiTrigger::Learn::Note ? "play a note" : "move a controller")
-                 + "  |  " + juce::String (seconds) + "s";
-        }
-        else if (auto message = proc.getRecipes().getMessage(); message.isNotEmpty())
-        {
-            next = message;
-            warn = true;
-        }
-        else
-        {
-            next = describeStatus (code);
-        }
-
-        if (next != text || warn != isRejection)
-        {
-            text = next;
-            isRejection = warn;
-            repaint();
-        }
-    }
-
-    GapFillAudioProcessor& proc;
-    juce::String text;
-    bool isRejection = false;
-    std::uint32_t lastSeq = 0;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (AuditionStatusLine)
 };
 
 //==============================================================================
@@ -304,12 +190,6 @@ namespace
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<AuditionButton> (proc);
-        } });
-
-    const SlotRegistrar auditionStatus ({ Slot::FooterStatus, 100,
-        [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
-        {
-            return std::make_unique<AuditionStatusLine> (proc);
         } });
 }
 

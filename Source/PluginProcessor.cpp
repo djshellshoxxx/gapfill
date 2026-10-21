@@ -234,7 +234,7 @@ int GapFillAudioProcessor::drainFillEvents()
                 continue;                                  // preview / lock events: not history, not outcomes
 
             if (batch[i].type == FillEventType::Started)
-                recipeHistory.push (batch[i].recipe);
+                recipeHistory.push (batch[i].recipe, { batch[i].pos, batch[i].lengthSamples });
 
             outcomeLog.push (batch[i]);
         }
@@ -833,6 +833,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         meters.currentAlgo.store (engine.getCurrentAlgo());
         meters.blockCounter.store (meters.blockCounter.load (std::memory_order_relaxed) + 1, std::memory_order_relaxed);
         meters.previewStatus.store ((int) engine.getPreviewStatusCode(), std::memory_order_relaxed);
+        recipeServices.publish (engine);
 
         for (int r = 0; r < MeterState::numReasonCounters; ++r)
             meters.reasonCount[r].store ((std::uint32_t) engine.getRejectCount ((RejectReason) r), std::memory_order_relaxed);

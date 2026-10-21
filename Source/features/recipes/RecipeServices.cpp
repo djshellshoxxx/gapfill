@@ -12,6 +12,12 @@ void RecipeServices::onMidi (FillEngine& engine, const juce::MidiBuffer& midi) n
         engine.requestPreview (velocity);          // collapses with a pending UI request
 }
 
+void RecipeServices::publish (const FillEngine& engine) noexcept
+{
+    likeRemaining.store (engine.getLikeState().remaining, std::memory_order_relaxed);
+    lockArmed.store (engine.getLockState().engaged && engine.getLockState().armed, std::memory_order_relaxed);
+}
+
 bool RecipeServices::tick() noexcept
 {
     return trigger.advanceLearnTimeout();

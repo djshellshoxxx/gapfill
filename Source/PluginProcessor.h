@@ -98,6 +98,7 @@ public:
     int drainFillEvents();
 
     const RecipeHistory& getRecipeHistory() const noexcept   { return recipeHistory; }
+    RecipeHistory& getRecipeHistory() noexcept               { return recipeHistory; }   // state restore (message thread)
 
     /** WP4 facade: audition trigger, lock mirror, history, export, A/B match. */
     recipes::RecipeServices& getRecipes() noexcept               { return recipeServices; }

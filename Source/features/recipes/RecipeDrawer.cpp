@@ -1,0 +1,568 @@
+// The recipe drawer: Fill History strip, Lock, More Like That and recipe files
+// (docs/dev/05 U-1, docs/dev/04 C-5 / C-11, docs/dev/11 "history drawer").
+//
+// Lives in Slot::VisualiserOverlay as ONE component sized to the visualiser. It
+// draws nothing and intercepts no mouse events except on its small RECIPES handle
+// and, while open, on the drawer itself, so the visualiser underneath keeps working.
+// The editor is not edited: the slot rectangle is already reserved.
+//
+// Layout (open): three rows of 24 px
+//   chips      the last 8 natural fills, newest first: family letter + describeRecipe
+//   row 2      LOCK toggle (fillLock) | lock summary | AUDITION | LOCK THIS | MORE LIKE
+//   row 3      SAVE... | LOAD... | EXPORT... | SET A | SET B | A/B | ...
+//
+// Everything is a real child component with a title and description, so keyboard
+// focus (opt-in mode) and screen readers see the same controls as the mouse.
+
+#include "RecipeServices.h"
+#include "../audition/Heartbeat.h"
+#include "../history/Describe.h"
+#include "../history/RecipeFile.h"
+#include "../lock/LikeBias.h"
+#include "../../gui/Knob.h"
+#include "../../gui/LookAndFeel.h"
+#include "../../gui/SlotHost.h"
+#include "../../PluginProcessor.h"
+
+namespace gapfill
+{
+
+namespace
+{
+    constexpr int kRow = 24, kGap = 4, kPad = 8;
+    constexpr int kHandleW = 96, kHandleH = 16;
+    constexpr int kChips = RecipeHistory::capacity;
+
+    juce::Colour familyColour (int algo)
+    {
+        if (algo < 0 || algo >= numAlgos)
+            return colours::textMuted;
+
+        switch (kAlgoFamilies[(size_t) algo])
+        {
+            case AlgoFamily::Rhythmic:    return colours::accentWarm;
+            case AlgoFamily::Textural:    return colours::accent;
+            case AlgoFamily::PitchTape:   return colours::accentAmber;
+            case AlgoFamily::Destructive: return colours::clip;
+        }
+
+        return colours::textMuted;
+    }
+
+    //==========================================================================
+    /** One history chip. Left click selects, right click opens the action menu. */
+    class ChipButton : public juce::Button
+    {
+    public:
+        ChipButton() : juce::Button ("Recipe") { setWantsKeyboardFocus (false); }
+
+        void set (const FillRecipe& r, bool isSelected, bool isLocked)
+        {
+            recipe = r;
+            selected = isSelected;
+            locked = isLocked;
+            const auto text = history::describeRecipe (r, 0.0);
+            setButtonText (text);
+            setTitle ("Recipe: " + text);
+            setTooltip (text + (locked ? " (locked)" : "")
+                        + ". Click to select, right-click for actions.");
+            setDescription ("Fill recipe " + text);
+            repaint();
+        }
+
+        void mouseDown (const juce::MouseEvent& e) override
+        {
+            if (e.mods.isPopupMenu())
+            {
+                if (onContext != nullptr)
+                    onContext();
+
+                return;
+            }
+
+            juce::Button::mouseDown (e);
+        }
+
+        void paintButton (juce::Graphics& g, bool highlighted, bool down) override
+        {
+            auto b = getLocalBounds().toFloat().reduced (0.5f);
+            const auto colour = familyColour (recipe.algo);
+
+            g.setColour (selected ? colour.withAlpha (0.22f) : (highlighted || down ? colours::panelRaised.brighter (0.1f) : colours::panelRaised));
+            g.fillRoundedRectangle (b, metrics::controlRadius + 1.0f);
+            g.setColour (selected ? colour : colours::edge);
+            g.drawRoundedRectangle (b, metrics::controlRadius + 1.0f, selected ? 1.5f : 1.0f);
+
+            auto inner = getLocalBounds().reduced (3, 0);
+            auto badge = inner.removeFromLeft (14);
+
+            // The letter is the non-colour cue for the algorithm family.
+            g.setColour (colour);
+            g.setFont (fonts::label (10.0f));
+            g.drawText (juce::String::charToString ((juce::juce_wchar) history::familyLetter (recipe.algo)),
+                        badge, juce::Justification::centred, false);
+
+            g.setColour (selected ? colours::text : colours::textMuted);
+            g.setFont (fonts::ui (10.0f));
+            g.drawFittedText (getButtonText(), inner.withTrimmedRight (locked ? 10 : 0), juce::Justification::centredLeft, 1, 0.6f);
+
+            if (locked)
+            {
+                g.setColour (colours::accentGreen);
+                g.setFont (fonts::label (9.0f));
+                g.drawText ("L", getLocalBounds().removeFromRight (12), juce::Justification::centred, false);
+            }
+        }
+
+        std::function<void()> onContext;
+        FillRecipe recipe;
+
+    private:
+        bool selected = false, locked = false;
+    };
+
+    //==========================================================================
+    class RecipeDrawer : public juce::Component,
+                         private juce::Timer
+    {
+    public:
+        explicit RecipeDrawer (GapFillAudioProcessor& p)
+            : proc (p),
+              lockToggle (p.getValueTreeState(), "fillLock", "LOCK",
+                          "Lock the character of the latest fill: algorithm, band, modifiers and pitch repeat in every "
+                          "gap that gets a fill. Fit rules: a locked fill shortens to fit a gap; it is skipped when it "
+                          "would be shorter than 60 percent of its minimum length. A forced Fill Type overrides Lock.",
+                          colours::accentGreen)
+        {
+            setInterceptsMouseClicks (false, true);
+            setTitle ("Fill recipes");
+
+            handle.setClickingTogglesState (true);
+            handle.setWantsKeyboardFocus (false);
+            handle.setTitle ("Recipes drawer");
+            handle.setTooltip ("Open the last eight fills: audition, lock, repeat the character, save or load a recipe.");
+            handle.onClick = [this] { setOpen (handle.getToggleState()); };
+            addAndMakeVisible (handle);
+
+            for (int i = 0; i < kChips; ++i)
+            {
+                chips[(size_t) i].setClickingTogglesState (false);
+                chips[(size_t) i].onClick = [this, i] { select (i); };
+                chips[(size_t) i].onContext = [this, i] { select (i); showMenu(); };
+                addChildComponent (chips[(size_t) i]);
+            }
+
+            addChildComponent (lockToggle);
+
+            lockLabel.setFont (fonts::mono (9.5f));
+            lockLabel.setColour (juce::Label::textColourId, colours::accentGreen);
+            lockLabel.setMinimumHorizontalScale (0.7f);
+            lockLabel.setInterceptsMouseClicks (false, false);
+            addChildComponent (lockLabel);
+
+            setup (auditionBtn, "AUDITION", "Audition this",
+                   "Play the selected recipe through the preview voice (or a normal audition when none is selected).",
+                   [this] { auditionSelected(); });
+            setup (lockThisBtn, "LOCK THIS", "Lock this recipe",
+                   "Lock the selected recipe and switch Lock on.", [this] { lockSelected(); });
+            setup (likeBtn, "MORE LIKE", "More like this",
+                   "Bias the next four fills towards the selected recipe's algorithm family (or the latest fill).",
+                   [this] { likeSelected(); });
+            setup (saveBtn, "SAVE...", "Save recipe",
+                   "Save the selected recipe as a small .gfrecipe file.", [this] { saveSelected(); });
+            setup (loadBtn, "LOAD...", "Load recipe",
+                   "Load a .gfrecipe file into Lock. Lock is switched off so you decide when to engage it.",
+                   [this] { loadRecipe(); });
+
+            heartbeat.poll (proc.getMeterState());
+            lastGeneration = proc.getRecipeHistory().getGeneration() - 1;
+            startTimerHz (15);
+        }
+
+        ~RecipeDrawer() override { stopTimer(); }
+
+        bool hitTest (int x, int y) override
+        {
+            return handle.getBounds().contains (x, y) || (open && drawerBounds.contains (x, y));
+        }
+
+        void paint (juce::Graphics& g) override
+        {
+            if (! open)
+                return;
+
+            juce::Graphics::ScopedSaveState save (g);
+            const auto b = drawerBounds.toFloat();
+            GapFillLookAndFeel::drawShadow (g, b, metrics::panelRadius);
+            g.setColour (colours::panel.withAlpha (0.97f));
+            g.fillRoundedRectangle (b, metrics::panelRadius);
+            g.setColour (colours::edge);
+            g.drawRoundedRectangle (b.reduced (0.5f), metrics::panelRadius, 1.0f);
+
+            if (proc.getRecipeHistory().size() == 0)
+            {
+                g.setColour (colours::textMuted);
+                g.setFont (fonts::ui (11.0f));
+                g.drawText ("No fills yet. The last eight fills appear here as soon as GapFill plays one.",
+                            chipRow.toNearestInt(), juce::Justification::centred, true);
+            }
+        }
+
+        void resized() override
+        {
+            const auto area = getLocalBounds();
+            const auto height = juce::jmin (area.getHeight() - 8, 3 * kRow + 2 * kGap + 2 * kPad);
+            drawerBounds = area.reduced (8).removeFromBottom (juce::jmax (0, height));
+
+            if (open)
+                handle.setBounds (drawerBounds.getX(), drawerBounds.getY() - kHandleH, kHandleW, kHandleH);
+            else
+                handle.setBounds (area.getX() + 10, area.getBottom() - 27, kHandleW, kHandleH);
+
+            auto inner = drawerBounds.reduced (kPad);
+            chipRow = inner.removeFromTop (kRow).toFloat();
+            inner.removeFromTop (kGap);
+            auto row2 = inner.removeFromTop (kRow);
+            inner.removeFromTop (kGap);
+            auto row3 = inner.removeFromTop (kRow);
+
+            // chips: equal widths
+            {
+                auto r = chipRow.toNearestInt();
+                const auto w = (r.getWidth() - kGap * (kChips - 1)) / kChips;
+
+                for (int i = 0; i < kChips; ++i)
+                {
+                    chips[(size_t) i].setBounds (r.removeFromLeft (w));
+                    r.removeFromLeft (kGap);
+                }
+            }
+
+            // row 2: LOCK | summary (flex) | AUDITION | LOCK THIS | MORE LIKE
+            lockToggle.setBounds (row2.removeFromLeft (64));
+            row2.removeFromLeft (kGap);
+            likeBtn.setBounds (row2.removeFromRight (92));
+            row2.removeFromRight (kGap);
+            lockThisBtn.setBounds (row2.removeFromRight (84));
+            row2.removeFromRight (kGap);
+            auditionBtn.setBounds (row2.removeFromRight (76));
+            row2.removeFromRight (kGap);
+            lockLabel.setBounds (row2);
+
+            // row 3: SAVE | LOAD | ...
+            saveBtn.setBounds (row3.removeFromLeft (68));
+            row3.removeFromLeft (kGap);
+            loadBtn.setBounds (row3.removeFromLeft (68));
+            row3.removeFromLeft (kGap);
+            extraRowArea = row3;
+            layoutExtraRow();
+        }
+
+    private:
+        void setup (juce::TextButton& b, const juce::String& text, const juce::String& title,
+                    const juce::String& tooltip, std::function<void()> onClick)
+        {
+            b.setButtonText (text);
+            b.setTitle (title);
+            b.setDescription (tooltip);
+            b.setTooltip (tooltip);
+            b.setWantsKeyboardFocus (false);
+            b.onClick = std::move (onClick);
+            addChildComponent (b);
+        }
+
+        /** Hook for the export and A/B rows (added by U-2 and F-S06). */
+        void layoutExtraRow() {}
+
+        void setOpen (bool shouldOpen)
+        {
+            open = shouldOpen;
+            handle.setToggleState (open, juce::dontSendNotification);
+            resized();
+            refresh (true);
+            repaint();
+        }
+
+        //======================================================================
+        int selectedIndex() const
+        {
+            const auto& h = proc.getRecipeHistory();
+
+            for (int i = 0; i < h.size(); ++i)
+                if (selectedSeed != 0 && h.get (i).seed == selectedSeed)
+                    return i;
+
+            return -1;
+        }
+
+        bool hasSelection() const    { return selectedIndex() >= 0; }
+
+        void select (int index)
+        {
+            const auto& h = proc.getRecipeHistory();
+            selectedSeed = index >= 0 && index < h.size() ? h.get (index).seed : 0;
+            refresh (true);
+        }
+
+        FillRecipe selectedRecipe() const
+        {
+            const auto i = selectedIndex();
+            return i >= 0 ? proc.getRecipeHistory().get (i) : FillRecipe {};
+        }
+
+        void timerCallback() override
+        {
+            heartbeat.poll (proc.getMeterState());
+            refresh (false);
+        }
+
+        void refresh (bool force)
+        {
+            const auto& h = proc.getRecipeHistory();
+            const auto generation = h.getGeneration();
+            const auto like = proc.getRecipes().likeRemaining.load (std::memory_order_relaxed);
+            const auto summary = lockSummary();
+            const auto lockKey = (int) proc.getRecipes().lockMirror.valid * 2
+                               + (int) (proc.getValueTreeState().getRawParameterValue ("fillLock")->load() > 0.5f);
+
+            handle.setButtonText ("RECIPES " + juce::String (h.size()));
+
+            if (! force && generation == lastGeneration && like == lastLike && lockKey == lastLockKey
+                  && summary == lastSummary && open == lastOpen)
+                return;
+
+            lastGeneration = generation;
+            lastLike = like;
+            lastLockKey = lockKey;
+            lastSummary = summary;
+            lastOpen = open;
+
+            const auto sel = selectedIndex();
+
+            for (int i = 0; i < kChips; ++i)
+            {
+                auto& chip = chips[(size_t) i];
+                const bool show = open && i < h.size();
+                chip.setVisible (show);
+
+                if (show)
+                {
+                    const auto& r = h.get (i);
+                    chip.set (r, i == sel, (r.flags & FillRecipe::flagFromLock) != 0);
+                }
+            }
+
+            for (auto* c : std::initializer_list<juce::Component*> { &lockToggle, &lockLabel, &auditionBtn, &lockThisBtn,
+                                                                     &likeBtn, &saveBtn, &loadBtn })
+                c->setVisible (open);
+
+            lockLabel.setText (summary, juce::dontSendNotification);
+            lockThisBtn.setEnabled (sel >= 0);
+            saveBtn.setEnabled (sel >= 0);
+            likeBtn.setButtonText (like > 0 ? "LIKED x" + juce::String (like) : juce::String ("MORE LIKE"));
+            repaint();
+        }
+
+        juce::String lockSummary() const
+        {
+            const auto lockOn = proc.getValueTreeState().getRawParameterValue ("fillLock")->load() > 0.5f;
+            const auto& mirror = proc.getRecipes().lockMirror;
+            const auto& t = history::strings();
+
+            if (! lockOn)
+                return mirror.valid ? "Lock off - kept: " + history::describeRecipe (mirror.recipe, 0.0) : juce::String();
+
+            if (mirror.valid && ! proc.getRecipes().lockArmed.load (std::memory_order_relaxed))
+                return juce::String (t.locked) + ": " + history::describeRecipe (mirror.recipe, 0.0);
+
+            return juce::String (t.armed) + ": the next fill will be locked";
+        }
+
+        //======================================================================
+        // Actions
+
+        void stampedCommand (CommandType type, const FillRecipe* recipe)
+        {
+            Command c;
+            c.type = type;
+            c.velocity = 100;
+            c.issuedMs = juce::jmax<std::uint32_t> (1u, juce::Time::getMillisecondCounter());
+
+            if (recipe != nullptr)
+                c.recipe = *recipe;
+
+            proc.postCommand (c);
+        }
+
+        void auditionSelected()
+        {
+            heartbeat.poll (proc.getMeterState());
+
+            if (! heartbeat.isRunning())
+            {
+                proc.getRecipes().postMessage ("Start playback to audition");
+                return;
+            }
+
+            if (hasSelection())
+            {
+                const auto r = selectedRecipe();
+                stampedCommand (CommandType::PreviewRecipe, &r);
+            }
+            else
+            {
+                stampedCommand (CommandType::Preview, nullptr);
+            }
+        }
+
+        void lockSelected()
+        {
+            if (! hasSelection())
+                return;
+
+            const auto r = selectedRecipe();
+            stampedCommand (CommandType::LockRecipe, &r);
+
+            // The command is drained before the next block reads fillLock, so the explicit
+            // recipe is in place when the parameter engages.
+            if (auto* p = proc.getValueTreeState().getParameter ("fillLock"))
+                p->setValueNotifyingHost (1.0f);
+
+            proc.getRecipes().postMessage ("Locked: " + history::describeRecipe (r, 0.0));
+        }
+
+        void likeSelected()
+        {
+            if (hasSelection())
+            {
+                const auto r = selectedRecipe();
+                stampedCommand (CommandType::LikeRecipe, &r);
+            }
+            else
+            {
+                stampedCommand (CommandType::LikeLatest, nullptr);
+            }
+
+            proc.getRecipes().postMessage ("More like that: the next four fills lean towards it");
+        }
+
+        void saveSelected()
+        {
+            if (! hasSelection())
+                return;
+
+            const auto r = selectedRecipe();
+            auto dir = history::defaultRecipeDirectory();
+            dir.createDirectory();
+            const auto name = history::sanitiseRecipeName (history::describeRecipe (r, 0.0));
+
+            chooser = std::make_unique<juce::FileChooser> ("Save recipe", dir.getChildFile (name + ".gfrecipe"), "*.gfrecipe");
+            chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
+                                    | juce::FileBrowserComponent::warnAboutOverwriting,
+                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this), r, name] (const juce::FileChooser& fc)
+            {
+                auto file = fc.getResult();
+
+                if (safe == nullptr || file == juce::File())
+                    return;
+
+                file = file.withFileExtension ("gfrecipe");
+                juce::String error;
+
+                if (history::writeRecipeFile (file, r, name, error))
+                    safe->proc.getRecipes().postMessage ("Saved " + file.getFileName(), 3000);
+                else
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", error);
+            });
+        }
+
+        void loadRecipe()
+        {
+            auto dir = history::defaultRecipeDirectory();
+            dir.createDirectory();
+
+            chooser = std::make_unique<juce::FileChooser> ("Load recipe", dir, "*.gfrecipe");
+            chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this)] (const juce::FileChooser& fc)
+            {
+                const auto file = fc.getResult();
+
+                if (safe == nullptr || file == juce::File())
+                    return;
+
+                const auto loaded = history::readRecipeFile (file);
+
+                if (! loaded.ok)
+                {
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", loaded.error);
+                    return;
+                }
+
+                // Armed but off: the user decides when to engage it.
+                if (auto* p = safe->proc.getValueTreeState().getParameter ("fillLock"))
+                    p->setValueNotifyingHost (0.0f);
+
+                safe->stampedCommand (CommandType::LockRecipe, &loaded.recipe);
+                safe->proc.getRecipes().postMessage ("Recipe loaded - switch LOCK on to use it", 3500);
+            });
+        }
+
+        void showMenu()
+        {
+            const auto sel = selectedIndex();
+
+            if (sel < 0)
+                return;
+
+            juce::PopupMenu menu;
+            menu.addItem (1, "Audition this");
+            menu.addItem (2, "Lock this");
+            menu.addItem (3, "More like this");
+            menu.addItem (4, "Save recipe...");
+
+            menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&chips[(size_t) sel]),
+                                [safe = juce::Component::SafePointer<RecipeDrawer> (this)] (int result)
+            {
+                if (safe == nullptr)
+                    return;
+
+                if (result == 1) safe->auditionSelected();
+                else if (result == 2) safe->lockSelected();
+                else if (result == 3) safe->likeSelected();
+                else if (result == 4) safe->saveSelected();
+            });
+        }
+
+        //======================================================================
+        GapFillAudioProcessor& proc;
+        audition::Heartbeat heartbeat;
+
+        juce::TextButton handle { "RECIPES" };
+        std::array<ChipButton, (size_t) kChips> chips;
+        GapToggle lockToggle;
+        juce::Label lockLabel;
+        juce::TextButton auditionBtn, lockThisBtn, likeBtn, saveBtn, loadBtn;
+
+        juce::Rectangle<int> drawerBounds, extraRowArea;
+        juce::Rectangle<float> chipRow;
+        bool open = false;
+        std::uint32_t selectedSeed = 0;
+
+        std::uint32_t lastGeneration = 0;
+        int lastLike = -1, lastLockKey = -1;
+        juce::String lastSummary;
+        bool lastOpen = false;
+
+        std::unique_ptr<juce::FileChooser> chooser;
+
+        JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (RecipeDrawer)
+    };
+
+    const SlotRegistrar recipeDrawer ({ Slot::VisualiserOverlay, 100,
+        [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
+        {
+            return std::make_unique<RecipeDrawer> (proc);
+        } });
+}
+
+} // namespace gapfill

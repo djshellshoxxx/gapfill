@@ -1,5 +1,6 @@
 #include "FillEngine.h"
 #include "../features/effective/Effective.h"
+#include "../features/history/Describe.h"
 #include "../features/lock/LockStage.h"
 
 namespace gapfill
@@ -303,6 +304,7 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             e.availMs = result.availableMs;
             e.needMs = result.neededMs;
             e.pos = outputPos;
+            e.lengthSamples = (std::int32_t) result.lengthSamples;
             events->push (e);
         }
     }
@@ -434,6 +436,7 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
     noteFillStarted (plan, outputPos);
     result.started = true;
     result.recipe = plan.recipe;
+    result.lengthSamples = plan.lengthSamples;
     return result;
 }
 
@@ -581,6 +584,7 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
     r.band = (std::int8_t) band;
     r.lengthClass = lengthClassFor (lengthMs, s.maxFillMs);
     r.lengthMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (lengthMs));
+    r.division = history::recipeDivision (algoIndex, s, sr);       // U-1: Stutter / Delay subdivision, for the chip text
     r.seed = (std::uint32_t) hashCombine (ctx.key, (std::uint64_t) (algoIndex + 1) * 0x27D4EB2FULL);
 
     if (likeApplies (s))
