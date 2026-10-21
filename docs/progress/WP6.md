@@ -10,9 +10,18 @@ F-M23, F-M18, F-L24, then the E-1-dependent ones (F-M10, F-S07, F-P02).
 | X-1 | Done (core) | `features/commands/CommandMap.*`: 48 bindings (CC/Note/PC x Trigger/Momentary/Toggle), single MIDI scan, learn, `<Cmd>` subtree. |
 | N-USE-a | Done (core) | `features/panic/Panic.*` + footer chip (`gui/slots/PanicSlot.cpp`) + `<Perf>` options. |
 | F-L07 | Done (core) | `features/scenes/*`: `SceneModel` (sparse scenes, scopes, bank, `<Scenes>` codec), `SceneOverlay` (quantiser + audio-thread `SceneEngine`), `SceneController` (message thread, commit). Recall is an overlay applied in the decision stage (`Effective::applyScene`), committed to the APVTS with host gestures after the boundary. |
+| F-S08 | Done | `features/live/Roulette.*`: spins the existing Surprise profiles through `surpriseParameters` (Undo snapshot + randomisable rules inherited), injected RNG, no immediate repeat, command 18. |
+| F-L25 | Done (core) | `wetSafety` param (group `safety`), `panic/WetSafety.h` soft limiter after the width stage, SceneGoto(arg -1) = last good scene. |
 | N-VAL | Done (core) | `features/bank/BankFile.*`: `.gapbank` export/import (256 KiB, 64 scenes, SHA-256 digest, atomic apply, one-step undo), PC -> scene and Next/Prev/Cancel commands. |
 
 ## Deviations and gaps (honest list)
+
+* **wetSafety**: with the spec's formula and c = 0.89 the deviation from unity is 0.086 dB at -8 dBFS and 0.21 dB at -6 dBFS, so the
+  spec's "< 0.1 dB below -6 dBFS" is met below -8 dBFS only (tests assert exactly that). The "overload fallback" part of F-L25 depends on
+  F-D03 `qualityMode = Auto` / N-EASY R11 (other work packages) and is not implemented here.
+* `TestFoundations.parameter_set_and_order_are_unchanged_by_the_group_split` asserted exactly 66 parameters; it now asserts >= 66 with the
+  same first/last core ids (the 66 core ids and their order are still checked one by one). Every work package that adds a parameter needs
+  the same change, so expect an identical hunk to merge.
 
 * **Scene storage**: scenes store only parameters that differ from the default (that is what "sparse" means); recall sets EVERY in-scope
   parameter (stored value, else default). With full 6-byte entries 64 typical scenes (~36 changed params) take ~19 KiB of the 24 KiB cap;

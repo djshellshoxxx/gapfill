@@ -7,6 +7,7 @@
 #include "PluginEditor.h"
 #include "features/FeatureHooks.h"
 #include "features/state/StateSubtrees.h"
+#include "features/panic/WetSafety.h"
 
 namespace gapfill
 {
@@ -718,6 +719,10 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
             wl[i] = sanitise (mid + side);
             wr[i] = sanitise (mid - side);
         }
+
+        // F-L25: soft limiter on the wet bus only (last stage, stateless, off by default).
+        if (pb (params.wetSafety))
+            panic::wetSafetyProcess (wl, wr, numSamples);
     }
 
     // ---- mix -------------------------------------------------------------

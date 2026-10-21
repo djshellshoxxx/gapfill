@@ -4,4 +4,6 @@ list(APPEND GAPFILL_TEST_SOURCES
     Tests/features/TestPanic.cpp
     Tests/features/TestScenes.cpp
     Tests/features/TestSceneBank.cpp
+    Tests/features/TestRoulette.cpp
+    Tests/features/TestSafety.cpp
 )

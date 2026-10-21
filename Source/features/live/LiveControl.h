@@ -18,6 +18,7 @@
 #include "../commands/CommandMap.h"
 #include "../panic/Panic.h"
 #include "../scenes/SceneController.h"
+#include "Roulette.h"
 #include "../../dsp/EngineSettings.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
@@ -65,6 +66,7 @@ public:
     const commands::BindingModel& bindings() const noexcept { return bindingModel; }
     scenes::SceneController& scenes() noexcept           { return sceneCtl; }
     const scenes::SceneController& scenes() const noexcept { return sceneCtl; }
+    GlitchRoulette& roulette() noexcept                  { return rouletteState; }
     panic::PanicController& panic() noexcept             { return panicCtl; }
     const panic::PanicController& panic() const noexcept { return panicCtl; }
 
@@ -129,6 +131,7 @@ private:
     scenes::SceneController sceneCtl;
     scenes::SceneEngine sceneEngine;
     panic::PanicController panicCtl;
+    GlitchRoulette rouletteState { juce::Random::getSystemRandom() };
 
     // audio-thread-local ring of MIDI-originated commands (drained next block)
     commands::Event ring[commands::kMaxCommandEventsPerBlock] {};

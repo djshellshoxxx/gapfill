@@ -10,5 +10,6 @@ list(APPEND GAPFILL_SOURCES
     Source/features/effective/StageScene.cpp
     Source/features/bank/BankFile.cpp
     Source/features/live/LiveControl.cpp
+    Source/features/live/Roulette.cpp
     Source/gui/slots/PanicSlot.cpp
 )

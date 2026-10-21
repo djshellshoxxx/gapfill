@@ -1,7 +1,7 @@
 #pragma once
 
 // Parameter group "safety" (docs/dev/02-FOUNDATIONS.md F0-1).
-// Owner: doc 12 feature group (see docs/dev/12-SPEC-BACKLOG-AND-NEW.md section 2.1 / 02 permanent registry).
+// Owner: F-L25 live safety suite (wetSafety: soft limiter on the wet bus only).
 //
 // The group's parameters are listed in GAPFILL_PARAMS_SAFETY below as X-macro
 // entries (member name, then permanent string id) joined by line
@@ -13,7 +13,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_SAFETY(X)
+#define GAPFILL_PARAMS_SAFETY(X) \
+    X (wetSafety, "wetSafety")
 
 namespace gapfill
 {

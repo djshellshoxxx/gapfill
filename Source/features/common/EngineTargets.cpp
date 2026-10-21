@@ -41,15 +41,15 @@ Ref refForId (const char* id) noexcept
 
 std::uint32_t macroBit (Ref ref) noexcept
 {
-    switch (ref.kind)
+    switch ((int) ref.kind)
     {
-        case Kind::Fill:       return 1u << 0;
-        case Kind::Intensity:  return 1u << 1;
-        case Kind::Complexity: return 1u << 2;
-        case Kind::Chaos:      return 1u << 3;
-        case Kind::Density:    return 1u << 4;
-        case Kind::Weight:     return 1u << (6 + std::min<int> (ref.sub, 14));
-        default:               return 0u;
+        case (int) Kind::Fill:       return 1u << 0;
+        case (int) Kind::Intensity:  return 1u << 1;
+        case (int) Kind::Complexity: return 1u << 2;
+        case (int) Kind::Chaos:      return 1u << 3;
+        case (int) Kind::Density:    return 1u << 4;
+        case (int) Kind::Weight:     return 1u << (6 + std::min<int> (ref.sub, 14));
+        default:                     return 0u;
     }
 }
 

@@ -78,7 +78,8 @@ void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset,
                 onPanicAction (panicCtl.recover(), engine);
             break;
 
-        case (int) CommandType::SceneGoto:   if (on) post (UiRequest::SceneGoto, arg); break;
+        // SceneGoto with a negative argument is the F-L25 "last good scene" action.
+        case (int) CommandType::SceneGoto:   if (on) post (arg < 0 ? UiRequest::SceneLastGood : UiRequest::SceneGoto, arg); break;
         case (int) CommandType::SceneNext:   if (on) post (UiRequest::SceneNext); break;
         case (int) CommandType::ScenePrev:   if (on) post (UiRequest::ScenePrev); break;
         case (int) CommandType::SceneCancel:
@@ -218,6 +219,7 @@ void LiveControl::handleUi (const UiRequest& r, GapFillAudioProcessor& proc)
         case (int) UiRequest::ScenePrev:     sceneCtl.prev(); break;
         case (int) UiRequest::SceneCancel:   sceneCtl.cancel(); break;
         case (int) UiRequest::SceneLastGood: sceneCtl.gotoLastGood(); break;
+        case (int) UiRequest::Roulette:      rouletteState.spin (proc); break;
 
         case (int) UiRequest::PresetNext:
         case (int) UiRequest::PresetPrev:
