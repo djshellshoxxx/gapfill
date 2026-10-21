@@ -19,3 +19,4 @@ Defaults chosen so implementation is unblocked. Owner may override; changes go t
 15. F-M23 moves macro evaluation to the decision stage; F-L06 keeps unsmoothed scheduler-read targets (block-size invariance).
 16. F-L15/F-L19 report extended tail only while active.
 17. F-L20 accepts ~10.7 ms onset for formant fills.
+18. IDs defined in docs/dev/12 (WP8 features) keep their descriptive names; all other new IDs use `<ticketlower>_<name>`.

@@ -184,6 +184,7 @@ public:
     std::int64_t getSourceHistoryWritePosition() const noexcept { return history.getWritePosition(); }
    #ifdef GAPFILL_UNIT_TESTS
     void flushLatencyReportForTests() { timerCallback(); }
+    int getTransportJumpCountForTests() const noexcept { return transportJumpCountForTests; }
    #endif
 
 private:
@@ -238,6 +239,7 @@ private:
     int   mainChannels = 2;
 
     std::int64_t samplesProcessed = 0;
+    int hostBlockSamples = 0; // total frames in the current DAW callback (not its current chunk)
 
     HighPass2 lowProtect[2];
     float lastLowProtectHz = -1.0f;
@@ -246,8 +248,12 @@ private:
 
     juce::SmoothedValue<float> dryGain, wetGain, outGain, centreProtect, widthAmount, bypassMix;
 
-    double lastPpqPosition = 0.0;
+    double lastPpqPosition = 0.0; // projected PPQ at the next DAW callback
     bool   lastTransportPlaying = false;
+    bool   lastTransportPositionValid = false;
+   #ifdef GAPFILL_UNIT_TESTS
+    int transportJumpCountForTests = 0;
+   #endif
 
     float meterIn = 0.0f, meterOut = 0.0f, meterWet = 0.0f;
 
