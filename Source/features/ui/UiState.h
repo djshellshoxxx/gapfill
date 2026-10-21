@@ -15,7 +15,10 @@
 // Thread contract: everything is message-thread only except where a member says
 // otherwise (viewMode is an atomic so a host thread can save state safely).
 
+#include "../calibrate/RecordTap.h"
 #include "../info/StatusBoard.h"
+#include "../mutation/MutationLab.h"
+#include "../suggest/Profile.h"
 
 #include <juce_data_structures/juce_data_structures.h>
 
@@ -30,6 +33,19 @@ class UiState
 {
 public:
     info::StatusBoard status;
+
+    /** U-6: audio-thread input recorder for Auto-Calibrate (idle = one atomic load per chunk). */
+    calibrate::RecordTap recordTap;
+
+    /** F-M22: audio-thread input profile for Smart preset suggestions (idle = one atomic load per chunk). */
+    suggest::ProfileAccumulator profile;
+
+    /** F-L17: audio-side preview overlay (applied first in the effective-settings pipeline) and the lab controller. */
+    mutation::OverlayState mutationOverlay;
+    mutation::MutationLab lab { mutationOverlay };
+
+    /** U-8: "Reduced to 125 % to fit this screen" (empty = none). Written by the editor, shown in Options. */
+    juce::String scaleNote;
 
     //--- U-5 ---------------------------------------------------------------------
     ViewMode getViewMode() const noexcept          { return (ViewMode) viewMode.load (std::memory_order_relaxed); }

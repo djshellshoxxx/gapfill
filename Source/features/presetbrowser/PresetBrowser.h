@@ -8,6 +8,7 @@
 #include "GlobalSettings.h"
 #include "PresetCatalog.h"
 #include "PresetFiles.h"
+#include "../suggest/Gui.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -60,6 +61,10 @@ public:
 
     juce::TextEditor& getSearchBox() noexcept               { return search; }
 
+    /** F-M22: opens / closes the "Suggest presets" strip (opt-in; nothing is measured until Listen is pressed). */
+    void showSuggestions (bool show);
+    suggest::SuggestView* getSuggestView() noexcept         { return suggestView.get(); }
+
     static constexpr int preferredWidth = 540;
     static constexpr int preferredHeight = 460;
 
@@ -97,6 +102,8 @@ private:
     juce::OwnedArray<juce::TextButton> chips;
     juce::ListBox list { "Presets", this };
     juce::TextButton saveButton { "SAVE AS USER PRESET..." };
+    juce::TextButton suggestButton { "SUGGEST..." };
+    std::unique_ptr<suggest::SuggestView> suggestView;
     juce::Label countLabel;
 
     std::unique_ptr<Scan> scan;

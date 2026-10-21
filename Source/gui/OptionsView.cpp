@@ -155,6 +155,8 @@ void OptionsView::resized()
 
     closeButton.setBounds (b.removeFromBottom (metrics::buttonHeight)
                             .removeFromRight (90));
+    b.removeFromBottom (metrics::halfGrid);
+    extraBounds = b.getHeight() >= 40 ? b : juce::Rectangle<int>();
 }
 
 } // namespace gapfill

@@ -99,7 +99,13 @@ GF_TEST (Info, tooltip_matches_table)
             continue;
 
         const auto* entry = info::ParamInfoRegistry::get().find (id);
-        GF_EXPECT_MSG (entry != nullptr, id);
+
+        if (entry == nullptr)
+        {
+            GF_EXPECT_MSG (readAllowlist().contains (id), "no info entry and not allow-listed: " + id);
+            continue;                                         // feature controls keep their own tooltip until their Info.cpp exists
+        }
+
         GF_EXPECT_MSG (tip->getTooltip() == info::tooltipFor (*entry), id);
         ++checked;
     }

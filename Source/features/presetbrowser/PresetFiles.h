@@ -23,10 +23,10 @@ struct PresetMeta
     juce::String name, category, description, author;
 };
 
-/** `<Documents>/GapFill/Presets` - where new user presets are written. */
+/** `<AppData>/GapFill/Presets` (decision D11) - where user presets live, categories as subfolders. */
 juce::File userPresetRoot();
 
-/** The pre-U-4 location (`<AppData>/GapFill/Presets`); still scanned so nothing disappears. */
+/** Same folder; kept as a name for callers that predate decision D11. */
 juce::File legacyPresetRoot();
 
 /** Roots handed to scanUserPresets (new root first). */

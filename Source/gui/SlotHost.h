@@ -54,7 +54,7 @@ std::vector<SlotComponentFactory> getSlotFactories (Slot);
     Column: top to bottom, the height split evenly (OptionsExtra).
     Stack: top to bottom at the full width, each component keeping its OWN
     height (the height it had when created, or what it later sets itself, e.g.
-    a foldable effect card). Used by PerformanceTab and EffectsSection; the
+    a foldable effect card). Used by PerformanceTab (EffectsSection components bring their own scrolling and fill the drawer); the
     stack's total height is reported so a scrolling panel can size its content. */
 enum class SlotLayout { Row, Column, Stack };
 

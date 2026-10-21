@@ -98,7 +98,7 @@ std::vector<PresetEntry> factoryEntries()
         e.name = p.name;
         e.description = p.description;
         e.category = normaliseCategory (p.category != nullptr ? p.category : "");
-        e.identity = "f:" + e.name;
+        e.identity = "F:" + e.name;
         e.factoryIndex = i;
         out.push_back (std::move (e));
     }
@@ -117,7 +117,7 @@ namespace
         e.rootTag = root.tag;
         e.name = cleanMetaText (file.getFileNameWithoutExtension(), kMaxNameLength);
         e.category = folderCategory.isEmpty() ? juce::String (kUncategorised) : normaliseCategory (folderCategory);
-        e.identity = "u:" + root.tag + "/" + file.getRelativePathFrom (root.folder).replaceCharacter ('\\', '/');
+        e.identity = "U:" + file.getRelativePathFrom (root.folder).replaceCharacter ('\\', '/');
 
         // Optional root attributes override the file-name defaults. Anything malformed is ignored.
         if (auto xml = juce::XmlDocument::parse (file))

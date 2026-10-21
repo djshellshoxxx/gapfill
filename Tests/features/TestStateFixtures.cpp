@@ -79,8 +79,12 @@ namespace
         juce::StringArray names;
         const auto& presets = getFactoryPresets();
 
-        for (const auto& p : presets)
-            names.add ("preset_" + slug (p.name));
+        // The 0.0.1 fixtures cover the beta1 bank (the first 17 programs). Later presets are appended after them
+        // (U-10, append-only) and did not exist in 0.0.1, so there is no 0.0.1 state to restore for them.
+        constexpr size_t kBeta1Presets = 17;
+
+        for (size_t i = 0; i < presets.size() && i < kBeta1Presets; ++i)
+            names.add ("preset_" + slug (presets[i].name));
 
         names.add ("session_extreme");
         names.add ("session_zero_weights");

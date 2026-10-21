@@ -38,8 +38,7 @@ SlotLayout defaultLayoutFor (Slot slot) noexcept
     switch (slot)
     {
         case Slot::OptionsExtra:   return SlotLayout::Column;
-        case Slot::PerformanceTab:
-        case Slot::EffectsSection: return SlotLayout::Stack;
+        case Slot::PerformanceTab: return SlotLayout::Stack;
         default:                   return SlotLayout::Row;
     }
 }

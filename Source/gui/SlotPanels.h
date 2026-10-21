@@ -44,6 +44,7 @@ class EffectsDrawer : public juce::Component
 {
 public:
     EffectsDrawer (SlotHost&);
+    ~EffectsDrawer() override;
 
     void resized() override;
     void paint (juce::Graphics&) override;
@@ -57,9 +58,10 @@ public:
     static constexpr int headerHeight = 22;
 
 private:
+    SlotHost& host;
     bool expanded = false;
     juce::TextButton toggle { "EFFECTS" };
-    StackPanel body;
+    juce::Component body;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EffectsDrawer)
 };

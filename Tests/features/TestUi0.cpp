@@ -5,6 +5,8 @@
 #include "PluginEditor.h"
 #include "gui/SlotHost.h"
 #include "gui/SlotPanels.h"
+#include "gui/slots/EffectsSection.h"
+#include "UiTestUtil.h"
 
 using namespace gapfill;
 using namespace gftest;
@@ -48,8 +50,6 @@ namespace
 
     const SlotRegistrar perf1 ({ Slot::PerformanceTab, 10, [] (GapFillAudioProcessor&) { return makeCard ("Perf card A", 80); } });
     const SlotRegistrar perf2 ({ Slot::PerformanceTab, 20, [] (GapFillAudioProcessor&) { return makeCard ("Perf card B", 120); } });
-    const SlotRegistrar fx1 ({ Slot::EffectsSection, 10, [] (GapFillAudioProcessor&) { return makeCard ("Fx card A", 100); } });
-    const SlotRegistrar fx2 ({ Slot::EffectsSection, 20, [] (GapFillAudioProcessor&) { return makeCard ("Fx card B", 100); } });
 
     void collect (juce::Component& root, std::vector<juce::Component*>& out)
     {
@@ -76,26 +76,33 @@ namespace
 GF_TEST (Ui0, slots_empty_layout_identical_to_baseline)
 {
     GapFillAudioProcessor proc;
+    proc.getUiState().setViewMode (ui::ViewMode::Advanced);
 
     for (const auto size : { juce::Point<int> (1020, 620), juce::Point<int> (1100, 700), juce::Point<int> (1500, 900) })
     {
         GapFillAudioProcessorEditor editor (proc);
         editor.setSize (size.x, size.y);
 
-        GF_EXPECT (editor.getPerformancePanelForTests() == nullptr);
-        GF_EXPECT (editor.getEffectsDrawerForTests() == nullptr);
+        GF_EXPECT (editor.getPerformancePanelForTests() == nullptr);      // nothing registered for the Performance tab
         GF_EXPECT (! editor.isPerformanceTabForTests());
+        // WP8 registers the Effects section and the scrub strip: the drawer header (22 px) and the
+        // 72 px strip + 6 px gap come out of the visualiser; everything else is the old layout.
+        GF_EXPECT (editor.getEffectsDrawerForTests() != nullptr);
 
         // The pre-UI-0 formulas (kTopBarHeight 46, kMixHeight 124, kFooterHeight 22, 8 px gaps).
         const auto inner = juce::Rectangle<int> (0, 46, size.x, size.y - 46).reduced (10, 8).withTrimmedBottom (22);
         const auto rest = inner.getHeight() - 124 - 8;
-        const auto controlHeight = juce::jlimit (250, 360, (int) ((float) rest * 0.54f));
-        const auto expectedVis = juce::Rectangle<int> (inner.getX(), inner.getY(), inner.getWidth(), rest - 8 - controlHeight);
+        const auto controlHeight = juce::jlimit (250, 360, (int) ((float) rest * 0.54f)) + EffectsDrawer::headerHeight;
+        auto visHeight = rest - 8 - controlHeight;
+        if (visHeight >= 72 + 70 + 6)
+            visHeight -= 72 + 6;
+        const auto expectedVis = juce::Rectangle<int> (inner.getX(), inner.getY(), inner.getWidth(), visHeight);
 
         GF_EXPECT_MSG (editor.getVisualiserBoundsForTests() == expectedVis, "visualiser rectangle unchanged");
 
         const auto t0 = editor.getTabBoundsForTests (0), t1 = editor.getTabBoundsForTests (1), t2 = editor.getTabBoundsForTests (2);
-        GF_EXPECT (t0.getWidth() == 128 && t1.getWidth() == 148 && t2.getWidth() == 128);   // 130/150/130 minus the 1 px insets
+        // 130/150/130 (shrunk evenly only when the SIMPLE | ADVANCED switch leaves less room), minus 1 px insets.
+        GF_EXPECT (t0.getWidth() >= 100 && t1.getWidth() == t0.getWidth() + 20 && t2.getWidth() == t0.getWidth());
         GF_EXPECT (editor.getTabBoundsForTests (3).isEmpty());
     }
 }
@@ -113,6 +120,7 @@ GF_TEST (Ui0, tabs_do_not_clip_at_min)
 {
     ScopedUiSlots enabled;
     GapFillAudioProcessor proc;
+    proc.getUiState().setViewMode (ui::ViewMode::Advanced);
 
     for (const auto width : { 1020, 1100, 1300, 1800 })
     {
@@ -153,6 +161,7 @@ GF_TEST (Ui0, performance_is_reachable_without_a_tab_at_min_size)
 {
     ScopedUiSlots enabled;
     GapFillAudioProcessor proc;
+    proc.getUiState().setViewMode (ui::ViewMode::Advanced);
     GapFillAudioProcessorEditor editor (proc);
     editor.setSize (1020, 620);
 
@@ -175,8 +184,8 @@ GF_TEST (Ui0, performance_is_reachable_without_a_tab_at_min_size)
 
 GF_TEST (Ui0, effects_section_collapsed_by_default_and_unfolds_without_shrinking_controls)
 {
-    ScopedUiSlots enabled;
     GapFillAudioProcessor proc;
+    proc.getUiState().setViewMode (ui::ViewMode::Advanced);
     GapFillAudioProcessorEditor editor (proc);
     editor.setSize (1020, 620);
 
@@ -185,9 +194,6 @@ GF_TEST (Ui0, effects_section_collapsed_by_default_and_unfolds_without_shrinking
     GF_EXPECT (drawer->getHeight() == EffectsDrawer::headerHeight);
 
     const auto collapsedVis = editor.getVisualiserBoundsForTests();
-    auto* fxCard = find (*drawer, "Fx card A");
-    GF_EXPECT (fxCard != nullptr && ! fxCard->isShowing());
-
     drawer->setExpanded (true);
     const auto expandedVis = editor.getVisualiserBoundsForTests();
 
@@ -195,7 +201,21 @@ GF_TEST (Ui0, effects_section_collapsed_by_default_and_unfolds_without_shrinking
     GF_EXPECT_MSG (expandedVis.getHeight() >= 70, "the visualiser keeps a usable height");
     GF_EXPECT (expandedVis.getHeight() < collapsedVis.getHeight());
     GF_EXPECT (editor.getLocalBounds().contains (drawer->getBounds()));
-    GF_EXPECT (find (*drawer, "Fx card A")->isVisible());
+
+    std::vector<juce::Component*> all;
+    collect (*drawer, all);
+    bool sawCard = false;
+    for (auto* c : all)
+        sawCard = sawCard || (dynamic_cast<fxgui::EffectCardView*> (c) != nullptr && visibleInTree (*c, editor));
+    int cards = 0, visibleCards = 0;
+    for (auto* c : all)
+        if (dynamic_cast<fxgui::EffectCardView*> (c) != nullptr)
+        {
+            ++cards;
+            visibleCards += c->isVisible() ? 1 : 0;
+        }
+    GF_EXPECT_MSG (sawCard, "the WP8 effect cards are visible inside the unfolded drawer: cards " + juce::String (cards)
+                            + ", own flag visible " + juce::String (visibleCards) + ", drawer " + drawer->getBounds().toString());
 
     drawer->setExpanded (false);
     GF_EXPECT (editor.getVisualiserBoundsForTests() == collapsedVis);
@@ -205,6 +225,7 @@ GF_TEST (Ui0, a_card_that_folds_itself_restacks_the_slot)
 {
     ScopedUiSlots enabled;
     GapFillAudioProcessor proc;
+    proc.getUiState().setViewMode (ui::ViewMode::Advanced);
     GapFillAudioProcessorEditor editor (proc);
     editor.setSize (1300, 800);
     editor.selectPerformanceForTests();
@@ -224,6 +245,7 @@ GF_TEST (Ui0, keyboard_reaches_every_slot)
 {
     ScopedUiSlots enabled;
     GapFillAudioProcessor proc;
+    proc.getUiState().setViewMode (ui::ViewMode::Advanced);
     proc.setKeyboardNavigationEnabled (true);
 
     GapFillAudioProcessorEditor editor (proc);

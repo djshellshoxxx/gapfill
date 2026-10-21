@@ -10,7 +10,7 @@
 //    as "Uncategorised"; scanning is capped (2000 files, 1 MB each) and meant to run on
 //    a background thread; it never touches the audio thread.
 //
-// Preset identity (the favourites key): factory `f:<name>`, user `u:<rootTag>/<relative path>`.
+// Preset identity (the favourites key): factory `F:<name>`, user `U:<relative path under the root>` (F-S11 ids).
 
 #include <juce_core/juce_core.h>
 

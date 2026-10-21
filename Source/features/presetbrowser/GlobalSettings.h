@@ -46,6 +46,12 @@ public:
     bool isUsable() const noexcept     { return usable; }
     const juce::File& getFile() const noexcept { return file; }
 
+    /** True when the settings file did not exist when it was opened (the very first run for this user). */
+    bool wasMissing() const noexcept   { return missing; }
+
+    /** The settings folder accepts writes, so a flag set now will persist (U-7 relies on this). */
+    bool isWritable() const;
+
     //--- typed values -----------------------------------------------------------
     int  getInt (const juce::String& key, int fallback) const;
     void setInt (const juce::String& key, int value);
@@ -72,6 +78,7 @@ private:
     juce::File file;
     std::unique_ptr<juce::PropertiesFile> props;
     bool usable = true;
+    bool missing = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GlobalSettings)
 };

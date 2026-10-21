@@ -33,9 +33,10 @@ void StackPanel::resized()
 }
 
 //==============================================================================
-EffectsDrawer::EffectsDrawer (SlotHost& host)
-    : body (host, Slot::EffectsSection, "Effects", colours::accentWarm)
+EffectsDrawer::EffectsDrawer (SlotHost& h)
+    : host (h)
 {
+    host.setSlotContainer (Slot::EffectsSection, &body);
     toggle.setClickingTogglesState (true);
     toggle.setTitle ("Effects section");
     toggle.setDescription ("Shows or hides the foldable effect cards");
@@ -43,6 +44,11 @@ EffectsDrawer::EffectsDrawer (SlotHost& host)
     toggle.onClick = [this] { setExpanded (toggle.getToggleState()); };
     addAndMakeVisible (toggle);
     addChildComponent (body);
+}
+
+EffectsDrawer::~EffectsDrawer()
+{
+    host.setSlotContainer (Slot::EffectsSection, nullptr);
 }
 
 void EffectsDrawer::setExpanded (bool shouldExpand)
@@ -61,6 +67,7 @@ void EffectsDrawer::resized()
     auto b = getLocalBounds();
     toggle.setBounds (b.removeFromTop (headerHeight).removeFromLeft (juce::jmin (140, getWidth())).reduced (0, 1));
     body.setBounds (b);
+    host.setSlotBounds (Slot::EffectsSection, body.getLocalBounds());
 }
 
 void EffectsDrawer::paint (juce::Graphics&) {}

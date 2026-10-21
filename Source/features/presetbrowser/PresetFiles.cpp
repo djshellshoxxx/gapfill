@@ -7,8 +7,8 @@ namespace gapfill::presets
 
 juce::File userPresetRoot()
 {
-    return juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
-             .getChildFile ("GapFill").getChildFile ("Presets");
+    // Decision D11 (docs/dev/features/DECISIONS.md): keep the AppData root; categories are subfolders.
+    return legacyPresetRoot();
 }
 
 juce::File legacyPresetRoot()
@@ -19,7 +19,7 @@ juce::File legacyPresetRoot()
 
 std::vector<ScanRoot> defaultScanRoots()
 {
-    return { { "doc", userPresetRoot() }, { "app", legacyPresetRoot() } };
+    return { { "app", userPresetRoot() } };
 }
 
 juce::File presetPathFor (const juce::File& root, const juce::String& category, const juce::String& name)
@@ -77,7 +77,10 @@ bool writeUserPreset (GapFillAudioProcessor& proc, const juce::File& file, const
         return false;
     }
 
-    if (! xml->writeTo (file))
+    // Atomic: the old file stays intact if writing fails half-way.
+    juce::TemporaryFile temp (file);
+
+    if (! xml->writeTo (temp.getFile()) || ! temp.overwriteTargetFileWithTemporary())
     {
         error = "GapFill could not write the preset file. Check the folder permissions and available disk space.";
         return false;
@@ -149,7 +152,9 @@ bool renameUserPreset (const PresetEntry& entry, const juce::String& newName, ju
 
     xml->setAttribute ("name", name);
 
-    if (! xml->writeTo (target))
+    juce::TemporaryFile temp (target);
+
+    if (! xml->writeTo (temp.getFile()) || ! temp.overwriteTargetFileWithTemporary())
     {
         error = "GapFill could not write the renamed preset.";
         return false;

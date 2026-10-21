@@ -194,7 +194,9 @@ Source/
   PluginProcessor.*       host integration, buses, latency, mix, protection bus
   PluginEditor.*          top bar, tabs, A/B, presets, FILE menu, overlays
   Parameters.*            stable parameter IDs (X-macro) + cached atomics
-  Presets.*               17 factory presets, reset, randomise
+  Presets.*               41 factory presets in 7 categories + Starting Points, reset, randomise
+  features/presetbrowser  preset browser, user presets, per-user settings file
+  features/{info,viewmode,uiscale,tour,access,calibrate,suggest,mutation}  WP11 UI features
   MidiLearn.*             CC learn and mapping, lock-free audio -> UI
   dsp/
     DspUtils.h            SVF, envelopes, RNG, SourceHistory, EventQueue

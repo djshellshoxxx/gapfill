@@ -5,6 +5,8 @@
 
 #include "PluginEditor.h"
 #include "features/info/ParamInfo.h"
+#include "features/mutation/Gui.h"
+#include "features/uiscale/UiScale.h"
 #include "features/presetbrowser/PresetBrowser.h"
 
 // The standalone wrapper owns the audio and MIDI devices, so the options page
@@ -31,6 +33,8 @@ namespace
     constexpr int kFooterHeight = 22;   // status line (WP3 FooterStatus slot) + version marker, bottom-right
     constexpr int kEffectsBody  = 140;   // UI-0: unfolded Effects section, scrolls inside itself
     constexpr int kMinVisualiserHeight = 70;
+    constexpr int kViewToggleWidth = 130;        // U-5 SIMPLE | ADVANCED, right end of the tab row
+    constexpr int kPerformanceStripHeight = 72;   // UI-0: Slot::PerformanceStrip, only when a feature registered one
     constexpr int kMinWidth     = 1020;
     constexpr int kMinHeight    = 620;
 
@@ -109,6 +113,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     : AudioProcessorEditor (&p),
       proc (p),
       hoverStatus (p.getValueTreeState(), p.getUiState().status),
+      settingsFile (settings::GlobalSettings::shared()),
       visualiser (p.getVisualisationFifo()),
       detectionPanel (p.getValueTreeState()),
       creativePanel (p.getValueTreeState()),
@@ -117,6 +122,10 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
       protectionPanel (p.getValueTreeState()),
       mixPanel (p.getValueTreeState())
 {
+    controlScaleFactor = access::applyFromSettings (*settingsFile);      // F-D04: palette, focus ring, control size
+    accessSignature = settingsFile->getInt (access::kKeyContrast, 0) * 100 + settingsFile->getInt (access::kKeyControlSize, 0) * 10
+                        + settingsFile->getInt (access::kKeyFocusRing, 2);
+    lookAndFeel.refreshColours();
     setLookAndFeel (&lookAndFeel);
     addMouseListener (&hoverStatus, true);
     setWantsKeyboardFocus (false);
@@ -265,6 +274,14 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     slots = std::make_unique<SlotHost> (proc, *this);
 
+    // U-6 Auto-Calibrate: the LEARN button is in the Detection panel header; the card floats over the visualiser.
+    calibration = std::make_unique<calibrate::CalibrationSession> (proc);
+    calibrateCard = std::make_unique<calibrate::CalibrateCard> (*calibration);
+    addChildComponent (*calibrateCard);
+    detectionPanel.onLearn = [this] { calibrateCard->begin(); calibrateCard->toFront (false); };
+
+    slots->setSlotContainer (Slot::OptionsExtra, &optionsView);
+
     if (slots->getNumComponents (Slot::PerformanceTab) > 0)
     {
         performancePanel = std::make_unique<StackPanel> (*slots, Slot::PerformanceTab, "Performance", colours::accent);
@@ -277,6 +294,8 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
         effectsDrawer->onExpandedChanged = [this] { resized(); };
         addAndMakeVisible (*effectsDrawer);
     }
+
+    appliedView = proc.getUiState().getViewMode();
 
     for (auto* b : { &tabCreative, &tabWeights, &tabSpectral, &tabPerformance })
     {
@@ -369,13 +388,26 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
         setPresetDisplay (proc.getCurrentPresetName());
     }
 
+    applyViewMode();
+    applyScale();
+
+    if (tourAutoShowEnabled())
+        juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this)]
+        {
+            if (safe != nullptr)
+                safe->maybeAutoShowTour();
+        });
+
     startTimerHz (24);
 }
 
 GapFillAudioProcessorEditor::~GapFillAudioProcessorEditor()
 {
     stopTimer();
+    calibrateCard.reset();
+    calibration.reset();                // cancels the recording and stops the analysis thread
     removeMouseListener (&hoverStatus);
+    proc.getUiState().lab.endPreview();                 // F-L17: a preview never outlives the editor
     proc.getUiState().status.clear (info::StatusKind::Learn);
     proc.getUiState().status.clear (info::StatusKind::Capture);
     proc.getExplainState().openOptions = nullptr;
@@ -384,6 +416,163 @@ GapFillAudioProcessorEditor::~GapFillAudioProcessorEditor()
 }
 
 //==============================================================================
+bool& GapFillAudioProcessorEditor::tourAutoShowEnabled()
+{
+   #ifdef GAPFILL_UNIT_TESTS
+    static bool enabled = false;          // tests opt in; otherwise every test editor would try to show a tour
+   #else
+    static bool enabled = true;
+   #endif
+    return enabled;
+}
+
+juce::Component* GapFillAudioProcessorEditor::findTourTarget (const juce::String& id)
+{
+    if (id == "visualiser")  return &visualiser;
+    if (id == "surprise")    return &surpriseButton;
+    if (id == "undo")        return &undoButton;
+    if (id == "presets")     return &presetBox;
+
+    std::vector<juce::Component*> stack { this };
+
+    while (! stack.empty())
+    {
+        auto* c = stack.back();
+        stack.pop_back();
+
+        if (id == "fill" && c->getProperties()[kParamIdProperty].toString() == "fill" && dynamic_cast<GapKnob*> (c) != nullptr)
+            return c;
+
+        // E-1's Fill Audition control (not the detector monitor toggle, which is "AUDITION DETECTOR").
+        if (id == "audition" && c->getTitle().startsWithIgnoreCase ("audition fill"))
+            return c;
+
+        for (auto* child : c->getChildren())
+            stack.push_back (child);
+    }
+
+    return nullptr;
+}
+
+bool GapFillAudioProcessorEditor::maybeAutoShowTour()
+{
+    if (tourOverlay != nullptr || getWidth() < kMinWidth || getHeight() < kMinHeight)
+        return false;
+
+    tour::TourModel probe (*settingsFile, 3);
+
+    if (! probe.shouldAutoShow (tour::shownInProcess()))
+        return false;
+
+    showTour (false);
+    return true;
+}
+
+void GapFillAudioProcessorEditor::showTour (bool force)
+{
+    juce::ignoreUnused (force);
+    tourOverlay.reset();
+
+    const bool audition = findTourTarget ("audition") != nullptr;
+    auto steps = tour::defaultSteps (audition);
+    tourModel = std::make_unique<tour::TourModel> (*settingsFile, (int) steps.size());
+    tourModel->start();
+    tour::shownInProcess() = true;
+
+    tourOverlay = std::make_unique<tour::TourOverlay> (std::move (steps), *tourModel);
+    tourOverlay->findTarget = [this] (const juce::String& id) { return findTourTarget (id); };
+    tourOverlay->onLoadExample = [this]
+    {
+        refreshPresetList();
+        const auto idx = navCatalog.indexOfIdentity ("F:Drum Gap Glitch");
+
+        if (idx >= 0 && loadCatalogEntry (navCatalog.entries()[(size_t) idx]) && tourOverlay != nullptr)
+            tourOverlay->setExampleStatus ("Loaded Drum Gap Glitch. Undo goes back.");
+    };
+    tourOverlay->onClosed = [safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this)]
+    {
+        // Deleting the overlay from inside its own button callback is unsafe: defer.
+        juce::MessageManager::callAsync ([safe]
+        {
+            if (safe != nullptr)
+                safe->tourOverlay.reset();
+        });
+    };
+
+    addAndMakeVisible (*tourOverlay);
+    tourOverlay->setBounds (getLocalBounds());
+    tourOverlay->toFront (true);
+}
+
+void GapFillAudioProcessorEditor::setScaleFactor (float hostScale)
+{
+    hostScaleValue = hostScale > 0.0f ? hostScale : 1.0f;
+    applyScale();
+}
+
+void GapFillAudioProcessorEditor::applyScale()
+{
+    const auto requested = uiscale::snapScalePercent (settingsFile->getInt (settings::GlobalSettings::keyUiScale, 100));
+    lastRequestedScale = requested;
+
+    const auto& displays = juce::Desktop::getInstance().getDisplays();
+    const auto* display = displays.getDisplayForRect (getScreenBounds());
+
+    if (display == nullptr)
+        display = displays.getPrimaryDisplay();
+
+    const auto area = display != nullptr ? display->userBounds.toNearestInt() : juce::Rectangle<int>();
+    const juce::Point<int> logical { juce::jmax (kMinWidth, getWidth()), juce::jmax (kMinHeight, getHeight()) };
+
+    appliedScalePercent = uiscale::clampScalePercent (requested, area, logical, hostScaleValue * controlScaleFactor);
+    proc.getUiState().scaleNote = appliedScalePercent < requested
+                                    ? "Reduced to " + juce::String (appliedScalePercent) + " % to fit this screen"
+                                    : juce::String();
+
+    AudioProcessorEditor::setScaleFactor (uiscale::effectiveScale (hostScaleValue, appliedScalePercent) * controlScaleFactor);
+}
+
+void GapFillAudioProcessorEditor::applyAccessibility()
+{
+    controlScaleFactor = access::applyFromSettings (*settingsFile);
+    accessSignature = settingsFile->getInt (access::kKeyContrast, 0) * 100 + settingsFile->getInt (access::kKeyControlSize, 0) * 10
+                        + settingsFile->getInt (access::kKeyFocusRing, 2);
+    lookAndFeel.refreshColours();
+    sendLookAndFeelChange();
+    applyScale();
+    repaint();
+}
+
+void GapFillAudioProcessorEditor::applyViewMode()
+{
+    const auto mode = proc.getUiState().getViewMode();
+    const bool simple = mode == ui::ViewMode::Simple;
+    appliedView = mode;
+
+    detectionPanel.setSimple (! viewmode::isVisible ("detection.rest", mode));
+    protectionPanel.setSimple (! viewmode::isVisible ("protection.rest", mode));
+    creativePanel.setSimple (! viewmode::isVisible ("creative.advancedRows", mode));
+
+    // A hidden tab must not stay selected; the previous one comes back with Advanced.
+    if (simple && (currentTab == Tab::Weights || currentTab == Tab::Spectral))
+    {
+        tabBeforeSimple = currentTab;
+        setTab (Tab::Creative);
+    }
+    else if (! simple && tabBeforeSimple.has_value())
+    {
+        const auto restore = *tabBeforeSimple;
+        tabBeforeSimple.reset();
+        setTab (restore);
+    }
+
+    resized();
+
+    if (auto* handler = getAccessibilityHandler())
+        handler->postAnnouncement (simple ? "Simple view" : "Advanced view",
+                                   juce::AccessibilityHandler::AnnouncementPriority::low);
+}
+
 void GapFillAudioProcessorEditor::setTab (Tab newTab)
 {
     currentTab = newTab;
@@ -440,7 +629,7 @@ int GapFillAudioProcessorEditor::currentPresetIndex() const
     }
 
     if (proc.getCurrentPresetName() != "Custom")
-        return navCatalog.indexOfIdentity ("f:" + proc.getCurrentPresetName());
+        return navCatalog.indexOfIdentity ("F:" + proc.getCurrentPresetName());
 
     return -1;
 }
@@ -471,6 +660,12 @@ bool GapFillAudioProcessorEditor::loadCatalogEntry (const presets::PresetEntry& 
     currentPresetFile = entry.origin == presets::PresetEntry::Origin::User ? entry.file : juce::File();
     setPresetDisplay (entry.name);
     return true;
+}
+
+void GapFillAudioProcessorEditor::showMutationLab()
+{
+    auto panel = std::make_unique<mutation::LabPanel> (proc);
+    juce::CallOutBox::launchAsynchronously (std::move (panel), fileButton.getScreenBounds(), this);
 }
 
 void GapFillAudioProcessorEditor::showPresetBrowser()
@@ -567,7 +762,7 @@ void GapFillAudioProcessorEditor::saveUserPreset()
 //==============================================================================
 void GapFillAudioProcessorEditor::showFileMenu()
 {
-    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance, kBrowse };
+    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance, kBrowse, kTour, kLab };
 
     juce::PopupMenu menu;
     menu.setLookAndFeel (&lookAndFeel);
@@ -584,6 +779,8 @@ void GapFillAudioProcessorEditor::showFileMenu()
     menu.addItem (kSavePreset, "Save as user preset...");
     menu.addSeparator();
     menu.addItem (kOptions, "Options...");
+    menu.addItem (kLab, "Mutation Lab...");
+    menu.addItem (kTour, "Show quick tour");
 
     // UI-0: when a fourth tab does not fit, the Performance section lives here.
     if (performancePanel != nullptr && ! performanceAsTab)
@@ -599,6 +796,8 @@ void GapFillAudioProcessorEditor::showFileMenu()
             case kOpen:       doOpen(); break;
             case kSavePreset: saveUserPreset(); break;
             case kBrowse:     showPresetBrowser(); break;
+            case kTour:       showTour (true); break;
+            case kLab:        showMutationLab(); break;
             case kOptions:    showOptions(); break;
             case kPerformance: setTab (Tab::Performance); break;
             default: break;
@@ -846,6 +1045,19 @@ void GapFillAudioProcessorEditor::timerCallback()
 
     mixPanel.setStatusText (status);
 
+    // F-D04: contrast / control size / focus ring changed in Options (or by another instance).
+    if (settingsFile->getInt (access::kKeyContrast, 0) * 100 + settingsFile->getInt (access::kKeyControlSize, 0) * 10
+            + settingsFile->getInt (access::kKeyFocusRing, 2) != accessSignature)
+        applyAccessibility();
+
+    // U-8: the Options combo writes the per-user setting; apply it here (also picks up another instance's change).
+    if (uiscale::snapScalePercent (settingsFile->getInt (settings::GlobalSettings::keyUiScale, 100)) != lastRequestedScale)
+        applyScale();
+
+    // U-5: the view mode can change from the toggle slot or a restored project state.
+    if (proc.getUiState().getViewMode() != appliedView)
+        applyViewMode();
+
     // U-4: previous / next preset requests from MIDI commands (X-1) or other threads.
     if (const auto step = proc.getUiState().takePresetStep(); step != 0)
         for (int i = 0; i < juce::jmin (8, std::abs (step)); ++i)
@@ -957,20 +1169,34 @@ void GapFillAudioProcessorEditor::resized()
     auto controls = b.removeFromBottom (controlHeight);
     b.removeFromBottom (8);
 
-    const auto sideWidth = juce::jlimit (230, 320, controls.getWidth() / 4);
+    const bool simple = proc.getUiState().getViewMode() == ui::ViewMode::Simple;
+    const auto sideWidth = simple ? 150 : juce::jlimit (230, 320, controls.getWidth() / 4);
     detectionPanel.setBounds (controls.removeFromLeft (sideWidth));
     controls.removeFromLeft (8);
-    protectionPanel.setBounds (controls.removeFromRight (juce::jlimit (215, 290, sideWidth - 20)));
+    protectionPanel.setBounds (controls.removeFromRight (simple ? 150 : juce::jlimit (215, 290, sideWidth - 20)));
     controls.removeFromRight (8);
 
     // Tabs sit above the middle panel.
     auto tabs = controls.removeFromTop (kTabHeight);
-    const auto tabWidth = juce::jmin (130, tabs.getWidth() / 3);
-    tabCreative.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
-    tabWeights.setBounds (tabs.removeFromLeft (tabWidth + 20).reduced (1));
-    tabSpectral.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
 
-    const auto plan = planTabs (tabs.getWidth() + tabWidth * 2 + tabWidth + 20, performancePanel != nullptr);
+    // U-5: the SIMPLE | ADVANCED switch (Slot::TopBarRight) sits at the right end of the tab row.
+    const auto toggleWidth = simple ? kViewToggleWidth + 170 : kViewToggleWidth;
+    slots->setSlotBounds (Slot::TopBarRight, tabs.removeFromRight (juce::jmin (toggleWidth, tabs.getWidth() / 2)).reduced (0, 2));
+    tabs.removeFromRight (6);
+
+    const auto tabWidth = juce::jmin (130, (tabs.getWidth() - 20) / 3);
+    tabCreative.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
+    tabWeights.setVisible (! simple);
+    tabSpectral.setVisible (! simple);
+
+    if (! simple)
+    {
+        tabWeights.setBounds (tabs.removeFromLeft (tabWidth + 20).reduced (1));
+        tabSpectral.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
+    }
+
+    const auto plan = planTabs (simple ? tabs.getWidth() + tabWidth + 2 * 130 + 20 : tabs.getWidth() + tabWidth * 2 + tabWidth + 20,
+                                performancePanel != nullptr);
     performanceAsTab = plan.performanceAsTab;
     tabPerformance.setVisible (performanceAsTab);
 
@@ -996,18 +1222,41 @@ void GapFillAudioProcessorEditor::resized()
                           creativePanel.getExtraSlotBounds().translated (creativePanel.getX(), creativePanel.getY()));
 
     // ---- visualiser takes whatever is left --------------------------------
+    // Performance strip (e.g. freeze & scrub): carved from the visualiser, which keeps >= 70 px.
+    if (slots->getNumComponents (Slot::PerformanceStrip) > 0 && b.getHeight() >= kPerformanceStripHeight + kMinVisualiserHeight + 6)
+    {
+        slots->setSlotBounds (Slot::PerformanceStrip, b.removeFromBottom (kPerformanceStripHeight));
+        b.removeFromBottom (6);
+    }
+    else
+    {
+        slots->setSlotBounds (Slot::PerformanceStrip, {});
+    }
+
     visualiser.setBounds (b);
     slots->setSlotBounds (Slot::VisualiserOverlay, b);
+
+    if (calibrateCard != nullptr)
+    {
+        const auto w = juce::jmin (calibrate::CalibrateCard::preferredWidth, b.getWidth() - 16);
+        calibrateCard->setBounds (juce::Rectangle<int> (w, calibrate::CalibrateCard::preferredHeight)
+                                    .withCentre ({ b.getCentreX(), b.getBottom() - calibrate::CalibrateCard::preferredHeight / 2 - 12 }));
+    }
     slots->setSlotBounds (Slot::FooterStatus, footerBounds());
 
     helpView.setBounds (getLocalBounds().withTrimmedTop (kTopBarHeight).reduced (24, 16));
 
+    if (tourOverlay != nullptr)
+        tourOverlay->setBounds (getLocalBounds());
+
     if (helpView.isVisible())
         helpView.resized();
 
-    // The options page is a small panel rather than a full overlay.
-    optionsView.setBounds (juce::Rectangle<int> (520, 440)
+    // The options page is a small panel rather than a full overlay; the OptionsExtra slot (interface size,
+    // accessibility) lives in the free area under the device row, so the panel grew by 140 px.
+    optionsView.setBounds (juce::Rectangle<int> (520, juce::jmin (580, getHeight() - 16))
                              .withCentre (getLocalBounds().getCentre()));
+    slots->setSlotBounds (Slot::OptionsExtra, optionsView.getExtraBounds());
 }
 
 } // namespace gapfill

@@ -76,6 +76,11 @@ PresetBrowser::PresetBrowser (GapFillAudioProcessor& p, std::shared_ptr<settings
     saveButton.onClick = [this] { if (onSaveRequested != nullptr) onSaveRequested(); };
     addAndMakeVisible (saveButton);
 
+    suggestButton.setTitle ("Suggest presets");
+    suggestButton.setTooltip ("Listen to your input for a few seconds and recommend presets that suit it. Nothing is recorded or sent.");
+    suggestButton.onClick = [this] { showSuggestions (suggestView == nullptr); };
+    addAndMakeVisible (suggestButton);
+
     countLabel.setFont (fonts::ui (11.0f));
     countLabel.setColour (juce::Label::textColourId, colours::textMuted);
     countLabel.setJustificationType (juce::Justification::centredRight);
@@ -187,6 +192,36 @@ void PresetBrowser::applyFilter()
                         juce::dontSendNotification);
 }
 
+void PresetBrowser::showSuggestions (bool show)
+{
+    if (! show)
+    {
+        suggestView.reset();
+        resized();
+        return;
+    }
+
+    if (suggestView != nullptr)
+        return;
+
+    suggestView = std::make_unique<suggest::SuggestView> (proc, settingsFile);
+    suggestView->onLayoutChanged = [this] { resized(); };
+    suggestView->onClose = [this] { juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<PresetBrowser> (this)] { if (safe != nullptr) safe->showSuggestions (false); }); };
+    suggestView->onLoaded = [this] (int presetIndex)
+    {
+        const auto id = "F:" + juce::String (proc.getProgramName (presetIndex));
+
+        for (const auto& e : catalog.entries())
+            if (e.identity == id && onLoaded != nullptr)
+            {
+                onLoaded (e);
+                break;
+            }
+    };
+    addAndMakeVisible (*suggestView);
+    resized();
+}
+
 void PresetBrowser::setSuggestion (const juce::StringArray& categories, const juce::String& measured)
 {
     suggested = categories;
@@ -242,7 +277,13 @@ void PresetBrowser::resized()
         b.removeFromTop (y + chipHeight - b.getY() + 8);
     }
 
-    // F-M22 suggestion strip.
+    // F-M22: the live "Suggest presets" view, then the static strip (setSuggestion) kept for callers that supply their own.
+    if (suggestView != nullptr)
+    {
+        suggestView->setBounds (b.removeFromTop (suggestView->getPreferredHeight()));
+        b.removeFromTop (6);
+    }
+
     suggestionBounds = {};
 
     if (suggested.size() > 0)
@@ -252,7 +293,9 @@ void PresetBrowser::resized()
     }
 
     auto bottom = b.removeFromBottom (28);
-    saveButton.setBounds (bottom.removeFromLeft (200));
+    saveButton.setBounds (bottom.removeFromLeft (190));
+    bottom.removeFromLeft (6);
+    suggestButton.setBounds (bottom.removeFromLeft (100));
     countLabel.setBounds (bottom);
     b.removeFromBottom (6);
 

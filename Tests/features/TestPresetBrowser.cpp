@@ -95,7 +95,7 @@ GF_TEST (PresetBrowser, category_filter)
         total += c.filter ({}, cat, {}).size();
     GF_EXPECT_MSG (total + c.filter ({}, kUncategorised, {}).size() == c.entries().size(), "every preset is in exactly one category");
 
-    juce::StringArray fav { "f:Init", "f:Extreme Chaos", "u:doc/gone.gapfill" };
+    juce::StringArray fav { "F:Init", "F:Extreme Chaos", "U:gone.gapfill" };
     const auto favourites = c.filter ({}, kFavourites, fav);
     GF_EXPECT (favourites.size() == 2);
     GF_EXPECT (c.filter ("extreme", kFavourites, fav).size() == 1);   // search and category combine
@@ -130,12 +130,12 @@ GF_TEST (PresetBrowser, favourites_roundtrip)
     {
         settings::GlobalSettings s (file);
         GF_EXPECT (s.getFavourites().isEmpty());
-        GF_EXPECT (s.setFavourite ("f:Init", true));
-        GF_EXPECT (s.setFavourite ("u:doc/Dub/My Dub.gapfill", true));
-        GF_EXPECT (s.setFavourite ("f:Init", true));                  // idempotent
+        GF_EXPECT (s.setFavourite ("F:Init", true));
+        GF_EXPECT (s.setFavourite ("U:Dub/My Dub.gapfill", true));
+        GF_EXPECT (s.setFavourite ("F:Init", true));                  // idempotent
         GF_EXPECT (s.getFavourites().size() == 2);
-        GF_EXPECT (! s.setFavourite ("f:Init", false));
-        GF_EXPECT (! s.isFavourite ("f:Init") && s.isFavourite ("u:doc/Dub/My Dub.gapfill"));
+        GF_EXPECT (! s.setFavourite ("F:Init", false));
+        GF_EXPECT (! s.isFavourite ("F:Init") && s.isFavourite ("U:Dub/My Dub.gapfill"));
         GF_EXPECT (! s.setFavourite ("", true));
         GF_EXPECT (! s.setFavourite (juce::String::repeatedString ("x", 300), true));
         s.setInt (settings::GlobalSettings::keyUiScale, 150);
@@ -144,7 +144,7 @@ GF_TEST (PresetBrowser, favourites_roundtrip)
 
     settings::GlobalSettings reread (file);
     GF_EXPECT (reread.isUsable());
-    GF_EXPECT (reread.getFavourites() == juce::StringArray { "u:doc/Dub/My Dub.gapfill" });
+    GF_EXPECT (reread.getFavourites() == juce::StringArray { "U:Dub/My Dub.gapfill" });
     GF_EXPECT (reread.getInt (settings::GlobalSettings::keyUiScale, 100) == 150);
 }
 
@@ -159,7 +159,7 @@ GF_TEST (PresetBrowser, settings_file_unreadable_defaults)
     GF_EXPECT (s.getFavourites().isEmpty());
     GF_EXPECT (s.getInt (settings::GlobalSettings::keyUiScale, 100) == 100);
     GF_EXPECT (! s.getBool (settings::GlobalSettings::keyFirstRun, false));
-    s.setFavourite ("f:Init", true);                                  // must not throw or crash
+    s.setFavourite ("F:Init", true);                                  // must not throw or crash
     s.flush();
     GF_EXPECT_MSG (file.loadFileAsString() == "this is { not xml", "an unreadable file is never overwritten");
 }
@@ -222,8 +222,8 @@ GF_TEST (PresetBrowser, legacy_flat_files_listed)
         if (e.name == "Deep")     deep = &e;
     }
 
-    GF_EXPECT (flat != nullptr && flat->category == kUncategorised && flat->identity == "u:app/Old Flat.gapfill");
-    GF_EXPECT (deep != nullptr && deep->category == "Dub" && deep->identity == "u:app/Dub/Deep.gapfill");
+    GF_EXPECT (flat != nullptr && flat->category == kUncategorised && flat->identity == "U:Old Flat.gapfill");
+    GF_EXPECT (deep != nullptr && deep->category == "Dub" && deep->identity == "U:Dub/Deep.gapfill");
 }
 
 GF_TEST (PresetBrowser, corrupt_properties_ignored_not_fatal)

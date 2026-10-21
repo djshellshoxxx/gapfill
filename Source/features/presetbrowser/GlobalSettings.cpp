@@ -29,7 +29,8 @@ GlobalSettings::GlobalSettings (const juce::File& f) : file (f)
     }
     else
     {
-        usable = file.getParentDirectory().exists() || file.getParentDirectory().createDirectory().wasOk();
+        missing = true;
+        usable = file.getParentDirectory().isDirectory() || file.getParentDirectory().createDirectory().wasOk();
     }
 
     props = std::make_unique<juce::PropertiesFile> (file, options);
@@ -114,6 +115,10 @@ bool GlobalSettings::setFavourite (const juce::String& identity, bool on)
     if (identity.isEmpty() || identity.length() > kMaxFavouriteLength || identity.containsAnyOf ("\r\n"))
         return false;
 
+    // Another plug-in instance may have changed the file: merge by re-reading before we mutate.
+    if (usable && props != nullptr && file.existsAsFile())
+        { props->saveIfNeeded(); props->reload(); }
+
     auto list = getFavourites();
 
     if (on)
@@ -133,6 +138,12 @@ bool GlobalSettings::setFavourite (const juce::String& identity, bool on)
 
     props->setValue (favouritesKey, list.joinIntoString ("\n"));
     return on;
+}
+
+bool GlobalSettings::isWritable() const
+{
+    return usable && file.getParentDirectory().isDirectory() && file.getParentDirectory().hasWriteAccess()
+            && (! file.existsAsFile() || file.hasWriteAccess());
 }
 
 void GlobalSettings::flush()
