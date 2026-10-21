@@ -14,7 +14,7 @@ from pathlib import Path
 
 
 PARAM_RE = re.compile(r'X\s*\([^,]+,\s*"([^"]+)"\s*\)')
-PARAM_ID_RE = re.compile(r"^[a-z][A-Za-z0-9]*$")
+PARAM_ID_RE = re.compile(r"^[a-z][A-Za-z0-9_]*$")
 GROUP_CHAIN_RE = re.compile(r"GAPFILL_PARAMS_([A-Z0-9_]+)\(X\)")
 GROUP_ORDER_FILE = "GROUP_ORDER"
 
@@ -136,7 +136,7 @@ def validate(root: Path) -> list[str]:
 
     for parameter_id in parameter_ids:
         if not PARAM_ID_RE.match(parameter_id):
-            errors.append(f"parameter ID does not match ^[a-z][A-Za-z0-9]*$: {parameter_id}")
+            errors.append(f"parameter ID does not match ^[a-z][A-Za-z0-9_]*$: {parameter_id}")
 
     lock_dir = root / "tools" / "param_ids"
     for group, ids in groups.items():

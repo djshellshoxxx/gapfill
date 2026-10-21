@@ -15,6 +15,8 @@
 #include "dsp/EventLogs.h"
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
+#include "features/fx/FxChain.h"
+#include "features/fx/FxUiState.h"
 #include "features/explain/ExplainState.h"
 #include "features/ui/UiState.h"
 
@@ -178,11 +180,16 @@ public:
     //==========================================================================
     // Test-facing accessors
     const FillEngine& getFillEngine() const noexcept  { return engine; }
+    fx::FxChain& getFxChain() noexcept { return fxChain; }
+    const fx::FxMeters& getFxMeters() const noexcept { return fxChain.getMeters(); }
+    fx::FxUiState& getFxUiState() noexcept { return fxUi; }
+    const fx::FxUiState& getFxUiState() const noexcept { return fxUi; }
     const AnalysisEngine& getAnalysis() const noexcept { return analysis; }
     int getActiveLatencySamples() const noexcept { return meters.latencySamples.load(); }
     std::int64_t getSourceHistoryWritePosition() const noexcept { return history.getWritePosition(); }
    #ifdef GAPFILL_UNIT_TESTS
     void flushLatencyReportForTests() { timerCallback(); }
+    int getTransportJumpCountForTests() const noexcept { return transportJumpCountForTests; }
    #endif
 
 private:
@@ -195,6 +202,7 @@ private:
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
     bool isParameterStateValid (const juce::ValueTree& state) const;
     void snapParametersToState();
+    void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); }
 
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
@@ -204,6 +212,8 @@ private:
     AnalysisEngine analysis;
     SourceHistory  history;
     FillEngine     engine;
+    fx::FxChain    fxChain;       // WP8: bus effect chain (voice cards live in the voices)
+    fx::FxUiState  fxUi;          // WP8: <Fx> state subtree (fold state, remembered amounts)
 
     MidiLearnManager midiLearn;
 
@@ -235,6 +245,7 @@ private:
     int   mainChannels = 2;
 
     std::int64_t samplesProcessed = 0;
+    int hostBlockSamples = 0; // total frames in the current DAW callback (not its current chunk)
 
     HighPass2 lowProtect[2];
     float lastLowProtectHz = -1.0f;
@@ -243,8 +254,12 @@ private:
 
     juce::SmoothedValue<float> dryGain, wetGain, outGain, centreProtect, widthAmount, bypassMix;
 
-    double lastPpqPosition = 0.0;
+    double lastPpqPosition = 0.0; // projected PPQ at the next DAW callback
     bool   lastTransportPlaying = false;
+    bool   lastTransportPositionValid = false;
+   #ifdef GAPFILL_UNIT_TESTS
+    int transportJumpCountForTests = 0;
+   #endif
 
     float meterIn = 0.0f, meterOut = 0.0f, meterWet = 0.0f;
 

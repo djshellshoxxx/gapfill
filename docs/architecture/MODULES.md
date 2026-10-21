@@ -102,6 +102,20 @@ Hot-file edits made for WP3 (all minimal, listed in `docs/progress/WP3.md`): `Pl
 
 Migration notes: `GAPFILL_PARAMS` is now the core list plus the group chain; the expanded macro yields the same 66 core parameters in the same order. Old (v1) states and presets load unchanged; fixtures `Tests/fixtures/state_0.0.1_*.bin` and goldens in `Tests/golden/linux` prove it.
 
+## Voice effects (WP8: FX-0, N-FX1, N-FX2, F-M16, F-M14, F-M20, F-L14)
+
+| Module | Files | Contract / dependencies | Invariants and errors |
+|---|---|---|---|
+| Effect-card framework | `Source/features/fx/EffectCard.h`, `FxSettings.h`, `FxMeters.h`, `EngineBlockIO.h` | `VoiceFx` (per voice, `processVoice`) and `BusFx` (wet bus, `processBus`) cards; `CardId` is the permanent chain order and the `FxMeters::cpu*` index. `FxSettings` is the plain-data snapshot of every effect parameter (neutral = Amount 0). Depends on `FillRecipe` only. | An Amount below 0.001 is off and the card is never called. Cards allocate in `prepare` only. Chain output is sanitised and capped at +12 dBFS. |
+| Voice chain | `VoiceFxChain.*`, `RatchetCard.*`, `TapeDestrCard.*`, `RcrushCard.*` | `FillVoice` owns one chain. `start()` latches the settings (`VoiceSetup::fxStart`); fills with no active card take the original direct path (bit-identical output). Duck and panic fade are applied after the cards. New card = new files + one line in `VoiceFxChain::build()`. | Settings are latched per fill: no mid-fill change, independent of host block size. A 1.5 ms end guard prevents a step when a delaying card meets the voice end. |
+| Bus chain | `FxChain.*` | Processor-owned. `beginBlock -> engine.process(io) -> processBus` before wet post-processing. Publishes the engine duck and the fills started in the block only while a bus card is active. F-L14: a second preallocated stereo bus is used only when a band has effects off and a bus card is active. No bus cards exist until WP9 (`addBusCard`/`build()`). | With no bus card the chain is the identity. A bus card must be delay-compensated by its own `latencySamples`; reported host latency is unchanged. |
+| Render modes | `Source/features/swell/SwellMode.*`, `Source/features/cloud/CloudMode.*` | Modes of `Algo::Reverse` / `Algo::Granular` selected by recipe flags bit3 / bit4 (sub-RNGs `kSalt_Swell`, `kSalt_Cloud`). `FillVoice` calls them from three hook lines. Planning (landing, rate, density limit) is in pure functions. | Swell never outlives `landing + fade <= gap`. Cloud has at most 48 grains, estimated overlap <= 40. Neither draws from the legacy scheduler RNG. |
+| Engine glue | `Source/features/fx/FxHooks.*`; hook lines in `FeatureHooks.cpp`, `FillEngine.cpp`, `FillVoice.cpp`, `PluginProcessor.*` | `gatherFx` (settings), `decideRenderModes` (adjustRecipe stage), `prepareVoiceSetup` (toVoiceSetup stage: latch settings, swell landing, band routing). | Locked recipes keep the flags they were recorded with. |
+| `<Fx>` state and GUI | `FxUiState.*`, `Source/gui/slots/EffectsSection.*` | `<Fx>` subtree (fold state, remembered amounts, <= 1 KiB) in the reserved table; `EffectsSection` registers in `Slot::EffectsSection` and appears when UI-0 reserves that rectangle. Help sections 4000-4060. | A default state writes no `<Fx>` subtree; a damaged one is dropped without affecting parameters. |
+| Parameters | `Source/params/{swell,cloud,ratchet,rcrush,tapedestr,bandfx}.*`, `tools/param_ids/*.lock` | 30 permanent IDs (swell 4, cloud 7, ratchet 5, rcrush 5, tapedestr 6, bandfx 3; `scrub` is added with F-M19), append-only. | Defaults are neutral (Amount 0, band effects on). Not part of Random / Surprise. |
+
+Migration notes: states and presets saved before WP8 load unchanged (new parameters take their neutral defaults; no `<Fx>` subtree). Tests that enumerated the 66 core parameters now check the first 66 IDs only.
+
 ## Change checklist
 
 - [ ] Update the ownership table and flow diagram if a boundary moves.

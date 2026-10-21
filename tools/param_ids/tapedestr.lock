@@ -1,2 +1,8 @@
 # Append-only parameter ID lock for group 'tapedestr' (one id per line, in order).
 # Adding an id is a deliberate act: add it here and in Source/params/tapedestr.h.
+tdAmount
+tdWow
+tdFlutter
+tdSat
+tdDropout
+tdSplice
