@@ -15,6 +15,10 @@
 namespace gapfill
 {
 
+/** Gap confidence at which a region becomes an eligible gap. Exported so the
+    visualiser (E-3 threshold line) draws the engine's own number. */
+inline constexpr float kEnterGapConf = 0.55f;
+
 //==============================================================================
 /** Schedules fills into detected gaps and renders the voices that result.
 
@@ -125,6 +129,7 @@ private:
 
     // --- gap state machine ---
     bool inGap = false;
+    int prevActiveVoices = 0;          // F-M03: detects voices finishing between control updates
     bool gapEvaluated = false;
     std::int64_t gapStartPos = 0;
     std::int64_t lastFillStartPos = -1000000;

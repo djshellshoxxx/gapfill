@@ -29,7 +29,7 @@ GapFill uses docs/standards/CDL_PLUGIN_BASELINE.md as the required common Circui
 | MIDI Learn | Implemented | Visible learn state, explicit cancel, mapping removal, deterministic conflict handling, and 10-second timeout. |
 | Tooltips | Implemented | Global toggle persists in plugin state. |
 | Help/About | Implemented | In-plugin Help covers operation, troubleshooting, version, MIDI Learn, and Circuit Drift Labs link. |
-| Privacy/network disclosure | Implemented | No telemetry, analytics, background updater, licensing server, or audio/project-data transmission. Documented in README. |
+| Privacy/network disclosure | Implemented | No telemetry, analytics, background updater, licensing server, or audio/project-data transmission. Documented in README. F-D02 event recordings are opt-in, written only to a file the user chooses, and contain no audio, file names or paths (listed in the diagnostics drawer). |
 | Linux VST3 build | Automated gate implemented | CI builds VST3 and runs pluginval at strictness 10. A release still requires successful current CI and applicable host validation. |
 | Windows VST3 build | Automated gate implemented | CI builds VST3 and runs pluginval at strictness 10. A release still requires successful current CI and applicable host validation. |
 | CLAP host validation | Automated gate implemented | Linux and Windows CI build the CLAP target and run free-audio clap-validator. |

@@ -33,6 +33,8 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     params.connect (apvts);
     bypassParameter = apvts.getParameter ("bypass");
     midiLearn.connect (apvts);
+    explainState.attach (*this, apvts);
+    fillEvents.setTap (&explainState.recorder);
 
     for (const auto& id : allParameterIDs())
         apvts.addParameterListener (id, this);
@@ -44,6 +46,7 @@ GapFillAudioProcessor::GapFillAudioProcessor()
 GapFillAudioProcessor::~GapFillAudioProcessor()
 {
     stopTimer();
+    fillEvents.setTap (nullptr);
 
     for (const auto& id : allParameterIDs())
         apvts.removeParameterListener (id, this);
@@ -186,6 +189,7 @@ void GapFillAudioProcessor::reset()
 void GapFillAudioProcessor::timerCallback()
 {
     drainFillEvents();
+    explainState.timerTick (juce::Time::getMillisecondCounter());
 
     const auto wanted = latencyToReport.load();
 
@@ -235,12 +239,16 @@ int GapFillAudioProcessor::drainFillEvents()
             if (batch[i].type == FillEventType::Started)
                 recipeHistory.push (batch[i].recipe);
 
-            outcomeLog.push (batch[i]);
+            if (isGapOutcome (batch[i].type))
+                outcomeLog.push (batch[i]);
+
+            explainState.onFillEvent (batch[i]);
         }
 
         total += n;
     }
 
+    explainState.noteQueueDrops (fillEvents.getDroppedCount(), fillEvents.getDroppedOptionalCount());
     return total;
 }
 
@@ -250,7 +258,10 @@ void GapFillAudioProcessor::drainCommands() noexcept
     const auto n = commands.pop (batch, CommandQueue::capacity);
 
     for (int i = 0; i < n; ++i)
+    {
+        explainState.onCommand (batch[i]);
         hooks::dispatchCommand (engine, batch[i]);
+    }
 }
 
 //==============================================================================
@@ -415,6 +426,7 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
 void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+    const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
     midiLearn.processMidi (midi);
     drainCommands();
@@ -443,6 +455,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+    const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
     midiLearn.processMidi (midi);
     drainCommands();
@@ -590,6 +603,27 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     engineSettings.sidechainActive = sidechainActive;
     engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
+
+    {
+        // WP3: health codes + event recording observe the chunk (bounded, allocation-free).
+        explain::ChunkInfo ci;
+        ci.numSamples = numSamples;
+        ci.sampleRate = currentSampleRate;
+        ci.blockStart = startSample == 0;
+        ci.transportValid = engineSettings.transportValid;
+        ci.ppq = engineSettings.ppqAtBlockStart;
+        ci.bpm = engineSettings.samplesPerBeat > 1.0 ? 60.0 * currentSampleRate / engineSettings.samplesPerBeat : 120.0;
+        ci.tsNum = engineSettings.perf.tsNum;
+        ci.tsDen = engineSettings.perf.tsDen;
+        ci.tempoFeatureOn = pb (params.syncEnable) || pb (params.maxFillSync)
+                             || engineSettings.perf.quantDivision >= 0 || engineSettings.perf.modSync;
+        ci.scRequested = detSource != DetSource::Main;
+        ci.scBusEnabled = sidechainBusEnabled;
+        ci.scPeak = sidechainBusEnabled ? explain::peakOf (monoSide.data(), numSamples) : 0.0f;
+        ci.bypassed = bypassed;
+        ci.droppedTotal = fillEvents.getDroppedCount();
+        explainState.onChunk (ci);
+    }
 
     if (bypassed)
     {

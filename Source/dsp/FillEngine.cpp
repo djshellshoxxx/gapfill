@@ -41,8 +41,12 @@ namespace
         /* TapeStop  */ {  90.0f, 350.0f, 0.30f, 0.75f },
     };
 
-    constexpr float kEnterGapConf = 0.55f;
     constexpr float kExitGapConf  = 0.28f;
+
+    inline std::uint16_t saturateMs (float ms) noexcept
+    {
+        return (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (juce::jmax (0.0f, ms)));
+    }
 
     /** How long protection takes to release once the safe region has passed. */
     constexpr double kProtectReleaseSeconds = 0.12;
@@ -100,6 +104,7 @@ void FillEngine::reset()
     fillsStarted = 0;
     gapsTooShort = 0;
     rejectCounts.fill (0);
+    prevActiveVoices = 0;
     vizCounter = 0;
     vizAccum = {};
 
@@ -231,6 +236,27 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             lastEventPos = juce::jmax (lastEventPos, outputPos);
     }
 
+    // Timeline events (F-M03) exist only while a visualiser or a recorder listens.
+    const bool wantTimeline = events != nullptr && ((viz != nullptr && viz->isEnabled()) || events->tapWantsAll());
+
+    auto makeEvent = [&] (FillEventType type)
+    {
+        FillEvent e;
+        e.type = type;
+        e.pos = outputPos;
+        e.conf8 = (std::uint8_t) juce::jlimit (0, 255, (int) std::lround (frame.conf * 255.0f));
+        e.generation = (std::uint32_t) gapIndex;
+        return e;
+    };
+
+    if (wantTimeline && (mainEventNow || scEventNow))
+    {
+        auto e = makeEvent (FillEventType::Onset);
+        e.protHoldMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (juce::jmax (0.0f, s.protectHoldMs)));
+        e.lookaheadMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (juce::jmax (0.0f, s.lookaheadMs)));
+        events->pushOptional (e);
+    }
+
     const auto holdSamples = (float) (juce::jmax (0.0f, s.protectHoldMs) * 0.001 * sr);
     const auto releaseSamples = (float) (kProtectReleaseSeconds * sr);
 
@@ -288,6 +314,9 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             gapEvaluated = false;
             gapStartPos = outputPos;
             ++gapIndex;
+
+            if (wantTimeline)
+                events->pushOptional (makeEvent (FillEventType::GapOpen));
         }
     }
     else if (frame.conf < kExitGapConf)
@@ -303,18 +332,40 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
         const auto result = trySchedule (outputPos, blockStartPos, frame, analysis, history, s);
         startedFill = result.started;
 
-        // Recipes are always reported; rejections only while a visualiser is listening.
-        if (events != nullptr && (result.started || (viz != nullptr && viz->isEnabled())))
+        // Recipes are always reported; rejections only while a visualiser (or a recorder) is listening.
+        if (events != nullptr && (result.started || wantTimeline))
         {
-            FillEvent e;
-            e.type = result.started ? FillEventType::Started : FillEventType::Rejected;
+            FillEvent e = makeEvent (result.started ? FillEventType::Started : FillEventType::Rejected);
             e.reason = result.reason;
             e.recipe = result.recipe;
             e.availMs = result.availableMs;
             e.needMs = result.neededMs;
-            e.pos = outputPos;
             events->push (e);
         }
+
+        // E-3: the column that contains the evaluation carries the rejection so the
+        // decimated scrolling view can mark the gap start.
+        if (! result.started && viz != nullptr && viz->isEnabled())
+        {
+            vizAccum.flags |= VizFrame::flagRejected;
+            vizAccum.reason = (std::uint8_t) result.reason;
+            vizAccum.availMs = saturateMs (result.availableMs);
+            vizAccum.needMs = saturateMs (result.neededMs);
+        }
+    }
+
+    // ---- fill end (timeline) ----------------------------------------------
+    {
+        int activeNow = 0;
+
+        for (const auto& v : voices)
+            activeNow += v.isActive() ? 1 : 0;
+
+        if (wantTimeline)
+            for (int i = activeNow; i < prevActiveVoices; ++i)
+                events->pushOptional (makeEvent (FillEventType::FillEnd));
+
+        prevActiveVoices = activeNow;
     }
 
     // ---- visualiser feed -------------------------------------------------
