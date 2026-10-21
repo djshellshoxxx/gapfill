@@ -246,7 +246,9 @@ private:
     FillEventQueue  fillEvents;      // audio -> message, drained by the timer
     RecipeHistory   recipeHistory;   // message thread only (survives the editor)
     GapOutcomeLog   outcomeLog;      // message thread only
-    context::ContextState contextState;   // WP7: musical-context trackers (F-L22; F-X04, F-X03 later)
+    // WP7: musical-context trackers. Heap-allocated so the processor stays under the stack budget (TestStackBudget).
+    std::unique_ptr<context::ContextState> contextStateOwner { std::make_unique<context::ContextState>() };
+    context::ContextState& contextState { *contextStateOwner };
     explain::ExplainState explainState;   // WP3; attached to apvts in the constructor
     ui::UiState uiState;                  // WP11: status board, view mode
 
