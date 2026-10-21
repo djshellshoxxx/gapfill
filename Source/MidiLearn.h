@@ -61,6 +61,9 @@ public:
     /** The CC currently mapped to this parameter, or -1. */
     int getMappedCC (const juce::String& parameterID) const;
 
+    /** The id of the parameter a CC is mapped to, or an empty string (X-1 duplicate check). */
+    juce::String getParameterIDForCC (int cc) const;
+
     /** Maps a CC explicitly (used by state restore and the right-click menu). */
     void setMapping (const juce::String& parameterID, int cc);
     void clearMapping (const juce::String& parameterID);

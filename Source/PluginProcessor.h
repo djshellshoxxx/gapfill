@@ -15,6 +15,7 @@
 #include "dsp/EventLogs.h"
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
+#include "features/live/LiveControl.h"
 #include "features/shaping/ShapingRuntime.h"
 #include "features/recipes/RecipeServices.h"
 #include "features/fx/FxChain.h"
@@ -94,6 +95,9 @@ public:
     VisualisationFifo& getVisualisationFifo() noexcept              { return viz; }
     MidiLearnManager& getMidiLearnManager() noexcept                { return midiLearn; }
 
+    /** WP6 live control hub (panic, scenes, MIDI command map). */
+    live::LiveControl& getLiveControl() noexcept                    { return liveControl; }
+    const live::LiveControl& getLiveControl() const noexcept        { return liveControl; }
     /** WP5 runtime state: tempo memory (E-2), effective creative values (C-0). */
     ShapingRuntime& getShaping() noexcept                           { return shaping; }
     const ShapingRuntime& getShaping() const noexcept               { return shaping; }
@@ -212,7 +216,7 @@ private:
     void drainCommands() noexcept;
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
-    EngineSettings gatherEngineSettings() const;
+    EngineSettings gatherEngineSettings();
     AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
     bool isParameterStateValid (const juce::ValueTree& state) const;
@@ -231,6 +235,7 @@ private:
     fx::FxUiState  fxUi;          // WP8: <Fx> state subtree (fold state, remembered amounts)
 
     MidiLearnManager midiLearn;
+    live::LiveControl liveControl { apvts };
     recipes::RecipeServices recipeServices;
 
     MeterState meters;

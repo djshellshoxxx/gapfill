@@ -11,6 +11,8 @@
 #include "scale/ScaleHooks.h"
 #include "context/ContextState.h"
 
+#include <algorithm>
+
 namespace gapfill::hooks
 {
 
@@ -19,12 +21,19 @@ Effective::ModulationInputs gatherModulationInputs (const ParamCache& params) no
     Effective::ModulationInputs in;
 
     in.personality = pi (params.personality);   // C-1
-    // C-2: in.macros = { pb (params.macrosOn), pv (params.macroActivity), ... };
+    in.macros.on = pb (params.macrosOn);          // C-2
+    in.macros.activity = pv (params.macroActivity);
+    in.macros.chaos = pv (params.macroChaos);
+    in.macros.space = pv (params.macroSpace);
+    in.macros.destruction = pv (params.macroDestruction);
     return in;
 }
 
 void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcept
 {
+    // F-M18 gatherBattle: Off, 1, 2, 4, 8 bars
+    static constexpr int kBattleBars[] = { 0, 1, 2, 4, 8 };
+    s.perf.battleEvery = kBattleBars[std::clamp (pi (params.battleEvery), 0, 4)];
     // E-2 sync: fill-length grid (-1 = Off) and Sync Mods (the stutter time is added
     // in updateTempoInfo, where the tempo is known).
     s.perf.quantDivision = pi (params.fillQuant) - 1;

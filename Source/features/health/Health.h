@@ -65,7 +65,7 @@ struct Observations
     bool deadlineOverrun = false;       ///< pulse: a block took longer than it lasted
     std::uint32_t droppedEvents = 0;    ///< pulse: events/commands dropped since the last chunk
     bool bypassed = false;
-    bool panicActive = false;           ///< N-USE-a (not wired until it lands)
+    bool panicActive = false;           ///< N-USE-a (wired by WP6 from LiveControl)
 };
 
 /** Hold times (seconds). A code is set after the condition has held for `set` and

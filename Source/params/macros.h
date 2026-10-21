@@ -13,7 +13,12 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_MACROS(X)
+#define GAPFILL_PARAMS_MACROS(X) \
+    X (macroActivity,    "macroActivity") \
+    X (macroChaos,       "macroChaos") \
+    X (macroSpace,       "macroSpace") \
+    X (macroDestruction, "macroDestruction") \
+    X (macrosOn,         "macrosOn")
 
 namespace gapfill
 {

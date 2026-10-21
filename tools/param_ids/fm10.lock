@@ -1,0 +1,11 @@
+# Append-only parameter ID lock for group 'fm10' (one id per line, in order).
+# Adding an id is a deliberate act: add it here and in Source/params/fm10.h.
+fm10_stutter
+fm10_freeze
+fm10_reverse
+fm10_tape
+fm10_mode
+fm10_level
+fm10_dryDuck
+fm10_protect
+fm10_timeout

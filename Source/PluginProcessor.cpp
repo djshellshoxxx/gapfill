@@ -8,6 +8,7 @@
 #include "PluginEditor.h"
 #include "features/FeatureHooks.h"
 #include "features/state/StateSubtrees.h"
+#include "features/panic/WetSafety.h"
 
 namespace gapfill
 {
@@ -34,6 +35,9 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     params.connect (apvts);
     bypassParameter = apvts.getParameter ("bypass");
     midiLearn.connect (apvts);
+    liveControl.setMidiLearn (&midiLearn);
+    liveControl.setEventQueue (&fillEvents);
+    liveControl.setPanicHook ([] (void* self) noexcept { static_cast<GapFillAudioProcessor*> (self)->panicWet(); }, this);
     explainState.attach (*this, apvts);
     fillEvents.setTap (&explainState.recorder);
 
@@ -107,6 +111,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     contextState.prepare (currentSampleRate);
     engine.setFxMeters (&fxChain.getMeters());
     soloSplitter.prepare (currentSampleRate, 2);
+    liveControl.prepare (currentSampleRate, preparedBlockSize);
 
     for (auto& hp : lowProtect)
         hp.reset();
@@ -210,6 +215,8 @@ void GapFillAudioProcessor::timerCallback()
     // Applies CC moves and completed learns on the thread that owns them.
     // MIDI learn is intentionally bounded so the plugin cannot stay armed
     // indefinitely after the context menu closes.
+    liveControl.pump (*this);
+
     const bool learnChanged = midiLearn.applyPendingChanges();
     const bool learnTimedOut = midiLearn.advanceLearningTimeout();
     recipeServices.tick();
@@ -275,6 +282,7 @@ void GapFillAudioProcessor::drainCommands() noexcept
 
     for (int i = 0; i < n; ++i)
     {
+        liveControl.handleCommand (batch[i], engine);
         explainState.onCommand (batch[i]);
 
         // C-10 Capture v2 owns commands 7 and 8; everything else goes to the feature hook.
@@ -306,7 +314,7 @@ AnalysisSettings GapFillAudioProcessor::gatherAnalysisSettings (bool sidechainAc
     return s;
 }
 
-EngineSettings GapFillAudioProcessor::gatherEngineSettings() const
+EngineSettings GapFillAudioProcessor::gatherEngineSettings()
 {
     EngineSettings s;
     s.mode         = (DetMode) juce::jlimit (0, 2, pi (params.detMode));
@@ -353,7 +361,9 @@ EngineSettings GapFillAudioProcessor::gatherEngineSettings() const
     hooks::gatherFeatureSettings (s, params);
     Effective::MacroOutputs macroOut;
     uiState.mutationOverlay.apply (s);          // F-L17 Mutation Lab preview: first stage, identity while inactive
-    Effective::applyBlock (s, hooks::gatherModulationInputs (params), macroOut);
+    auto modulation = hooks::gatherModulationInputs (params);
+    liveControl.fillModulationInputs (modulation, s.seed);
+    Effective::applyBlock (s, modulation, macroOut);
 
     return s;
 }
@@ -474,6 +484,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
     midiLearn.processMidi (midi);
+    liveControl.beginBlock (midi, engine, samplesProcessed - (std::int64_t) targetLatency);
     recipeServices.onMidi (engine, midi);
     drainCommands();
 
@@ -505,6 +516,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
     midiLearn.processMidi (midi);
+    liveControl.beginBlock (midi, engine, samplesProcessed - (std::int64_t) targetLatency);
     recipeServices.onMidi (engine, midi);
     drainCommands();
 
@@ -668,6 +680,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     engineSettings.historyOffset = samplesProcessed + numSamples - fillSource.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
     contextState.onChunk (monoMain.data(), numSamples, analysis, samplesProcessed, engineSettings);       // WP7: F-L22 energy, F-L09 groove
+    liveControl.prepareChunk (engineSettings, numSamples, samplesProcessed - (std::int64_t) targetLatency);
+    const float* panicGains = liveControl.wetGains (numSamples);   // N-USE-a: fixed ramp on the wet bus
+    const float* dryDuck = liveControl.dryDuckGains (numSamples);   // F-M10: null unless a hold ducks the dry
     shaping.effective.publish (engineSettings);   // C-0
 
     {
@@ -687,6 +702,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         ci.scBusEnabled = sidechainBusEnabled;
         ci.scPeak = sidechainBusEnabled ? explain::peakOf (monoSide.data(), numSamples) : 0.0f;
         ci.bypassed = bypassed;
+        ci.panicActive = liveControl.panic().isPanicked();
         ci.droppedTotal = fillEvents.getDroppedCount();
         explainState.onChunk (ci);
     }
@@ -695,6 +711,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     {
         // Keep analysing (so the visualiser still shows what the detector sees)
         // but stop scheduling and fade out anything still playing.
+        liveControl.clearHolds();                      // F-M10: bypass releases every hold
         engineSettings.fill01 = 0.0f;
         panicWet();
     }
@@ -788,8 +805,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         }
 
         centreProtect.setTargetValue (pv (params.protCenter) * 0.01f);
-        widthAmount.setTargetValue (pv (params.width) * 0.01f
-                                      + contextState.tensionWidthDelta (engineSettings, pv (params.width) * 0.01f, numSamples));      // WP7 F-M21 (0 while off)
+        // C-2: the Space macro owns the wet width while it maps it; F-M21 Tension adds its delta on top.
+        const float widthBase = engineSettings.perf.macroWidthOn ? engineSettings.perf.macroWidth01 : pv (params.width) * 0.01f;
+        widthAmount.setTargetValue (widthBase + contextState.tensionWidthDelta (engineSettings, widthBase, numSamples));      // WP7 (0 while Tension is off)
         const bool monoWet = pb (params.wetMono);
 
         for (int i = 0; i < numSamples; ++i)
@@ -816,6 +834,10 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
             wl[i] = sanitise (mid + side);
             wr[i] = sanitise (mid - side);
         }
+
+        // F-L25: soft limiter on the wet bus only (last stage, stateless, off by default).
+        if (pb (params.wetSafety))
+            panic::wetSafetyProcess (wl, wr, numSamples);
     }
 
     // WP4: the wet bus after protect and width, before the dry/wet mix (U-2 tap, F-S06 loudness).
@@ -842,8 +864,8 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     for (int i = 0; i < numSamples; ++i)
     {
         const auto byp = bypassMix.getNextValue();
-        const auto d = lerp (dryGain.getNextValue(), 1.0f, byp);
-        const auto w = wetGain.getNextValue() * (1.0f - byp);
+        const auto d = lerp (dryGain.getNextValue(), 1.0f, byp) * (dryDuck != nullptr ? dryDuck[i] : 1.0f);   // F-M10 Dry Duck
+        const auto w = wetGain.getNextValue() * (1.0f - byp) * panicGains[i];
         const auto o = lerp (outGain.getNextValue() * recipeServices.nextMatchGain(), 1.0f, byp);   // F-S06 trim (1.0 when off)
 
         float l, r;
@@ -1181,6 +1203,7 @@ bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state)
     programChangeInProgress.store (true, std::memory_order_relaxed);
     apvts.replaceState (state.createCopy());
     snapParametersToState();
+    liveControl.forceHoldsOff();                    // F-M10: holds are never ON after a restore
     currentProgram.store (-1, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
     updateHostDisplay();
@@ -1324,6 +1347,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     programChangeInProgress.store (true, std::memory_order_relaxed);
     apvts.replaceState (paramState.createCopy());
     snapParametersToState();
+    liveControl.forceHoldsOff();                    // F-M10: holds are never ON after a restore
     currentProgram.store (restoredProgram, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
 

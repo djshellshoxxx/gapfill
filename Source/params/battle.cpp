@@ -4,13 +4,16 @@
 namespace gapfill
 {
 
-void addBattleParameters (juce::AudioProcessorValueTreeState::ParameterLayout& /*layout*/)
+void addBattleParameters (juce::AudioProcessorValueTreeState::ParameterLayout& layout)
 {
-    // No parameters yet. Add them here in the same order as GAPFILL_PARAMS_BATTLE.
+    using namespace builders;
+    layout.add (std::make_unique<APC> (makeID ("battleEvery", 2), "Beat Battle",
+                                       juce::StringArray { "Off", "1 bar", "2 bars", "4 bars", "8 bars" }, 0));
 }
 
-void addBattlePerformanceIds (juce::StringArray& /*ids*/)
+void addBattlePerformanceIds (juce::StringArray& ids)
 {
+    ids.add ("battleEvery");     // performance state: not randomised, not in Undo snapshots
 }
 
 } // namespace gapfill

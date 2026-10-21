@@ -228,6 +228,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     addLearnParameters (layout);
     addCoopParameters (layout);
     addQualityParameters (layout);
+    addFm10Parameters (layout);
 
     return layout;
 }
@@ -312,6 +313,7 @@ juce::StringArray performanceParameterIDs()
     addLearnPerformanceIds (ids);
     addCoopPerformanceIds (ids);
     addQualityPerformanceIds (ids);
+    addFm10PerformanceIds (ids);
     return ids;
 }
 

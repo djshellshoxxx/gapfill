@@ -47,6 +47,7 @@ struct ChunkInfo
     bool scBusEnabled = false;
     float scPeak = 0.0f;                ///< linear peak of the sidechain in this chunk
     bool bypassed = false;
+    bool panicActive = false;           ///< N-USE-a (WP6): LiveControl's panic hold
     std::uint32_t droppedTotal = 0;     ///< FillEventQueue::getDroppedCount()
 };
 

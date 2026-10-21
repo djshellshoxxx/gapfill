@@ -73,6 +73,8 @@ struct GapContext
     std::int64_t sourceAnchor = 0;     ///< absolute source position the fill is cut from (end of its material)
     std::uint64_t key = 0;             ///< deterministic decision key (seed + musical position)
     float conf = 0.0f;                 ///< clamped gap confidence at the decision sample
+    bool forced = false;               ///< F-P02 Fill Now: skips the density roll and the half-gap guard
+    bool allowOverSustained = false;   ///< F-P02 option: forced fills may start within protectHold of an event
 };
 
 /** What the scheduler decided to play, with the exact figures the recipe only

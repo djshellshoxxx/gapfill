@@ -15,6 +15,10 @@
 namespace gapfill
 {
 
+namespace scenes { struct OverlayView; }    // F-L07 (features/scenes/SceneOverlay.h)
+namespace macros { struct MacroRuntime; }   // C-2 / F-M23 (features/macros/MacroEngine.h)
+namespace battle { struct BattleRuntime; }  // F-M18 (features/battle/Battle.h)
+
 //==============================================================================
 // Performance / creative settings (docs/dev/02-FOUNDATIONS.md F0-5). Every
 // field is NEUTRAL at its default: the engine behaves exactly as it did before
@@ -51,6 +55,21 @@ struct PerformanceSettings
     int   bandType[3] { 0, 0, 0 };    // C-9: 0 Auto, else Algo+1
     int   tsNum = 0, tsDen = 0;       // host time signature, valid when both > 0
 
+    // WP6 live control. Neutral at their defaults (null / false / 0).
+    bool  panicked = false;           // N-USE-a: no new natural fills while set
+    const scenes::OverlayView* sceneView = nullptr;   // F-L07: audio-thread-owned overlay
+    const macros::MacroRuntime* macroRuntime = nullptr;   // F-M23: LFO macros re-evaluated per decision
+    std::uint32_t macroOwnedMask = 0; // C-2: macro target bits claimed by macros (scenes skip them)
+    std::uint32_t fillNowId = 0;      // F-P02: a new id requests one forced fill at fillNowPos (output timeline)
+    std::int64_t fillNowPos = 0;
+    bool  fillNowOverSustained = false;
+    int   holdTop = -1;               // F-M10: newest engaged hold effect (momentary::Effect), -1 none
+    float holdLevel01 = 1.0f;
+    bool  holdRespectProtection = true;
+    int   battleEvery = 0;            // F-M18: 0 off, else bars per style window
+    const battle::BattleRuntime* battle = nullptr;
+    bool  macroWidthOn = false;       // C-2: the Space macro drives the wet width
+    float macroWidth01 = 1.0f;
     /** Decision-stage OUTPUT (never a parameter): multiplier on the fill probability
         of the gap being decided. Exactly 1.0 means neutral (C-7 Phrase). */
     float probabilityMul = 1.0f;

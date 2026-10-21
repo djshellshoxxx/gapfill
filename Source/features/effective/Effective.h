@@ -42,6 +42,9 @@ struct MacroState
 {
     bool  on = false;
     float activity = 50.0f, chaos = 25.0f, space = 25.0f, destruction = 15.0f;   // percent
+
+    /** Mappings and smoothing state (audio-thread owned, set by LiveControl); null = no mappings. */
+    macros::MacroRuntime* runtime = nullptr;
 };
 
 /** Values the macro stage hands to later processing stages (C-2). */
@@ -67,8 +70,13 @@ void applyMacros      (EngineSettings&, const MacroState&, MacroOutputs&);      
 void applyBlock (EngineSettings&, const ModulationInputs&, MacroOutputs&);
 
 //==============================================================================
-// Decision stage (PPQ of the decision sample; ts from the block).
+// Decision stage (PPQ of the decision sample; ts from the block). The scene
+// overlay (F-L07) and LFO macros (F-M23) run first: they set the base values the
+// slow stages below then modulate.
 
+void applyScene     (EngineSettings&, double ppq, const TransportInfo&);           // F-L07 StageScene.cpp
+void applyBattle    (EngineSettings&, double ppq, const TransportInfo&);           // F-M18 StageBattle.cpp
+void applyMacroLfos (EngineSettings&, double ppq, const TransportInfo&);           // F-M23 StageMacros.cpp
 void applyEvolve    (EngineSettings&, double ppq, const TransportInfo&);           // C-8  StageEvolve.cpp
 void applyBreathing (EngineSettings&, double ppq, const TransportInfo&);           // C-6  StageBreathing.cpp
 void applyPhrase    (EngineSettings&, double ppq, const TransportInfo&);           // C-7  StagePhrase.cpp

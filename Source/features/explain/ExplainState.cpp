@@ -93,6 +93,7 @@ void ExplainState::onChunk (const ChunkInfo& c) noexcept
     o.droppedEvents = c.droppedTotal > lastDropped ? c.droppedTotal - lastDropped : 0;
     lastDropped = c.droppedTotal;
     o.bypassed = c.bypassed;
+    o.panicActive = c.panicActive;
 
     healthMonitor.update (o);
 

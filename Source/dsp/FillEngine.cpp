@@ -84,6 +84,7 @@ void FillEngine::prepare (double sampleRate, int /*maxBlockSize*/, int numChanne
 
     preview.prepare (sr, channels);       // E-1
     scrub.prepare (sr, channels);
+    holdVoices.prepare (sr, channels);     // F-M10
     spectral.prepare (sr, 2);
 
     // Keep the visualiser feed at a roughly constant rate across sample rates.
@@ -102,6 +103,7 @@ void FillEngine::reset()
     like.cancel();                        // C-11
     responder.reset();                    // F-L10
     scrub.reset();
+    holdVoices.reset();                    // F-M10
 
     spectral.reset();
     spectral.release();
@@ -224,6 +226,27 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
                       s.fx.scrub, currentDuck);
 
         preview.render (wet, wetStartSample + offset, chunk, history);      // E-1
+
+        // HOOK (WP6, F-M10 / F-S07): the engaged performance hold.
+        if (s.perf.holdTop >= 0 || holdVoices.isActive())
+        {
+            momentary::HoldFrame hf;
+            hf.top = s.perf.holdTop;
+            hf.level01 = s.perf.holdLevel01;
+            hf.respectProtection = s.perf.holdRespectProtection;
+            hf.protectionDuck = currentDuck;
+            hf.userSeed = s.seed;
+            hf.stutterSeconds = s.stutterSeconds;
+            hf.intensity01 = s.intensity01;
+            hf.complexity01 = s.complexity01;
+            hf.chaos01 = s.chaos01;
+            hf.ppqValid = s.transportValid && s.samplesPerBeat > 1.0;
+            hf.samplesPerBeat = s.samplesPerBeat;
+            hf.ppq = hf.ppqValid ? s.ppqAtBlockStart + (double) (outputPos - outputStartPos) / s.samplesPerBeat : 0.0;
+            holdVoices.render (wet, wetStartSample + offset, chunk, outputPos,
+                               juce::jlimit ((std::int64_t) 0, history.getWritePosition(), outputPos - s.historyOffset),
+                               history, hf);
+        }
 
         offset += chunk;
     }
@@ -349,6 +372,23 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
         protectVoice (v);
 
     protectVoice (preview.voice);          // E-1: a preview is ducked like a natural fill
+
+    // ---- F-P02 Fill Now: one forced evaluation when the requested sample is reached ----
+    if (s.perf.fillNowId != lastFillNowId && outputPos >= s.perf.fillNowPos)
+    {
+        lastFillNowId = s.perf.fillNowId;
+        const auto forcedResult = trySchedule (outputPos, blockStartPos, frame, analysis, history, s, true);
+
+        if (events != nullptr)
+        {
+            FillEvent e = makeEvent (forcedResult.started ? FillEventType::Started : FillEventType::Rejected);
+            e.reason = forcedResult.reason;
+            e.recipe = forcedResult.recipe;
+            e.availMs = forcedResult.availableMs;
+            e.needMs = forcedResult.neededMs;
+            events->push (e);
+        }
+    }
 
     // ---- gap state machine ----------------------------------------------
     if (! inGap)
@@ -495,7 +535,7 @@ void FillEngine::publishDecisionTelemetry (const EngineSettings& base, const Eng
 
 ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
                                        const AnalysisFrame& frame, const AnalysisEngine& analysis,
-                                       const SourceHistory& history, const EngineSettings& base) noexcept
+                                       const SourceHistory& history, const EngineSettings& base, bool forced) noexcept
 {
     // Decision stage of the effective-settings pipeline (F0-5): every later
     // stage reads the local copy `s`, evaluated at the PPQ of the decision sample.
@@ -517,6 +557,8 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
     ctx.outputPos = outputPos;
     ctx.blockStartPos = blockStartPos;
     ctx.frame = &frame;
+    ctx.forced = forced;
+    ctx.allowOverSustained = base.perf.fillNowOverSustained;
     ctx.history = &history;
     ctx.sourceAnchor = juce::jlimit ((std::int64_t) 0, history.getWritePosition(), outputPos - s.historyOffset);
 
@@ -555,6 +597,9 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
     if (auto r = adjustRecipe (plan, ctx, s); r != RejectReason::None)
         return reject (r);
 
+    if (forced)
+        plan.recipe.flags |= FillRecipe::flagForced;
+
     auto* voice = findFreeVoice();
 
     if (voice == nullptr)
@@ -580,6 +625,10 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
 RejectReason FillEngine::checkEligibility (GapContext& ctx, const AnalysisEngine& analysis,
                                            const EngineSettings& s, float& neededMs) noexcept
 {
+    // N-USE-a: while panicked no natural fill starts (detection keeps running).
+    if (s.perf.panicked)
+        return RejectReason::Panicked;
+
     if (s.fill01 <= 0.001f)
         return RejectReason::FillOff;
 
@@ -597,8 +646,13 @@ RejectReason FillEngine::checkEligibility (GapContext& ctx, const AnalysisEngine
     // Never start two fills on top of each other in the same musical breath.
     ctx.minGapSamples = (std::int64_t) juce::jmax (16.0, s.minGapMs * 0.001 * sr);
 
-    if (ctx.outputPos - lastFillStartPos < ctx.minGapSamples / 2)
+    if (! ctx.forced && ctx.outputPos - lastFillStartPos < ctx.minGapSamples / 2)
         return RejectReason::TooSoon;
+
+    // F-P02: a forced fill never starts right on top of a detected event unless the user allowed it.
+    if (ctx.forced && ! ctx.allowOverSustained
+         && ctx.outputPos - lastEventPos < (std::int64_t) (s.protectHoldMs * 0.001 * sr))
+        return RejectReason::ForcedUnsafe;
 
     // ---- how much room is there? ----------------------------------------
     const auto outputPos = ctx.outputPos;
@@ -618,6 +672,10 @@ RejectReason FillEngine::checkEligibility (GapContext& ctx, const AnalysisEngine
 
     if (boundary > outputPos)
         ctx.available = juce::jmax ((std::int64_t) 0, boundary - outputPos - ctx.preGuard);
+
+    // F-P02: a forced fill needs room for at least max (60 ms, minGap) before the next known event.
+    if (ctx.forced && ctx.available < juce::jmax (ctx.minGapSamples, (std::int64_t) (0.06 * sr)))
+        return RejectReason::ForcedUnsafe;
 
     if (ctx.available < ctx.minGapSamples)
     {
@@ -675,7 +733,7 @@ RejectReason FillEngine::rollDecision (GapContext& ctx, Rng& rng, const EngineSe
         probability *= s.bandProb[band];
     }
 
-    if (! rng.chance (juce::jlimit (0.0f, 1.0f, probability)))
+    if (! ctx.forced && ! rng.chance (juce::jlimit (0.0f, 1.0f, probability)))
         return RejectReason::DensityRoll;
 
     return RejectReason::None;

@@ -15,6 +15,7 @@
 #include "../features/fx/EngineBlockIO.h"
 #include "../features/fx/FxMeters.h"
 #include "../features/scrub/ScrubVoice.h"
+#include "../features/momentary/HoldVoices.h"
 
 #include <array>
 #include <limits>
@@ -44,6 +45,9 @@ public:
     /** Fades every voice out quickly (bypass, transport jumps, reset). */
     void panic() noexcept;
 
+    /** User Panic only (not transport stop / jump / bypass): fades the F-M10 hold voices over <= 48 samples. */
+    void panicHolds() noexcept                            { holdVoices.panic(); }
+    const momentary::HoldVoices& getHoldVoices() const noexcept { return holdVoices; }
     /** C-10: the object fills read their source from changed (Capture recapture swap or
         release). Voices that read the source while rendering (Granular) are faded out over
         10 ms; every other voice already holds its own copy of the material. */
@@ -159,7 +163,8 @@ private:
 
     ScheduleResult trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
                                 const AnalysisFrame& frame, const AnalysisEngine& analysis,
-                                const SourceHistory& history, const EngineSettings& s) noexcept;
+                                const SourceHistory& history, const EngineSettings& s,
+                                bool forced = false) noexcept;
 
     /** Fill on, source present, voices free, not too soon, enough room.
         Fills `ctx` (room figures) on success; counts TooShort gaps. */
@@ -220,6 +225,7 @@ private:
     bool decisionPpqValid = false;
     double decisionPpq = 0.0;
     fx::ScrubVoice scrub;                     // F-M19 performance voice (independent of the scheduler)
+    momentary::HoldVoices holdVoices;         // F-M10 / F-S07 hold voices (outside the pool and the preview)
     SpectralSmear spectral;
     fx::FxMeters* fxMeters = nullptr;
     fx::EngineBlockIO* blockIO = nullptr;     ///< valid only inside process()
@@ -231,6 +237,7 @@ private:
     std::int64_t gapStartPos = 0;
     std::int64_t lastFillStartPos = -1000000;
     std::int64_t lastEventPos = 0;
+    std::uint32_t lastFillNowId = 0;       // F-P02
     float lastEventTransient = 0.5f;
     std::int64_t gapIndex = 0;
 
