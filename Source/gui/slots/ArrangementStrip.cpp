@@ -96,7 +96,7 @@ namespace
             return std::make_unique<ArrangementStrip> (proc);
         } });
 
-    const HelpRegistrar helpArrangement (4150, "Arrangement", [] (HelpWriter& w)
+    const HelpRegistrar helpArrangement (6080, "Arrangement", [] (HelpWriter& w)
     {
         w.body ("ARRANGEMENT listens to how the music changes (loudness, how busy it is, which frequencies dominate) and finds the sections of the song. "
                 "It starts in a Learning state where it does nothing. Calm thins out fills in quiet sections such as breakdowns, Lift makes fills more likely "

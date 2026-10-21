@@ -116,7 +116,7 @@ namespace
             return std::make_unique<GrooveStrip> (proc);
         } });
 
-    const HelpRegistrar helpGroove (4100, "Groove", [] (HelpWriter& w)
+    const HelpRegistrar helpGroove (6030, "Groove", [] (HelpWriter& w)
     {
         w.body ("Groove listens to where your music's hits fall against the host's beat grid and makes the repeats of Stutter fills and the taps of "
                 "Delay fills follow that feel, so a straight stutter over a swung hi-hat swings too. Only the wet repeats move; the start of a fill, "

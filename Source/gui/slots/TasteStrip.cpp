@@ -141,7 +141,7 @@ namespace
             return std::make_unique<TasteStrip> (proc);
         } });
 
-    const HelpRegistrar helpTaste (4130, "Taste", [] (HelpWriter& w)
+    const HelpRegistrar helpTaste (6060, "Taste", [] (HelpWriter& w)
     {
         w.body ("With LEARN MY TASTE on, press LIKE or SKIP on fills you hear (LIKE is also in the History drawer). GapFill keeps those ratings on this "
                 "computer, in GapFill/ratings.xml, and nothing is sent anywhere. From about eight ratings (at least three of each) it gently tilts the odds "

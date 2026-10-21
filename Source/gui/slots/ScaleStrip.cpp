@@ -93,7 +93,7 @@ namespace
             return std::make_unique<ScaleStrip> (proc);
         } });
 
-    const HelpRegistrar helpScale (4080, "Scale Lock", [] (HelpWriter& w)
+    const HelpRegistrar helpScale (6010, "Scale Lock", [] (HelpWriter& w)
     {
         w.body ("Scale Lock keeps pitched fills in key. Set Key to the song's tonic and Scale to its scale; Pitch Rise and Pitch Fall, "
                 "Granular grains, Comb tuning and Granular Cloud pitch spread then land on notes that belong to it. Snap sets how often "

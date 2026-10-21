@@ -98,7 +98,7 @@ namespace
             return std::make_unique<CallStrip> (proc);
         } });
 
-    const HelpRegistrar helpCall (4120, "Call and response", [] (HelpWriter& w)
+    const HelpRegistrar helpCall (6050, "Call and response", [] (HelpWriter& w)
     {
         w.body ("Call and response watches GapFill's own last few fills (the call), summarises them as a motif, and shapes the next few fills "
                 "(the response). Complement answers with a different kind of fill, Echo with a similar one. It only nudges the odds and lengths: "

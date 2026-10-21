@@ -101,7 +101,7 @@ namespace
             return std::make_unique<KeyStrip> (proc);
         } });
 
-    const HelpRegistrar helpKey (4110, "Key detection", [] (HelpWriter& w)
+    const HelpRegistrar helpKey (6040, "Key detection", [] (HelpWriter& w)
     {
         w.body ("AUTO KEY listens to the incoming music and estimates its key, for example A minor, with a confidence. While it is confident, "
                 "Scale Lock uses that key instead of the Key and Scale you chose by hand. Drums, noise and silence give no key: the readout says "

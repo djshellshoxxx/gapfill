@@ -102,7 +102,7 @@ namespace
             return std::make_unique<TensionStrip> (proc);
         } });
 
-    const HelpRegistrar helpTension (4140, "Tension and release", [] (HelpWriter& w)
+    const HelpRegistrar helpTension (6070, "Tension and release", [] (HelpWriter& w)
     {
         w.body ("TENSION moves density, intensity, width and effect amount along a curve that lasts a number of bars, then repeats, holds or releases. "
                 "Each lane has a depth; 0 leaves that lane alone. Shapes: Build rises to the end, Build+Drop rises and then snaps back to neutral for the "

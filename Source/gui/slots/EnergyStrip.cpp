@@ -79,7 +79,7 @@ namespace
             return std::make_unique<EnergyStrip> (proc);
         } });
 
-    const HelpRegistrar helpEnergy (4090, "Energy follow", [] (HelpWriter& w)
+    const HelpRegistrar helpEnergy (6020, "Energy follow", [] (HelpWriter& w)
     {
         w.body ("Energy follow listens to how busy the music is compared with the last minute (loudness and how many hits per second) and "
                 "shows it as Low, Mid or High. With Follow above 0, sparse passages get a higher fill density and softer fills, busy passages a "
