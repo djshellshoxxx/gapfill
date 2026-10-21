@@ -21,6 +21,7 @@ Supersedes nothing: it builds on
 | 09 | `09-FAST-MODULAR-BUILDS.md` | Build one configured test/plugin target at a time for faster local iteration; full CI/release validation remains comprehensive. |
 | 10 | `10-SPEC-LIVE-AND-WORKFLOW.md` | Detailed candidate contracts for live performance, workflow, scene recall, controller integration, safety and the previously parked product decisions. |
 | 11 | `11-SPEC-DSP-AND-MUSICAL-FEATURES.md` | Detailed candidate contracts for new DSP modules, MIDI/bus integration, musical analysis and research-heavy features. |
+| 12 | `12-GUI-AND-UX-SPEC.md` | Space-efficient editor shell, tabs, collapsible feature tiles, accessibility and feature-to-UI mapping. |
 
 `08` remains the source of truth for priority and candidate status. `10` and `11`
 make the previously catalog-only candidates implementable after the stabilization

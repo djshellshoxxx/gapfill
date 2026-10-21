@@ -12,6 +12,7 @@
 #include "gui/WaveformGapView.h"
 #include "gui/HelpView.h"
 #include "gui/OptionsView.h"
+#include "gui/layout/DisclosureTile.h"
 
 namespace gapfill
 {
@@ -34,10 +35,12 @@ public:
    #endif
 
 private:
-    enum class Tab { Creative = 0, Weights, Spectral };
+    enum class Tab { Detection = 0, Creative, Weights, Spectral, Protection };
 
     void timerCallback() override;
     juce::Rectangle<int> footerBounds() const;
+    void updateSelectedPage();
+    void showMoreMenu();
     void setTab (Tab newTab);
     void refreshPresetList();
     void presetSelected();
@@ -88,7 +91,18 @@ private:
     ProtectionPanel protectionPanel;
     MixPanel mixPanel;
 
-    juce::TextButton tabCreative { "CREATIVE" }, tabWeights { "AUTO WEIGHTS" }, tabSpectral { "SPECTRAL" };
+    DisclosureTile detectionTile { "Detection", detectionPanel, 326 };
+    DisclosureTile creativeTile { "Creative controls", creativePanel, 306 };
+    DisclosureTile weightsTile { "Algorithm weights", weightsPanel, 370 };
+    DisclosureTile spectralTile { "Spectral controls", spectralPanel, 310 };
+    DisclosureTile protectionTile { "Protection", protectionPanel, 230 };
+
+    juce::Component pageContents;
+    juce::Viewport pageViewport { "GapFill feature pages" };
+
+    juce::TextButton tabDetection { "DETECT" }, tabCreative { "CREATIVE" },
+                     tabWeights { "WEIGHTS" }, tabSpectral { "SPECTRAL" },
+                     tabProtection { "PROTECT" }, moreButton { "MORE" };
     Tab currentTab = Tab::Creative;
 
     HelpView helpView;

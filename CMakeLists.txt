@@ -47,6 +47,7 @@ set(GAPFILL_SOURCES
     Source/gui/Panels.cpp
     Source/gui/HelpView.cpp
     Source/gui/OptionsView.cpp
+    Source/gui/layout/DisclosureTile.cpp
 )
 
 set(GAPFILL_MODULES

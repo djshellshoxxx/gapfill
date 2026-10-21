@@ -1087,8 +1087,8 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         const auto savedProgram = (int) root.getProperty ("program", 0);
         const auto presetCount = (int) getFactoryPresets().size();
         restoredProgram = (savedProgram >= 0 && savedProgram < presetCount) ? savedProgram : -1;
-        restoredEditorWidth = (int) root.getProperty ("editorWidth", 1100);
-        restoredEditorHeight = (int) root.getProperty ("editorHeight", 700);
+        restoredEditorWidth = (int) root.getProperty ("editorWidth", 1000);
+        restoredEditorHeight = (int) root.getProperty ("editorHeight", 660);
         restoredTooltips = (bool) root.getProperty ("tooltips", true);
         restoredReducedMotion = (bool) root.getProperty ("reducedMotion", false);
         restoredKeyboardNavigation = (bool) root.getProperty ("keyboardNavigation", false);
@@ -1118,9 +1118,9 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
 
     if (wrappedState)
     {
-        savedEditorWidth.store (juce::jlimit (860, 3200, restoredEditorWidth),
+        savedEditorWidth.store (juce::jlimit (820, 2600, restoredEditorWidth),
                                 std::memory_order_relaxed);
-        savedEditorHeight.store (juce::jlimit (560, 2200, restoredEditorHeight),
+        savedEditorHeight.store (juce::jlimit (540, 1800, restoredEditorHeight),
                                  std::memory_order_relaxed);
         tooltipsEnabled.store (restoredTooltips, std::memory_order_relaxed);
         reducedMotionEnabled.store (restoredReducedMotion, std::memory_order_relaxed);

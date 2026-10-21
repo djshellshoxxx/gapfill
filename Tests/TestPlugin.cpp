@@ -1357,10 +1357,12 @@ GF_TEST (Editor, opens_and_closes_repeatedly_without_leaking_state)
 
         if (editor != nullptr)
         {
-            GF_EXPECT (editor->getWidth() >= 800);
-            GF_EXPECT (editor->getHeight() >= 560);
+            GF_EXPECT (editor->getWidth() >= 820);
+            GF_EXPECT (editor->getHeight() >= 540);
 
+            editor->setSize (820, 540);
             editor->setSize (1200, 760);
+            editor->setSize (1024, 768);
             editor->setSize (900, 640);
 
             // Run audio while the editor exists so the visualiser fifo is exercised.
@@ -1378,6 +1380,27 @@ GF_TEST (Editor, opens_and_closes_repeatedly_without_leaking_state)
             }
         }
     }
+}
+
+GF_TEST (Editor, disclosure_tile_collapses_presentation_without_losing_content)
+{
+    juce::Label panel;
+    gapfill::DisclosureTile tile ("Test section", panel, 180);
+    tile.setBounds (0, 0, 320, tile.getPreferredHeight());
+
+    GF_EXPECT (tile.isExpanded());
+    GF_EXPECT (panel.isVisible());
+    GF_EXPECT (tile.getPreferredHeight() == 210);
+
+    tile.setExpanded (false);
+    GF_EXPECT (! tile.isExpanded());
+    GF_EXPECT (! panel.isVisible());
+    GF_EXPECT (tile.getPreferredHeight() == 30);
+
+    tile.setExpanded (true);
+    GF_EXPECT (tile.isExpanded());
+    GF_EXPECT (panel.isVisible());
+    GF_EXPECT (tile.getPreferredHeight() == 210);
 }
 
 //==============================================================================
@@ -1698,7 +1721,7 @@ GF_TEST (Plugin, persisted_ui_metadata_round_trips_and_clamps)
             juce::AudioProcessor::copyXmlToBinary (*rewritten, malformed);
 
         restored.setStateInformation (malformed.getData(), (int) malformed.getSize());
-        GF_EXPECT (restored.getSavedEditorSize() == juce::Point<int> (3200, 560));
+        GF_EXPECT (restored.getSavedEditorSize() == juce::Point<int> (2600, 540));
     }
 }
 

@@ -221,8 +221,8 @@ private:
 
     std::atomic<int> currentProgram { 0 };
     std::atomic<bool> programChangeInProgress { false };
-    std::atomic<int> savedEditorWidth { 1100 };
-    std::atomic<int> savedEditorHeight { 700 };
+    std::atomic<int> savedEditorWidth { 1000 };
+    std::atomic<int> savedEditorHeight { 660 };
     std::atomic<bool> tooltipsEnabled { true };
     std::atomic<bool> reducedMotionEnabled { false };
     std::atomic<bool> keyboardNavigationEnabled { false };

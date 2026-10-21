@@ -36,6 +36,10 @@ GapFill uses `docs/standards/CDL_PLUGIN_BASELINE.md` as the required common Circ
 | Standalone validation | Automated + hardware acceptance | CI builds and smoke-launches the real Standalone target; unit tests construct the JUCE device selector. Physical-device acceptance steps are defined in `docs/VALIDATION.md`. |
 | Keyboard navigation | Implemented | Interactive controls are non-focusable by default. Users can opt in to Tab/Shift+Tab traversal and standard keyboard operation; the editor root remains non-focusable, focus has a visible 2 px accent ring, and parameter controls expose explicit accessibility titles/descriptions. |
 | Reduced motion | Implemented | Options includes a persisted Reduced Motion preference that disables knob/value easing, hover fades and brief action flashes while retaining live signal meters and the gap visualizer. |
+| Compact editor navigation | Implemented | Detection, Creative, Weights, Spectral and Protection use a five-tab focused-page layout. The visualizer and mix stay in the scrollable page; fixed-width side columns were removed. |
+| Collapsible feature tiles | Implemented | Each focused feature page is hosted in a presentation-only disclosure tile. Collapse state is editor-session-only; it does not affect APVTS or presets. |
+| Compact editor bounds and overflow actions | Implemented | Minimum editor size is 820 x 540 logical px. Secondary top-bar actions move into MORE below 1180 px; bypass, preset, A/B and file actions remain visible. |
+| Responsive viewport layout | Implemented | Feature pages use a vertical JUCE viewport with horizontal scrolling disabled. Visualizer and feature panel remain reachable when the host window is short. Breakpoint screenshot and scale QA remain pending. |
 
 ## Validation
 

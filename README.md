@@ -225,7 +225,9 @@ GapFill follows the required Circuit Drift Labs shared plugin baseline in [`docs
 
 ## Developer documentation
 
-The feature roadmap, development plan, engineering standards and QA process live in [`docs/dev/`](docs/dev/README.md).
+The feature roadmap, development plan, engineering standards, GUI specification and QA process live in [`docs/dev/`](docs/dev/README.md).
+
+The pinned shared Circuit Drift Labs standards and skill snapshot used during GUI work are indexed in [`docs/standards/circuitdriftlabs-shared/`](docs/standards/circuitdriftlabs-shared/README.md) and [`skills/shared-cdl/`](skills/shared-cdl/README.md).
 
 ## Validation
 

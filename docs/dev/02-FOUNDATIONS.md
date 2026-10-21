@@ -404,9 +404,21 @@ test code and the 2022-line `TestPlugin.cpp` stops growing).
 
 ## F0-9 Editor slots   (size M)
 
-`PluginEditor.cpp` (893 lines) lays everything out by hand in `resized()`; every
-UI feature in the plan adds a button, strip, or overlay there. Replace the
-hand-placed additions with named slots so features never edit `resized()`:
+**Revised by `docs/dev/12-GUI-AND-UX-SPEC.md`.** The original static-registration
+slot-host proposal below is retired: static factories and plugin-wide registration
+add indirection without solving the immediate space constraint. The first GUI slice
+keeps `PluginEditor` as the composition root and extracts the reusable disclosure
+presentation into `Source/gui/layout/DisclosureTile.{h,cpp}`. Current feature panels
+are navigated with tabs and hosted in a vertical viewport; tiles own presentation
+state only. Future layout extractions should follow the explicit page/tile boundaries
+in spec 12 rather than adding global slot registration.
+
+The prior proposal is retained below for historical context; it is not an active
+implementation requirement.
+
+`PluginEditor.cpp` lays everything out by hand in `resized()`; every UI feature in
+the plan adds a button, strip, or overlay there. The retired proposal was to replace
+hand-placed additions with named slots:
 
 ```cpp
 enum class Slot { TopBarRight, CreativeExtra, PerformanceStrip, VisualiserOverlay,

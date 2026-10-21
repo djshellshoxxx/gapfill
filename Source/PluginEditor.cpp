@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "PluginEditor.h"
+#include <array>
 
 // The standalone wrapper owns the audio and MIDI devices, so the options page
 // can only offer device settings when we are running inside it. The macro is
@@ -24,11 +25,11 @@ namespace gapfill
 namespace
 {
     constexpr int kTopBarHeight = 46;
-    constexpr int kMixHeight    = 124;
-    constexpr int kTabHeight    = 26;
+    constexpr int kMixHeight    = 112;
+    constexpr int kTabHeight    = 30;
     constexpr int kFooterHeight = 12;   // version marker, bottom-right
-    constexpr int kMinWidth     = 1020;
-    constexpr int kMinHeight    = 620;
+    constexpr int kMinWidth     = 820;
+    constexpr int kMinHeight    = 540;
 
     constexpr int kFactoryOffset = 1;
     constexpr int kUserOffset    = 1000;
@@ -267,15 +268,24 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     surpriseButton.setColour (juce::TextButton::buttonColourId, colours::accentGreen.withAlpha (0.30f));
 
     // ---- main areas --------------------------------------------------------
-    addAndMakeVisible (visualiser);
-    addAndMakeVisible (detectionPanel);
-    addAndMakeVisible (creativePanel);
-    addChildComponent (weightsPanel);
-    addChildComponent (spectralPanel);
-    addAndMakeVisible (protectionPanel);
     addAndMakeVisible (mixPanel);
 
-    for (auto* b : { &tabCreative, &tabWeights, &tabSpectral })
+    // Feature panels are hosted by presentation-only tiles. The viewport owns
+    // the page container, while the editor owns every panel and tile.
+    pageContents.addAndMakeVisible (visualiser);
+    pageContents.addAndMakeVisible (detectionTile);
+    pageContents.addAndMakeVisible (creativeTile);
+    pageContents.addAndMakeVisible (weightsTile);
+    pageContents.addAndMakeVisible (spectralTile);
+    pageContents.addAndMakeVisible (protectionTile);
+    for (auto* tile : { &detectionTile, &creativeTile, &weightsTile, &spectralTile, &protectionTile })
+        tile->onHeightChanged = [this] { resized(); };
+    pageViewport.setViewedComponent (&pageContents, false);
+    pageViewport.setScrollBarsShown (true, false, true, false);
+    pageViewport.setScrollBarThickness (8);
+    addAndMakeVisible (pageViewport);
+
+    for (auto* b : { &tabDetection, &tabCreative, &tabWeights, &tabSpectral, &tabProtection })
     {
         b->setClickingTogglesState (true);
         b->setRadioGroupId (1001);
@@ -283,10 +293,17 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
         addAndMakeVisible (b);
     }
 
+    tabDetection.onClick = [this] { setTab (Tab::Detection); };
     tabCreative.onClick = [this] { setTab (Tab::Creative); };
     tabWeights.onClick  = [this] { setTab (Tab::Weights); };
     tabSpectral.onClick = [this] { setTab (Tab::Spectral); };
+    tabProtection.onClick = [this] { setTab (Tab::Protection); };
+    moreButton.onClick = [this] { showMoreMenu(); };
+    moreButton.setTooltip ("Additional actions");
+    moreButton.setWantsKeyboardFocus (false);
+    addAndMakeVisible (moreButton);
     tabCreative.setToggleState (true, juce::dontSendNotification);
+    updateSelectedPage();
 
     helpView.onClose = [this] { helpView.setVisible (false); };
     addChildComponent (helpView);
@@ -350,7 +367,8 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     const auto saved = proc.getSavedEditorSize();
     setResizable (true, true);
     setResizeLimits (kMinWidth, kMinHeight, 2600, 1800);
-    setSize (juce::jmax (kMinWidth, saved.x), juce::jmax (kMinHeight, saved.y));
+    setSize (juce::jlimit (kMinWidth, 2600, saved.x),
+             juce::jlimit (kMinHeight, 1800, saved.y));
 
     if (proc.getCurrentPresetName() == "Custom")
     {
@@ -376,15 +394,55 @@ GapFillAudioProcessorEditor::~GapFillAudioProcessorEditor()
 void GapFillAudioProcessorEditor::setTab (Tab newTab)
 {
     currentTab = newTab;
-    creativePanel.setVisible (newTab == Tab::Creative);
-    weightsPanel.setVisible (newTab == Tab::Weights);
-    spectralPanel.setVisible (newTab == Tab::Spectral);
 
+    tabDetection.setToggleState (newTab == Tab::Detection, juce::dontSendNotification);
     tabCreative.setToggleState (newTab == Tab::Creative, juce::dontSendNotification);
     tabWeights.setToggleState (newTab == Tab::Weights, juce::dontSendNotification);
     tabSpectral.setToggleState (newTab == Tab::Spectral, juce::dontSendNotification);
+    tabProtection.setToggleState (newTab == Tab::Protection, juce::dontSendNotification);
 
+    updateSelectedPage();
     resized();
+}
+
+void GapFillAudioProcessorEditor::updateSelectedPage()
+{
+    detectionTile.setVisible (currentTab == Tab::Detection);
+    creativeTile.setVisible (currentTab == Tab::Creative);
+    weightsTile.setVisible (currentTab == Tab::Weights);
+    spectralTile.setVisible (currentTab == Tab::Spectral);
+    protectionTile.setVisible (currentTab == Tab::Protection);
+}
+
+void GapFillAudioProcessorEditor::showMoreMenu()
+{
+    enum { copy = 1, random, randomAll, surprise, undo, reset, help };
+    juce::PopupMenu menu;
+    menu.setLookAndFeel (&lookAndFeel);
+    menu.addItem (copy, "Copy to other A/B slot");
+    menu.addItem (random, "Random");
+    menu.addItem (randomAll, "Random All");
+    menu.addItem (surprise, "Surprise");
+    menu.addItem (undo, "Undo", proc.canUndo());
+    menu.addItem (reset, "Reset");
+    menu.addSeparator();
+    menu.addItem (help, "Help");
+
+    menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&moreButton),
+                        [this] (int result)
+    {
+        switch (result)
+        {
+            case copy: copyButton.triggerClick(); break;
+            case random: randomButton.triggerClick(); break;
+            case randomAll: randomAllButton.triggerClick(); break;
+            case surprise: surpriseButton.triggerClick(); break;
+            case undo: undoButton.triggerClick(); break;
+            case reset: resetButton.triggerClick(); break;
+            case help: helpButton.triggerClick(); break;
+            default: break;
+        }
+    });
 }
 
 //==============================================================================
@@ -813,81 +871,100 @@ juce::Rectangle<int> GapFillAudioProcessorEditor::footerBounds() const
 
 void GapFillAudioProcessorEditor::resized()
 {
-    auto b = getLocalBounds();
+    auto bounds = getLocalBounds();
     proc.setSavedEditorSize ({ getWidth(), getHeight() });
 
-    // ---- top bar ----------------------------------------------------------
+    // The header progressively moves secondary commands into MORE as space
+    // tightens. Bypass, preset selection, A/B and file access remain visible.
+    const bool showAllActions = getWidth() >= 1180;
+    auto top = bounds.removeFromTop (kTopBarHeight).reduced (10, 6);
+    top.removeFromLeft (10);
+
+    auto brand = top.removeFromLeft (145);
+    logo.setBounds (brand.removeFromTop (juce::jmax (18, brand.getHeight() - 11)));
+    tagline.setBounds (brand);
+    top.removeFromLeft (6);
+
+    bypassButton.setBounds (top.removeFromRight (74).reduced (2, 0));
+    moreButton.setVisible (! showAllActions);
+    const std::array<juce::TextButton*, 7> secondaryActions
+        { &copyButton, &randomButton, &randomAllButton, &surpriseButton,
+          &undoButton, &resetButton, &helpButton };
+    if (showAllActions)
     {
-        auto top = b.removeFromTop (kTopBarHeight).reduced (10, 6);
-        top.removeFromLeft (10);
+        moreButton.setBounds ({ });
+        for (auto* button : secondaryActions)
+            button->setVisible (true);
 
-        auto brand = top.removeFromLeft (150);
-        logo.setBounds (brand.removeFromTop (juce::jmax (18, brand.getHeight() - 11)));
-        tagline.setBounds (brand);
-
-        top.removeFromLeft (12);
-
-        bypassButton.setBounds (top.removeFromRight (78).reduced (2, 0));
+        helpButton.setBounds (top.removeFromRight (58).reduced (2, 0));
+        resetButton.setBounds (top.removeFromRight (58).reduced (2, 0));
+        undoButton.setBounds (top.removeFromRight (54).reduced (2, 0));
+        surpriseButton.setBounds (top.removeFromRight (78).reduced (2, 0));
+        randomAllButton.setBounds (top.removeFromRight (86).reduced (2, 0));
+        randomButton.setBounds (top.removeFromRight (74).reduced (2, 0));
         top.removeFromRight (4);
-        helpButton.setBounds (top.removeFromRight (62).reduced (2, 0));
-        resetButton.setBounds (top.removeFromRight (64).reduced (2, 0));
-        undoButton.setBounds (top.removeFromRight (58).reduced (2, 0));
-        surpriseButton.setBounds (top.removeFromRight (84).reduced (2, 0));
-        randomAllButton.setBounds (top.removeFromRight (92).reduced (2, 0));
-        randomButton.setBounds (top.removeFromRight (80).reduced (2, 0));
-        top.removeFromRight (6);
-        copyButton.setBounds (top.removeFromRight (52).reduced (2, 0));
-        abButton.setBounds (top.removeFromRight (34).reduced (2, 0));
-        top.removeFromRight (8);
-
-        prevPreset.setBounds (top.removeFromLeft (26).reduced (1, 0));
-        nextPreset.setBounds (top.removeFromLeft (26).reduced (1, 0));
-        top.removeFromLeft (4);
-        fileButton.setBounds (top.removeFromRight (56).reduced (2, 0));
-        presetBox.setBounds (top.removeFromLeft (juce::jmin (230, juce::jmax (110, top.getWidth() - 70))).reduced (1, 1));
-        latencyLabel.setBounds (top.reduced (6, 0));
+        copyButton.setBounds (top.removeFromRight (48).reduced (2, 0));
+    }
+    else
+    {
+        for (auto* button : secondaryActions)
+            button->setVisible (false);
+        moreButton.setBounds (top.removeFromRight (58).reduced (2, 0));
     }
 
-    b.reduce (10, 8);
-    b.removeFromBottom (kFooterHeight);
+    abButton.setBounds (top.removeFromRight (34).reduced (1, 0));
+    top.removeFromRight (3);
+    nextPreset.setBounds (top.removeFromRight (24).reduced (1, 0));
+    prevPreset.setBounds (top.removeFromRight (24).reduced (1, 0));
+    top.removeFromRight (3);
+    fileButton.setBounds (top.removeFromRight (50).reduced (1, 0));
+    presetBox.setBounds (top.removeFromLeft (juce::jmin (230, juce::jmax (90, top.getWidth() - 4))).reduced (1, 1));
+    latencyLabel.setVisible (showAllActions);
+    latencyLabel.setBounds (showAllActions ? top.reduced (4, 0) : juce::Rectangle<int>());
 
-    // ---- mix strip --------------------------------------------------------
-    mixPanel.setBounds (b.removeFromBottom (kMixHeight));
-    b.removeFromBottom (8);
+    bounds.reduce (10, 6);
+    auto tabs = bounds.removeFromTop (kTabHeight).reduced (0, 1);
+    const auto tabCount = 5;
+    const auto gap = 3;
+    const auto tabWidth = juce::jmax (1, (tabs.getWidth() - gap * (tabCount - 1)) / tabCount);
+    tabDetection.setBounds (tabs.removeFromLeft (tabWidth));
+    tabs.removeFromLeft (gap);
+    tabCreative.setBounds (tabs.removeFromLeft (tabWidth));
+    tabs.removeFromLeft (gap);
+    tabWeights.setBounds (tabs.removeFromLeft (tabWidth));
+    tabs.removeFromLeft (gap);
+    tabSpectral.setBounds (tabs.removeFromLeft (tabWidth));
+    tabs.removeFromLeft (gap);
+    tabProtection.setBounds (tabs);
 
-    // ---- control row ------------------------------------------------------
-    const auto controlHeight = juce::jlimit (250, 360, (int) ((float) b.getHeight() * 0.54f));
-    auto controls = b.removeFromBottom (controlHeight);
-    b.removeFromBottom (8);
+    bounds.removeFromBottom (kFooterHeight + 4);
+    mixPanel.setBounds (bounds.removeFromBottom (kMixHeight));
+    bounds.removeFromBottom (6);
+    pageViewport.setBounds (bounds);
 
-    const auto sideWidth = juce::jlimit (230, 320, controls.getWidth() / 4);
-    detectionPanel.setBounds (controls.removeFromLeft (sideWidth));
-    controls.removeFromLeft (8);
-    protectionPanel.setBounds (controls.removeFromRight (juce::jlimit (215, 290, sideWidth - 20)));
-    controls.removeFromRight (8);
+    const auto pageWidth = juce::jmax (1, pageViewport.getWidth() - pageViewport.getScrollBarThickness());
+    auto* selectedTile = [&]() -> DisclosureTile*
+    {
+        switch (currentTab)
+        {
+            case Tab::Detection: return &detectionTile;
+            case Tab::Creative: return &creativeTile;
+            case Tab::Weights: return &weightsTile;
+            case Tab::Spectral: return &spectralTile;
+            case Tab::Protection: return &protectionTile;
+        }
+        return &creativeTile;
+    }();
 
-    // Tabs sit above the middle panel.
-    auto tabs = controls.removeFromTop (kTabHeight);
-    const auto tabWidth = juce::jmin (130, tabs.getWidth() / 3);
-    tabCreative.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
-    tabWeights.setBounds (tabs.removeFromLeft (tabWidth + 20).reduced (1));
-    tabSpectral.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
-
-    creativePanel.setBounds (controls);
-    weightsPanel.setBounds (controls);
-    spectralPanel.setBounds (controls);
-
-    // ---- visualiser takes whatever is left --------------------------------
-    visualiser.setBounds (b);
+    visualiser.setBounds (0, 0, pageWidth, 98);
+    selectedTile->setBounds (0, 106, pageWidth, selectedTile->getPreferredHeight());
+    pageContents.setSize (pageWidth, 114 + selectedTile->getPreferredHeight());
 
     helpView.setBounds (getLocalBounds().withTrimmedTop (kTopBarHeight).reduced (24, 16));
-
     if (helpView.isVisible())
         helpView.resized();
 
-    // The options page is a small panel rather than a full overlay.
     optionsView.setBounds (juce::Rectangle<int> (520, 440)
                              .withCentre (getLocalBounds().getCentre()));
 }
-
 } // namespace gapfill
