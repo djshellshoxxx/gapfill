@@ -45,7 +45,13 @@ const char* footerText (int mode, int appliedLevel, char* buffer, int bufferSize
 //==============================================================================
 void AutoGovernor::reset() noexcept
 {
-    *this = AutoGovernor();
+    // Field by field: `current` is atomic (read by the UI thread), so the governor is not copy-assignable.
+    current.store (Full, std::memory_order_relaxed);
+    hot = calm = clock = 0.0;
+    sinceChange = kMinDwellSeconds;
+    lastOverruns = 0;
+    overrunAt[0] = overrunAt[1] = -1.0e9;
+    seeded = false;
 }
 
 int AutoGovernor::update (double dt, float cpu01, std::uint32_t overrunCount) noexcept
@@ -98,7 +104,8 @@ int AutoGovernor::update (double dt, float cpu01, std::uint32_t overrunCount) no
 void QualityController::reset() noexcept
 {
     governor.reset();
-    applied = requested = Full;
+    applied.store (Full, std::memory_order_relaxed);
+    requested.store (Full, std::memory_order_relaxed);
     pendingFor = 0.0;
 }
 
@@ -112,14 +119,14 @@ QualityController::Step QualityController::update (int mode, bool nonRealtime, d
     else
         requested = std::clamp (mode, (int) Full, (int) Lite);
 
-    if (requested != applied)
+    if (requested.load (std::memory_order_relaxed) != applied.load (std::memory_order_relaxed))
     {
         pendingFor += std::max (0.0, dt);
 
         if (engineIdle || pendingFor >= kForceAfterSeconds)
         {
             step.forceFade = ! engineIdle;
-            applied = requested;
+            applied.store (requested.load (std::memory_order_relaxed), std::memory_order_relaxed);
             step.changed = true;
             pendingFor = 0.0;
         }
@@ -129,7 +136,7 @@ QualityController::Step QualityController::update (int mode, bool nonRealtime, d
         pendingFor = 0.0;
     }
 
-    step.level = applied;
+    step.level = applied.load (std::memory_order_relaxed);
     return step;
 }
 

@@ -31,6 +31,7 @@
 // AutoGovernor is a pure state machine driven by an injected time step, so its
 // hysteresis is tested against simulated CPU series.
 
+#include <atomic>
 #include <cstdint>
 
 namespace gapfill
@@ -91,10 +92,10 @@ public:
         cumulative number of deadline overruns. Returns the governor's level (0..2). */
     int update (double dtSeconds, float cpu01, std::uint32_t overrunCount) noexcept;
 
-    int level() const noexcept   { return current; }
+    int level() const noexcept   { return current.load (std::memory_order_relaxed); }
 
 private:
-    int current = Full;
+    std::atomic<int> current { Full };            // written by the audio thread, read by the UI (level())
     double hot = 0.0, calm = 0.0, sinceChange = kMinDwellSeconds, clock = 0.0;
     std::uint32_t lastOverruns = 0;
     double overrunAt[2] { -1.0e9, -1.0e9 };
@@ -118,14 +119,14 @@ public:
     Step update (int mode, bool nonRealtime, double dtSeconds, float cpu01, std::uint32_t overrunCount,
                  bool engineIdle) noexcept;
 
-    int appliedLevel() const noexcept     { return applied; }
-    int requestedLevel() const noexcept   { return requested; }
+    int appliedLevel() const noexcept     { return applied.load (std::memory_order_relaxed); }
+    int requestedLevel() const noexcept   { return requested.load (std::memory_order_relaxed); }
     int autoLevel() const noexcept        { return governor.level(); }
 
 private:
     AutoGovernor governor;
-    int applied = Full;
-    int requested = Full;
+    std::atomic<int> applied { Full };            // audio thread writes, UI reads (RoutingSlot)
+    std::atomic<int> requested { Full };
     double pendingFor = 0.0;
 };
 

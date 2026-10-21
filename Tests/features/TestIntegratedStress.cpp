@@ -652,7 +652,10 @@ GF_TEST (IntegratedStress, concurrent_audio_thread_with_editor_cycles_state_load
     QaRng rng (2024);
     int cycles = 0;
 
-    for (; cycles < 36; ++cycles)
+    // GF_STRESS_EDITOR_CYCLES shortens the run under TSan (about 10x slower); the default (36) is the contract.
+    const int wantedCycles = juce::SystemStats::getEnvironmentVariable ("GF_STRESS_EDITOR_CYCLES", "36").getIntValue();
+
+    for (; cycles < wantedCycles; ++cycles)
     {
         std::unique_ptr<juce::AudioProcessorEditor> editor (proc.createEditor());
         GF_EXPECT (editor != nullptr);
@@ -694,7 +697,7 @@ GF_TEST (IntegratedStress, concurrent_audio_thread_with_editor_cycles_state_load
     proc.setPlayHead (nullptr);
 
     std::cout << "  concurrent: editor cycles=" << cycles << " audio blocks=" << blocks.load() << " peak=" << st.peak << std::endl;
-    GF_EXPECT (cycles >= 30);
+    GF_EXPECT (cycles >= juce::jmin (30, wantedCycles));
     GF_EXPECT (blocks.load() > 100);
     GF_EXPECT_MSG (st.firstProblem.isEmpty(), st.firstProblem);
 }

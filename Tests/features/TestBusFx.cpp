@@ -337,15 +337,31 @@ GF_TEST (BusFx, panic_clears_all_cards)
         auto io = chain.beginBlock (p.s, 512);
         auto work = buf;
 
-        for (int pos = 0; pos + 512 <= work.getNumSamples(); pos += 512)
-            chain.processBus (work, pos, 512, p.s, io, pos);
+        // The chain indexes its duck buffer from the start of the buffer it is given (the processor hands it a
+        // block-sized wet buffer), so feed it 512-sample blocks at offset 0, not a long buffer at growing offsets.
+        auto runBlocks = [&] (juce::AudioBuffer<float>& buffer, const EngineBlockIO& blockIo)
+        {
+            juce::AudioBuffer<float> blk (2, 512);
+
+            for (int pos = 0; pos + 512 <= buffer.getNumSamples(); pos += 512)
+            {
+                for (int ch = 0; ch < 2; ++ch)
+                    blk.copyFrom (ch, 0, buffer, ch, pos, 512);
+
+                chain.processBus (blk, 0, 512, p.s, blockIo, pos);
+
+                for (int ch = 0; ch < 2; ++ch)
+                    buffer.copyFrom (ch, pos, blk, ch, 0, 512);
+            }
+        };
+
+        runBlocks (work, io);
 
         chain.fadeOut ((int) (0.004 * kSr));
         auto tail = silence ((int) (kSr * 0.5));
         auto io2 = chain.beginBlock (p.s, 512);
 
-        for (int pos = 0; pos + 512 <= tail.getNumSamples(); pos += 512)
-            chain.processBus (tail, pos, 512, p.s, io2, pos);
+        runBlocks (tail, io2);
 
         // after the 4 ms fade (plus the latency of the spectral cards) nothing but silence remains
         const auto lat = chain.maxLatencySamples();
