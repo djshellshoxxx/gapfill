@@ -115,7 +115,7 @@ Today: dropdown of 17 factory presets + user presets on disk, FILE menu Save/Ope
   Ambient, Dub, Destructive, Utility, Favourites), list with name + one-line description,
   **prev / next arrows** next to the preset name (wrap-around, keyboard Up/Down in
   the list, MIDI-learnable commands `PresetNext/Prev`).
-* **Favourites**: star toggle; stored in the global settings file (below) by preset
+* **Favourites**: star toggle (this also satisfies F-S11; MIDI/keyboard next-previous uses the `12` X-1 command map: `PresetNext`/`PresetPrev`); stored in the global settings file (below) by preset
   identity (factory: name; user: path relative to the preset root).
 * **User presets** live in `<Documents>/GapFill/Presets/<Category>/Name.gapfill`.
   "Save as user preset..." dialog asks name (<= 48 chars, filename-sanitised, no path
@@ -279,16 +279,16 @@ are inside targets; `silence_refused` | `cancel_leaves_params_untouched` |
 
 ---
 
-## Backlog (deliberately not specified yet)
+## Backlog (resolved)
 
-Decide before building; each needs a product decision, not just engineering.
+Every former backlog item now has a decision or a full spec in `12-SPEC-BACKLOG-AND-NEW.md`:
 
-| Idea | Why parked |
+| Idea | Resolution |
 |---|---|
-| Free / Pro split (`include.md` says this may become a pro build) | Needs a decision on which of Macros, History, Export, Calibrate, Evolve are pro-only. Implement with a compile-time `GAPFILL_PRO` flag so one codebase builds both - decide before U-2/C-2 UI ships. |
-| Quantised "Fill Now" (fire on next beat) | Needs host-aware start alignment; conflicts with the "fills start where the gap starts" model. |
-| Fill morphing / Rhythm memory | Explicitly excluded by the creative spec. |
-| Sidechain-routed fill source | New routing + latency semantics. |
-| Localisation | After the string table from `describeRecipe`/ParamInfo exists. |
-| Preset sharing site / online library | Conflicts with the no-network privacy statement; would need opt-in and a design review. |
-| AAX / AUv3 / iOS | Licensing and platform scope. |
+| Free / Pro split | `12` §2.5 F-P01: decision ADR, recommendation = no split in 1.x; if ever built, UI-entry gating only (`GAPFILL_PRO`), parameter IDs and state identical |
+| Quantised "Fill Now" | `12` F-P02 (forced fill at the next grid point, still protected: `ForcedUnsafe`) |
+| Fill morphing / Rhythm memory | Rejected (creative spec); the useful part is call-and-response, `12` F-L10 |
+| Sidechain-routed fill source | `12` F-L13 (SC gate/snap on top of existing `detSource`) |
+| Localisation | `12` F-P04 |
+| Preset sharing site / online library | Rejected (privacy); offline `.gapbank` / `.gfrecipe` / `.gapfill` exchange, `12` N-VAL |
+| AAX / AUv3 / iOS | `12` F-P03: out of scope for 1.x with explicit entry criteria |

@@ -221,6 +221,12 @@ exactly why a fill did or didn't happen, and what to change.
 | `NoAlgoFits` | No algorithm fits this length | Raise Max Fill, enable shorter algorithms, or choose Fill Type = Auto |
 | `SourceUnavailable` | Fill couldn't be built | (internal) report if frequent |
 | `LockSkipped` | Locked fill doesn't fit this gap | Unlock, or lengthen gaps (see Fill Lock) |
+| `BudgetFull` | Fill budget for this bar used | Raise Fills per bar (doc 12 F-D01) |
+| `QuietZone` | Inside a quiet zone | Change Quiet Zone (F-D01) |
+| `ScGated` | Sidechain gate closed | Lower SC threshold or change gate mode (F-L13) |
+| `Panicked` | Panic is active | Press Recover (N-USE-a) |
+| `CoopYield` | Yielded to another GapFill | Change Co-op mode (F-X06) |
+| `ForcedUnsafe` | Fill Now skipped - next hit too close | Fire earlier or lower Protect Next (F-P02) |
 
 ### Data path
 1. `RejectReason` returned by `trySchedule` (F0-2). `controlUpdate` already knows the
@@ -273,6 +279,8 @@ zero audio-thread cost measured with the editor closed (CPU delta < 0.1%).
 
 ## E-4 Working CI   (size M, no code dependencies - START HERE)
 
+**Status 2026-10-21: done.** CI runs on Windows, Linux and macOS and beta1 assets were published for all platforms (owner statement; see `docs/COMPLIANCE.md`). The text below is the original diagnosis and stays as the definition of done for regressions (required checks, caching, nightly, hot-file check).
+
 ### Goal
 Required green checks on every PR for build + tests + validators. Today GitHub
 Actions jobs "terminate before step 1" with no logs (PROGRESS.md, since
@@ -322,6 +330,8 @@ cross-compiled by hand.
 
 Goal: the largest audience gap (Logic needs AU; many producers are on Mac).
 
+**Status 2026-10-21:** 5a Build and 5b Validate shipped with beta1 (macOS Intel and Apple Silicon assets published). Open: 5c notarization and the real-host checks (Logic AU, Intel native), tracked in `12` §2.6; they stay *unverified* until a human runs them.
+
 * **5a Build**: add `AU` to `FORMATS` on `APPLE` only; `PLUGIN_CODE Gpfl`,
   `PLUGIN_MANUFACTURER_CODE Gfau` already set (the manufacturer code has an
   uppercase letter as AU requires). `AU_MAIN_TYPE kAudioUnitType_Effect`,
@@ -346,6 +356,8 @@ Goal: the largest audience gap (Logic needs AU; many producers are on Mac).
 ---
 
 ## E-6 Signing and installer trust   (size M)
+
+**Status:** open, blocked only on credentials. Rule (`12` §2.6): build everything that needs no secret now (conditional sign steps, detached checksum signature, installer checklist tests); until certificates exist keep publishing clearly labelled unsigned packages.
 
 * **Windows**: sign `GapFill.exe`, `GapFill.vst3` binary, `GapFill.clap`, and the
   NSIS installer with an Authenticode certificate, RFC 3161 timestamp. Options,

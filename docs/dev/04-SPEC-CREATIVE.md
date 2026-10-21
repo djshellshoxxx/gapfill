@@ -337,10 +337,10 @@ Tests: `breath_neutral_when_disabled_depth0_or_no_transport` | `curve_values_at_
 
 ## C-7 Musical Phrase Awareness   (size M, depends F0-5)
 
-Parameters `phraseBars` (Off, 2, 4, 8, 16), `phraseBias` (0-100, default 0).
+Parameters `phraseBars` (Off, 2, 4, 8, 16), `phraseBias` (0-100, default 0), `phraseOffset` (int 0-15 bars, default 0; added by doc `12` F-L08 note).
 
 * Decision stage, same validity rule as C-6. `phraseLenBeats = bars * beatsPerBar`;
-  `p = frac (ppq / phraseLenBeats)`; final-bar start `f = 1 - 1/bars`.
+  `p = frac ((ppq - (phraseOffset mod bars) * beatsPerBar) / phraseLenBeats)` (offset 0 = the original formula); final-bar start `f = 1 - 1/bars`.
 * `r = smoothstep (f, 1, p)` (0 before the last bar, ramps to 1 at the boundary).
 * **Fill probability multiplier** `1 + phraseBias01 * 1.5 * r` (so up to x2.5 at full
   bias), then the existing probability clamp to 1. It multiplies the *probability*
@@ -349,11 +349,12 @@ Parameters `phraseBars` (Off, 2, 4, 8, 16), `phraseBias` (0-100, default 0).
 * UI: phrase combo + bias knob; a thin phrase-position bar under the visualiser.
 
 Tests: `phrase_off_or_bias0_is_identity` | `multiplier_ramp_values` | `invalid_ppq_or_ts_neutral` |
-`loop_and_seek_reproducible` | `never_fills_ineligible_gap` | `block_size_invariant_decisions`.
+`loop_and_seek_reproducible` | `never_fills_ineligible_gap` | `block_size_invariant_decisions` |
+`offset0_identical_to_baseline` | `offset_shifts_ramp_by_bars` | `offset_modulo_phrase`.
 
 ---
 
-## C-8 Evolve   (size L, stretch, depends C-1, C-6/7 infrastructure)
+## C-8 Evolve   (size L, depends C-1, C-6/7 infrastructure; promoted from stretch 2026-10-21, addendum in `12` §9)
 
 New idea: slowly drift the creative character on its own (set-and-forget "it
 keeps changing"), using the Surprise profiles as waypoints. Off by default.
