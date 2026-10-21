@@ -99,23 +99,39 @@ GF_TEST (HoldVoices, automation_parameter_engages_a_hold_and_latch_mode_toggles_
     GF_EXPECT (live.getHoldEngagedMask() == 0);                            // second rising edge toggles off
 }
 
-GF_TEST (HoldVoices, holds_are_forced_off_after_state_load_and_undo)
+GF_TEST (HoldVoices, state_restore_keeps_hold_values_but_no_hold_sounds_until_re_armed)
 {
     GapFillAudioProcessor a;
-    setParams (a, { { "fm10_stutter", 1.0f }, { "fm10_dryDuck", 40.0f } });
+    setParams (a, { { "fm10_stutter", 1.0f }, { "fm10_freeze", 1.0f }, { "fm10_reverse", 1.0f }, { "fm10_tape", 1.0f }, { "fm10_dryDuck", 40.0f } });
     juce::MemoryBlock blob;
     a.getStateInformation (blob);
 
     GapFillAudioProcessor b;
+    prepareProcessor (b, 48000.0, 256, false);
     b.setStateInformation (blob.getData(), (int) blob.getSize());
-    GF_EXPECT (pv (b.getValueTreeState().getRawParameterValue ("fm10_stutter")) < 0.5f);             // momentary state never restores ON
-    GF_EXPECT_NEAR (pv (b.getValueTreeState().getRawParameterValue ("fm10_dryDuck")), 40.0, 0.01);   // settings do
 
-    GapFillAudioProcessor c;
-    c.pushUndoSnapshot();
-    setParams (c, { { "fm10_freeze", 1.0f } });
-    GF_EXPECT (c.undo());
-    GF_EXPECT (pv (c.getValueTreeState().getRawParameterValue ("fm10_freeze")) < 0.5f);
+    // Hosts (and pluginval) require restored values to equal the saved ones.
+    for (const char* id : { "fm10_stutter", "fm10_freeze", "fm10_reverse", "fm10_tape" })
+        GF_EXPECT_MSG (pv (b.getValueTreeState().getRawParameterValue (id)) > 0.5f, id);
+    GF_EXPECT_NEAR (pv (b.getValueTreeState().getRawParameterValue ("fm10_dryDuck")), 40.0, 0.01);
+
+    // ...but the engine does not engage a restored ON hold.
+    auto& live = b.getLiveControl();
+    juce::AudioBuffer<float> work (2, 256);
+    juce::MidiBuffer midi;
+    work.clear();
+
+    for (int i = 0; i < 8; ++i)
+        b.processBlock (work, midi);
+
+    GF_EXPECT (live.getHoldEngagedMask() == 0);
+
+    // The next off -> on transition re-arms the hold.
+    setParams (b, { { "fm10_freeze", 0.0f } });
+    b.processBlock (work, midi);
+    setParams (b, { { "fm10_freeze", 1.0f } });
+    b.processBlock (work, midi);
+    GF_EXPECT (live.getHoldEngagedMask() == bit (Effect::Freeze));
 }
 
 GF_TEST (HoldVoices, each_hold_effect_makes_finite_wet_sound_while_held_and_stops_after_release)
