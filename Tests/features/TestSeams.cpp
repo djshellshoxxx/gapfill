@@ -398,7 +398,23 @@ GF_TEST (Effective, feature_hooks_leave_default_parameters_neutral)
     EngineSettings b;
     std::memcpy (&b, &a, sizeof (a));
     hooks::gatherFeatureSettings (b, cache);
-    GF_EXPECT (std::memcmp (&a, &b, sizeof (a)) == 0);
+    const bool same = std::memcmp (&a, &b, sizeof (a)) == 0;
+
+    if (! same)
+    {
+        const auto* pa = reinterpret_cast<const unsigned char*> (&a);
+        const auto* pb2 = reinterpret_cast<const unsigned char*> (&b);
+
+        for (size_t i = 0; i < sizeof (a); ++i)
+            if (pa[i] != pb2[i])
+            {
+                std::cout << "         first differing byte at offset " << i << " of " << sizeof (a)
+                          << " (a=" << (int) pa[i] << " b=" << (int) pb2[i] << ")" << std::endl;
+                break;
+            }
+    }
+
+    GF_EXPECT (same);
 
     const auto in = hooks::gatherModulationInputs (cache);
     GF_EXPECT (in.personality == 0 && ! in.macros.on);
