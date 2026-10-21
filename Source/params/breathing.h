@@ -13,7 +13,11 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_BREATHING(X)
+#define GAPFILL_PARAMS_BREATHING(X) \
+    X (densityBreath,      "densityBreath") \
+    X (densityBreathBars,  "densityBreathBars") \
+    X (densityBreathDepth, "densityBreathDepth") \
+    X (densityBreathCurve, "densityBreathCurve")
 
 namespace gapfill
 {

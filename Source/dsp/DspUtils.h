@@ -239,7 +239,13 @@ public:
         buffer.clear();
         writePos = 0;
         totalWritten = 0;
+        readFloor = 0;
     }
+
+    /** C-10 Capture window: absolute positions below `floorPosition` are treated as
+        unwritten by read(), copyTo() and isPositionValid() (0 = no limit, the default). */
+    void setReadFloor (std::int64_t floorPosition) noexcept   { readFloor = juce::jmax ((std::int64_t) 0, floorPosition); }
+    std::int64_t getReadFloor() const noexcept                 { return readFloor; }
 
     int getSize()      const noexcept { return size; }
     int getChannels()  const noexcept { return channels; }
@@ -287,7 +293,8 @@ public:
         // Valid window: (totalWritten - size, totalWritten - 1]
         const double newest = (double) totalWritten - 1.0;
         const double oldest = (double) totalWritten - (double) size + 2.0;
-        const double p = juce::jlimit (juce::jmax (0.0, oldest), juce::jmax (0.0, newest), absolutePosition);
+        const double p = juce::jlimit (juce::jmax (juce::jmax (0.0, oldest), (double) readFloor),
+                                       juce::jmax (0.0, newest), absolutePosition);
 
         const auto i0 = (std::int64_t) std::floor (p);
         const auto frac = (float) (p - (double) i0);
@@ -318,7 +325,7 @@ public:
             return;
 
         const auto oldest = totalWritten - (std::int64_t) size + 1;
-        const auto from = juce::jmax (startPosition, juce::jmax ((std::int64_t) 0, oldest));
+        const auto from = juce::jmax (startPosition, juce::jmax (juce::jmax ((std::int64_t) 0, oldest), readFloor));
         const auto to   = juce::jmin (startPosition + numSamples, totalWritten);
 
         if (to <= from)
@@ -349,6 +356,7 @@ public:
     bool isPositionValid (std::int64_t absolutePosition) const noexcept
     {
         return absolutePosition >= 0
+            && absolutePosition >= readFloor
             && absolutePosition < totalWritten
             && absolutePosition > totalWritten - (std::int64_t) size;
     }
@@ -363,6 +371,7 @@ private:
     juce::AudioBuffer<float> buffer;
     int channels = 0, size = 0, writePos = 0;
     std::int64_t totalWritten = 0;
+    std::int64_t readFloor = 0;
 };
 
 //==============================================================================

@@ -1,4 +1,5 @@
 #include "StateSubtrees.h"
+#include "../sync/SyncState.h"
 #include "../recipes/RecipeServices.h"
 #include "../lock/LockSubtree.h"
 #include "../history/HistorySubtree.h"
@@ -61,38 +62,49 @@ namespace
     // distinct attributes of the same subtree. The composite validates/applies both and merges the properties.
     bool perfValidateAll (const juce::ValueTree& t)
     {
-        return recipes::validatePerf (t) && live::LiveControl::perfValidate (t);
+        return recipes::validatePerf (t) && sync::validatePerf (t) && live::LiveControl::perfValidate (t);
     }
 
     void perfApplyAll (GapFillAudioProcessor& p, const juce::ValueTree& t)
     {
         recipes::applyPerf (p, t);
+        sync::applyPerf (p, t);
         p.getLiveControl().perfRestore (t);
     }
 
     void perfResetAll (GapFillAudioProcessor& p)
     {
         recipes::resetPerf (p);
+        sync::resetPerf (p);
         p.getLiveControl().perfRestore ({});
     }
 
     juce::ValueTree perfSerialiseAll (const GapFillAudioProcessor& p)
     {
-        auto a = recipes::serialisePerf (p);
-        auto b = perfSerialise (p);
+        // Three participants (WP4 recipes, WP5 sync, WP6 live control) with distinct attributes: merge them.
+        juce::ValueTree merged;
 
-        if (! a.isValid())
-            return b;
-
-        for (int i = 0; i < b.getNumProperties(); ++i)
+        for (const auto& part : { recipes::serialisePerf (p), sync::serialisePerf (p), perfSerialise (p) })
         {
-            const auto name = b.getPropertyName (i);
+            if (! part.isValid())
+                continue;
 
-            if (! a.hasProperty (name))
-                a.setProperty (name, b.getProperty (name), nullptr);
+            if (! merged.isValid())
+            {
+                merged = part.createCopy();
+                continue;
+            }
+
+            for (int i = 0; i < part.getNumProperties(); ++i)
+            {
+                const auto name = part.getPropertyName (i);
+
+                if (! merged.hasProperty (name))
+                    merged.setProperty (name, part.getProperty (name), nullptr);
+            }
         }
 
-        return a;
+        return merged;
     }
 
     juce::ValueTree scenesSerialise (const GapFillAudioProcessor& p)

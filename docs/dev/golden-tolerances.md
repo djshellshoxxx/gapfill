@@ -4,7 +4,9 @@ The golden scenarios (`Tests/features/TestGolden.cpp`, baselines in `Tests/golde
 
 ## Evidence that the Phase 0 branch equals master
 
-`GapFillTests --dump-golden <dir>` renders scenarios A..F. Built from master `83447a7` (with this branch's render rig overlaid) and from the branch, on the same machine, the two renders are bit-identical for all six scenarios (max abs difference 0.0, identical fill counts A5 B5 C10 D6 E16 F1). `tools/ci_golden_vs_master.sh` repeats the check on a CI runner; its result for the merged head is recorded below.
+`GapFillTests --dump-golden <dir>` renders scenarios A..F. Built from master `83447a7` (with this branch's render rig overlaid) and from the branch, on the same machine, the two renders are bit-identical for all six scenarios (max abs difference 0.0, identical fill counts A5 B5 C10 D6 E16 F1). `tools/ci_golden_vs_master.sh` repeats the check on a CI runner; its result is recorded below.
+
+CI run 39576753922 (runner AMD EPYC 7763, branch `e25f5fa` vs master `83447a7`): all six scenarios max abs 0.0, RMS 0.0, identical fill counts. The temporary CI job that ran it was removed before merge; the script stays for future use.
 
 ## Cross-machine error
 

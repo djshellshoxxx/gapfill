@@ -18,8 +18,9 @@ namespace battle { struct BattleRuntime; }  // F-M18 (features/battle/Battle.h)
 // the feature that owns the field existed.
 
 struct BreathSettings  { bool on = false; int bars = 4; float depth01 = 0.0f; int curve = 0; };   // C-6
-struct PhraseSettings  { int bars = 0; float bias01 = 0.0f; };                                    // C-7
+struct PhraseSettings  { int bars = 0; float bias01 = 0.0f; int offsetBars = 0; };                // C-7 (+F-L08 offset)
 struct EvolveSettings  { int periodBars = 0; };                                                   // C-8
+struct BudgetSettings  { int perBar = 0; int zone = 0; };                                         // F-D01 (0 = Off)
 
 struct PerformanceSettings
 {
@@ -30,6 +31,7 @@ struct PerformanceSettings
     BreathSettings breath;            // C-6
     PhraseSettings phrase;            // C-7
     EvolveSettings evolve;            // C-8
+    BudgetSettings budget;            // F-D01
     bool  likeActive = false;         // C-11
     int   quantDivision = -1;         // E-2 fill-length quantise, -1 off
     bool  modSync = false;            // E-2
@@ -52,6 +54,9 @@ struct PerformanceSettings
     const battle::BattleRuntime* battle = nullptr;
     bool  macroWidthOn = false;       // C-2: the Space macro drives the wet width
     float macroWidth01 = 1.0f;
+    /** Decision-stage OUTPUT (never a parameter): multiplier on the fill probability
+        of the gap being decided. Exactly 1.0 means neutral (C-7 Phrase). */
+    float probabilityMul = 1.0f;
 };
 
 //==============================================================================

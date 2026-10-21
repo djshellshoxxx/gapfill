@@ -1,4 +1,5 @@
 #include "FillVoice.h"
+#include "../features/sync/Sync.h"
 
 namespace gapfill
 {
@@ -197,6 +198,7 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
     fadeOut = juce::jlimit (4, totalLength / 2, setup.fadeOutSamples);
 
     elapsed = 0;
+    envelopeStage.start (setup.envShape, setup.envAmount01, sr, setup.rngSeed);   // C-4
     killing = false;
     killGain = 1.0f;
     killStep = 0.0f;
@@ -255,6 +257,40 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
     for (auto& f : texR) f.reset();
 
     configureAlgorithm();
+
+    // --- C-3 controlled mistake (inactive unless the recipe carries one that fits this algorithm) ---
+    {
+        mistakes::StageConfig mc;
+        mc.type = setup.mistakeType;
+        mc.amount01 = setup.mistakeAmt01;
+        mc.sampleRate = sr;
+        mc.lengthSamples = totalLength;
+        mc.algo = (int) setup.algo;
+        mc.seed = setup.mistakeSeed;
+        mc.mono = channels < 2;
+
+        switch (setup.algo)
+        {
+            case Algo::Stutter:
+                mc.repeatLen = stutterSliceLen;
+                mc.repeats = stutterSliceLen > 0 ? totalLength / stutterSliceLen : 0;
+                break;
+            case Algo::Delay:
+            {
+                const auto spacing = juce::jmax (tapSliceLen, (int) (setup.delaySeconds * sr));
+                mc.repeatLen = spacing;
+                mc.repeats = juce::jmin (numTaps, spacing > 0 ? (totalLength + spacing - 1) / spacing : 0);
+                break;
+            }
+            case Algo::Scramble:
+                mc.repeatLen = sliceLen;
+                mc.repeats = numSlices;
+                break;
+            default: break;
+        }
+
+        mistakeStage.start (mc);
+    }
 
     // --- complexity decides how many extra transformations stack on top ----
     {
@@ -325,6 +361,14 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
         modPanRate     = rng.range (0.6f, 5.0f);
         modPanDepth    = lerp (0.2f, 0.95f, intensity);
         modPanPhase    = rng.nextFloat();
+
+        // E-2 Sync Mods: replace the random rates (after the draws, so the RNG
+        // sequence is the same with the option on or off).
+        if (setup.modSyncSeconds > 0.0f)
+        {
+            modTremRate = sync::modSyncTremoloHz (setup.modSyncSeconds);
+            modPanRate  = sync::modSyncPanHz (setup.delaySeconds);
+        }
     }
 
     // --- spectral-lane isolation -------------------------------------------
@@ -567,6 +611,12 @@ void FillVoice::configureAlgorithm()
                 const auto usable = juce::jmax (128, captureLength - sliceOffset);
                 numSlices = juce::jlimit (4, maxSlices, 4 + (int) std::round (complexity * 20.0f));
                 sliceLen = juce::jmax (48, usable / numSlices);
+
+                // E-2 Sync Mods: slices land on the stutter grid (at most half the material).
+                if (setupData.modSyncSeconds > 0.0f)
+                    sliceLen = juce::jlimit (48, juce::jmax (48, usable / 2),
+                                             (int) std::lround (setupData.modSyncSeconds * sr));
+
                 numSlices = juce::jlimit (2, maxSlices, juce::jmax (2, usable / sliceLen));
             }
 
@@ -687,6 +737,9 @@ void FillVoice::generateSample (float& left, float& right, const SourceHistory& 
 {
     float l = 0.0f, r = 0.0f;
 
+    // C-3: source read-rate multiplier of an active mistake (octave / brake); exactly 1 otherwise.
+    mistakeRate = mistakeStage.isActive() ? mistakeStage.rateMultiplier ((float) elapsed / (float) totalLength) : 1.0f;
+
     switch (setupData.algo)
     {
         case Algo::Reverse:   genReverse (l, r); break;
@@ -719,6 +772,14 @@ void FillVoice::generateSample (float& left, float& right, const SourceHistory& 
         bandFilter.processStereo (1, r, lo, mi, hi);
         r = setupData.band == 0 ? lo : (setupData.band == 1 ? mi : hi);
     }
+
+    // C-3: output-side part of a mistake (wobble, dropped repeat, brake gain, stereo swing).
+    if (mistakeStage.isActive())
+        mistakeStage.process (l, r);
+
+    // C-4: shape the level / brightness over the fill's life, before fade and duck.
+    if (envelopeStage.isActive())
+        envelopeStage.process (l, r, (float) elapsed / (float) totalLength);
 
     auto gain = envelopeAt (elapsed) * setupData.amp;
     const auto preFxGain = gain;
@@ -817,7 +878,7 @@ void FillVoice::genReverse (float& l, float& r) noexcept
     l = readCapture (0, reversePos);
     r = readCapture (1, reversePos);
 
-    reversePos -= playRate;
+    reversePos -= playRate * (double) mistakeRate;   // C-3 (mistakeRate == 1 unless a mistake is active)
 
     if (reversePos < 0.0)
     {
@@ -860,7 +921,7 @@ void FillVoice::genStutter (float& l, float& r) noexcept
     l = readCapture (0, readPos) * w;
     r = readCapture (1, readPos) * w;
 
-    stutterRead += stutterRate;
+    stutterRead += stutterRate * mistakeRate;
     ++stutterPos;
 }
 
@@ -947,7 +1008,7 @@ void FillVoice::genGranular (float& l, float& r, const SourceHistory& history) n
         l += s0 * w * g.amp * g.panL;
         r += s1 * w * g.amp * g.panR;
 
-        g.pos += g.rate;
+        g.pos += g.rate * (double) mistakeRate;
 
         if (++g.age >= g.dur)
             g.active = false;
@@ -961,7 +1022,7 @@ void FillVoice::genFreeze (float& l, float& r) noexcept
 {
     readFreezeLoop (playPos, l, r);
 
-    playPos += playRate;
+    playPos += playRate * (double) mistakeRate;
 
     if (playPos >= (double) freezeLen)
         playPos -= (double) freezeLen;
@@ -994,7 +1055,7 @@ void FillVoice::genPitch (float& l, float& r) noexcept
         r += readCapture (1, (double) freezeStart + altP) * gB;
     }
 
-    playPos += juce::jlimit (0.03, 16.0, rate);
+    playPos += juce::jlimit (0.03, 16.0, rate * (double) mistakeRate);
 
     while (playPos >= (double) freezeLen)
         playPos -= (double) freezeLen;

@@ -16,6 +16,7 @@
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
 #include "features/live/LiveControl.h"
+#include "features/shaping/ShapingRuntime.h"
 #include "features/recipes/RecipeServices.h"
 #include "features/fx/FxChain.h"
 #include "features/fx/FxUiState.h"
@@ -94,6 +95,10 @@ public:
     /** WP6 live control hub (panic, scenes, MIDI command map). */
     live::LiveControl& getLiveControl() noexcept                    { return liveControl; }
     const live::LiveControl& getLiveControl() const noexcept        { return liveControl; }
+    /** WP5 runtime state: tempo memory (E-2), effective creative values (C-0). */
+    ShapingRuntime& getShaping() noexcept                           { return shaping; }
+    const ShapingRuntime& getShaping() const noexcept               { return shaping; }
+    const EffectiveCreative& getEffectiveCreative() const noexcept  { return shaping.effective; }
     /** WP3 Explain & assist: health codes, telemetry, fix-it, timeline, event recorder. */
     explain::ExplainState& getExplainState() noexcept               { return explainState; }
     const explain::ExplainState& getExplainState() const noexcept   { return explainState; }
@@ -226,6 +231,7 @@ private:
 
     MeterState meters;
     VisualisationFifo viz;
+    ShapingRuntime shaping;
 
     CommandQueue    commands;        // message -> audio, drained once per block
     FillEventQueue  fillEvents;      // audio -> message, drained by the timer

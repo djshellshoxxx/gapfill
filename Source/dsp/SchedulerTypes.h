@@ -12,6 +12,7 @@ namespace gapfill
 {
 
 struct AnalysisFrame;
+class SourceHistory;
 
 /** Why a gap did not produce a fill. `trySchedule` runs once per gap, so a gap
     yields at most one reason. Values are persisted in logs and visualiser
@@ -68,6 +69,8 @@ struct GapContext
     std::int64_t minGapSamples = 0;
     std::int64_t preGuard = 0;
     const AnalysisFrame* frame = nullptr;
+    const SourceHistory* history = nullptr;   ///< the fill source (read-only; set before buildRecipe)
+    std::int64_t sourceAnchor = 0;     ///< absolute source position the fill is cut from (end of its material)
     std::uint64_t key = 0;             ///< deterministic decision key (seed + musical position)
     float conf = 0.0f;                 ///< clamped gap confidence at the decision sample
     bool forced = false;               ///< F-P02 Fill Now: skips the density roll and the half-gap guard

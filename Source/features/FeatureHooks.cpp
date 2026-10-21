@@ -1,5 +1,9 @@
 #include "FeatureHooks.h"
 #include "../dsp/FillEngine.h"
+#include "breathing/Breathing.h"
+#include "budget/Budget.h"
+#include "evolve/Evolve.h"
+#include "phrase/Phrase.h"
 #include "audition/Audition.h"
 #include "lock/LockCommands.h"
 #include "lock/LockStage.h"
@@ -14,8 +18,8 @@ Effective::ModulationInputs gatherModulationInputs (const ParamCache& params) no
 {
     Effective::ModulationInputs in;
 
-    // C-1: in.personality = pi (params.personality);
-    in.macros.on = pb (params.macrosOn);
+    in.personality = pi (params.personality);   // C-1
+    in.macros.on = pb (params.macrosOn);          // C-2
     in.macros.activity = pv (params.macroActivity);
     in.macros.chaos = pv (params.macroChaos);
     in.macros.space = pv (params.macroSpace);
@@ -28,6 +32,40 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     // F-M18 gatherBattle: Off, 1, 2, 4, 8 bars
     static constexpr int kBattleBars[] = { 0, 1, 2, 4, 8 };
     s.perf.battleEvery = kBattleBars[std::clamp (pi (params.battleEvery), 0, 4)];
+    // E-2 sync: fill-length grid (-1 = Off) and Sync Mods (the stutter time is added
+    // in updateTempoInfo, where the tempo is known).
+    s.perf.quantDivision = pi (params.fillQuant) - 1;
+    s.perf.modSync       = pb (params.modSync);
+
+    // C-3 controlled mistakes
+    s.perf.mistakes01 = pv (params.mistakes) * 0.01f;
+
+    // C-4 intensity envelope
+    s.perf.envShape    = pi (params.fillShape);
+    s.perf.envAmount01 = pv (params.fillShapeAmount) * 0.01f;
+
+    // C-8 evolve (choice 0..3 -> Off, 8, 16, 32 bars)
+    s.perf.evolve.periodBars = evolve::kPeriodChoices[juce::jlimit (0, 3, pi (params.evolve))];
+
+    // C-9 per-band fill type (0 Auto, otherwise Algo + 1)
+    s.perf.bandType[0] = juce::jlimit (0, numAlgos, pi (params.bandLowType));
+    s.perf.bandType[1] = juce::jlimit (0, numAlgos, pi (params.bandMidType));
+    s.perf.bandType[2] = juce::jlimit (0, numAlgos, pi (params.bandHighType));
+
+    // C-6 density breathing (choice 0..3 -> 1, 2, 4, 8 bars)
+    s.perf.breath.on       = pb (params.densityBreath);
+    s.perf.breath.bars     = breathing::kBarChoices[juce::jlimit (0, 3, pi (params.densityBreathBars))];
+    s.perf.breath.depth01  = pv (params.densityBreathDepth) * 0.01f;
+    s.perf.breath.curve    = juce::jlimit (0, breathing::NumCurves - 1, pi (params.densityBreathCurve));
+
+    // F-D01 per-bar budget (choice 0..6 -> Off, 1, 2, 3, 4, 6, 8) and quiet zone
+    s.perf.budget.perBar = budget::kBudgetChoices[juce::jlimit (0, 6, pi (params.fillBudget))];
+    s.perf.budget.zone   = juce::jlimit (0, budget::NumZones - 1, pi (params.quietZone));
+
+    // C-7 phrase awareness (choice 0..4 -> Off, 2, 4, 8, 16 bars)
+    s.perf.phrase.bars       = phrase::kBarChoices[juce::jlimit (0, 4, pi (params.phraseBars))];
+    s.perf.phrase.bias01     = pv (params.phraseBias) * 0.01f;
+    s.perf.phrase.offsetBars = juce::jlimit (0, 15, pi (params.phraseOffset));
 
     // One explicit call per feature, in this order (add yours below):
     lockstage::gather (s, params);       // C-5

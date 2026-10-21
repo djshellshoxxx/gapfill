@@ -13,7 +13,10 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_BANDTYPE(X)
+#define GAPFILL_PARAMS_BANDTYPE(X) \
+    X (bandLowType,  "bandLowType") \
+    X (bandMidType,  "bandMidType") \
+    X (bandHighType, "bandHighType")
 
 namespace gapfill
 {

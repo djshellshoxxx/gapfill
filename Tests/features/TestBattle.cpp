@@ -51,8 +51,8 @@ namespace
 
         TestPlayHead ph;
         ph.provideInfo = playHead;
-        ph.timeSigNumerator = tsNum;
-        ph.timeSigDenominator = tsNum > 0 ? 4 : 0;
+        ph.tsNum = tsNum;
+        ph.tsDen = tsNum > 0 ? 4 : 0;
         const auto input = drumLoop (kSr, 120.0, 6);
         Render out;
         out.r = renderLive (proc, input, block, kSr, ph, {});
@@ -167,8 +167,8 @@ GF_TEST (Battle, alternates_styles_per_bar_and_never_writes_the_parameters)
     const auto before = proc.getValueTreeState().copyState().createCopy();
 
     TestPlayHead ph;
-    ph.timeSigNumerator = 4;
-    ph.timeSigDenominator = 4;
+    ph.tsNum = 4;
+    ph.tsDen = 4;
     const auto input = drumLoop (kSr, 120.0, 6);
     const auto r = renderLive (proc, input, 512, kSr, ph, {});
 

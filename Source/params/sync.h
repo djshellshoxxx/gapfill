@@ -13,7 +13,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_SYNC(X)
+#define GAPFILL_PARAMS_SYNC(X) \
+    X (fillQuant, "fillQuant") \
+    X (modSync,   "modSync")
 
 namespace gapfill
 {

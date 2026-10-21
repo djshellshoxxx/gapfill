@@ -43,8 +43,8 @@ namespace
         setParams (proc, { { "fill", 0.0f }, { "dry", 0.0f } });
         setParams (proc, params);
         TestPlayHead ph;
-        ph.timeSigNumerator = 4;
-        ph.timeSigDenominator = 4;
+        ph.tsNum = 4;
+        ph.tsDen = 4;
         const auto input = drumLoop (kSr, 120.0, bars);
         return renderLive (proc, input, block, kSr, ph, [&] (int b, int, juce::MidiBuffer&) { command (proc, b); }).out;
     }
@@ -230,12 +230,13 @@ GF_TEST (HoldVoices, panic_silences_holds_within_50_ms)
 {
     const auto out = runHold (256, [&] (GapFillAudioProcessor& p, int b)
     {
-        if (b == 100) press (p, CommandType::MomentaryStutter, true);
-        if (b == 300) p.getLiveControl().panic().requestPanic();
+        if (b == 300) press (p, CommandType::MomentaryStutter, true);       // ~1.6 s in, like the other hold tests
+        if (b == 500) p.getLiveControl().panic().requestPanic();
     }, 4);
 
-    const int panicSample = 300 * 256;
-    GF_EXPECT (rms (out, panicSample - 24000, panicSample) > 1.0e-4);
+    const int panicSample = 500 * 256;
+    GF_EXPECT_MSG (rms (out, panicSample - 24000, panicSample) > 1.0e-4,
+                   "rms before " + juce::String (rms (out, panicSample - 24000, panicSample)) + " at hold start " + juce::String (rms (out, 120 * 256, 160 * 256)));
     GF_EXPECT (rms (out, panicSample + 2400 + 256, panicSample + 2400 + 2000) < 3.0e-5);      // below -90 dBFS 50 ms after the request
 }
 

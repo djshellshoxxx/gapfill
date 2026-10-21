@@ -103,6 +103,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     monoSide.assign ((size_t) preparedBlockSize, 0.0f);
 
     history.prepare (2, (int) std::ceil (kHistorySeconds * currentSampleRate));
+    shaping.capture.prepare (currentSampleRate, 2);   // C-10: sample-rate change clears the latch
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
     recipeServices.prepare (currentSampleRate);
@@ -158,6 +159,7 @@ void GapFillAudioProcessor::reset()
     fxChain.reset();
     analysis.reset();
     history.clear();
+    shaping.capture.reset();
 
     delayRing.clear();
     wetBuffer.clear();
@@ -278,7 +280,14 @@ void GapFillAudioProcessor::drainCommands() noexcept
     {
         liveControl.handleCommand (batch[i], engine);
         explainState.onCommand (batch[i]);
-        hooks::dispatchCommand (engine, batch[i]);
+
+        // C-10 Capture v2 owns commands 7 and 8; everything else goes to the feature hook.
+        if (batch[i].type == CommandType::Recapture)
+            shaping.capture.requestRecapture();
+        else if (batch[i].type == CommandType::ReleaseCapture)
+            shaping.capture.requestRelease();
+        else
+            hooks::dispatchCommand (engine, batch[i]);
     }
 }
 
@@ -423,28 +432,41 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
     if (startSample == 0)
         lastTransportPlaying = playing;
 
-    // Tempo-synced lengths, with a musical fallback when the host has no tempo.
-    const auto beatSeconds = tempoValid ? 60.0 / bpm : 0.5;
+    // Tempo-synced lengths (E-2): the host tempo, else the last one it reported,
+    // else the Options fallback (120 BPM by default). Out-of-range lengths are
+    // clamped by halving/doubling the DIVISION, not by clipping milliseconds.
+    const auto beatSeconds = 60.0 / shaping.tempo.resolve (tempoValid, bpm, startSample == 0 ? (int) hostBlockSamples : 0);
+    bool syncClamped = false;
 
     if (pb (params.syncEnable))
     {
-        s.stutterSeconds = (float) (divisionInBeats (pi (params.stutterDiv)) * beatSeconds);
-        s.delaySeconds   = (float) (divisionInBeats (pi (params.delayDiv)) * beatSeconds);
+        const auto st = sync::clampToDivision ((float) (divisionInBeats (pi (params.stutterDiv)) * beatSeconds),
+                                               0.008f, 0.5f, pi (params.stutterDiv));
+        const auto dl = sync::clampToDivision ((float) (divisionInBeats (pi (params.delayDiv)) * beatSeconds),
+                                               0.01f, 1.0f, pi (params.delayDiv));
+        s.stutterSeconds = st.seconds;
+        s.delaySeconds   = dl.seconds;
+        syncClamped = st.clamped || dl.clamped;
+
+        if (s.perf.modSync)
+            s.perf.modSyncSeconds = s.stutterSeconds;
     }
     else
     {
         s.stutterSeconds = 0.0625f;
         s.delaySeconds   = 0.125f;
+        s.perf.modSyncSeconds = 0.0f;
     }
-
-    s.stutterSeconds = juce::jlimit (0.008f, 0.5f, s.stutterSeconds);
-    s.delaySeconds   = juce::jlimit (0.01f, 1.0f, s.delaySeconds);
 
     if (pb (params.maxFillSync))
     {
-        const auto ms = (float) (divisionInBeats (pi (params.maxFillDiv)) * beatSeconds * 1000.0);
-        s.maxFillMs = juce::jlimit (20.0f, 2000.0f, ms);
+        const auto mf = sync::clampToDivision ((float) (divisionInBeats (pi (params.maxFillDiv)) * beatSeconds),
+                                               0.02f, 2.0f, pi (params.maxFillDiv));
+        s.maxFillMs = mf.seconds * 1000.0f;
+        syncClamped = syncClamped || mf.clamped;
     }
+
+    meters.syncClamped.store (syncClamped, std::memory_order_relaxed);
 }
 
 //==============================================================================
@@ -602,10 +624,21 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     // engages once enough material exists, so a restored or early latch can
     // never leave the fills reading silence.
     const auto captureReady = history.getWritePosition() >= (std::int64_t) (kCaptureMinSeconds * currentSampleRate);
-    const bool captureHeld = pb (params.capture) && captureReady;
+    shaping.capture.noteParameter (pb (params.capture));
+    shaping.capture.setLengthMs (pv (params.captureLength));
+    const bool captureHeld = pb (params.capture) && captureReady && ! shaping.capture.isSuppressed();
 
     if (! captureHeld)
         history.write (mainBuffer, 0, numSamples);
+
+    // C-10: records the live tap, tracks engage / release, advances a pending recapture copy.
+    const bool captureSwapped = shaping.capture.update (captureHeld, mainBuffer, 0, numSamples, history);
+
+    if (captureSwapped)
+        engine.sourceChanged();
+
+    const SourceHistory* snapshot = shaping.capture.getActiveSnapshot();
+    const SourceHistory& fillSource = snapshot != nullptr ? *snapshot : history;
 
     meters.captureActive.store (captureHeld, std::memory_order_relaxed);
 
@@ -633,11 +666,12 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     auto engineSettings = gatherEngineSettings();
     engineSettings.sidechainActive = sidechainActive;
     engineSettings.bypassed = bypassed;
-    engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
+    engineSettings.historyOffset = samplesProcessed + numSamples - fillSource.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
     liveControl.prepareChunk (engineSettings, numSamples, samplesProcessed - (std::int64_t) targetLatency);
     const float* panicGains = liveControl.wetGains (numSamples);   // N-USE-a: fixed ramp on the wet bus
     const float* dryDuck = liveControl.dryDuckGains (numSamples);   // F-M10: null unless a hold ducks the dry
+    shaping.effective.publish (engineSettings);   // C-0
 
     {
         // WP3: health codes + event recording observe the chunk (bounded, allocation-free).
@@ -681,7 +715,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     if (skip < numSamples)
     {
         engine.process (wetBuffer, skip, numSamples - skip, outputStart + skip,
-                        analysis, history, engineSettings, &viz, &fillEvents, &fxIo);
+                        analysis, fillSource, engineSettings, &viz, &fillEvents, &fxIo);
     }
 
     fxChain.processBus (wetBuffer, 0, numSamples, engineSettings.fx, fxIo, outputStart);
