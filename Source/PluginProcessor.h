@@ -11,6 +11,8 @@
 #include "Presets.h"
 #include "MidiLearn.h"
 #include "dsp/AnalysisEngine.h"
+#include "dsp/EngineEvents.h"
+#include "dsp/EventLogs.h"
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
 
@@ -83,6 +85,20 @@ public:
     MeterState& getMeterState() noexcept                            { return meters; }
     VisualisationFifo& getVisualisationFifo() noexcept              { return viz; }
     MidiLearnManager& getMidiLearnManager() noexcept                { return midiLearn; }
+
+    //==========================================================================
+    // Cross-thread queues (docs/dev/02 F0-4)
+
+    /** Message thread only (single producer). Returns false if the queue is full. */
+    bool postCommand (const Command& command) noexcept   { return commands.push (command); }
+
+    /** Message thread. Moves audio-thread fill events into the history and the
+        outcome log; also called by the 15 Hz timer. Returns how many were drained. */
+    int drainFillEvents();
+
+    const RecipeHistory& getRecipeHistory() const noexcept   { return recipeHistory; }
+    const GapOutcomeLog& getGapOutcomeLog() const noexcept   { return outcomeLog; }
+    std::uint32_t getDroppedFillEvents() const noexcept      { return fillEvents.getDroppedCount(); }
 
     void resetAllParameters();
     /** Randomises creative (or, with `everything`, a wider) parameter set.
@@ -161,6 +177,7 @@ public:
 
 private:
     void timerCallback() override;
+    void drainCommands() noexcept;
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
     EngineSettings gatherEngineSettings() const;
@@ -182,6 +199,11 @@ private:
 
     MeterState meters;
     VisualisationFifo viz;
+
+    CommandQueue    commands;        // message -> audio, drained once per block
+    FillEventQueue  fillEvents;      // audio -> message, drained by the timer
+    RecipeHistory   recipeHistory;   // message thread only (survives the editor)
+    GapOutcomeLog   outcomeLog;      // message thread only
 
     // --- buffers (all sized in prepareToPlay) ---
     juce::AudioBuffer<float> mainBuffer, wetBuffer, delayRing;

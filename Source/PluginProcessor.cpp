@@ -5,9 +5,13 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "features/FeatureHooks.h"
 
 namespace gapfill
 {
+
+static_assert (MeterState::numReasonCounters == numRejectReasons,
+               "MeterState::reasonCount must cover every RejectReason");
 
 namespace
 {
@@ -177,6 +181,8 @@ void GapFillAudioProcessor::reset()
 //==============================================================================
 void GapFillAudioProcessor::timerCallback()
 {
+    drainFillEvents();
+
     const auto wanted = latencyToReport.load();
 
     if (wanted != getLatencySamples())
@@ -205,6 +211,42 @@ void GapFillAudioProcessor::parameterChanged (const juce::String& parameterID, f
 
     if (! programChangeInProgress.load (std::memory_order_relaxed))
         currentProgram.store (-1, std::memory_order_relaxed);
+}
+
+//==============================================================================
+int GapFillAudioProcessor::drainFillEvents()
+{
+    FillEvent batch[16];
+    int total = 0;
+
+    for (;;)
+    {
+        const auto n = fillEvents.pop (batch, 16);
+
+        if (n <= 0)
+            break;
+
+        for (int i = 0; i < n; ++i)
+        {
+            if (batch[i].type == FillEventType::Started)
+                recipeHistory.push (batch[i].recipe);
+
+            outcomeLog.push (batch[i]);
+        }
+
+        total += n;
+    }
+
+    return total;
+}
+
+void GapFillAudioProcessor::drainCommands() noexcept
+{
+    Command batch[CommandQueue::capacity];
+    const auto n = commands.pop (batch, CommandQueue::capacity);
+
+    for (int i = 0; i < n; ++i)
+        hooks::dispatchCommand (engine, batch[i]);
 }
 
 //==============================================================================
@@ -266,6 +308,12 @@ EngineSettings GapFillAudioProcessor::gatherEngineSettings() const
     s.bandProb[1] = pv (params.bandMidProb) * 0.01f;
     s.bandProb[2] = pv (params.bandHighProb) * 0.01f;
 
+    // Feature settings and the block stage of the effective-settings pipeline
+    // (docs/dev/02 F0-5). Both are the identity while every feature is neutral.
+    hooks::gatherFeatureSettings (s, params);
+    Effective::MacroOutputs macroOut;
+    Effective::applyBlock (s, hooks::gatherModulationInputs (params), macroOut);
+
     return s;
 }
 
@@ -297,6 +345,12 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
             }
 
             playing = pos->getIsPlaying();
+
+            if (const auto ts = pos->getTimeSignature())
+            {
+                s.perf.tsNum = ts->numerator;
+                s.perf.tsDen = ts->denominator;
+            }
         }
     }
 
@@ -359,6 +413,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     juce::ScopedNoDenormals noDenormals;
 
     midiLearn.processMidi (midi);
+    drainCommands();
 
     const auto numSamples = buffer.getNumSamples();
 
@@ -386,6 +441,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     juce::ScopedNoDenormals noDenormals;
 
     midiLearn.processMidi (midi);
+    drainCommands();
 
     const auto numSamples = buffer.getNumSamples();
 
@@ -547,7 +603,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     if (skip < numSamples)
     {
         engine.process (wetBuffer, skip, numSamples - skip, outputStart + skip,
-                        analysis, history, engineSettings, &viz);
+                        analysis, history, engineSettings, &viz, &fillEvents);
     }
 
     // ---- dry path: lookahead delay with click-free latency changes -------
@@ -767,6 +823,10 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         meters.bandConf2.store (frame.bandConf[2]);
         meters.activeVoices.store (engine.getActiveVoiceCount());
         meters.currentAlgo.store (engine.getCurrentAlgo());
+        meters.blockCounter.store (meters.blockCounter.load (std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+
+        for (int r = 0; r < MeterState::numReasonCounters; ++r)
+            meters.reasonCount[r].store ((std::uint32_t) engine.getRejectCount ((RejectReason) r), std::memory_order_relaxed);
     }
 
     samplesProcessed += numSamples;

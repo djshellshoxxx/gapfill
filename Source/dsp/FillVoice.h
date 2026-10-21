@@ -49,6 +49,15 @@ struct VoiceSetup
     float bandEnergy[3] { 0.3f, 0.3f, 0.3f };   // shapes the Texture algorithm
 
     std::uint64_t rngSeed = 1;
+
+    /** Recipe overrides (F0-3). Neutral by default: the voice derives both
+        choices itself, exactly as before. */
+    /** Bit per Modifier (bit0 = FilterSweep .. bit4 = PanMotion) that replaces
+        the complexity-derived stack; 0xFF = derive. At most maxModifiers bits
+        are honoured, lowest first. The voice still consumes the same RNG draws. */
+    std::uint8_t modifierOverride = 0xFF;
+    /** Pitch Rise / Pitch Fall target in signed semitones; 127 = derive. */
+    std::int8_t  pitchOverride = 127;
 };
 
 //==============================================================================

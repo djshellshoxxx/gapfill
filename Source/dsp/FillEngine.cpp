@@ -1,7 +1,12 @@
 #include "FillEngine.h"
+#include "../features/effective/Effective.h"
 
 namespace gapfill
 {
+
+// FillRecipe validates against literal counts so it needs no dependency on Parameters.h.
+static_assert (numAlgos == 15, "FillRecipe isValid() algo range must track Algo");
+static_assert ((int) Division::NumDivisions == 12, "FillRecipe isValid() division range must track Division");
 
 namespace
 {
@@ -90,6 +95,7 @@ void FillEngine::reset()
     lastRenderedAlgo = -1;
     fillsStarted = 0;
     gapsTooShort = 0;
+    rejectCounts.fill (0);
     vizCounter = 0;
     vizAccum = {};
 
@@ -132,7 +138,8 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
                           const AnalysisEngine& analysis,
                           const SourceHistory& history,
                           const EngineSettings& s,
-                          VisualisationFifo* viz) noexcept
+                          VisualisationFifo* viz,
+                          FillEventQueue* events) noexcept
 {
     if (numSamples <= 0)
         return;
@@ -146,7 +153,7 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
         const auto phase = (int) (outputPos % hop);
 
         if (phase == 0)
-            controlUpdate (outputPos, outputStartPos, analysis, history, s, viz);
+            controlUpdate (outputPos, outputStartPos, analysis, history, s, viz, events);
 
         const auto chunk = juce::jmin (numSamples - offset, hop - phase);
 
@@ -169,7 +176,8 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
 //==============================================================================
 void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartPos,
                                 const AnalysisEngine& analysis, const SourceHistory& history,
-                                const EngineSettings& s, VisualisationFifo* viz) noexcept
+                                const EngineSettings& s, VisualisationFifo* viz,
+                                FillEventQueue* events) noexcept
 {
     const auto& frame = analysis.frameAt (outputPos);
 
@@ -261,7 +269,21 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
     if (inGap && ! gapEvaluated)
     {
         gapEvaluated = true;
-        startedFill = trySchedule (outputPos, blockStartPos, frame, analysis, history, s);
+        const auto result = trySchedule (outputPos, blockStartPos, frame, analysis, history, s);
+        startedFill = result.started;
+
+        // Recipes are always reported; rejections only while a visualiser is listening.
+        if (events != nullptr && (result.started || (viz != nullptr && viz->isEnabled())))
+        {
+            FillEvent e;
+            e.type = result.started ? FillEventType::Started : FillEventType::Rejected;
+            e.reason = result.reason;
+            e.recipe = result.recipe;
+            e.availMs = result.availableMs;
+            e.needMs = result.neededMs;
+            e.pos = outputPos;
+            events->push (e);
+        }
     }
 
     // ---- visualiser feed -------------------------------------------------
@@ -313,32 +335,103 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
 }
 
 //==============================================================================
-bool FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
-                              const AnalysisFrame& frame, const AnalysisEngine& analysis,
-                              const SourceHistory& history, const EngineSettings& s) noexcept
+ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blockStartPos,
+                                       const AnalysisFrame& frame, const AnalysisEngine& analysis,
+                                       const SourceHistory& history, const EngineSettings& base) noexcept
+{
+    // Decision stage of the effective-settings pipeline (F0-5): every later
+    // stage reads the local copy `s`, evaluated at the PPQ of the decision sample.
+    const bool havePpq = base.transportValid && base.samplesPerBeat > 1.0;
+    const auto ppq = havePpq ? base.ppqAtBlockStart + (double) (outputPos - blockStartPos) / base.samplesPerBeat
+                             : 0.0;
+
+    EngineSettings s = base;
+    Effective::applyAtDecision (s, ppq, { havePpq, ppq, base.perf.tsNum, base.perf.tsDen,
+                                          havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0 });
+
+    GapContext ctx;
+    ctx.outputPos = outputPos;
+    ctx.blockStartPos = blockStartPos;
+    ctx.frame = &frame;
+
+    ScheduleResult result;
+    FillPlan plan;
+    float neededMs = 0.0f;
+
+    auto reject = [&] (RejectReason r)
+    {
+        noteRejected (r);
+        result.reason = r;
+        result.availableMs = (float) (1000.0 * (double) ctx.available / sr);
+        result.neededMs = r == RejectReason::NoAlgoFits ? plan.neededMs : neededMs;
+        return result;
+    };
+
+    if (auto r = checkEligibility (ctx, analysis, s, neededMs); r != RejectReason::None)
+        return reject (r);
+
+    // ---- deterministic decision key --------------------------------------
+    const auto seedMix = (std::uint64_t) s.seed * 0x9E3779B1ULL;
+    ctx.key = havePpq ? hashCombine (seedMix, (std::uint64_t) std::llround (ppq * 96.0))
+                      : hashCombine (seedMix, (std::uint64_t) gapIndex);
+
+    Rng rng;
+    rng.seed (ctx.key);
+
+    int band = -1;
+
+    if (auto r = rollDecision (ctx, rng, s, band); r != RejectReason::None)
+        return reject (r);
+
+    if (auto r = buildRecipe (ctx, rng, s, band, plan); r != RejectReason::None)
+        return reject (r);
+
+    if (auto r = adjustRecipe (plan, ctx, s); r != RejectReason::None)
+        return reject (r);
+
+    auto* voice = findFreeVoice();
+
+    if (voice == nullptr)
+        return reject (RejectReason::NoVoice);
+
+    auto setup = toVoiceSetup (plan, ctx, s, history);
+
+    if (! startVoice (*voice, setup, plan, history))
+        return reject (RejectReason::SourceUnavailable);
+
+    noteFillStarted (plan, outputPos);
+    result.started = true;
+    result.recipe = plan.recipe;
+    return result;
+}
+
+//==============================================================================
+RejectReason FillEngine::checkEligibility (GapContext& ctx, const AnalysisEngine& analysis,
+                                           const EngineSettings& s, float& neededMs) noexcept
 {
     if (s.fill01 <= 0.001f)
-        return false;
+        return RejectReason::FillOff;
 
     // Never invent material out of nothing: the main input must have had some
     // musical content recently, otherwise there is nothing to build a fill from
     // and nothing for the listener to hear it against.
-    if (frame.reference < 3.0e-4f)
-        return false;
+    if (ctx.frame->reference < 3.0e-4f)
+        return RejectReason::NoSource;
 
     const auto maxConcurrent = s.complexity01 > 0.65f ? 2 : 1;
 
     if (getActiveVoiceCount() >= maxConcurrent)
-        return false;
+        return RejectReason::NoVoice;
 
     // Never start two fills on top of each other in the same musical breath.
-    const auto minGapSamples = (std::int64_t) juce::jmax (16.0, s.minGapMs * 0.001 * sr);
+    ctx.minGapSamples = (std::int64_t) juce::jmax (16.0, s.minGapMs * 0.001 * sr);
 
-    if (outputPos - lastFillStartPos < minGapSamples / 2)
-        return false;
+    if (ctx.outputPos - lastFillStartPos < ctx.minGapSamples / 2)
+        return RejectReason::TooSoon;
 
     // ---- how much room is there? ----------------------------------------
-    const auto maxFillSamples = (std::int64_t) juce::jmax (32.0, s.maxFillMs * 0.001 * sr);
+    const auto outputPos = ctx.outputPos;
+    ctx.maxFillSamples = (std::int64_t) juce::jmax (32.0, s.maxFillMs * 0.001 * sr);
     const auto nextEvent = analysis.nextDetectionEvent (outputPos + 1);
     const auto nextProtected = analysis.nextProtectedEvent (outputPos + 1);
 
@@ -348,64 +441,61 @@ bool FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blockStartPos
         boundary = nextProtected;
 
     // Leave a little air before the next hit even at zero protection.
-    const auto preGuard = (std::int64_t) (sr * 0.001 * lerp (4.0f, 25.0f, s.protNext01));
+    ctx.preGuard = (std::int64_t) (sr * 0.001 * lerp (4.0f, 25.0f, s.protNext01));
 
-    std::int64_t available = maxFillSamples;
+    ctx.available = ctx.maxFillSamples;
 
     if (boundary > outputPos)
-        available = juce::jmax ((std::int64_t) 0, boundary - outputPos - preGuard);
+        ctx.available = juce::jmax ((std::int64_t) 0, boundary - outputPos - ctx.preGuard);
 
-    if (available < minGapSamples)
+    if (ctx.available < ctx.minGapSamples)
     {
         ++gapsTooShort;
-        return false;
+        neededMs = (float) (1000.0 * (double) ctx.minGapSamples / sr);
+
+        // The gap itself was long enough, the pre-event guard ate the room.
+        return noRoomReason (boundary, outputPos, ctx.minGapSamples);
     }
 
-    auto usable = juce::jmin (available, maxFillSamples);
+    ctx.usable = juce::jmin (ctx.available, ctx.maxFillSamples);
+    return RejectReason::None;
+}
 
-    // ---- deterministic decision key --------------------------------------
-    std::uint64_t key;
-
-    if (s.transportValid && s.samplesPerBeat > 1.0)
-    {
-        const auto ppq = s.ppqAtBlockStart + (double) (outputPos - blockStartPos) / s.samplesPerBeat;
-        const auto tick = (std::int64_t) std::llround (ppq * 96.0);
-        key = hashCombine ((std::uint64_t) s.seed * 0x9E3779B1ULL, (std::uint64_t) tick);
-    }
-    else
-    {
-        key = hashCombine ((std::uint64_t) s.seed * 0x9E3779B1ULL, (std::uint64_t) gapIndex);
-    }
-
-    Rng rng;
-    rng.seed (key);
-
+RejectReason FillEngine::rollDecision (GapContext& ctx, Rng& rng, const EngineSettings& s,
+                                       int& band) noexcept
+{
     // ---- should this gap be filled at all? -------------------------------
-    const auto conf = juce::jlimit (0.0f, 1.0f, frame.conf);
-    auto probability = s.fill01 * (0.4f + 0.6f * s.density01) * (0.6f + 0.4f * conf) * 1.15f;
+    ctx.conf = juce::jlimit (0.0f, 1.0f, ctx.frame->conf);
+    auto probability = s.fill01 * (0.4f + 0.6f * s.density01) * (0.6f + 0.4f * ctx.conf) * 1.15f;
 
     // ---- spectral lane ----------------------------------------------------
-    int band = -1;
+    band = -1;
 
     if (s.mode == DetMode::Spectral)
     {
-        band = chooseBand (frame, s, rng);
+        band = chooseBand (*ctx.frame, s, rng);
 
         if (band < 0)
-            return false;
+            return RejectReason::NoBand;
 
         probability *= s.bandProb[band];
     }
 
     if (! rng.chance (juce::jlimit (0.0f, 1.0f, probability)))
-        return false;
+        return RejectReason::DensityRoll;
 
+    return RejectReason::None;
+}
+
+RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const EngineSettings& s,
+                                      int band, FillPlan& plan) noexcept
+{
     // ---- length ------------------------------------------------------------
-    auto scale = lerp (0.5f, 1.0f, s.complexity01) * lerp (0.7f, 1.0f, conf);
+    auto scale = lerp (0.5f, 1.0f, s.complexity01) * lerp (0.7f, 1.0f, ctx.conf);
     scale *= 1.0f + s.chaos01 * rng.nextBipolar() * 0.25f;
 
-    auto lengthSamples = (std::int64_t) ((double) usable * juce::jlimit (0.2f, 1.2f, scale));
-    lengthSamples = juce::jlimit (juce::jmin (minGapSamples, usable), usable, lengthSamples);
+    auto lengthSamples = (std::int64_t) ((double) ctx.usable * juce::jlimit (0.2f, 1.2f, scale));
+    lengthSamples = juce::jlimit (juce::jmin (ctx.minGapSamples, ctx.usable), ctx.usable, lengthSamples);
 
     const auto lengthMs = (float) (1000.0 * (double) lengthSamples / sr);
 
@@ -418,26 +508,65 @@ bool FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blockStartPos
 
         // A manually chosen algorithm still has to fit the space.
         if (lengthMs < kProfiles[algoIndex].minMs * 0.6f)
-            return false;
+        {
+            plan.lengthMs = lengthMs;
+            plan.neededMs = kProfiles[algoIndex].minMs * 0.6f;
+            return RejectReason::NoAlgoFits;
+        }
     }
     else
     {
         algoIndex = chooseAlgorithm (lengthMs, s, rng);
 
         if (algoIndex < 0)
-            return false;
+        {
+            // Report the shortest fill any enabled algorithm could have played.
+            float shortest = 0.0f;
+
+            for (int i = 0; i < numAlgos; ++i)
+                if (s.weights[i] > 0.001f && (shortest <= 0.0f || kProfiles[i].minMs < shortest))
+                    shortest = kProfiles[i].minMs;
+
+            plan.lengthMs = lengthMs;
+            plan.neededMs = shortest;
+            return RejectReason::NoAlgoFits;
+        }
     }
 
-    auto* voice = findFreeVoice();
+    plan.lengthSamples = lengthSamples;
+    plan.lengthMs = lengthMs;
+    plan.algoIndex = algoIndex;
+    plan.band = band;
 
-    if (voice == nullptr)
-        return false;
+    auto& r = plan.recipe;
+    r = {};
+    r.algo = (std::uint8_t) algoIndex;
+    r.band = (std::int8_t) band;
+    r.lengthClass = lengthClassFor (lengthMs, s.maxFillMs);
+    r.lengthMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (lengthMs));
+    r.seed = (std::uint32_t) hashCombine (ctx.key, (std::uint64_t) (algoIndex + 1) * 0x27D4EB2FULL);
+    return RejectReason::None;
+}
 
-    // ---- build the setup ----------------------------------------------------
+RejectReason FillEngine::adjustRecipe (FillPlan&, const GapContext&, const EngineSettings&) noexcept
+{
+    // HOOK (empty in Phase 0): Fill Lock (C-5) substitutes the locked recipe
+    // here and may return LockSkipped; Mistakes (C-3) sets mistakeType/Amt.
+    // Features draw from their own salted sub-RNG (Source/features/Salts.h),
+    // never from the scheduler's Rng.
+    return RejectReason::None;
+}
+
+VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx,
+                                     const EngineSettings& s, const SourceHistory& history) const noexcept
+{
+    const auto outputPos = ctx.outputPos;
+    const auto& frame = *ctx.frame;
+
     VoiceSetup setup;
-    setup.algo = (Algo) algoIndex;
+    setup.algo = (Algo) plan.algoIndex;
     setup.sampleRate = sr;
-    setup.lengthSamples = (int) juce::jlimit ((std::int64_t) 32, (std::int64_t) (sr * 3.0), lengthSamples);
+    setup.lengthSamples = (int) juce::jlimit ((std::int64_t) 32, (std::int64_t) (sr * 3.0), plan.lengthSamples);
     setup.fadeInSamples  = (int) (sr * 0.001 * lerp (8.0f, 2.0f, s.intensity01));
     setup.fadeOutSamples = (int) (sr * 0.001 * lerp (40.0f, 10.0f, s.intensity01));
     setup.intensity01  = s.intensity01;
@@ -447,47 +576,68 @@ bool FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blockStartPos
                                        outputPos - s.historyOffset);
     setup.sinceEventSamples = (int) juce::jlimit ((std::int64_t) 0, (std::int64_t) (sr * 0.3),
                                                   outputPos - lastEventPos);
-    setup.band = band;
+    setup.band = plan.band;
     setup.xoverLM = s.xoverLM;
     setup.xoverMH = s.xoverMH;
     setup.stutterSeconds = s.stutterSeconds;
     setup.delaySeconds = s.delaySeconds;
     setup.pingPong = s.pingPong;
-    setup.rngSeed = hashCombine (key, (std::uint64_t) (algoIndex + 1) * 0x27D4EB2FULL);
+    setup.rngSeed = hashCombine (ctx.key, (std::uint64_t) (plan.algoIndex + 1) * 0x27D4EB2FULL);
 
     for (int b = 0; b < 3; ++b)
         setup.bandEnergy[b] = frame.bandEnergy[b];
 
-    auto amp = 0.8f * (0.6f + 0.4f * conf);
+    auto amp = 0.8f * (0.6f + 0.4f * ctx.conf);
 
-    if (band >= 0)
+    if (plan.band >= 0)
     {
-        amp *= s.bandAmt[band];
-        setup.intensity01 = juce::jlimit (0.0f, 1.0f, s.bandInt[band]);
+        amp *= s.bandAmt[plan.band];
+        setup.intensity01 = juce::jlimit (0.0f, 1.0f, s.bandInt[plan.band]);
     }
 
     setup.amp = juce::jlimit (0.0f, 1.5f, amp);
 
-    if (! voice->start (setup, history, &spectral))
+    // A recipe replayed from Lock forces the choices the voice would otherwise derive.
+    if ((plan.recipe.flags & FillRecipe::flagFromLock) != 0)
     {
-        // Spectral processor busy - fall back to a simpler algorithm.
-        setup.algo = Algo::Granular;
-
-        if (lengthMs < kProfiles[(int) Algo::Granular].minMs)
-            setup.algo = Algo::Reverse;
-
-        if (! voice->start (setup, history, &spectral))
-            return false;
-
-        algoIndex = (int) setup.algo;
+        setup.modifierOverride = plan.recipe.modifierMask;
+        setup.pitchOverride = plan.recipe.pitchSemis;
     }
 
-    recentAlgos[recentWrite] = algoIndex;
+    return setup;
+}
+
+bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan,
+                             const SourceHistory& history) noexcept
+{
+    if (voice.start (setup, history, &spectral))
+        return true;
+
+    // Spectral processor busy - fall back to a simpler algorithm.
+    setup.algo = Algo::Granular;
+
+    if (plan.lengthMs < kProfiles[(int) Algo::Granular].minMs)
+        setup.algo = Algo::Reverse;
+
+    if (! voice.start (setup, history, &spectral))
+        return false;
+
+    plan.algoIndex = (int) setup.algo;
+    plan.recipe.algo = (std::uint8_t) plan.algoIndex;
+    return true;
+}
+
+void FillEngine::noteFillStarted (const FillPlan& plan, std::int64_t outputPos) noexcept
+{
+    recentAlgos[recentWrite] = plan.algoIndex;
     recentWrite = (recentWrite + 1) % historyLength;
     lastFillStartPos = outputPos;
     ++fillsStarted;
+}
 
-    return true;
+void FillEngine::noteRejected (RejectReason r) noexcept
+{
+    ++rejectCounts[(size_t) r];
 }
 
 //==============================================================================
