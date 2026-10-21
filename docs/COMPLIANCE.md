@@ -7,7 +7,7 @@ GapFill uses docs/standards/CDL_PLUGIN_BASELINE.md as the required common Circui
 | Profile | Status | Notes |
 |---|---|---|
 | Effect | Implemented | Gap-aware audio effect with main input/output and optional sidechain. |
-| MIDI | Implemented | MIDI input is used for CC learn and mapped parameter control; GapFill is not a MIDI effect and emits no MIDI. |
+| MIDI | Implemented | MIDI input is used for CC learn and mapped parameter control; GapFill is not a MIDI effect. It emits no MIDI in shipped builds: gap / fill note output (F-L11) exists behind the build option `GAPFILL_MIDI_OUT`, which is OFF by default (it changes `producesMidi()` and the host routing; enabling it is a release decision after the host matrix, VST3/CLAP only, never AU). |
 | Standalone | Implemented | Standalone target exposes device configuration through JUCE's standalone host wrapper. |
 | File loading | Implemented | Portable .gapfill parameter-state files can be saved and opened. |
 | File export | Planned, not implemented | U-2 Fill Export is specified in docs/dev/05-SPEC-USABILITY-VALUE.md. Do not describe offline fill rendering/export as shipped until implemented and validated. |
