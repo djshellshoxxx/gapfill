@@ -1,0 +1,2 @@
+# Append-only parameter ID lock for group 'section' (one id per line, in order).
+# Adding an id is a deliberate act: add it here and in Source/params/section.h.

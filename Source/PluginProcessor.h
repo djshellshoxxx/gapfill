@@ -11,8 +11,13 @@
 #include "Presets.h"
 #include "MidiLearn.h"
 #include "dsp/AnalysisEngine.h"
+#include "dsp/EngineEvents.h"
+#include "dsp/EventLogs.h"
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
+#include "features/fx/FxChain.h"
+#include "features/fx/FxUiState.h"
+#include "features/explain/ExplainState.h"
 
 namespace gapfill
 {
@@ -84,6 +89,24 @@ public:
     VisualisationFifo& getVisualisationFifo() noexcept              { return viz; }
     MidiLearnManager& getMidiLearnManager() noexcept                { return midiLearn; }
 
+    /** WP3 Explain & assist: health codes, telemetry, fix-it, timeline, event recorder. */
+    explain::ExplainState& getExplainState() noexcept               { return explainState; }
+    const explain::ExplainState& getExplainState() const noexcept   { return explainState; }
+
+    //==========================================================================
+    // Cross-thread queues (docs/dev/02 F0-4)
+
+    /** Message thread only (single producer). Returns false if the queue is full. */
+    bool postCommand (const Command& command) noexcept   { return commands.push (command); }
+
+    /** Message thread. Moves audio-thread fill events into the history and the
+        outcome log; also called by the 15 Hz timer. Returns how many were drained. */
+    int drainFillEvents();
+
+    const RecipeHistory& getRecipeHistory() const noexcept   { return recipeHistory; }
+    const GapOutcomeLog& getGapOutcomeLog() const noexcept   { return outcomeLog; }
+    std::uint32_t getDroppedFillEvents() const noexcept      { return fillEvents.getDroppedCount(); }
+
     void resetAllParameters();
     /** Randomises creative (or, with `everything`, a wider) parameter set.
         Always produces a different result from the previous press. */
@@ -152,6 +175,10 @@ public:
     //==========================================================================
     // Test-facing accessors
     const FillEngine& getFillEngine() const noexcept  { return engine; }
+    fx::FxChain& getFxChain() noexcept { return fxChain; }
+    const fx::FxMeters& getFxMeters() const noexcept { return fxChain.getMeters(); }
+    fx::FxUiState& getFxUiState() noexcept { return fxUi; }
+    const fx::FxUiState& getFxUiState() const noexcept { return fxUi; }
     const AnalysisEngine& getAnalysis() const noexcept { return analysis; }
     int getActiveLatencySamples() const noexcept { return meters.latencySamples.load(); }
     std::int64_t getSourceHistoryWritePosition() const noexcept { return history.getWritePosition(); }
@@ -161,6 +188,7 @@ public:
 
 private:
     void timerCallback() override;
+    void drainCommands() noexcept;
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
     EngineSettings gatherEngineSettings() const;
@@ -168,6 +196,7 @@ private:
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
     bool isParameterStateValid (const juce::ValueTree& state) const;
     void snapParametersToState();
+    void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); }
 
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
@@ -177,11 +206,19 @@ private:
     AnalysisEngine analysis;
     SourceHistory  history;
     FillEngine     engine;
+    fx::FxChain    fxChain;       // WP8: bus effect chain (voice cards live in the voices)
+    fx::FxUiState  fxUi;          // WP8: <Fx> state subtree (fold state, remembered amounts)
 
     MidiLearnManager midiLearn;
 
     MeterState meters;
     VisualisationFifo viz;
+
+    CommandQueue    commands;        // message -> audio, drained once per block
+    FillEventQueue  fillEvents;      // audio -> message, drained by the timer
+    RecipeHistory   recipeHistory;   // message thread only (survives the editor)
+    GapOutcomeLog   outcomeLog;      // message thread only
+    explain::ExplainState explainState;   // WP3; attached to apvts in the constructor
 
     // --- buffers (all sized in prepareToPlay) ---
     juce::AudioBuffer<float> mainBuffer, wetBuffer, delayRing;

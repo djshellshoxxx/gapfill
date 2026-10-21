@@ -1,0 +1,12 @@
+# Checks listed in docs/dev/06-ENGINEERING-STANDARDS.md section 6.
+# Nightly, advisory until milestone M3, then gating. Target: Source/features/** and Source/dsp/**.
+Checks: >
+  -*,
+  bugprone-*,
+  performance-*,
+  concurrency-*,
+  cppcoreguidelines-pro-type-member-init,
+  modernize-use-nullptr,
+  readability-else-after-return
+WarningsAsErrors: ''
+HeaderFilterRegex: 'Source/(features|dsp|params)/.*'

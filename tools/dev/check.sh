@@ -17,7 +17,7 @@ step() { printf '\n==> %s\n' "$1"; }
 
 step "1/4 Repository preflight"
 python3 tools/validate_repo.py
-python3 -m unittest tools/test_validate_repo.py
+python3 -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py
 
 if [ ! -d "${BUILD_DIR}" ]; then
     echo "Build dir '${BUILD_DIR}' not found. Run tools/dev/bootstrap.sh first." >&2

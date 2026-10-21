@@ -5,7 +5,7 @@
 | Layer | What | Where it runs | Gate |
 |---|---|---|---|
 | Repo preflight | stable IDs, lock files, hot files, presets resolve, docs present | every PR (<2 min) | required |
-| Unit/DSP/Plugin tests | `GapFillTests` groups (Dsp, Signals, Plugin, features...) | every PR, Linux + Windows | required |
+| Unit/DSP/Plugin tests | `GapFillTests` groups (Dsp, Signals, Plugin, features...) | every PR: full suite once on Linux (`unit-tests`), `Plugin` smoke subset on Windows + macOS | required |
 | Golden regression | scenarios A-F vs stored output (per platform) | every PR | required |
 | State fixtures | 0.0.1 states + corrupt/oversize files | every PR | required |
 | Combinatorial | parameter sweeps (~13 min) | nightly | required for release |
@@ -125,6 +125,22 @@ Block the release on any open S1/S2. Then:
 [ ] tag pushed; GitHub release created as draft, reviewed, then published
 [ ] post-release: monitor issues 7 days; hotfix process via release/<minor> branch
 ```
+
+## 5b. CI pipeline and beta releases
+
+CI is split into independent jobs: `preflight` -> `unit-tests` (Linux, full suite
+including Combinatorial, run once) -> parallel `build-linux-x64`, `build-windows-x64`,
+`build-macos` (arm64 + x86_64) that build and validate their own artifacts
+(pluginval 10, clap-validator, auval on macOS, standalone smoke) -> `ci-gate`.
+Windows and macOS only re-run the `Plugin` smoke subset. Docs-only changes skip the native
+jobs. Full job graph, caches and limits: `09-FAST-INCREMENTAL-BUILDS.md`.
+
+Beta release: dispatch **Release beta** (`release-beta.yml`) with `tag` (e.g. `v0.0.2-beta1`)
+on a commit whose CI run succeeded (optionally pass `source_run_id`). It checks the tag against
+CMake, the run's conclusion and head SHA, downloads the verified artifacts, packages
+(`packaging/package_release.sh`, `packaging/package_macos.sh`), writes a combined SHA-256 list and
+publishes a GitHub **pre-release** (not draft). It rebuilds and re-tests nothing; manual host
+scripts (section 4) and the nightly jobs remain separate release requirements (section 5).
 
 ## 6. Risk register (top risks, highest first)
 

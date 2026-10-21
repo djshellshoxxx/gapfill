@@ -106,6 +106,11 @@ architecture directory and no extension on the standalone binary.
 `packaging/package_release.sh <windows-build> [<linux-build>]` turns finished
 builds into the release assets in `dist/`: the NSIS installer
 (`packaging/GapFill.nsi`), portable/VST3/CLAP zips and a SHA-256 list. The
+macOS archives come from `packaging/package_macos.sh`. Beta releases are cut in
+CI, not by hand: run the **Release beta** workflow with a tag such as
+`v0.0.2-beta1`; it repackages the verified artifacts of the successful CI run
+for that exact commit and publishes a GitHub pre-release with SHA-256 checksums
+(see `docs/dev/09-FAST-INCREMENTAL-BUILDS.md`). The
 0.0.1 beta Windows binaries were cross-compiled from Linux with clang-cl 22 and
 lld-link against the MSVC static runtime (`CMAKE_CROSSCOMPILING` skips only the
 VST3 `moduleinfo.json` helper, which cannot run on the build machine).

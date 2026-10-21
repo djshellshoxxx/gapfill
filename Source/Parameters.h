@@ -3,6 +3,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
 
+#include "params/Groups.h"
+
 namespace gapfill
 {
 
@@ -45,7 +47,7 @@ juce::StringArray divisionNames();
     The string ids are permanent: they are the persistence + automation keys and
     must never change. Member names are only used for the cached-pointer struct.
 */
-#define GAPFILL_PARAMS(X) \
+#define GAPFILL_PARAMS_CORE(X) \
     /* ---- detection ---- */ \
     X (detMode,       "detMode") \
     X (detSource,     "detSource") \
@@ -120,6 +122,57 @@ juce::StringArray divisionNames();
     /* ---- performance (appended; ids are permanent) ---- */ \
     X (capture,       "capture")
 
+/** The complete parameter list: the core list above, then one macro per feature
+    group (Source/params/<group>.h). The group order is PERMANENT - it fixes the
+    parameter index order seen by hosts and MIDI learn. New groups are appended
+    at the end (and in createParameterLayout()); every group any
+    specified feature needs (docs/dev/02 F0-1, docs/dev/12 F0-10) is
+    pre-registered so features need no edit here at all. After Phase 0 no
+    feature edits this file. */
+#define GAPFILL_PARAMS(X) \
+    GAPFILL_PARAMS_CORE(X) \
+    GAPFILL_PARAMS_MACROS(X) \
+    GAPFILL_PARAMS_PERSONALITY(X) \
+    GAPFILL_PARAMS_CAPTURE2(X) \
+    GAPFILL_PARAMS_ENVELOPE(X) \
+    GAPFILL_PARAMS_LOCK(X) \
+    GAPFILL_PARAMS_BREATHING(X) \
+    GAPFILL_PARAMS_PHRASE(X) \
+    GAPFILL_PARAMS_MISTAKES(X) \
+    GAPFILL_PARAMS_SYNC(X) \
+    GAPFILL_PARAMS_BANDTYPE(X) \
+    GAPFILL_PARAMS_EVOLVE(X) \
+    GAPFILL_PARAMS_SWELL(X) \
+    GAPFILL_PARAMS_CLOUD(X) \
+    GAPFILL_PARAMS_SCALE(X) \
+    GAPFILL_PARAMS_KEYDET(X) \
+    GAPFILL_PARAMS_BUDGET(X) \
+    GAPFILL_PARAMS_RATCHET(X) \
+    GAPFILL_PARAMS_RCRUSH(X) \
+    GAPFILL_PARAMS_TAPEDESTR(X) \
+    GAPFILL_PARAMS_RESONATOR(X) \
+    GAPFILL_PARAMS_FSDELAY(X) \
+    GAPFILL_PARAMS_DUB(X) \
+    GAPFILL_PARAMS_FORMANT(X) \
+    GAPFILL_PARAMS_SPFREEZE(X) \
+    GAPFILL_PARAMS_CONVO(X) \
+    GAPFILL_PARAMS_SCRUB(X) \
+    GAPFILL_PARAMS_HGRAN(X) \
+    GAPFILL_PARAMS_WETOUT(X) \
+    GAPFILL_PARAMS_SAFETY(X) \
+    GAPFILL_PARAMS_MIDIOUT(X) \
+    GAPFILL_PARAMS_SCDRIVE(X) \
+    GAPFILL_PARAMS_BANDFX(X) \
+    GAPFILL_PARAMS_GROOVE(X) \
+    GAPFILL_PARAMS_CALL(X) \
+    GAPFILL_PARAMS_ENERGY(X) \
+    GAPFILL_PARAMS_TENSION(X) \
+    GAPFILL_PARAMS_BATTLE(X) \
+    GAPFILL_PARAMS_SECTION(X) \
+    GAPFILL_PARAMS_LEARN(X) \
+    GAPFILL_PARAMS_COOP(X) \
+    GAPFILL_PARAMS_QUALITY(X)
+
 //==============================================================================
 /** Cached raw-value pointers so the audio thread never touches the ValueTree. */
 struct ParamCache
@@ -174,5 +227,10 @@ juce::StringArray creativeParameterIDs();
 
 /** The ids that "Randomize All" is allowed to touch (never mix/output/latency). */
 juce::StringArray randomisableParameterIDs();
+
+/** Performance / runtime-state parameters that Random, Random All, Surprise and
+    Undo snapshots must never touch (collected from every group's
+    add<Group>PerformanceIds). Disjoint from randomisableParameterIDs(). */
+juce::StringArray performanceParameterIDs();
 
 } // namespace gapfill

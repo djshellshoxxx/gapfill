@@ -1,0 +1,8 @@
+{
+  "_comment": "Scenario E block time at 512 samples / 48 kHz, Release, gcc, 4-core shared CI-class machine. Regenerated only by a [perf] PR. Enforced when GAPFILL_PERF_ENFORCE=1 (mean may not exceed baseline by more than 10 %).",
+  "scenario": "E",
+  "blockSize": 512,
+  "sampleRate": 48000,
+  "meanMicros": 113.3,
+  "p999Micros": 583.6
+}

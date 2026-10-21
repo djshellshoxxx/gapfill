@@ -12,6 +12,7 @@
 #include "gui/WaveformGapView.h"
 #include "gui/HelpView.h"
 #include "gui/OptionsView.h"
+#include "gui/SlotHost.h"
 
 namespace gapfill
 {
@@ -93,6 +94,9 @@ private:
 
     HelpView helpView;
     OptionsView optionsView;
+
+    // Feature-owned components (docs/dev/02 F0-9); created after the panels so they sit on top.
+    std::unique_ptr<SlotHost> slots;
 
     // --- A/B ---
     juce::ValueTree slotA, slotB;
