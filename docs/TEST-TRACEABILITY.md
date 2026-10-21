@@ -48,10 +48,10 @@ Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md
 |---|---|---|---|
 | F0-10 pre-registration | golden identical; `validate_repo.py` with 30 empty locks | all CI jobs | Specified |
 | X-1 MIDI command map | edge/momentary/toggle, duplicate refusal, flood bound, panic direct path (`TestCommands.cpp`) | Physical controller in a real DAW and Standalone | Specified; hardware unverified |
-| FX-0 effect-card framework | empty-chain identity, ramp, tail flush, panic clears, duck on tails (`TestFxChain.cpp`) | per-format validators | Specified |
+| FX-0 effect-card framework | empty-chain identity, card-off never called, fixed order, per-voice state, click-free, panic/tail, duck + fill starts to bus cards, CPU meter, no-alloc, all-off golden, `<Fx>` state (`TestFx.cpp`, `TestFxSection.cpp`) | per-format validators | Implemented (WP8); validators and Effects-section placement (UI-0) unverified; `enable_disable_ramp` is per-fill, see `docs/progress/WP8.md` |
 | SP-0 spectral core | identity reconstruction, latency exact, block invariance, 44.1-192 kHz (`TestSpectralCore.cpp`) | validators; CPU budget | Specified |
-| N-FX1 Reverse Swell | landing time +-1 sample, never overlaps protNext, curves, neutral (`TestSwell.cpp`) | audible check on drum loop in a DAW | Specified; audible check unverified |
-| N-FX2 Granular Cloud | <= 48 grains, density limit, jitter/pitch bounds, ends before protNext, neutral (`TestCloud.cpp`) | audible check; CPU per voice | Specified |
+| N-FX1 Reverse Swell | landing time +-1 sample, never overlaps protNext, curves, neutral (`TestSwell.cpp`) | audible check on drum loop in a DAW | Implemented (WP8); audible check unverified |
+| N-FX2 Granular Cloud | <= 48 grains, density limit, jitter/pitch bounds, ends before protNext, neutral (`TestCloud.cpp`) | audible check; CPU per voice | Implemented (WP8); smoothness criterion met only for dense settings, see `docs/progress/WP8.md`; audible check unverified |
 | N-USE-a Panic & Recover | wet silent <= 5 ms, dry bit-identical, every algo/card, not quantised, not saved (`TestPanic.cpp`) | Hardware button + real DAW | Specified; hardware unverified |
 | N-USE-b / F-S01 Health & telemetry | each code with hysteresis, priority, zero cost closed (`TestHealth.cpp`) | Standalone + DAW without sidechain/transport | Specified |
 | N-MUS Scale Lock | 12 scales x 12 roots, tie rule, RNG untouched, comb in-scale (`TestScale.cpp`) | audible check in a key | Specified |
@@ -61,7 +61,9 @@ Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md
 | F-M03 timeline, F-D02 events | reason text equals engine record, ring wrap, replay reproduces outcomes (`TestTimeline.cpp`, `TestEvents.cpp`) | screenshots min/default/large | Specified |
 | F-D01 / F-D03 / F-D04 | budget and quiet zone, quality caps and Auto hysteresis, contrast ratios (`TestBudget.cpp`, `TestQuality.cpp`, `TestAccess.cpp`) | CPU-limited machine; contrast screenshot | Specified |
 | Musical context (F-L09, F-L10, F-L22, F-M21, F-X03, F-X04, F-X05) | groove estimate within 2 ms, motif table, hysteresis, curve shapes, 24-key detection, boundary detection (`TestGroove.cpp` etc.) | host tempo/meter session | Specified; heuristics need listening tests |
-| Effect cards (F-M14, F-M15, F-M16, F-M19, F-M20, F-L14, F-L15, F-L19, F-L20, F-L21, F-X01, F-X02) | per-card lists in doc 12 section 7 | per-format validators; audible bypass/automation | One row per card to be split out when its PR starts |
+| F-M16 ratchet, F-M14 rhythmic crush, F-M20 tape destruction | exact repeat positions, quantiser levels, hold pattern, determinism per seed, clicks, DC, finite extremes, CPU (`TestVoiceFxCards.cpp`) | per-format validators; audible bypass/automation | Implemented (WP8); audible check and cross-platform crush hash unverified |
+| F-L14 multiband effect routing | all-on identity, band bypasses voice cards, bus sees only selected bands, second bus only when needed (`TestFx.cpp`, group `BandFx`) | real DAW, spectral mode | Implemented (WP8); BusFx cards (WP9) not yet present, exercised with a stub card |
+| Other effect cards (F-M15, F-M19, F-L15, F-L19, F-L20, F-L21, F-X01, F-X02) | per-card lists in doc 12 section 7 | per-format validators; audible bypass/automation | One row per card to be split out when its PR starts |
 | Routing (F-M17, F-L11, F-L12, F-L13, F-X06) | wet-solo identity, MIDI-out bounds, bus layout matrix, SC gate/snap, co-op lifecycle | pluginval 10, clap-validator, auval, real DAW | Specified; AU/Logic unverified |
 
 ## Test command policy
