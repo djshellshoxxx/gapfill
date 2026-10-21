@@ -3,6 +3,7 @@
 #include "EngineEvents.h"
 #include "EngineSettings.h"
 #include "FillVoice.h"
+#include "../features/callresponse/Responder.h"
 #include "SchedulerTypes.h"
 #include "VisualisationState.h"
 #include "../features/audition/PreviewChannel.h"
@@ -42,7 +43,7 @@ public:
 
     /** Forgets the deterministic gap counter, used when the transport jumps. A jump
         also ends a More Like That bias (C-11). */
-    void noteTransportJump() noexcept { gapIndex = 0; like.cancel(); }
+    void noteTransportJump() noexcept { gapIndex = 0; like.cancel(); responder.reset(); }
 
     /** Renders into `wet` (which must already be cleared) and returns the
         protection duck that the processor should apply to the wet bus. */
@@ -89,6 +90,7 @@ public:
 
     const LockState& getLockState() const noexcept   { return lockState; }
     const LikeState& getLikeState() const noexcept   { return like; }
+    const callresponse::Responder& getResponder() const noexcept { return responder; }
 
     /** The gap bookkeeping a preview must never change (E-1 acceptance; used by tests). */
     struct GapBookkeeping
@@ -193,6 +195,9 @@ private:
     PreviewChannel preview;        // E-1: dedicated voice outside the pool of numVoices
     LockState lockState;           // C-5
     LikeState like;                // C-11
+    callresponse::Responder responder;   // F-L10
+    bool decisionPpqValid = false;
+    double decisionPpq = 0.0;
     fx::ScrubVoice scrub;                     // F-M19 performance voice (independent of the scheduler)
     SpectralSmear spectral;
     fx::FxMeters* fxMeters = nullptr;

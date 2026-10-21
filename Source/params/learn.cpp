@@ -4,13 +4,19 @@
 namespace gapfill
 {
 
-void addLearnParameters (juce::AudioProcessorValueTreeState::ParameterLayout& /*layout*/)
+// F-X05 Local preference learning (docs/dev/features/F-X05 section 4). Neutral = fx05_on off.
+void addLearnParameters (juce::AudioProcessorValueTreeState::ParameterLayout& layout)
 {
-    // No parameters yet. Add them here in the same order as GAPFILL_PARAMS_LEARN.
+    using namespace builders;
+
+    layout.add (std::make_unique<APB> (makeID ("fx05_on", 2), "Learn My Taste", false));
+    layout.add (std::make_unique<APF> (makeID ("fx05_strength", 2), "Taste Strength",
+                                       juce::NormalisableRange<float> (0.0f, 100.0f, 1.0f), 50.0f, Attr().withLabel ("%")));
 }
 
-void addLearnPerformanceIds (juce::StringArray& /*ids*/)
+void addLearnPerformanceIds (juce::StringArray& ids)
 {
+    ids.add ("fx05_on");
 }
 
 } // namespace gapfill

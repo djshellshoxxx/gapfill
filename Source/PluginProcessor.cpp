@@ -198,6 +198,7 @@ void GapFillAudioProcessor::timerCallback()
 {
     drainFillEvents();
     explainState.timerTick (juce::Time::getMillisecondCounter());
+    contextState.timerTick (juce::Time::getMillisecondCounter(), pb (params.fx05_on), pv (params.fx05_strength) * 0.01f);
 
     const auto wanted = latencyToReport.load();
 
@@ -255,6 +256,7 @@ int GapFillAudioProcessor::drainFillEvents()
                 outcomeLog.push (batch[i]);
 
             explainState.onFillEvent (batch[i]);
+            contextState.onFillEvent (batch[i]);
         }
 
         total += n;

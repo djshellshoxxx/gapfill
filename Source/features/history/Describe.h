@@ -23,6 +23,7 @@ struct DescribeStrings
     const char* separator;      ///< between parts, e.g. " - "
     const char* locked;         ///< "Locked"
     const char* armed;          ///< "Lock armed"
+    const char* response;       ///< "Response" (F-L10: the fill answered the previous fills)
 };
 
 const DescribeStrings& strings() noexcept;

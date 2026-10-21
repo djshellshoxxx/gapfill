@@ -13,7 +13,11 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_CALL(X)
+#define GAPFILL_PARAMS_CALL(X) \
+    X (fl10_mode, "fl10_mode") \
+    X (fl10_strength, "fl10_strength") \
+    X (fl10_calls, "fl10_calls") \
+    X (fl10_replies, "fl10_replies")
 
 namespace gapfill
 {

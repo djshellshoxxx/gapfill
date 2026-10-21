@@ -13,7 +13,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_LEARN(X)
+#define GAPFILL_PARAMS_LEARN(X) \
+    X (fx05_on, "fx05_on") \
+    X (fx05_strength, "fx05_strength")
 
 namespace gapfill
 {

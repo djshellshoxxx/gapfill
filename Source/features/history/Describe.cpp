@@ -6,7 +6,7 @@ namespace gapfill::history
 
 const DescribeStrings& strings() noexcept
 {
-    static const DescribeStrings en { { "Low", "Mid", "High" }, "ms", " - ", "Locked", "Lock armed" };
+    static const DescribeStrings en { { "Low", "Mid", "High" }, "ms", " - ", "Locked", "Lock armed", "Response" };
     return en;
 }
 
@@ -22,6 +22,10 @@ juce::String describeRecipe (const FillRecipe& r, double /*bpm*/)
         text << t.separator << t.bands[r.band];
 
     text << t.separator << juce::String ((int) r.lengthMs) << " " << t.millis;
+
+    if ((r.flags & FillRecipe::flagResponse) != 0)
+        text << t.separator << t.response;
+
     return text;
 }
 

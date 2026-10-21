@@ -16,6 +16,15 @@ void gatherContext (EngineSettings& s, const ParamCache& p) noexcept
     g.syncOn = pb (p.syncEnable);
     g.snap = {};
 
+    auto& c = s.perf.call;
+    c.mode = juce::jlimit (0, 2, pi (p.fl10_mode));
+    c.strength01 = juce::jlimit (0.0f, 1.0f, pv (p.fl10_strength) / 100.0f);
+    c.calls = juce::jlimit (2, 4, pi (p.fl10_calls));
+    c.replies = juce::jlimit (1, 4, pi (p.fl10_replies));
+
+    s.perf.taste.on = pb (p.fx05_on);
+    s.perf.taste.strength01 = juce::jlimit (0.0f, 1.0f, pv (p.fx05_strength) / 100.0f);
+
     auto& k = s.perf.key;
     k.autoOn = pb (p.scaleFollow);
     k.windowSeconds = juce::jlimit (4.0f, 30.0f, pv (p.fx03_window));
@@ -43,6 +52,7 @@ void ContextState::reset() noexcept
 void ContextState::onChunk (const float* mono, int numSamples, const AnalysisEngine& analysis,
                             std::int64_t chunkInputStart, EngineSettings& s) noexcept
 {
+    taste.apply (s);                                                  // F-X05 (identity while off / not ready / locked)
     groove.onChunk (analysis, chunkInputStart, numSamples, s);       // F-L09 (returns at once while off)
 
     // F-X03: detect the key (nothing runs while Auto key is off) and let the resolver

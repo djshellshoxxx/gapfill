@@ -92,6 +92,7 @@ void FillEngine::reset()
     resetPreview();                       // E-1: fades the preview, restarts its sequence
     lockState.resetRuntime();             // C-5: the locked recipe survives, the "latest fill" memory does not
     like.cancel();                        // C-11
+    responder.reset();                    // F-L10
     scrub.reset();
 
     spectral.reset();
@@ -461,6 +462,10 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
     const auto ppq = havePpq ? base.ppqAtBlockStart + (double) (outputPos - blockStartPos) / base.samplesPerBeat
                              : 0.0;
 
+    decisionPpqValid = havePpq;                 // F-L10 (WP7): timing of the fill that may start
+    decisionPpq = ppq;
+    responder.configure (base.perf.call, base.perf.lockOn || like.active() || base.fillTypeIndex > 0);
+
     EngineSettings s = base;
     Effective::applyAtDecision (s, ppq, { havePpq, ppq, base.perf.tsNum, base.perf.tsDen,
                                           havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0 });
@@ -610,6 +615,7 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
     // ---- length ------------------------------------------------------------
     auto scale = lerp (0.5f, 1.0f, s.complexity01) * lerp (0.7f, 1.0f, ctx.conf);
     scale *= 1.0f + s.chaos01 * rng.nextBipolar() * 0.25f;
+    scale *= responder.lengthScale();       // F-L10 (1 unless a response is active)
 
     auto lengthSamples = (std::int64_t) ((double) ctx.usable * juce::jlimit (0.2f, 1.2f, scale));
     lengthSamples = juce::jlimit (juce::jmin (ctx.minGapSamples, ctx.usable), ctx.usable, lengthSamples);
@@ -690,6 +696,8 @@ RejectReason FillEngine::adjustRecipe (FillPlan& plan, const GapContext& ctx, co
 
     fx::decideRenderModes (plan, ctx, s);       // WP8: Reverse Swell / Granular Cloud flags
     scale::decidePitch (plan, ctx, s);          // WP7 N-MUS: Scale Lock snaps the pitch decision
+    if (responder.active() && (plan.recipe.flags & FillRecipe::flagFromLock) == 0)
+        plan.recipe.flags |= FillRecipe::flagResponse;     // WP7 F-L10: History marks response fills
     return RejectReason::None;
 }
 
@@ -787,6 +795,8 @@ void FillEngine::noteFillStarted (const FillPlan& plan, std::int64_t outputPos) 
 
     if ((plan.recipe.flags & FillRecipe::flagFromLock) == 0)
         like.noteStarted();                     // C-11: only started, unlocked, natural fills count
+
+    responder.onNaturalFillStarted (plan.recipe, decisionPpqValid, decisionPpq, outputPos, sr);       // F-L10
     if (blockIO != nullptr && blockIO->numStarts < fx::kMaxFillStarts)      // HOOK (WP8, FX-0)
         blockIO->starts[blockIO->numStarts++] = { plan.recipe, outputPos };
 }
@@ -833,6 +843,8 @@ int FillEngine::chooseAlgorithm (float lengthMs, const EngineSettings& s, Rng& r
 
         if (likeApplies (s))                    // C-11: a bias on the weight, never a new candidate
             w *= like.algoFactor (i);
+
+        w *= responder.algoFactor (i);          // F-L10 (1 unless a response is active)
 
         // Avoid immediate repetition unless chaos is low (where repetition is a
         // musical choice rather than an accident).
@@ -889,6 +901,8 @@ int FillEngine::chooseBand (const AnalysisFrame& frame, const EngineSettings& s,
 
         if (likeApplies (s))                    // C-11
             w *= like.bandFactor (b);
+
+        w *= responder.bandFactor (b);          // F-L10
 
         weights[b] = w;
         total += w;

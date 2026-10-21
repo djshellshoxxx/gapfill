@@ -12,6 +12,7 @@
 #include "EnergyTracker.h"
 #include "../groove/GrooveState.h"
 #include "../keydetect/AutoKey.h"
+#include "../taste/TasteService.h"
 #include "../../Parameters.h"
 #include "../../dsp/EngineSettings.h"
 
@@ -34,7 +35,13 @@ public:
                   EngineSettings& s) noexcept;
 
     /** Audio thread: the commands the context features own (GrooveLearn / GrooveReset). */
-    void onCommand (const Command& c) noexcept   { groove.onCommand (c); }
+    void onCommand (const Command& c) noexcept   { groove.onCommand (c); taste.onCommand (c); }
+
+    /** Message thread (processor timer / fill-event drain): taste ratings and the library file. */
+    void timerTick (std::uint32_t nowMs, bool tasteOn, float tasteStrength01) { taste.timerTick (nowMs, tasteOn, tasteStrength01); }
+    void onFillEvent (const FillEvent& e) noexcept { taste.onFillEvent (e); }
+    taste::TasteService& tasteService() noexcept { return taste; }
+    const taste::TasteService& tasteService() const noexcept { return taste; }
 
     /** Audio thread: the host transport jumped. */
     void onTransportJump() noexcept              { groove.onTransportJump(); }
@@ -52,6 +59,7 @@ private:
     EnergyTracker energyTracker;
     groove::GrooveState groove;
     keydetect::AutoKey key;
+    taste::TasteService taste;
     bool energyRunning = false;
     std::atomic<int> displayLevel { -1 };
 };

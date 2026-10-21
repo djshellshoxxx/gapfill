@@ -2,6 +2,8 @@
 
 #include "../Parameters.h"
 #include "../features/fx/FxSettings.h"
+#include "../features/callresponse/Responder.h"
+#include "../features/taste/TasteModel.h"
 #include "../features/groove/GrooveSettings.h"
 #include "../features/keydetect/KeySettings.h"
 #include "../features/scale/ScaleLock.h"
@@ -33,6 +35,8 @@ struct PerformanceSettings
     EnergySettings energy;            // F-L22
     groove::GrooveSettings groove;    // F-L09
     keydetect::KeySettings key;       // F-X03
+    callresponse::ResponderSettings call;   // F-L10
+    taste::TasteSettings taste;             // F-X05
     bool  likeActive = false;         // C-11
     int   quantDivision = -1;         // E-2 fill-length quantise, -1 off
     bool  modSync = false;            // E-2

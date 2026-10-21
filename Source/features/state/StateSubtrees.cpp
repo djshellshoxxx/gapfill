@@ -7,6 +7,7 @@
 #include "../explain/ExplainState.h"
 #include "../groove/GrooveStateTree.h"
 #include "../keydetect/KeyStateTree.h"
+#include "../taste/TasteStateTree.h"
 
 namespace gapfill::state
 {
@@ -34,6 +35,7 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
         { "Health",  1 * Ki,  explain::validateSubtree, explain::applySubtree, explain::serialiseSubtree, explain::resetSubtree },   // N-USE (WP3)
         { "Learn",   4 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-X05
         { "Key",     64,      keydetect::validateKeyTree, keydetect::applyKeyTree, keydetect::serialiseKeyTree, keydetect::resetKeyTree },   // F-X03 (WP7)
+        { "Taste",   160,     taste::validateTasteTree, taste::applyTasteTree, taste::serialiseTasteTree, taste::resetTasteTree },   // F-X05 (WP7)
     };
 
     return table;
