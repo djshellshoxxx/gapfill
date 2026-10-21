@@ -120,6 +120,8 @@ private:
     {
         std::unique_ptr<GapToggle> enabled;
         std::unique_ptr<GapKnob> amount, intensity, probability;
+        std::unique_ptr<ParamComboBox> fillType;       // C-9: Auto or a forced fill type for this lane
+        std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> fillTypeAttachment;
         float confidence = 0.0f;
         juce::Rectangle<int> meterBounds;
     };

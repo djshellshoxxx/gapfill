@@ -5,6 +5,7 @@
 #include <atomic>
 #include <cstdint>
 #include <type_traits>
+#include <vector>
 
 namespace gapfill
 {
@@ -97,7 +98,7 @@ public:
 
 private:
     juce::AbstractFifo fifo { capacity };
-    std::array<VizFrame, (size_t) capacity> data {};
+    std::vector<VizFrame> data = std::vector<VizFrame> ((size_t) capacity);   // heap: keeps the processor small on the stack
     std::atomic<bool> enabled { false };
 };
 

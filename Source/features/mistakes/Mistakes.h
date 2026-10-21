@@ -23,6 +23,7 @@
 
 #include <array>
 #include <cstdint>
+#include <vector>
 
 namespace gapfill::mistakes
 {
@@ -110,6 +111,9 @@ class MistakeStage
 public:
     static constexpr int wobbleBufferSize = 2048;       // power of two; > 2 * maximum modulation depth at 192 kHz
 
+    /** Allocates the wobble delay lines (heap, once, from FillVoice::prepare). Without it Wobble stays inactive. */
+    void prepare();
+
     /** Re-validates the type against the algorithm; an invalid combination leaves the stage inactive. */
     void start (const StageConfig&) noexcept;
 
@@ -133,7 +137,8 @@ private:
     // Wobble
     float wobblePhase = 0.0f, wobbleInc = 0.0f, wobbleDepth = 0.0f, wobbleBase = 0.0f;
     int wobbleWrite = 0;
-    float wobbleBuf[2][wobbleBufferSize] {};
+    std::vector<float> wobbleStore;                    // 2 * wobbleBufferSize, allocated in prepare()
+    float* wobbleBuf[2] { nullptr, nullptr };
 
     // Missed repeat
     int muteStart = 0, muteEnd = 0, ramp = 1;
