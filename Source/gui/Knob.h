@@ -23,6 +23,16 @@ void showParameterMenu (juce::Component& owner,
                         juce::AudioProcessorValueTreeState& state,
                         const juce::String& parameterID);
 
+/** Component property naming the parameter a control edits. Set by every Gap*
+    control (and by the editor for bypass) so the U-9 status line can find the
+    parameter under the mouse without knowing the control types. */
+inline constexpr const char* kParamIdProperty = "gapfillParamId";
+
+inline void tagParameter (juce::Component& c, const juce::String& parameterID)
+{
+    c.getProperties().set (kParamIdProperty, parameterID);
+}
+
 /** Applies the GapFill palette to a transient window by colour id. */
 void applyPaletteTo (juce::AlertWindow& window);
 

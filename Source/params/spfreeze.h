@@ -13,7 +13,14 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_SPFREEZE(X)
+#define GAPFILL_PARAMS_SPFREEZE(X) \
+    X (sfzAmount, "sfzAmount") \
+    X (sfzLength, "sfzLength") \
+    X (sfzDecay, "sfzDecay") \
+    X (sfzSmear, "sfzSmear") \
+    X (sfzMorph, "sfzMorph") \
+    X (sfzPitch, "sfzPitch") \
+    X (sfzWidth, "sfzWidth")
 
 namespace gapfill
 {

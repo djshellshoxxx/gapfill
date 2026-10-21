@@ -17,6 +17,7 @@ struct Preset
 {
     const char* name;
     const char* description;
+    const char* category;      ///< one of presets::presetCategories() (U-4); checked by validate_repo.py
     std::vector<PresetValue> values;
 };
 

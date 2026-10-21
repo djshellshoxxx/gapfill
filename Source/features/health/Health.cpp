@@ -226,8 +226,10 @@ int HealthTracker::list (Entry* out, int maxOut, std::uint32_t mutedMask) const 
 
 FooterKind selectFooter (const FooterCandidates& c) noexcept
 {
+    if (c.haveInfo)     return FooterKind::Info;
     if (c.haveHealth)   return FooterKind::Health;
     if (c.haveFixit)    return FooterKind::Fixit;
+    if (c.haveHover)    return FooterKind::Hover;
     if (c.haveLastGap)  return FooterKind::LastGap;
     return FooterKind::Nothing;
 }

@@ -29,6 +29,16 @@ def extract_preset_parameter_ids(text: str) -> list[str]:
     return [parameter_id for parameter_id, _ in PRESET_PARAM_RE.findall(text)]
 
 
+PRESET_CATEGORIES = ["Subtle", "Rhythmic", "Glitch", "Ambient", "Dub", "Destructive", "Utility", "Starting Points"]
+# { "Name", "description", "Category", {   -- the factory preset header (Source/Presets.cpp, U-4/U-10).
+PRESET_HEADER_RE = re.compile(r'\{\s*"([^"]+)"\s*,\s*(?://[^\n]*\n\s*)?"([^"]*)"\s*,\s*"([^"]*)"\s*,\s*\{')
+
+
+def extract_preset_headers(text: str) -> list[tuple[str, str, str]]:
+    """(name, description, category) of every factory preset."""
+    return PRESET_HEADER_RE.findall(text)
+
+
 def duplicates(values: list[str]) -> list[str]:
     counts = Counter(values)
     return sorted(value for value, count in counts.items() if count > 1)
@@ -165,6 +175,18 @@ def validate(root: Path) -> list[str]:
         if preset_id not in known:
             errors.append(f"factory preset references unknown parameter ID: {preset_id}")
 
+    headers = extract_preset_headers(presets)
+    for name, _description, category in headers:
+        if category not in PRESET_CATEGORIES:
+            errors.append(f"factory preset '{name}' has category '{category}', which is not in {PRESET_CATEGORIES}")
+    for name in duplicates([name for name, _, _ in headers]):
+        errors.append(f"duplicate factory preset name: {name}")
+    for name, description, _category in headers:
+        if len(name) > 32:
+            errors.append(f"factory preset name longer than 32 characters: {name}")
+        if len(description) > 90:
+            errors.append(f"factory preset description longer than 90 characters: {name}")
+
     required_cmake_markers = [
         "project(GapFill VERSION",
         "FORMATS",
@@ -225,6 +247,7 @@ def main() -> int:
         total += len(extract_parameter_ids(header.read_text(encoding="utf-8")))
     print(f" - {total} stable parameter IDs (locked per group in tools/param_ids)")
     print(" - factory preset parameter references resolve")
+    print(" - factory presets have a valid category, unique short names and descriptions")
     print(" - required specs/docs are present")
     print(" - build and CI target markers are present")
     return 0

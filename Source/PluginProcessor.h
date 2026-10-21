@@ -21,6 +21,7 @@
 #include "features/fx/FxChain.h"
 #include "features/fx/FxUiState.h"
 #include "features/explain/ExplainState.h"
+#include "features/ui/UiState.h"
 
 namespace gapfill
 {
@@ -102,6 +103,10 @@ public:
     /** WP3 Explain & assist: health codes, telemetry, fix-it, timeline, event recorder. */
     explain::ExplainState& getExplainState() noexcept               { return explainState; }
     const explain::ExplainState& getExplainState() const noexcept   { return explainState; }
+
+    /** WP11 UI shell state: status board, Simple/Advanced view mode (message thread). */
+    ui::UiState& getUiState() noexcept                              { return uiState; }
+    const ui::UiState& getUiState() const noexcept                  { return uiState; }
 
     //==========================================================================
     // Cross-thread queues (docs/dev/02 F0-4)
@@ -238,6 +243,7 @@ private:
     RecipeHistory   recipeHistory;   // message thread only (survives the editor)
     GapOutcomeLog   outcomeLog;      // message thread only
     explain::ExplainState explainState;   // WP3; attached to apvts in the constructor
+    ui::UiState uiState;                  // WP11: status board, view mode
 
     // --- buffers (all sized in prepareToPlay) ---
     juce::AudioBuffer<float> mainBuffer, wetBuffer, delayRing;

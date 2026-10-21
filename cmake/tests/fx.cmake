@@ -6,4 +6,5 @@ list(APPEND GAPFILL_TEST_SOURCES
     Tests/features/TestVoiceFxCards.cpp
     Tests/features/TestFxSection.cpp
     Tests/features/TestScrub.cpp
-)
+    Tests/features/TestSpectral.cpp
+    Tests/features/TestBusFx.cpp)

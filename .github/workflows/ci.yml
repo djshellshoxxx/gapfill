@@ -566,6 +566,21 @@ jobs:
             lipo "$clap/Contents/MacOS/GapFill" -verify_arch "${{ matrix.arch }}"
           fi
 
+      # Ninja-built bundles come out of the linker's ad-hoc signature without a
+      # Resources directory ("code has no resources but signature indicates they
+      # must be present"). Give every bundle a Resources dir, re-seal it ad hoc,
+      # then verify strictly. Every validator below still runs on these bundles.
+      - name: Ad-hoc sign and strictly verify bundles
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=build-ci/GapFill_artefacts/Release
+          for bundle in "$root/VST3/GapFill.vst3" "$root/AU/GapFill.component" "$root/CLAP/GapFill.clap" "$GAPFILL_APP"; do
+            if [ -d "$bundle" ]; then mkdir -p "$bundle/Contents/Resources"; fi
+            codesign --force --deep --sign - "$bundle"
+            codesign --verify --deep --strict --verbose=2 "$bundle"
+          done
+
       - name: Validator cache key (refreshed monthly)
         id: month
         shell: bash

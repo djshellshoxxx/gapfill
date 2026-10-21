@@ -13,7 +13,11 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_FORMANT(X)
+#define GAPFILL_PARAMS_FORMANT(X) \
+    X (fmtAmount, "fmtAmount") \
+    X (fmtShift, "fmtShift") \
+    X (fmtTilt, "fmtTilt") \
+    X (fmtVowel, "fmtVowel")
 
 namespace gapfill
 {

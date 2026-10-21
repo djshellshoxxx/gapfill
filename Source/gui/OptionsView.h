@@ -36,10 +36,14 @@ public:
 
     std::function<void()> onClose;
 
+    /** Free area at the bottom for the OptionsExtra slot (in this component's coordinates). */
+    juce::Rectangle<int> getExtraBounds() const noexcept   { return extraBounds; }
+
     /** Pushes the current values in without firing the callbacks. */
     void refresh (bool tooltipsEnabled, bool reducedMotionEnabled, bool keyboardNavigationEnabled);
 
 private:
+    juce::Rectangle<int> extraBounds;
     void updateDeviceRow();
 
     juce::ToggleButton tooltipToggle { "Show hover tooltips" };

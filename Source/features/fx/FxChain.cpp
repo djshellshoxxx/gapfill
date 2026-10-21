@@ -17,6 +17,12 @@ void FxChain::build()
     // Permanent order (docs/dev/12 FX-0): resonator -> fsdelay -> dub -> convo ->
     // spfreeze. Each bus card (WP9) adds one explicit line here.
     count = 0;
+    addBusCard (&busCards.formant);        // F-L20 (CardId order)
+    addBusCard (&busCards.resonator);      // F-M15
+    addBusCard (&busCards.fsdelay);        // F-L19
+    addBusCard (&busCards.dub);            // F-L15
+    addBusCard (&busCards.convo);          // F-L21
+    addBusCard (&busCards.spfreeze);       // F-X02
 }
 
 bool FxChain::addBusCard (BusFx* card) noexcept
@@ -114,6 +120,12 @@ void FxChain::processBus (juce::AudioBuffer<float>& wet, int start, int n, const
     ctx.numStarts = io.numStarts;
     ctx.blockStartPos = blockStartPos;
     ctx.duck = io.duck;
+    ctx.settings = &s;
+    ctx.samplesPerBeat = io.samplesPerBeat;
+    ctx.scaleMask = io.scaleMask;
+    ctx.scaleRoot = io.scaleRoot;
+    ctx.history = io.history;
+    ctx.historyOffset = io.historyOffset;
 
     const bool timed = (timingCounter++ & 63u) == 0;
     const auto t0 = timed ? juce::Time::getHighResolutionTicks() : 0;

@@ -36,7 +36,7 @@ GF_TEST (Slots, host_lays_components_out_left_to_right_with_8px_spacing)
     SlotHost host (proc, parent);
 
     GF_EXPECT (host.getNumComponents (Slot::HistoryDrawerExtra) == 2);
-    GF_EXPECT (host.getNumComponents (Slot::TopBarRight) == 0);
+    GF_EXPECT (host.getNumComponents (Slot::FileMenuExtra) == 0);
 
     host.setSlotBounds (Slot::HistoryDrawerExtra, { 10, 20, 208, 30 });
 

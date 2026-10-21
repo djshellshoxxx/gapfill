@@ -23,36 +23,38 @@ inline juce::String versionString()    { return juce::String (GAPFILL_VERSION); 
     plugin in the range; GapFill keeps the house burnt-orange as its primary. */
 namespace colours
 {
+    // F-D04: these are mutable so the contrast presets (features/access) can swap the palette at run
+    // time on the message thread; nothing else assigns them.
     // --- core palette (identical across the plugin range) -------------------
-    const juce::Colour background   { 0xff0e1116 };   // near-black, blue undertone
-    const juce::Colour panel        { 0xff171b22 };   // raised sections
-    const juce::Colour edge         { 0xff2a303a };   // 1px strokes / separators
-    const juce::Colour primary      { 0xffe8532a };   // burnt orange
-    const juce::Colour secondary    { 0xff4fb6c4 };   // muted teal
-    const juce::Colour text         { 0xffe6e8ec };
-    const juce::Colour textMuted    { 0xff8a929e };
-    const juce::Colour success      { 0xff7bc96f };
-    const juce::Colour warning      { 0xfff2c14e };
-    const juce::Colour clip         { 0xffe5484d };
-    const juce::Colour shadow       { 0x8c000000 };   // rgba(0,0,0,0.55)
+    inline juce::Colour background   { 0xff0e1116 };   // near-black, blue undertone
+    inline juce::Colour panel        { 0xff171b22 };   // raised sections
+    inline juce::Colour edge         { 0xff2a303a };   // 1px strokes / separators
+    inline juce::Colour primary      { 0xffe8532a };   // burnt orange
+    inline juce::Colour secondary    { 0xff4fb6c4 };   // muted teal
+    inline juce::Colour text         { 0xffe6e8ec };
+    inline juce::Colour textMuted    { 0xff8a929e };
+    inline juce::Colour success      { 0xff7bc96f };
+    inline juce::Colour warning      { 0xfff2c14e };
+    inline juce::Colour clip         { 0xffe5484d };
+    inline juce::Colour shadow       { 0x8c000000 };   // rgba(0,0,0,0.55)
 
     // --- knob body gradient -------------------------------------------------
-    const juce::Colour knobTop      { 0xff232833 };
-    const juce::Colour knobBottom   { 0xff14181f };
+    inline juce::Colour knobTop      { 0xff232833 };
+    inline juce::Colour knobBottom   { 0xff14181f };
 
     // --- semantic aliases used by the panels --------------------------------
     // GapFill's own reading of the palette: space/detection is the secondary
     // teal, generated fills are the primary accent, protection is the warning
     // colour and "signal present" is the success colour.
-    const juce::Colour panelRaised  = knobTop;
-    const juce::Colour outline      = edge;
-    const juce::Colour textDim      = textMuted;
-    const juce::Colour accent       = secondary;      // detection / usable space
-    const juce::Colour accentWarm   = primary;        // generated fills
-    const juce::Colour accentAmber  = warning;        // protection
-    const juce::Colour accentGreen  = success;        // signal on
-    const juce::Colour waveform     { 0xff5a6472 };
-    const juce::Colour gapFillTint  { 0x334fb6c4 };
+    inline juce::Colour panelRaised  = knobTop;
+    inline juce::Colour outline      = edge;
+    inline juce::Colour textDim      = textMuted;
+    inline juce::Colour accent       = secondary;      // detection / usable space
+    inline juce::Colour accentWarm   = primary;        // generated fills
+    inline juce::Colour accentAmber  = warning;        // protection
+    inline juce::Colour accentGreen  = success;        // signal on
+    inline juce::Colour waveform     { 0xff5a6472 };
+    inline juce::Colour gapFillTint  { 0x334fb6c4 };
 
     inline juce::Colour bandColour (int band)
     {
@@ -123,10 +125,16 @@ namespace fonts
 }
 
 //==============================================================================
+/** F-D04: keyboard focus ring thickness in px (2 or 3). Message thread only. */
+inline float focusRingWidth = 2.0f;
+
 class GapFillLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
     GapFillLookAndFeel();
+
+    /** Re-reads the `colours::` tokens into the JUCE colour ids (after a contrast preset change). */
+    void refreshColours();
 
     void drawRotarySlider (juce::Graphics&, int x, int y, int width, int height,
                            float sliderPos, float rotaryStartAngle, float rotaryEndAngle,

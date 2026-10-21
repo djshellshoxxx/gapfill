@@ -354,6 +354,7 @@ EngineSettings GapFillAudioProcessor::gatherEngineSettings()
     // (docs/dev/02 F0-5). Both are the identity while every feature is neutral.
     hooks::gatherFeatureSettings (s, params);
     Effective::MacroOutputs macroOut;
+    uiState.mutationOverlay.apply (s);          // F-L17 Mutation Lab preview: first stage, identity while inactive
     auto modulation = hooks::gatherModulationInputs (params);
     liveControl.fillModulationInputs (modulation, s.seed);
     Effective::applyBlock (s, modulation, macroOut);
@@ -643,8 +644,11 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     meters.captureActive.store (captureHeld, std::memory_order_relaxed);
 
     const auto analysisSettings = gatherAnalysisSettings (sidechainActive);
+    uiState.recordTap.write (monoMain.data(), numSamples);      // U-6 Auto-Calibrate tap (idle: one atomic load)
+    const auto analysisPosBefore = analysis.getAnalysisPosition();
     analysis.processBlock (monoMain.data(), sidechainActive ? monoSide.data() : nullptr,
                            numSamples, analysisSettings);
+    uiState.profile.accumulate (analysis, analysisPosBefore, analysis.getAnalysisPosition());   // F-M22 (idle: one atomic load)
 
     // ---- latency / lookahead --------------------------------------------
     const auto wantedLatency = juce::jlimit (0, maxLookaheadSamples,
@@ -1063,6 +1067,7 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     root.setProperty ("tooltips", tooltipsEnabled.load (std::memory_order_relaxed), nullptr);
     root.setProperty ("reducedMotion", reducedMotionEnabled.load (std::memory_order_relaxed), nullptr);
     root.setProperty ("keyboardNavigation", keyboardNavigationEnabled.load (std::memory_order_relaxed), nullptr);
+    uiState.writeState (root);
     root.appendChild (apvts.copyState(), nullptr);
     root.appendChild (midiLearn.toValueTree(), nullptr);
     state::writeSubtrees (*this, root, state::reservedSubtrees());
@@ -1346,6 +1351,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         tooltipsEnabled.store (restoredTooltips, std::memory_order_relaxed);
         reducedMotionEnabled.store (restoredReducedMotion, std::memory_order_relaxed);
         keyboardNavigationEnabled.store (restoredKeyboardNavigation, std::memory_order_relaxed);
+        uiState.readState (root);
 
         // Absent in state written before MIDI learn existed; leave the current
         // mappings alone in that case rather than wiping them.
