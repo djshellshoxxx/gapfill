@@ -13,7 +13,10 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_SCRUB(X)
+#define GAPFILL_PARAMS_SCRUB(X) \
+    X (scrubOn, "scrubOn") \
+    X (scrubPos, "scrubPos") \
+    X (scrubWidth, "scrubWidth")
 
 namespace gapfill
 {

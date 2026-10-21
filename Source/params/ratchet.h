@@ -13,7 +13,12 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_RATCHET(X)
+#define GAPFILL_PARAMS_RATCHET(X) \
+    X (ratAmount, "ratAmount") \
+    X (ratDiv, "ratDiv") \
+    X (ratRepeats, "ratRepeats") \
+    X (ratAccel, "ratAccel") \
+    X (ratGate, "ratGate")
 
 namespace gapfill
 {

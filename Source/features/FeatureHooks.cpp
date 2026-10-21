@@ -1,5 +1,6 @@
 #include "FeatureHooks.h"
 #include "../dsp/FillEngine.h"
+#include "fx/FxHooks.h"
 
 namespace gapfill::hooks
 {
@@ -13,7 +14,7 @@ Effective::ModulationInputs gatherModulationInputs (const ParamCache& /*params*/
     return in;
 }
 
-void gatherFeatureSettings (EngineSettings& /*s*/, const ParamCache& /*params*/) noexcept
+void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcept
 {
     // One explicit call per feature, in this order (add yours below):
     //   gatherLock (s, params);          // C-5
@@ -30,6 +31,8 @@ void gatherFeatureSettings (EngineSettings& /*s*/, const ParamCache& /*params*/)
     //   gatherHgran, gatherWetout, gatherSafety, gatherMidiout, gatherScdrive, gatherBandfx,
     //   gatherGroove, gatherCall, gatherEnergy, gatherTension, gatherBattle, gatherSection,
     //   gatherLearn, gatherCoop, gatherQuality
+
+    fx::gatherFx (s, params);           // WP8: swell, cloud, ratchet, rcrush, tapedestr, bandfx (scrub: F-M19)
 }
 
 void dispatchCommand (FillEngine& /*engine*/, const Command& /*command*/) noexcept
