@@ -43,8 +43,13 @@ GF_TEST (Info, every_parameter_has_info)
     const auto allow = readAllowlist();
     const auto missing = info::idsMissingInfo();
 
+    juce::StringArray notAllowed;
+
     for (const auto& id : missing)
-        GF_EXPECT_MSG (allow.contains (id), "parameter without a ParamInfo entry (add Source/features/<f>/Info.cpp): " + id);
+        if (! allow.contains (id))
+            notAllowed.add (id);
+
+    GF_EXPECT_MSG (notAllowed.isEmpty(), "parameters without a ParamInfo entry (add Source/features/<f>/Info.cpp): " + notAllowed.joinIntoString (" "));
 
     // Core ids must never be allow-listed.
     for (const auto& id : { "fill", "density", "bypass", "capture", "wTapeStop", "protSC", "output" })
@@ -61,8 +66,13 @@ GF_TEST (Info, allowlist_only_shrinks)
 {
     const auto missing = info::idsMissingInfo();
 
+    juce::StringArray stale;
+
     for (const auto& id : readAllowlist())
-        GF_EXPECT_MSG (missing.contains (id), "stale allow-list line (already has info, or no such parameter): " + id);
+        if (! missing.contains (id))
+            stale.add (id);
+
+    GF_EXPECT_MSG (stale.isEmpty(), "stale allow-list lines (already have info, or no such parameter): " + stale.joinIntoString (" "));
 }
 
 GF_TEST (Info, tooltip_text_format)
