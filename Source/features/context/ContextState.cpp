@@ -28,6 +28,12 @@ void gatherContext (EngineSettings& s, const ParamCache& p) noexcept
     s.perf.taste.on = pb (p.fx05_on);
     s.perf.taste.strength01 = juce::jlimit (0.0f, 1.0f, pv (p.fx05_strength) / 100.0f);
 
+    auto& hg = s.perf.harmonic;
+    hg.amount01 = juce::jlimit (0.0f, 1.0f, pv (p.hgAmount) / 100.0f);
+    hg.voices = juce::jlimit (1, 6, pi (p.hgVoices));
+    hg.motion01 = juce::jlimit (0.0f, 1.0f, pv (p.hgMotion) / 100.0f);
+    hg.tone = juce::jlimit (-1.0f, 1.0f, pv (p.hgTone) / 100.0f);
+
     auto& a = s.perf.arr;
     a.on = pb (p.fx04_on);
     a.calm01 = juce::jlimit (0.0f, 1.0f, pv (p.fx04_calm) / 100.0f);

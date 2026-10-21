@@ -19,6 +19,7 @@ const std::vector<ViewRule>& rules()
         { "creative.advancedRows",  false, true },    // seed, wet width, tempo sync + divisions, ping pong, mono wet
         { "detection.rest",         false, true },    // everything in the Detection panel except Sensitivity
         { "protection.rest",        false, true },    // everything in the Protection panel except Transient Protect
+        { "performance.musical",    false, true },    // WP7 musical-context strips in the Performance tab (Scale Lock keeps a read-only key chip)
         { "creative.macros",        true,  true },
         { "creative.fillType",      true,  true },
         { "creative.extra",         true,  true },

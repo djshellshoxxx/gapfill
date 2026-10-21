@@ -29,6 +29,11 @@ struct FxMeters
     std::atomic<bool> cloudLimited { false };
     std::atomic<std::uint32_t> cloudDropped { 0 };       ///< grains that could not be allocated
 
+    // --- F-X01 (WP7): the last harmonic pitch step ---
+    std::atomic<float> hgF0 { 0.0f };                    ///< detected f0 of the last harmonic fill, 0 = none
+    std::atomic<float> hgConfidence { 0.0f };
+    std::atomic<std::int32_t> hgState { 0 };             ///< 0 none yet, 1 harmonic used, 2 not pitched (plain Granular)
+
     // --- F-M16 / tempo-locked cards ---
     std::atomic<bool> tempoFallback { false };
 

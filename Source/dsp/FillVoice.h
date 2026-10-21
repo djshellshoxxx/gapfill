@@ -9,6 +9,7 @@
 #include "../features/fx/FxSettings.h"
 #include "../features/fx/VoiceFxChain.h"
 #include "../features/groove/GrooveWarp.h"
+#include "../features/harmonic/HarmonicGrains.h"
 #include "../features/scale/VoiceQuantiser.h"
 #include "../features/swell/SwellMode.h"
 
@@ -92,6 +93,9 @@ struct VoiceSetup
 
     /** F-L09 Groove inheritance: shifts of the Stutter repeat / Delay tap boundaries. Neutral = off. */
     groove::GrooveShifts grooveShifts;
+
+    /** F-X01 Harmonic granular: the pitch step result for a Granular fill. Neutral = disabled. */
+    harmonic::HarmonicSetup harmonicSetup;
 };
 
 //==============================================================================
@@ -356,6 +360,7 @@ private:
     // --- effects (docs/dev/12 FX-0, WP8) ---
     fx::SwellMode swellMode;
     fx::CloudMode cloudMode;
+    harmonic::HarmonicGrains harmonicGrains;   // F-X01 (idle unless the setup enables it)
     scale::VoiceQuantiser scaleQ;      ///< N-MUS Scale Lock (identity when off)
     fx::VoiceFxChain fxChain;
     float fxPostGain[fx::kMaxVoiceBlock] {};     ///< duck x kill, applied after the chain

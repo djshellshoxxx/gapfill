@@ -47,7 +47,7 @@ namespace
         GAPFILL_PARAMS_SPFREEZE (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_CONVO (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_SCRUB (GAPFILL_SCENE_ADD)
-        GAPFILL_PARAMS_HGRAN (GAPFILL_SCENE_ADD)
+        // hgran (F-X01, 4 ids) is not scene-recallable: the default scope is already at the 128-id file cap.
         GAPFILL_PARAMS_BANDFX (GAPFILL_SCENE_ADD)
     }
 

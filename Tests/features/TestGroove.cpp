@@ -285,18 +285,18 @@ GF_TEST (Groove, sync_off_and_inactive_settings_write_no_shift)
     setup.stutterSeconds = 0.125f;
     setup.sampleRate = 48000.0;
 
-    context::prepareVoiceSetup (setup, plan, ctx, s);
+    context::prepareVoiceSetup (setup, plan, ctx, s, SourceHistory(), nullptr);
     GF_EXPECT (! setup.grooveShifts.on);
 
     s.perf.groove.syncOn = true;
-    context::prepareVoiceSetup (setup, plan, ctx, s);
+    context::prepareVoiceSetup (setup, plan, ctx, s, SourceHistory(), nullptr);
     GF_EXPECT (setup.grooveShifts.on);
 
     // Algorithms without a subdivision grid ignore it.
     VoiceSetup other;
     other.algo = Algo::Granular;
     other.sampleRate = 48000.0;
-    context::prepareVoiceSetup (other, plan, ctx, s);
+    context::prepareVoiceSetup (other, plan, ctx, s, SourceHistory(), nullptr);
     GF_EXPECT (! other.grooveShifts.on);
 
     // Invalid snapshot (confidence gate): offsets are 0.
@@ -305,7 +305,7 @@ GF_TEST (Groove, sync_off_and_inactive_settings_write_no_shift)
     gated.algo = Algo::Delay;
     gated.delaySeconds = 0.125f;
     gated.sampleRate = 48000.0;
-    context::prepareVoiceSetup (gated, plan, ctx, s);
+    context::prepareVoiceSetup (gated, plan, ctx, s, SourceHistory(), nullptr);
     GF_EXPECT (! gated.grooveShifts.on);
 }
 

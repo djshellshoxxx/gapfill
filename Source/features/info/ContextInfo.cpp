@@ -48,6 +48,11 @@ namespace
         { "fx04_lift",        "Arrangement Lift", "More and longer fills just before an expected section change and in builds", "30-70", "%" },
         { "fx04_settle",      "Arrangement Settle", "Hold fills back right after a new section starts so the downbeat lands", "10-50", "%" },
         { "fx04_sensitivity", "Arrangement Sensitivity", "How readily a change in the music counts as a new section", "40-60", "%" },
+
+        { "hgAmount", "Harmonic Amount", "How often Granular fills become stacked harmonies of the source pitch", "30-100", "%" },
+        { "hgVoices", "Harmonic Voices", "How many harmony layers play: unison, octave, fifth, third and more", "2-4", "voices" },
+        { "hgMotion", "Harmonic Motion", "How much the grains drift through the source and detune", "20-50", "%" },
+        { "hgTone",   "Harmonic Tone",   "Darker to brighter harmony layers", "", "%" },
     };
 }
 

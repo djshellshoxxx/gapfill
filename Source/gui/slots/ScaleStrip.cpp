@@ -1,11 +1,12 @@
 // N-MUS Scale Lock controls (docs/dev/12 section 5): root and scale choices, the
 // snap amount, and a read-only "Key: D Natural Minor" chip whose tooltip lists the
-// active pitch classes. Registered in Slot::PerformanceStrip; the slot stays empty
+// active pitch classes. Registered in Slot::PerformanceTab; the slot stays empty
 // until UI-0 (WP11) reserves its rectangle in PluginEditor::resized.
 
 #include "../Knob.h"
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
+#include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
 #include "../../features/scale/ScaleLock.h"
 
@@ -19,7 +20,8 @@ namespace
     {
     public:
         explicit ScaleStrip (GapFillAudioProcessor& proc)
-            : state (proc.getValueTreeState()),
+            : owner (proc),
+              state (proc.getValueTreeState()),
               root (state, "scaleRoot", "Key",
                     "The song's tonic. Pitched fills are kept to intervals that belong to the chosen scale around this note."),
               type (state, "scaleType", "Scale",
@@ -37,7 +39,9 @@ namespace
             chip.setFont (fonts::label (11.0f));
             addAndMakeVisible (chip);
 
-            refreshChip();
+            setSize (musical::kStripWidth, 64);
+            applyView();
+            refresh();
             startTimerHz (4);
         }
 
@@ -46,6 +50,13 @@ namespace
         void resized() override
         {
             auto r = getLocalBounds();
+
+            if (! controlsShown)
+            {
+                chip.setBounds (r);
+                return;
+            }
+
             root.setBounds (r.removeFromLeft (juce::jmax (56, r.getWidth() / 6)));
             r.removeFromLeft (8);
             type.setBounds (r.removeFromLeft (juce::jmax (110, r.getWidth() / 3)));
@@ -56,7 +67,26 @@ namespace
         }
 
     private:
-        void timerCallback() override { refreshChip(); }
+        void applyView()
+        {
+            // Simple view keeps a read-only "Key: D Natural Minor" chip; the controls appear in Advanced.
+            const bool adv = musical::advancedView (owner);
+
+            if (adv != controlsShown)
+            {
+                controlsShown = adv;
+                root.setVisible (adv);
+                type.setVisible (adv);
+                amount.setVisible (adv);
+                resized();
+            }
+
+            musical::fit (*this, true, adv ? 64 : 28);
+        }
+
+        void timerCallback() override { applyView(); refresh(); }
+
+        void refresh() { refreshChip(); }
 
         void refreshChip()
         {
@@ -81,13 +111,15 @@ namespace
             return 0;
         }
 
+        GapFillAudioProcessor& owner;
         juce::AudioProcessorValueTreeState& state;
         GapCombo root, type;
         GapKnob amount;
         juce::Label chip;
+        bool controlsShown = true;
     };
 
-    const SlotRegistrar scaleStrip ({ Slot::PerformanceStrip, 100,
+    const SlotRegistrar scaleStrip ({ Slot::PerformanceTab, 410,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<ScaleStrip> (proc);

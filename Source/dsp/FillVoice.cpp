@@ -192,6 +192,7 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
     setupData = setup;
     rng.seed (setup.rngSeed);
     noiseRng.seed (hashCombine (setup.rngSeed, 0x51ED270Bu));
+    harmonicGrains.reset();                         // F-X01: configured below for a harmonic Granular fill
     scaleQ.begin (setup.scaleLock, setup.rngSeed);      // HOOK (N-MUS): salted sub-RNG, no legacy draws
 
     totalLength = juce::jmax (32, setup.lengthSamples);
@@ -514,6 +515,7 @@ void FillVoice::configureAlgorithm()
             cloudMode.configure (setupData.modes.cloud, setupData.fxStart.settings.cloud, chaos,
                                  setupData.sourceAnchor, setupData.rngSeed, sr);
             cloudMode.setPitchQuantiser (scaleQ.active() ? &scale::VoiceQuantiser::cloudQuantise : nullptr, &scaleQ);   // N-MUS
+            harmonicGrains.configure (setupData.harmonicSetup, setupData.sourceAnchor, sr, setupData.rngSeed);           // F-X01
             break;
         }
 
@@ -958,6 +960,13 @@ void FillVoice::genDelay (float& l, float& r) noexcept
 
 void FillVoice::genGranular (float& l, float& r, const SourceHistory& history) noexcept
 {
+    // HOOK (WP7, F-X01): period-synchronous harmonic grains replace the legacy grain scheduler.
+    if (harmonicGrains.active())
+    {
+        harmonicGrains.render (l, r, history, channels);
+        return;
+    }
+
     // HOOK (WP8, N-FX2): Granular Cloud render mode.
     if (cloudMode.generate (l, r, history, channels))
         return;

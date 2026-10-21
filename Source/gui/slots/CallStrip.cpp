@@ -1,10 +1,11 @@
 // F-L10 Call and response controls: mode, strength, call and response lengths and a
 // text status chip ("CALL 2/3", "RESPONSE 1/2", "No response: motif unclear (48 %)").
-// Registered in Slot::PerformanceStrip; the slot stays empty until UI-0 reserves it.
+// Registered in Slot::PerformanceTab; the slot stays empty until UI-0 reserves it.
 
 #include "../Knob.h"
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
+#include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
 #include "../../features/callresponse/Responder.h"
 
@@ -51,6 +52,8 @@ namespace
             chip.setJustificationType (juce::Justification::centredLeft);
             chip.setFont (fonts::label (11.0f));
             chip.setColour (juce::Label::textColourId, colours::textMuted);
+            setSize (musical::kStripWidth, 64);
+            applyView();
             refresh();
             startTimerHz (4);
         }
@@ -72,7 +75,9 @@ namespace
         }
 
     private:
-        void timerCallback() override { refresh(); }
+        void applyView() { musical::fit (*this, musical::advancedView (proc), 64); }
+
+        void timerCallback() override { applyView(); refresh(); }
 
         void refresh()
         {
@@ -92,7 +97,7 @@ namespace
         juce::Label chip;
     };
 
-    const SlotRegistrar callStrip ({ Slot::PerformanceStrip, 250,
+    const SlotRegistrar callStrip ({ Slot::PerformanceTab, 450,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<CallStrip> (proc);

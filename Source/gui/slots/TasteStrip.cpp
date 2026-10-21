@@ -1,10 +1,11 @@
 // F-X05 Local preference learning controls: LEARN MY TASTE, strength, Like / Skip the latest
 // fill, Undo, Reset, and a text readout of what was learned ("Leaning toward: Stutter 5 of 6; ...").
-// Registered in Slot::PerformanceStrip; the slot stays empty until UI-0 reserves it.
+// Registered in Slot::PerformanceTab; the slot stays empty until UI-0 reserves it.
 
 #include "../Knob.h"
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
+#include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
 
 namespace gapfill
@@ -58,6 +59,8 @@ namespace
             readout.setJustificationType (juce::Justification::topLeft);
             readout.setFont (fonts::label (11.0f));
             readout.setColour (juce::Label::textColourId, colours::textMuted);
+            setSize (musical::kStripWidth, 100);
+            applyView();
             refresh();
             startTimerHz (2);
         }
@@ -83,7 +86,9 @@ namespace
         }
 
     private:
-        void timerCallback() override { refresh(); }
+        void applyView() { musical::fit (*this, musical::advancedView (proc), 100); }
+
+        void timerCallback() override { applyView(); refresh(); }
 
         void rateCommand (CommandType type)
         {
@@ -135,7 +140,7 @@ namespace
         int noticeTicks = 0;
     };
 
-    const SlotRegistrar tasteStrip ({ Slot::PerformanceStrip, 350,
+    const SlotRegistrar tasteStrip ({ Slot::PerformanceTab, 460,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<TasteStrip> (proc);

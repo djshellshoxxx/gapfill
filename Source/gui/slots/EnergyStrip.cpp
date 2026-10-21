@@ -1,10 +1,11 @@
 // F-L22 Musical energy tracking controls: Follow amount, what it steers, and a
 // text badge "Energy: High" (text, not colour only; shown while Follow > 0).
-// Registered in Slot::PerformanceStrip; the slot stays empty until UI-0 reserves it.
+// Registered in Slot::PerformanceTab; the slot stays empty until UI-0 reserves it.
 
 #include "../Knob.h"
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
+#include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
 
 namespace gapfill
@@ -31,6 +32,8 @@ namespace
             badge.setFont (fonts::label (11.0f));
             badge.setColour (juce::Label::textColourId, colours::textMuted);
             addAndMakeVisible (badge);
+            setSize (musical::kStripWidth, 64);
+            applyView();
             refresh();
             startTimerHz (4);
         }
@@ -48,7 +51,9 @@ namespace
         }
 
     private:
-        void timerCallback() override { refresh(); }
+        void applyView() { musical::fit (*this, musical::advancedView (proc), 64); }
+
+        void timerCallback() override { applyView(); refresh(); }
 
         void refresh()
         {
@@ -73,7 +78,7 @@ namespace
         juce::Label badge;
     };
 
-    const SlotRegistrar energyStrip ({ Slot::PerformanceStrip, 200,
+    const SlotRegistrar energyStrip ({ Slot::PerformanceTab, 430,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<EnergyStrip> (proc);

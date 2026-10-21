@@ -1,15 +1,17 @@
 #include "ContextHooks.h"
 
 #include "../groove/GrooveWarp.h"
+#include "../harmonic/HarmonicHooks.h"
 #include "../scale/ScaleHooks.h"
 
 namespace gapfill::context
 {
 
 void prepareVoiceSetup (VoiceSetup& setup, const FillPlan& plan, const GapContext& ctx,
-                        const EngineSettings& s) noexcept
+                        const EngineSettings& s, const SourceHistory& history, fx::FxMeters* meters) noexcept
 {
     scale::prepareVoiceSetup (setup, plan, s);
+    harmonic::decide (setup, plan, ctx, s, history, meters);       // F-X01 (Granular fills only)
 
     // ---- F-L09 Groove: only tempo-synced Stutter repeats and Delay taps move ----------
     const auto& g = s.perf.groove;

@@ -1,10 +1,11 @@
 // F-X03 Automatic key detection controls: AUTO KEY and LOCK KEY switches and a text
 // readout ("Auto: A minor, 87 %" / "Auto: not detected - using manual C major").
-// Registered in Slot::PerformanceStrip; the slot stays empty until UI-0 reserves it.
+// Registered in Slot::PerformanceTab; the slot stays empty until UI-0 reserves it.
 
 #include "../Knob.h"
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
+#include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
 #include "../../features/keydetect/AutoKey.h"
 #include "../../features/scale/ScaleLock.h"
@@ -33,6 +34,8 @@ namespace
             readout.setFont (fonts::label (11.0f));
             readout.setColour (juce::Label::textColourId, colours::textMuted);
             addAndMakeVisible (readout);
+            setSize (musical::kStripWidth, 44);
+            applyView();
             refresh();
             startTimerHz (4);
         }
@@ -50,7 +53,9 @@ namespace
         }
 
     private:
-        void timerCallback() override { refresh(); }
+        void applyView() { musical::fit (*this, musical::advancedView (proc), 44); }
+
+        void timerCallback() override { applyView(); refresh(); }
 
         int raw (const char* id) const
         {
@@ -95,7 +100,7 @@ namespace
         juce::Label readout;
     };
 
-    const SlotRegistrar keyStrip ({ Slot::PerformanceStrip, 150,
+    const SlotRegistrar keyStrip ({ Slot::PerformanceTab, 420,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<KeyStrip> (proc);

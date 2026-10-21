@@ -1,11 +1,12 @@
 // F-M21 Tension / release controls: TENSION switch, shape, length, end behaviour, start bar and
 // the four lane depths, plus a text status ("Bar 5 of 8, rising" / "waiting for transport").
 // The multi-lane curve editor popover is not part of this build: the Custom shape reads its
-// curves from the saved <Tension> state. Registered in Slot::PerformanceStrip (hidden until UI-0).
+// curves from the saved <Tension> state. Registered in Slot::PerformanceTab (hidden until UI-0).
 
 #include "../Knob.h"
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
+#include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
 
 namespace gapfill
@@ -38,6 +39,8 @@ namespace
             status.setJustificationType (juce::Justification::centredLeft);
             status.setFont (fonts::label (11.0f));
             status.setColour (juce::Label::textColourId, colours::textMuted);
+            setSize (musical::kStripWidth, 130);
+            applyView();
             refresh();
             startTimerHz (4);
         }
@@ -47,13 +50,23 @@ namespace
         void resized() override
         {
             auto r = getLocalBounds();
-            const int cell = juce::jmax (52, r.getWidth() / 10);
-            on.setBounds (r.removeFromLeft (cell + 24).withHeight (28));
-            r.removeFromLeft (6);
+            auto top = r.removeFromTop (juce::jmin (62, r.getHeight()));
+            const int cell = juce::jmax (52, top.getWidth() / 7);
+            on.setBounds (top.removeFromLeft (cell + 24).withHeight (28));
+            top.removeFromLeft (6);
 
-            for (auto* c : std::initializer_list<juce::Component*> { &shape, &bars, &end, &start, &dDensity, &dIntensity, &dWidth, &dFx })
+            for (auto* c : std::initializer_list<juce::Component*> { &shape, &bars, &end, &start })
             {
-                c->setBounds (r.removeFromLeft (cell));
+                c->setBounds (top.removeFromLeft (cell));
+                top.removeFromLeft (6);
+            }
+
+            r.removeFromTop (6);
+            const int knob = juce::jmax (52, r.getWidth() / 7);
+
+            for (auto* c : std::initializer_list<juce::Component*> { &dDensity, &dIntensity, &dWidth, &dFx })
+            {
+                c->setBounds (r.removeFromLeft (knob));
                 r.removeFromLeft (6);
             }
 
@@ -61,7 +74,9 @@ namespace
         }
 
     private:
-        void timerCallback() override { refresh(); }
+        void applyView() { musical::fit (*this, musical::advancedView (proc), 130); }
+
+        void timerCallback() override { applyView(); refresh(); }
 
         void refresh()
         {
@@ -96,7 +111,7 @@ namespace
         juce::Label status;
     };
 
-    const SlotRegistrar tensionStrip ({ Slot::PerformanceStrip, 500,
+    const SlotRegistrar tensionStrip ({ Slot::PerformanceTab, 470,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<TensionStrip> (proc);

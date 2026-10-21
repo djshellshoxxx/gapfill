@@ -55,7 +55,7 @@ GF_TEST (Recipe, validity_rejects_every_out_of_range_field)
     GF_EXPECT (bad ([] (FillRecipe& r) { r.stereoMode = 4; }));
     GF_EXPECT (bad ([] (FillRecipe& r) { r.mistakeType = 16; }));
     GF_EXPECT (bad ([] (FillRecipe& r) { r.mistakeAmt = 101; }));
-    GF_EXPECT (bad ([] (FillRecipe& r) { r.flags = 0x80; }));
+    GF_EXPECT (! bad ([] (FillRecipe& r) { r.flags = 0xFF; }));       // the flags byte is fully assigned since F-L10 (bit 7 = response)
 }
 
 GF_TEST (Recipe, started_fills_report_valid_recipes_matching_the_engine)

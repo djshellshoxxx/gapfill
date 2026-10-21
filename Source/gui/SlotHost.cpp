@@ -105,7 +105,7 @@ int SlotHost::getStackHeight (Slot slot) const
     int n = 0;
 
     for (const auto& e : entries)
-        if (e.slot == slot)
+        if (e.slot == slot && e.preferredHeight > 0)       // a collapsed component (Simple view) takes no room
         {
             total += e.preferredHeight;
             ++n;
@@ -120,7 +120,7 @@ void SlotHost::componentMovedOrResized (juce::Component& c, bool, bool wasResize
         return;
 
     for (auto& e : entries)
-        if (e.component.get() == &c && c.getHeight() > 0 && c.getHeight() != e.preferredHeight)
+        if (e.component.get() == &c && c.getHeight() >= 0 && c.getHeight() != e.preferredHeight)
         {
             // A card folded or unfolded itself: remember the new height and re-stack.
             e.preferredHeight = c.getHeight();
@@ -182,6 +182,12 @@ void SlotHost::layout (Slot slot)
         {
             if (e.slot != slot)
                 continue;
+
+            if (e.preferredHeight <= 0)
+            {
+                e.component->setVisible (false);
+                continue;
+            }
 
             e.component->setVisible (show);
             e.component->setBounds (area.getX(), y, area.getWidth(), e.preferredHeight);

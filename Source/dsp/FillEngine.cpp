@@ -188,6 +188,8 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
     {
         io->numStarts = 0;
         io->samplesPerBeat = s.transportValid ? s.samplesPerBeat : 0.0;      // HOOK (WP9): bus cards
+        io->scaleMask = s.scaleLock.active() ? s.scaleLock.set.mask : (std::uint16_t) 0;   // WP7 N-MUS: Scale Lock reaches the resonator / formant cards
+        io->scaleRoot = s.scaleLock.set.root;
         io->history = &history;
         io->historyOffset = s.historyOffset;
     }
@@ -943,7 +945,7 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     }
 
     fx::prepareVoiceSetup (setup, plan, ctx, s, fxMeters);      // WP8: effect cards, swell landing, band routing
-    context::prepareVoiceSetup (setup, plan, ctx, s);           // WP7: Scale Lock (N-MUS) voice setup, groove shifts (F-L09)
+    context::prepareVoiceSetup (setup, plan, ctx, s, history, fxMeters);           // WP7: Scale Lock (N-MUS) voice setup, groove shifts (F-L09)
     return setup;
 }
 

@@ -13,7 +13,11 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_HGRAN(X)
+#define GAPFILL_PARAMS_HGRAN(X) \
+    X (hgAmount, "hgAmount") \
+    X (hgVoices, "hgVoices") \
+    X (hgMotion, "hgMotion") \
+    X (hgTone, "hgTone")
 
 namespace gapfill
 {

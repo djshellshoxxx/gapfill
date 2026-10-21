@@ -1,10 +1,11 @@
 // F-X04 Arrangement awareness controls: ARRANGEMENT switch, Calm / Lift / Settle / Sensitivity
 // knobs and a text readout ("Learning" / "Section 3 - high energy - next change in ~4 bars").
-// Registered in Slot::PerformanceStrip (hidden until UI-0 reserves its rectangle).
+// Registered in Slot::PerformanceTab (hidden until UI-0 reserves its rectangle).
 
 #include "../Knob.h"
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
+#include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
 
 namespace gapfill
@@ -33,6 +34,8 @@ namespace
             readout.setJustificationType (juce::Justification::centredLeft);
             readout.setFont (fonts::label (11.0f));
             readout.setColour (juce::Label::textColourId, colours::textMuted);
+            setSize (musical::kStripWidth, 64);
+            applyView();
             refresh();
             startTimerHz (2);
         }
@@ -55,7 +58,9 @@ namespace
         }
 
     private:
-        void timerCallback() override { refresh(); }
+        void applyView() { musical::fit (*this, musical::advancedView (proc), 64); }
+
+        void timerCallback() override { applyView(); refresh(); }
 
         void refresh()
         {
@@ -90,7 +95,7 @@ namespace
         juce::Label readout;
     };
 
-    const SlotRegistrar arrangementStrip ({ Slot::PerformanceStrip, 450,
+    const SlotRegistrar arrangementStrip ({ Slot::PerformanceTab, 480,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<ArrangementStrip> (proc);

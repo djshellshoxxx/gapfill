@@ -5,6 +5,7 @@
 #include "../Knob.h"
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
+#include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
 
 namespace gapfill
@@ -38,6 +39,8 @@ namespace
             readout.setJustificationType (juce::Justification::centredLeft);
             readout.setFont (fonts::label (11.0f));
             readout.setColour (juce::Label::textColourId, colours::textMuted);
+            setSize (musical::kStripWidth, 64);
+            applyView();
             refresh();
             startTimerHz (4);
         }
@@ -61,7 +64,9 @@ namespace
         }
 
     private:
-        void timerCallback() override { refresh(); }
+        void applyView() { musical::fit (*this, musical::advancedView (proc), 64); }
+
+        void timerCallback() override { applyView(); refresh(); }
 
         void refresh()
         {
@@ -110,7 +115,7 @@ namespace
         juce::Label readout;
     };
 
-    const SlotRegistrar grooveStrip ({ Slot::PerformanceStrip, 300,
+    const SlotRegistrar grooveStrip ({ Slot::PerformanceTab, 440,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<GrooveStrip> (proc);
