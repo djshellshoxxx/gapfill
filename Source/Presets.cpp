@@ -342,6 +342,36 @@ int getNumSurpriseProfiles() noexcept
     return (int) surpriseProfiles().size();
 }
 
+const SurpriseTargets& surpriseTargets (int profile) noexcept
+{
+    // Built once from surpriseProfiles() (the table Surprise itself reads); never mutated afterwards.
+    static const std::vector<SurpriseTargets> targets = []
+    {
+        std::vector<SurpriseTargets> out;
+
+        for (const auto& p : surpriseProfiles())
+        {
+            SurpriseTargets t;
+            t.name = p.name;
+            t.fill       = 0.5f * (p.fill.lo + p.fill.hi);
+            t.intensity  = 0.5f * (p.intensity.lo + p.intensity.hi);
+            t.complexity = 0.5f * (p.complexity.lo + p.complexity.hi);
+            t.chaos      = 0.5f * (p.chaos.lo + p.chaos.hi);
+            t.density    = 0.5f * (p.density.lo + p.density.hi);
+
+            for (int i = 0; i < numAlgos; ++i)
+                t.weight[i] = std::find (p.core.begin(), p.core.end(), (Algo) i) != p.core.end() ? 0.80f : 0.06f;
+
+            t.stutterDivision = p.divisions.empty() ? 0 : p.divisions.front();
+            out.push_back (t);
+        }
+
+        return out;
+    }();
+
+    return targets[(size_t) juce::jlimit (0, (int) targets.size() - 1, profile)];
+}
+
 int surpriseParameters (juce::AudioProcessorValueTreeState& state,
                         juce::Random& random,
                         int previousProfile,

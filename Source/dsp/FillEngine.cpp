@@ -4,6 +4,7 @@
 #include "../features/breathing/Breathing.h"
 #include "../features/budget/Budget.h"
 #include "../features/mistakes/Mistakes.h"
+#include "../features/evolve/Evolve.h"
 #include "../features/phrase/Phrase.h"
 #include "../features/timing/BarTiming.h"
 
@@ -356,6 +357,10 @@ void FillEngine::publishDecisionTelemetry (const EngineSettings& base, const Eng
     const auto breath = breathing::phaseAt (base.perf.breath, ppq, transport);
     telemetry.breathPhase.store ((float) breath, std::memory_order_relaxed);
     telemetry.breathOffset.store (breath >= 0.0 ? decided.density01 - base.density01 : 0.0f, std::memory_order_relaxed);
+
+    evolve::Waypoint waypoint;
+    telemetry.evolveProfile.store (evolve::waypointAt (base, ppq, transport, waypoint) ? waypoint.profile : -1,
+                                   std::memory_order_relaxed);
 
     telemetry.phrasePosition.store ((float) phrase::positionAt (base.perf.phrase, ppq, transport), std::memory_order_relaxed);
     telemetry.phraseMultiplier.store (decided.perf.probabilityMul, std::memory_order_relaxed);

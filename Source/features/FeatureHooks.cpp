@@ -2,6 +2,7 @@
 #include "../dsp/FillEngine.h"
 #include "breathing/Breathing.h"
 #include "budget/Budget.h"
+#include "evolve/Evolve.h"
 #include "phrase/Phrase.h"
 
 namespace gapfill::hooks
@@ -29,6 +30,9 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     // C-4 intensity envelope
     s.perf.envShape    = pi (params.fillShape);
     s.perf.envAmount01 = pv (params.fillShapeAmount) * 0.01f;
+
+    // C-8 evolve (choice 0..3 -> Off, 8, 16, 32 bars)
+    s.perf.evolve.periodBars = evolve::kPeriodChoices[juce::jlimit (0, 3, pi (params.evolve))];
 
     // C-9 per-band fill type (0 Auto, otherwise Algo + 1)
     s.perf.bandType[0] = juce::jlimit (0, numAlgos, pi (params.bandLowType));
