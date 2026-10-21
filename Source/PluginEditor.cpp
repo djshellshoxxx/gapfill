@@ -4,6 +4,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "PluginEditor.h"
+#include "features/info/ParamInfo.h"
+#include "features/mutation/Gui.h"
+#include "features/uiscale/UiScale.h"
+#include "features/presetbrowser/PresetBrowser.h"
 
 // The standalone wrapper owns the audio and MIDI devices, so the options page
 // can only offer device settings when we are running inside it. The macro is
@@ -27,11 +31,12 @@ namespace
     constexpr int kMixHeight    = 124;
     constexpr int kTabHeight    = 26;
     constexpr int kFooterHeight = 22;   // status line (WP3 FooterStatus slot) + version marker, bottom-right
+    constexpr int kEffectsBody  = 140;   // UI-0: unfolded Effects section, scrolls inside itself
+    constexpr int kMinVisualiserHeight = 70;
+    constexpr int kViewToggleWidth = 130;        // U-5 SIMPLE | ADVANCED, right end of the tab row
+    constexpr int kPerformanceStripHeight = 72;   // UI-0: Slot::PerformanceStrip, only when a feature registered one
     constexpr int kMinWidth     = 1020;
     constexpr int kMinHeight    = 620;
-
-    constexpr int kFactoryOffset = 1;
-    constexpr int kUserOffset    = 1000;
 
     bool isKeyboardInteractive (const juce::Component& component)
     {
@@ -107,6 +112,8 @@ namespace
 GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor& p)
     : AudioProcessorEditor (&p),
       proc (p),
+      hoverStatus (p.getValueTreeState(), p.getUiState().status),
+      settingsFile (settings::GlobalSettings::shared()),
       visualiser (p.getVisualisationFifo()),
       detectionPanel (p.getValueTreeState()),
       creativePanel (p.getValueTreeState()),
@@ -115,7 +122,12 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
       protectionPanel (p.getValueTreeState()),
       mixPanel (p.getValueTreeState())
 {
+    controlScaleFactor = access::applyFromSettings (*settingsFile);      // F-D04: palette, focus ring, control size
+    accessSignature = settingsFile->getInt (access::kKeyContrast, 0) * 100 + settingsFile->getInt (access::kKeyControlSize, 0) * 10
+                        + settingsFile->getInt (access::kKeyFocusRing, 2);
+    lookAndFeel.refreshColours();
     setLookAndFeel (&lookAndFeel);
+    addMouseListener (&hoverStatus, true);
     setWantsKeyboardFocus (false);
     setFocusContainerType (juce::Component::FocusContainerType::keyboardFocusContainer);
 
@@ -140,13 +152,13 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     presetBox.setName ("Preset");
     presetBox.setTitle ("Preset");
-    presetBox.setDescription ("Factory and user preset selector");
-    presetBox.setHelpText ("Choose a factory or user preset.");
-    presetBox.setTooltip ("Factory and user presets. Use < and > to step through them.");
+    presetBox.setDescription ("Current preset. Opens the preset browser: search, categories, favourites and user presets.");
+    presetBox.setHelpText ("Open the preset browser.");
+    presetBox.setTooltip ("Presets - click to browse, search and favourite. Use < and > to step through them.");
     presetBox.setWantsKeyboardFocus (false);
-    presetBox.onChange = [this] { presetSelected(); };
+    presetBox.onClick = [this] { showPresetBrowser(); };
     addAndMakeVisible (presetBox);
-    refreshPresetList();
+    navCatalog.setFactory (presets::factoryEntries());
 
     prevPreset.setTooltip ("Previous preset");
     nextPreset.setTooltip ("Next preset");
@@ -163,22 +175,10 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
                                "protection and mix are left exactly as they are.");
     undoButton.setTooltip ("Undo the last Random, Surprise, Reset, preset change or file load "
                            "(up to 32 steps).");
-    bypassButton.setTooltip ("Bypass GapFill. Latency compensation stays correct.");
+    bypassButton.setTooltip (info::tooltipFor ("bypass", "Bypass GapFill. Latency compensation stays correct."));
 
-    prevPreset.onClick = [this]
-    {
-        const auto n = (int) getFactoryPresets().size();
-        auto index = proc.getCurrentProgram() - 1;
-        proc.selectPreset ((index + n) % n);
-        presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
-    };
-
-    nextPreset.onClick = [this]
-    {
-        const auto n = (int) getFactoryPresets().size();
-        proc.selectPreset ((proc.getCurrentProgram() + 1) % n);
-        presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
-    };
+    prevPreset.onClick = [this] { stepPreset (-1); };
+    nextPreset.onClick = [this] { stepPreset (+1); };
 
     fileButton.onClick = [this] { showFileMenu(); };
     abButton.onClick = [this] { toggleAB(); };
@@ -187,22 +187,19 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     randomButton.onClick = [this]
     {
         proc.randomise (false);
-        presetBox.setSelectedId (0, juce::dontSendNotification);
-        presetBox.setText ("Random", juce::dontSendNotification);
+        setPresetDisplay ("Random");
     };
 
     randomAllButton.onClick = [this]
     {
         proc.randomise (true);
-        presetBox.setSelectedId (0, juce::dontSendNotification);
-        presetBox.setText ("Random All", juce::dontSendNotification);
+        setPresetDisplay ("Random All");
     };
 
     surpriseButton.onClick = [this]
     {
         const auto name = proc.surprise();
-        presetBox.setSelectedId (0, juce::dontSendNotification);
-        presetBox.setText ("Surprise: " + name, juce::dontSendNotification);
+        setPresetDisplay ("Surprise: " + name);
     };
 
     undoButton.onClick = [this]
@@ -212,12 +209,11 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
         if (proc.getCurrentPresetName() == "Custom")
         {
-            presetBox.setSelectedId (0, juce::dontSendNotification);
-            presetBox.setText ("Custom", juce::dontSendNotification);
+            setPresetDisplay ("Custom");
         }
         else
         {
-            presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
+            setPresetDisplay (proc.getCurrentPresetName());
         }
     };
 
@@ -225,7 +221,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     {
         proc.resetAllParameters();
         mixPanel.resetMeterPeaks();
-        presetBox.setSelectedId (kFactoryOffset, juce::dontSendNotification);
+        setPresetDisplay (proc.getCurrentPresetName());
     };
 
     helpButton.onClick = [this]
@@ -244,6 +240,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     {
         showParameterMenu (bypassButton, proc.getValueTreeState(), "bypass");
     };
+    tagParameter (bypassButton, "bypass");
     bypassButton.setClickingTogglesState (true);
     bypassButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xffff5252));
     bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
@@ -277,7 +274,30 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     slots = std::make_unique<SlotHost> (proc, *this);
 
-    for (auto* b : { &tabCreative, &tabWeights, &tabSpectral })
+    // U-6 Auto-Calibrate: the LEARN button is in the Detection panel header; the card floats over the visualiser.
+    calibration = std::make_unique<calibrate::CalibrationSession> (proc);
+    calibrateCard = std::make_unique<calibrate::CalibrateCard> (*calibration);
+    addChildComponent (*calibrateCard);
+    detectionPanel.onLearn = [this] { calibrateCard->begin(); calibrateCard->toFront (false); };
+
+    slots->setSlotContainer (Slot::OptionsExtra, &optionsView);
+
+    if (slots->getNumComponents (Slot::PerformanceTab) > 0)
+    {
+        performancePanel = std::make_unique<StackPanel> (*slots, Slot::PerformanceTab, "Performance", colours::accent);
+        addChildComponent (*performancePanel);
+    }
+
+    if (slots->getNumComponents (Slot::EffectsSection) > 0)
+    {
+        effectsDrawer = std::make_unique<EffectsDrawer> (*slots);
+        effectsDrawer->onExpandedChanged = [this] { resized(); };
+        addAndMakeVisible (*effectsDrawer);
+    }
+
+    appliedView = proc.getUiState().getViewMode();
+
+    for (auto* b : { &tabCreative, &tabWeights, &tabSpectral, &tabPerformance })
     {
         b->setClickingTogglesState (true);
         b->setRadioGroupId (1001);
@@ -288,6 +308,8 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     tabCreative.onClick = [this] { setTab (Tab::Creative); };
     tabWeights.onClick  = [this] { setTab (Tab::Weights); };
     tabSpectral.onClick = [this] { setTab (Tab::Spectral); };
+    tabPerformance.onClick = [this] { setTab (Tab::Performance); };
+    tabPerformance.setVisible (false);      // shown by resized() when it fits and the slot is populated
     tabCreative.setToggleState (true, juce::dontSendNotification);
 
     helpView.onClose = [this] { helpView.setVisible (false); };
@@ -359,13 +381,22 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     if (proc.getCurrentPresetName() == "Custom")
     {
-        presetBox.setSelectedId (0, juce::dontSendNotification);
-        presetBox.setText ("Custom", juce::dontSendNotification);
+        setPresetDisplay ("Custom");
     }
     else
     {
-        presetBox.setSelectedId (proc.getCurrentProgram() + kFactoryOffset, juce::dontSendNotification);
+        setPresetDisplay (proc.getCurrentPresetName());
     }
+
+    applyViewMode();
+    applyScale();
+
+    if (tourAutoShowEnabled())
+        juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this)]
+        {
+            if (safe != nullptr)
+                safe->maybeAutoShowTour();
+        });
 
     startTimerHz (24);
 }
@@ -373,12 +404,175 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 GapFillAudioProcessorEditor::~GapFillAudioProcessorEditor()
 {
     stopTimer();
+    calibrateCard.reset();
+    calibration.reset();                // cancels the recording and stops the analysis thread
+    removeMouseListener (&hoverStatus);
+    proc.getUiState().lab.endPreview();                 // F-L17: a preview never outlives the editor
+    proc.getUiState().status.clear (info::StatusKind::Learn);
+    proc.getUiState().status.clear (info::StatusKind::Capture);
     proc.getExplainState().openOptions = nullptr;
     proc.getVisualisationFifo().setEnabled (false);
     setLookAndFeel (nullptr);
 }
 
 //==============================================================================
+bool& GapFillAudioProcessorEditor::tourAutoShowEnabled()
+{
+   #ifdef GAPFILL_UNIT_TESTS
+    static bool enabled = false;          // tests opt in; otherwise every test editor would try to show a tour
+   #else
+    static bool enabled = true;
+   #endif
+    return enabled;
+}
+
+juce::Component* GapFillAudioProcessorEditor::findTourTarget (const juce::String& id)
+{
+    if (id == "visualiser")  return &visualiser;
+    if (id == "surprise")    return &surpriseButton;
+    if (id == "undo")        return &undoButton;
+    if (id == "presets")     return &presetBox;
+
+    std::vector<juce::Component*> stack { this };
+
+    while (! stack.empty())
+    {
+        auto* c = stack.back();
+        stack.pop_back();
+
+        if (id == "fill" && c->getProperties()[kParamIdProperty].toString() == "fill" && dynamic_cast<GapKnob*> (c) != nullptr)
+            return c;
+
+        // E-1's Fill Audition control (not the detector monitor toggle, which is "AUDITION DETECTOR").
+        if (id == "audition" && c->getTitle().startsWithIgnoreCase ("audition fill"))
+            return c;
+
+        for (auto* child : c->getChildren())
+            stack.push_back (child);
+    }
+
+    return nullptr;
+}
+
+bool GapFillAudioProcessorEditor::maybeAutoShowTour()
+{
+    if (tourOverlay != nullptr || getWidth() < kMinWidth || getHeight() < kMinHeight)
+        return false;
+
+    tour::TourModel probe (*settingsFile, 3);
+
+    if (! probe.shouldAutoShow (tour::shownInProcess()))
+        return false;
+
+    showTour (false);
+    return true;
+}
+
+void GapFillAudioProcessorEditor::showTour (bool force)
+{
+    juce::ignoreUnused (force);
+    tourOverlay.reset();
+
+    const bool audition = findTourTarget ("audition") != nullptr;
+    auto steps = tour::defaultSteps (audition);
+    tourModel = std::make_unique<tour::TourModel> (*settingsFile, (int) steps.size());
+    tourModel->start();
+    tour::shownInProcess() = true;
+
+    tourOverlay = std::make_unique<tour::TourOverlay> (std::move (steps), *tourModel);
+    tourOverlay->findTarget = [this] (const juce::String& id) { return findTourTarget (id); };
+    tourOverlay->onLoadExample = [this]
+    {
+        refreshPresetList();
+        const auto idx = navCatalog.indexOfIdentity ("F:Drum Gap Glitch");
+
+        if (idx >= 0 && loadCatalogEntry (navCatalog.entries()[(size_t) idx]) && tourOverlay != nullptr)
+            tourOverlay->setExampleStatus ("Loaded Drum Gap Glitch. Undo goes back.");
+    };
+    tourOverlay->onClosed = [safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this)]
+    {
+        // Deleting the overlay from inside its own button callback is unsafe: defer.
+        juce::MessageManager::callAsync ([safe]
+        {
+            if (safe != nullptr)
+                safe->tourOverlay.reset();
+        });
+    };
+
+    addAndMakeVisible (*tourOverlay);
+    tourOverlay->setBounds (getLocalBounds());
+    tourOverlay->toFront (true);
+}
+
+void GapFillAudioProcessorEditor::setScaleFactor (float hostScale)
+{
+    hostScaleValue = hostScale > 0.0f ? hostScale : 1.0f;
+    applyScale();
+}
+
+void GapFillAudioProcessorEditor::applyScale()
+{
+    const auto requested = uiscale::snapScalePercent (settingsFile->getInt (settings::GlobalSettings::keyUiScale, 100));
+    lastRequestedScale = requested;
+
+    const auto& displays = juce::Desktop::getInstance().getDisplays();
+    const auto* display = displays.getDisplayForRect (getScreenBounds());
+
+    if (display == nullptr)
+        display = displays.getPrimaryDisplay();
+
+    const auto area = display != nullptr ? display->userBounds.toNearestInt() : juce::Rectangle<int>();
+    const juce::Point<int> logical { juce::jmax (kMinWidth, getWidth()), juce::jmax (kMinHeight, getHeight()) };
+
+    appliedScalePercent = uiscale::clampScalePercent (requested, area, logical, hostScaleValue * controlScaleFactor);
+    proc.getUiState().scaleNote = appliedScalePercent < requested
+                                    ? "Reduced to " + juce::String (appliedScalePercent) + " % to fit this screen"
+                                    : juce::String();
+
+    AudioProcessorEditor::setScaleFactor (uiscale::effectiveScale (hostScaleValue, appliedScalePercent) * controlScaleFactor);
+}
+
+void GapFillAudioProcessorEditor::applyAccessibility()
+{
+    controlScaleFactor = access::applyFromSettings (*settingsFile);
+    accessSignature = settingsFile->getInt (access::kKeyContrast, 0) * 100 + settingsFile->getInt (access::kKeyControlSize, 0) * 10
+                        + settingsFile->getInt (access::kKeyFocusRing, 2);
+    lookAndFeel.refreshColours();
+    sendLookAndFeelChange();
+    applyScale();
+    repaint();
+}
+
+void GapFillAudioProcessorEditor::applyViewMode()
+{
+    const auto mode = proc.getUiState().getViewMode();
+    const bool simple = mode == ui::ViewMode::Simple;
+    appliedView = mode;
+
+    detectionPanel.setSimple (! viewmode::isVisible ("detection.rest", mode));
+    protectionPanel.setSimple (! viewmode::isVisible ("protection.rest", mode));
+    creativePanel.setSimple (! viewmode::isVisible ("creative.advancedRows", mode));
+
+    // A hidden tab must not stay selected; the previous one comes back with Advanced.
+    if (simple && (currentTab == Tab::Weights || currentTab == Tab::Spectral))
+    {
+        tabBeforeSimple = currentTab;
+        setTab (Tab::Creative);
+    }
+    else if (! simple && tabBeforeSimple.has_value())
+    {
+        const auto restore = *tabBeforeSimple;
+        tabBeforeSimple.reset();
+        setTab (restore);
+    }
+
+    resized();
+
+    if (auto* handler = getAccessibilityHandler())
+        handler->postAnnouncement (simple ? "Simple view" : "Advanced view",
+                                   juce::AccessibilityHandler::AnnouncementPriority::low);
+}
+
 void GapFillAudioProcessorEditor::setTab (Tab newTab)
 {
     currentTab = newTab;
@@ -386,12 +580,19 @@ void GapFillAudioProcessorEditor::setTab (Tab newTab)
     weightsPanel.setVisible (newTab == Tab::Weights);
     spectralPanel.setVisible (newTab == Tab::Spectral);
 
+    if (performancePanel != nullptr)
+        performancePanel->setVisible (newTab == Tab::Performance);
+
+    if (effectsDrawer != nullptr)
+        effectsDrawer->setVisible (newTab == Tab::Creative);
+
     if (slots != nullptr)
         slots->setSlotVisible (Slot::CreativeExtra, newTab == Tab::Creative);
 
     tabCreative.setToggleState (newTab == Tab::Creative, juce::dontSendNotification);
     tabWeights.setToggleState (newTab == Tab::Weights, juce::dontSendNotification);
     tabSpectral.setToggleState (newTab == Tab::Spectral, juce::dontSendNotification);
+    tabPerformance.setToggleState (newTab == Tab::Performance, juce::dontSendNotification);
 
     resized();
 }
@@ -399,116 +600,169 @@ void GapFillAudioProcessorEditor::setTab (Tab newTab)
 //==============================================================================
 juce::File GapFillAudioProcessorEditor::userPresetDirectory()
 {
-    return juce::File::getSpecialLocation (juce::File::userApplicationDataDirectory)
-             .getChildFile ("GapFill").getChildFile ("Presets");
+    return presets::userPresetRoot();
+}
+
+void GapFillAudioProcessorEditor::setPresetDisplay (const juce::String& text)
+{
+    presetBox.setButtonText (text);
+    presetBox.setTitle ("Preset: " + text);
+    presetBox.repaint();
 }
 
 void GapFillAudioProcessorEditor::refreshPresetList()
 {
-    presetBox.clear (juce::dontSendNotification);
-    userPresetFiles.clear();
-
-    presetBox.addSectionHeading ("Factory");
-
-    const auto& factory = getFactoryPresets();
-
-    for (int i = 0; i < (int) factory.size(); ++i)
-        presetBox.addItem (factory[(size_t) i].name, i + kFactoryOffset);
-
-    auto dir = userPresetDirectory();
-
-    if (dir.isDirectory())
-    {
-        for (const auto& f : dir.findChildFiles (juce::File::findFiles, false, "*.gapfill"))
-            userPresetFiles.add (f);
-
-        if (! userPresetFiles.isEmpty())
-        {
-            presetBox.addSectionHeading ("User");
-
-            for (int i = 0; i < userPresetFiles.size(); ++i)
-                presetBox.addItem (userPresetFiles[i].getFileNameWithoutExtension(), i + kUserOffset);
-        }
-    }
+    // Factory entries are fixed; user presets are rescanned (message thread, capped at 2000 files).
+    navCatalog.setFactory (presets::factoryEntries());
+    navCatalog.setUser (presets::scanUserPresets (presets::defaultScanRoots()).entries);
 }
 
-void GapFillAudioProcessorEditor::presetSelected()
+int GapFillAudioProcessorEditor::currentPresetIndex() const
 {
-    const auto id = presetBox.getSelectedId();
-
-    if (id >= kUserOffset)
+    if (currentPresetFile != juce::File())
     {
-        const auto index = id - kUserOffset;
+        const auto& all = navCatalog.entries();
 
-        if (juce::isPositiveAndBelow (index, userPresetFiles.size()))
-            loadPresetFromFile (userPresetFiles[index]);
+        for (int i = 0; i < (int) all.size(); ++i)
+            if (all[(size_t) i].file == currentPresetFile)
+                return i;
     }
-    else if (id >= kFactoryOffset)
+
+    if (proc.getCurrentPresetName() != "Custom")
+        return navCatalog.indexOfIdentity ("F:" + proc.getCurrentPresetName());
+
+    return -1;
+}
+
+void GapFillAudioProcessorEditor::stepPreset (int delta)
+{
+    refreshPresetList();
+    const auto index = navCatalog.step (currentPresetIndex(), delta);
+
+    if (index < 0)
+        return;
+
+    loadCatalogEntry (navCatalog.entries()[(size_t) index]);
+}
+
+bool GapFillAudioProcessorEditor::loadCatalogEntry (const presets::PresetEntry& entry)
+{
+    juce::String error;
+
+    if (! presets::loadPreset (proc, entry, error))
     {
-        proc.selectPreset (id - kFactoryOffset);
-        currentPresetFile = juce::File();
+        juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                "Could not open preset", error, "OK", this);
+        setPresetDisplay (proc.getCurrentPresetName());
+        return false;
     }
+
+    currentPresetFile = entry.origin == presets::PresetEntry::Origin::User ? entry.file : juce::File();
+    setPresetDisplay (entry.name);
+    return true;
+}
+
+void GapFillAudioProcessorEditor::showMutationLab()
+{
+    auto panel = std::make_unique<mutation::LabPanel> (proc);
+    juce::CallOutBox::launchAsynchronously (std::move (panel), fileButton.getScreenBounds(), this);
+}
+
+void GapFillAudioProcessorEditor::showPresetBrowser()
+{
+    auto browser = std::make_unique<presets::PresetBrowser> (proc, settings::GlobalSettings::shared());
+    browser->onLoaded = [this] (const presets::PresetEntry& entry)
+    {
+        currentPresetFile = entry.origin == presets::PresetEntry::Origin::User ? entry.file : juce::File();
+        setPresetDisplay (entry.name);
+    };
+    // The call-out box is created after the browser, so the callbacks reach it through a shared handle.
+    auto boxHandle = std::make_shared<juce::Component::SafePointer<juce::CallOutBox>>();
+    browser->onCloseRequested = [boxHandle] { if (auto* box = boxHandle->getComponent()) box->dismiss(); };
+    browser->onSaveRequested = [this, boxHandle]
+    {
+        if (auto* box = boxHandle->getComponent())
+            box->dismiss();
+
+        saveUserPreset();
+    };
+
+    auto& box = juce::CallOutBox::launchAsynchronously (std::move (browser), presetBox.getScreenBounds(), this);
+    box.setDismissalMouseClicksAreAlwaysConsumed (false);
+    *boxHandle = &box;
 }
 
 void GapFillAudioProcessorEditor::saveUserPreset()
 {
-    auto* window = new juce::AlertWindow ("Save preset",
-                                          "Name this preset:",
+    auto* window = new juce::AlertWindow ("Save user preset",
+                                          "Name, category and an optional description:",
                                           juce::MessageBoxIconType::NoIcon);
-    window->setLookAndFeel (&lookAndFeel);
-    window->addTextEditor ("name", "My GapFill", {});
+    gapfill::applyPaletteTo (*window);
+    window->addTextEditor ("name", "My GapFill", "Name");
+    window->addComboBox ("category", [] { auto c = presets::presetCategories(); c.add (presets::kUncategorised); return c; }(), "Category");
+    window->addTextEditor ("description", {}, "Description");
     window->addButton ("Save", 1);
     window->addButton ("Cancel", 0);
 
     window->enterModalState (true, juce::ModalCallbackFunction::create (
         [this, window] (int result)
         {
-            const auto name = window->getTextEditorContents ("name").trim();
-            window->setLookAndFeel (nullptr);
+            presets::PresetMeta meta;
+            meta.name = window->getTextEditorContents ("name");
+            meta.category = window->getComboBoxComponent ("category")->getText();
+            meta.description = window->getTextEditorContents ("description");
             delete window;
 
-            if (result != 1 || name.isEmpty())
+            if (result != 1)
                 return;
 
-            auto dir = userPresetDirectory();
+            const auto name = presets::sanitisePresetName (meta.name);
 
-            if (! dir.isDirectory() && ! dir.createDirectory().wasOk())
-            {
-                juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
-                                                        "Could not save preset",
-                                                        "GapFill could not create the user preset folder.",
-                                                        "OK",
-                                                        this);
-                return;
-            }
-
-            const auto legalName = juce::File::createLegalFileName (name);
-
-            if (legalName.isEmpty())
+            if (name.isEmpty())
             {
                 juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
                                                         "Could not save preset",
                                                         "Please choose a preset name that contains valid filename characters.",
-                                                        "OK",
-                                                        this);
+                                                        "OK", this);
                 return;
             }
 
-            auto file = dir.getChildFile (legalName + ".gapfill");
+            meta.name = name;
+            const auto file = presets::presetPathFor (presets::userPresetRoot(), meta.category, name);
 
-            if (! savePresetToFile (file))
+            const auto write = [this, file, meta]
+            {
+                juce::String error;
+
+                if (! presets::writeUserPreset (proc, file, meta, error))
+                {
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                                            "Could not save preset", error, "OK", this);
+                    return;
+                }
+
+                currentPresetFile = file;
+                refreshPresetList();
+                setPresetDisplay (meta.name);
+            };
+
+            if (file.existsAsFile())
+            {
+                juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Replace preset?",
+                                                    "A preset called \"" + name + "\" already exists in that category. Replace it?",
+                                                    "Replace", "Cancel", this,
+                                                    juce::ModalCallbackFunction::create ([write] (int r) { if (r == 1) write(); }));
                 return;
+            }
 
-            for (int i = 0; i < userPresetFiles.size(); ++i)
-                if (userPresetFiles[i] == file)
-                    presetBox.setSelectedId (i + kUserOffset, juce::dontSendNotification);
+            write();
         }), false);
 }
 
 //==============================================================================
 void GapFillAudioProcessorEditor::showFileMenu()
 {
-    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions };
+    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance, kBrowse, kTour, kLab };
 
     juce::PopupMenu menu;
     menu.setLookAndFeel (&lookAndFeel);
@@ -521,9 +775,16 @@ void GapFillAudioProcessorEditor::showFileMenu()
     menu.addItem (kSaveAs, "Save As...");
     menu.addItem (kOpen, "Open...");
     menu.addSeparator();
+    menu.addItem (kBrowse, "Preset browser...");
     menu.addItem (kSavePreset, "Save as user preset...");
     menu.addSeparator();
     menu.addItem (kOptions, "Options...");
+    menu.addItem (kLab, "Mutation Lab...");
+    menu.addItem (kTour, "Show quick tour");
+
+    // UI-0: when a fourth tab does not fit, the Performance section lives here.
+    if (performancePanel != nullptr && ! performanceAsTab)
+        menu.addItem (kPerformance, "Performance...");
 
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&fileButton),
                         [this] (int result)
@@ -534,7 +795,11 @@ void GapFillAudioProcessorEditor::showFileMenu()
             case kSaveAs:     doSaveAs(); break;
             case kOpen:       doOpen(); break;
             case kSavePreset: saveUserPreset(); break;
+            case kBrowse:     showPresetBrowser(); break;
+            case kTour:       showTour (true); break;
+            case kLab:        showMutationLab(); break;
             case kOptions:    showOptions(); break;
+            case kPerformance: setTab (Tab::Performance); break;
             default: break;
         }
     });
@@ -579,14 +844,12 @@ void GapFillAudioProcessorEditor::loadPresetFromFile (const juce::File& file)
 
         // The current sound was deliberately left untouched, so do not leave
         // the browser visually claiming that the rejected file is active.
-        presetBox.setSelectedId (0, juce::dontSendNotification);
-        presetBox.setText (proc.getCurrentPresetName(), juce::dontSendNotification);
+        setPresetDisplay (proc.getCurrentPresetName());
         return;
     }
 
     currentPresetFile = file;
-    presetBox.setSelectedId (0, juce::dontSendNotification);
-    presetBox.setText (file.getFileNameWithoutExtension(), juce::dontSendNotification);
+    setPresetDisplay (file.getFileNameWithoutExtension());
 }
 
 void GapFillAudioProcessorEditor::doSave()
@@ -709,8 +972,7 @@ void GapFillAudioProcessorEditor::toggleAB()
 
     proc.getRecipes().noteHeaderAbSide (usingSlotB);        // F-S06: level matching follows the sounding side
     abButton.setButtonText (usingSlotB ? "B" : "A");
-    presetBox.setSelectedId (0, juce::dontSendNotification);
-    presetBox.setText (usingSlotB ? "B" : "A", juce::dontSendNotification);
+    setPresetDisplay (usingSlotB ? "B" : "A");
 }
 
 void GapFillAudioProcessorEditor::copyToOtherSlot()
@@ -783,6 +1045,31 @@ void GapFillAudioProcessorEditor::timerCallback()
     undoButton.setEnabled (proc.canUndo());
 
     mixPanel.setStatusText (status);
+
+    // F-D04: contrast / control size / focus ring changed in Options (or by another instance).
+    if (settingsFile->getInt (access::kKeyContrast, 0) * 100 + settingsFile->getInt (access::kKeyControlSize, 0) * 10
+            + settingsFile->getInt (access::kKeyFocusRing, 2) != accessSignature)
+        applyAccessibility();
+
+    // U-8: the Options combo writes the per-user setting; apply it here (also picks up another instance's change).
+    if (uiscale::snapScalePercent (settingsFile->getInt (settings::GlobalSettings::keyUiScale, 100)) != lastRequestedScale)
+        applyScale();
+
+    // U-5: the view mode can change from the toggle slot or a restored project state.
+    if (proc.getUiState().getViewMode() != appliedView)
+        applyViewMode();
+
+    // U-4: previous / next preset requests from MIDI commands (X-1) or other threads.
+    if (const auto step = proc.getUiState().takePresetStep(); step != 0)
+        for (int i = 0; i < juce::jmin (8, std::abs (step)); ++i)
+            stepPreset (step > 0 ? 1 : -1);
+
+    // U-9: the footer shows the highest-priority message (learn > ... > capture here).
+    auto& board = proc.getUiState().status;
+    board.set (info::StatusKind::Learn, midiLearn.isLearning() ? status : juce::String());
+    board.set (info::StatusKind::Capture, meters.captureActive.load() && ! midiLearn.isLearning()
+                                              ? juce::String ("Capture is on - fills use the captured source")
+                                              : juce::String());
 
     // Keep the control animation policy in sync with project-state restores
     // that may occur while this editor is already open.
@@ -866,26 +1153,68 @@ void GapFillAudioProcessorEditor::resized()
     b.removeFromBottom (8);
 
     // ---- control row ------------------------------------------------------
-    const auto controlHeight = juce::jlimit (250, 360, (int) ((float) b.getHeight() * 0.54f));
+    auto controlHeight = juce::jlimit (250, 360, (int) ((float) b.getHeight() * 0.54f));
+
+    // UI-0: the Effects section (Creative tab only) takes its header, and its body
+    // when unfolded, from the visualiser; it never shrinks the existing controls.
+    int effectsExtra = 0;
+
+    if (effectsDrawer != nullptr && currentTab == Tab::Creative)
+    {
+        effectsExtra = EffectsDrawer::headerHeight + (effectsDrawer->isExpanded() ? kEffectsBody : 0);
+        effectsExtra = juce::jmin (effectsExtra, juce::jmax (EffectsDrawer::headerHeight,
+                                                              b.getHeight() - 8 - controlHeight - kMinVisualiserHeight));
+        controlHeight += effectsExtra;
+    }
+
     auto controls = b.removeFromBottom (controlHeight);
     b.removeFromBottom (8);
 
-    const auto sideWidth = juce::jlimit (230, 320, controls.getWidth() / 4);
+    const bool simple = proc.getUiState().getViewMode() == ui::ViewMode::Simple;
+    const auto sideWidth = simple ? 150 : juce::jlimit (230, 320, controls.getWidth() / 4);
     detectionPanel.setBounds (controls.removeFromLeft (sideWidth));
     controls.removeFromLeft (8);
-    protectionPanel.setBounds (controls.removeFromRight (juce::jlimit (215, 290, sideWidth - 20)));
+    protectionPanel.setBounds (controls.removeFromRight (simple ? 150 : juce::jlimit (215, 290, sideWidth - 20)));
     controls.removeFromRight (8);
 
     // Tabs sit above the middle panel.
     auto tabs = controls.removeFromTop (kTabHeight);
-    const auto tabWidth = juce::jmin (130, tabs.getWidth() / 3);
+
+    // U-5: the SIMPLE | ADVANCED switch (Slot::TopBarRight) sits at the right end of the tab row.
+    const auto toggleWidth = simple ? kViewToggleWidth + 170 : kViewToggleWidth;
+    slots->setSlotBounds (Slot::TopBarRight, tabs.removeFromRight (juce::jmin (toggleWidth, tabs.getWidth() / 2)).reduced (0, 2));
+    tabs.removeFromRight (6);
+
+    const auto tabWidth = juce::jmin (130, (tabs.getWidth() - 20) / 3);
     tabCreative.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
-    tabWeights.setBounds (tabs.removeFromLeft (tabWidth + 20).reduced (1));
-    tabSpectral.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
+    tabWeights.setVisible (! simple);
+    tabSpectral.setVisible (! simple);
+
+    if (! simple)
+    {
+        tabWeights.setBounds (tabs.removeFromLeft (tabWidth + 20).reduced (1));
+        tabSpectral.setBounds (tabs.removeFromLeft (tabWidth).reduced (1));
+    }
+
+    const auto plan = planTabs (simple ? tabs.getWidth() + tabWidth + 2 * 130 + 20 : tabs.getWidth() + tabWidth * 2 + tabWidth + 20,
+                                performancePanel != nullptr);
+    performanceAsTab = plan.performanceAsTab;
+    tabPerformance.setVisible (performanceAsTab);
+
+    if (performanceAsTab)
+        tabPerformance.setBounds (tabs.removeFromLeft (plan.performanceTabWidth).reduced (1));
+    else if (currentTab == Tab::Performance && performancePanel == nullptr)
+        setTab (Tab::Creative);              // the tab vanished (window narrowed): fall back safely
+
+    if (effectsDrawer != nullptr)
+        effectsDrawer->setBounds (controls.removeFromBottom (effectsExtra));
 
     creativePanel.setBounds (controls);
     weightsPanel.setBounds (controls);
     spectralPanel.setBounds (controls);
+
+    if (performancePanel != nullptr)
+        performancePanel->setBounds (controls);
 
     // One reserved rectangle per slot. Slots no feature has claimed yet stay
     // empty (their components are hidden); a feature reserves its rectangle
@@ -894,18 +1223,41 @@ void GapFillAudioProcessorEditor::resized()
                           creativePanel.getExtraSlotBounds().translated (creativePanel.getX(), creativePanel.getY()));
 
     // ---- visualiser takes whatever is left --------------------------------
+    // Performance strip (e.g. freeze & scrub): carved from the visualiser, which keeps >= 70 px.
+    if (slots->getNumComponents (Slot::PerformanceStrip) > 0 && b.getHeight() >= kPerformanceStripHeight + kMinVisualiserHeight + 6)
+    {
+        slots->setSlotBounds (Slot::PerformanceStrip, b.removeFromBottom (kPerformanceStripHeight));
+        b.removeFromBottom (6);
+    }
+    else
+    {
+        slots->setSlotBounds (Slot::PerformanceStrip, {});
+    }
+
     visualiser.setBounds (b);
     slots->setSlotBounds (Slot::VisualiserOverlay, b);
+
+    if (calibrateCard != nullptr)
+    {
+        const auto w = juce::jmin (calibrate::CalibrateCard::preferredWidth, b.getWidth() - 16);
+        calibrateCard->setBounds (juce::Rectangle<int> (w, calibrate::CalibrateCard::preferredHeight)
+                                    .withCentre ({ b.getCentreX(), b.getBottom() - calibrate::CalibrateCard::preferredHeight / 2 - 12 }));
+    }
     slots->setSlotBounds (Slot::FooterStatus, footerBounds());
 
     helpView.setBounds (getLocalBounds().withTrimmedTop (kTopBarHeight).reduced (24, 16));
 
+    if (tourOverlay != nullptr)
+        tourOverlay->setBounds (getLocalBounds());
+
     if (helpView.isVisible())
         helpView.resized();
 
-    // The options page is a small panel rather than a full overlay.
-    optionsView.setBounds (juce::Rectangle<int> (520, 440)
+    // The options page is a small panel rather than a full overlay; the OptionsExtra slot (interface size,
+    // accessibility) lives in the free area under the device row, so the panel grew by 140 px.
+    optionsView.setBounds (juce::Rectangle<int> (520, juce::jmin (580, getHeight() - 16))
                              .withCentre (getLocalBounds().getCentre()));
+    slots->setSlotBounds (Slot::OptionsExtra, optionsView.getExtraBounds());
 }
 
 } // namespace gapfill

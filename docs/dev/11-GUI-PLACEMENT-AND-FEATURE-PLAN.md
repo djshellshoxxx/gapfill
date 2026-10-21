@@ -96,3 +96,10 @@ Use docs/adr/README.md if the placement depends on a lasting architecture or com
 - *Cost:* CPU estimate = two clock reads per block while an editor is open; health = ten comparisons per chunk; recorder = one atomic load when off; no latency change.
 - *Acceptance evidence:* `docs/progress/WP3.md`; manual M-3 script and DAW checks are unverified.
 
+
+**WP11 UI window & presets (UI-0, U-9, U-4, U-5, U-8, U-7, F-D04, U-6, F-M22, F-L17, U-10), 2026-10-21.**
+- *Problem:* give every feature a defined rectangle without touching the header, and make the first minute understandable.
+- *Controls:* the SIMPLE | ADVANCED switch at the right end of the tab row (D1); LEARN in the Detection panel header (its card floats over the visualiser); preset name is the browser button (SUGGEST... inside the browser); Performance as a 4th tab only when it fits, else FILE > Performance...; Effects drawer (22 px header, collapsed) under the Creative row; a 72 px strip under the visualiser for PerformanceStrip components; Options gained interface size and accessibility rows (panel 520 x 580). FILE menu: Preset browser, Mutation Lab, Show quick tour. No new header row.
+- *Defaults:* new instances open Simple; old states Advanced; tour once per user; effects off; suggestions and calibration are opt-in and never automatic.
+- *Min size:* tested at 1020 x 620 for tabs + toggle, Simple controls, Options extra area, tour card; visual screenshots not captured.
+- *Cost:* idle audio thread = three relaxed atomic loads per chunk (recorder, profile, overlay queue); no latency change.

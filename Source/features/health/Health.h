@@ -164,13 +164,15 @@ private:
 /** What the footer shows, by the U-9 priority order for the statuses this
     package owns: health > fix-it > last gap outcome. (Learn, export, preview and
     capture outrank all of them and live in the editor's own status line.) */
-enum class FooterKind { Nothing, Health, Fixit, LastGap };
+enum class FooterKind { Nothing, Health, Fixit, LastGap, Info, Hover };
 
 struct FooterCandidates
 {
     bool haveHealth = false;
     bool haveFixit = false;
     bool haveLastGap = false;
+    bool haveInfo = false;     ///< U-9: learn / export / preview / capture (outrank health)
+    bool haveHover = false;    ///< U-9: hovered or dragged control (outranks only the last gap line)
 };
 
 FooterKind selectFooter (const FooterCandidates&) noexcept;

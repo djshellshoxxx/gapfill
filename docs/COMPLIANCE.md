@@ -25,7 +25,7 @@ GapFill uses docs/standards/CDL_PLUGIN_BASELINE.md as the required common Circui
 | Bypass | Implemented | Click-controlled internal bypass plus host bypass path coverage. |
 | State migration | Implemented | Older/missing parameters are tolerated; unknown future parameters are ignored. Malformed known values are rejected atomically. |
 | Preset files | Implemented | Save/Open uses APVTS state. Loads are capped at 1 MB, XML/type/known values are validated atomically, and failures preserve the current sound with a visible reason. |
-| Factory presets | Implemented | Descriptive factory bank; preflight checks every referenced parameter ID. |
+| Factory presets | Implemented | 41 descriptive factory presets in 7 categories plus Starting Points; preflight checks every referenced parameter ID, category, unique short names and descriptions; quality-gate tests render each preset. |
 | MIDI Learn | Implemented | Visible learn state, explicit cancel, mapping removal, deterministic conflict handling, and 10-second timeout. |
 | Tooltips | Implemented | Global toggle persists in plugin state. |
 | Help/About | Implemented | In-plugin Help covers operation, troubleshooting, version, MIDI Learn, and Circuit Drift Labs link. |

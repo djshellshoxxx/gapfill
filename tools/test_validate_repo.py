@@ -182,6 +182,27 @@ class ValidateRepoTests(unittest.TestCase):
 '''
         self.assertEqual(validate_repo.extract_preset_parameter_ids(text), ["fill", "wet"])
 
+    def test_factory_preset_headers_and_categories(self):
+        text = '''
+{ "Init", "Plain defaults.", "Utility", {} },
+{ "Dub Thing", "An echo.", "Dub", { { "fill", 1.0f } } },
+'''
+        self.assertEqual(validate_repo.extract_preset_headers(text),
+                         [("Init", "Plain defaults.", "Utility"), ("Dub Thing", "An echo.", "Dub")])
+
+    def test_validate_reports_bad_preset_category_name_and_length(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            make_minimal_repo(root, core_ids=("fill",))
+            (root / "Source" / "Presets.cpp").write_text(
+                '{ "Odd", "desc", "Nonsense", {} },\n{ "Odd", "desc", "Dub", {} },\n'
+                '{ "' + "N" * 40 + '", "desc", "Dub", {} }', encoding="utf-8")
+
+            errors = validate_repo.validate(root)
+            self.assertTrue(any("Nonsense" in e for e in errors))
+            self.assertTrue(any("duplicate factory preset name: Odd" in e for e in errors))
+            self.assertTrue(any("longer than 32" in e for e in errors))
+
     def test_minimal_valid_repository_has_no_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

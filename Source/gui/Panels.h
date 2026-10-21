@@ -33,7 +33,17 @@ public:
     explicit DetectionPanel (juce::AudioProcessorValueTreeState&);
     void resized() override;
 
+    /** U-6: the LEARN button in the panel header (Auto-Calibrate). */
+    std::function<void()> onLearn;
+    juce::TextButton& getLearnButton() noexcept { return learnButton; }
+
+    /** U-5 / F-M04: Simple view keeps only Sensitivity. Hidden controls keep their parameters. */
+    void setSimple (bool simple);
+    bool isSimple() const noexcept { return simpleView; }
+
 private:
+    bool simpleView = false;
+    juce::TextButton learnButton { "LEARN" };
     GapCombo mode, source, maxFillDiv;
     GapKnob sensitivity, gapThreshold, minGap, maxFill, gapRelease, lookahead, protectHold, retrigger;
     GapToggle maxFillSync, audition;
@@ -50,7 +60,12 @@ public:
         fourth toggle position the CAPTURE button used to occupy. */
     juce::Rectangle<int> getExtraSlotBounds() const noexcept { return extraSlotBounds; }
 
+    /** U-5 / F-M04: Simple view keeps the five macros, Fill Type and the CreativeExtra cell. */
+    void setSimple (bool simple);
+    bool isSimple() const noexcept { return simpleView; }
+
 private:
+    bool simpleView = false;
     juce::Rectangle<int> extraSlotBounds;
     GapKnob fill, intensity, complexity, chaos, density;
     GapCombo fillType, stutterDiv, delayDiv;
@@ -81,7 +96,12 @@ public:
     explicit ProtectionPanel (juce::AudioProcessorValueTreeState&);
     void resized() override;
 
+    /** U-5 / F-M04: Simple view keeps only Transient Protect. */
+    void setSimple (bool simple);
+    bool isSimple() const noexcept { return simpleView; }
+
 private:
+    bool simpleView = false;
     GapKnob transientProtect, lowProtect, centreProtect, nextProtect, sidechainProtect;
     juce::Label note;
 };
