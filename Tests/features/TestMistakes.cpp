@@ -49,9 +49,11 @@ namespace
             filled = true;
         }
 
-        FillVoice voice;
+        auto voicePtr = std::make_unique<FillVoice>();
+        auto& voice = *voicePtr;
         voice.prepare (kSr, channels);
-        SpectralSmear spectral;
+        auto spectralPtr = std::make_unique<SpectralSmear>();
+        auto& spectral = *spectralPtr;
         spectral.prepare (kSr, 2);
 
         VoiceSetup s;

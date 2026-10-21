@@ -123,6 +123,13 @@ int estimateRepeats (int algo, std::int64_t lengthSamples, double sr, float stut
 }
 
 //==============================================================================
+void MistakeStage::prepare()
+{
+    wobbleStore.assign ((size_t) (2 * wobbleBufferSize), 0.0f);
+    wobbleBuf[0] = wobbleStore.data();
+    wobbleBuf[1] = wobbleStore.data() + wobbleBufferSize;
+}
+
 void MistakeStage::start (const StageConfig& c) noexcept
 {
     type = None;
@@ -142,6 +149,9 @@ void MistakeStage::start (const StageConfig& c) noexcept
     if (c.type == StereoBounce && c.mono)
         return;
 
+    if (c.type == Wobble && wobbleStore.empty())
+        return;                                              // not prepared: no allocation on the audio thread
+
     Rng r;
     r.seed (hashCombine (c.seed, kSalt_Mistakes));
 
@@ -157,8 +167,7 @@ void MistakeStage::start (const StageConfig& c) noexcept
             wobbleBase = wobbleDepth + 1.0f;
             wobbleWrite = 0;
 
-            for (auto& ch : wobbleBuf)
-                std::fill (std::begin (ch), std::end (ch), 0.0f);
+            std::fill (wobbleStore.begin(), wobbleStore.end(), 0.0f);
 
             break;
         }
