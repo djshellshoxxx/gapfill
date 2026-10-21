@@ -32,11 +32,11 @@ chmod +x "$TMP/bin/makensis"
 
 PATH="$TMP/bin:$PATH" bash "$ROOT/packaging/package_release.sh" "$WIN" '' "$OUT" > /dev/null
 for a in Setup.exe Portable.zip VST3.zip CLAP.zip; do
-    test -s "$OUT/GapFill-0.0.1-beta-Windows-x64-$a"
+    test -s "$OUT/GapFill-0.0.2-beta-Windows-x64-$a"
 done
-unzip -Z1 "$OUT/GapFill-0.0.1-beta-Windows-x64-Portable.zip" | grep -qx 'GapFill.exe'
-unzip -Z1 "$OUT/GapFill-0.0.1-beta-Windows-x64-Portable.zip" | grep -q 'GapFill.vst3/Contents/x86_64-win/GapFill.vst3'
-(cd "$OUT" && sha256sum -c GapFill-0.0.1-beta-SHA256SUMS.txt > /dev/null)
+unzip -Z1 "$OUT/GapFill-0.0.2-beta-Windows-x64-Portable.zip" | grep -qx 'GapFill.exe'
+unzip -Z1 "$OUT/GapFill-0.0.2-beta-Windows-x64-Portable.zip" | grep -q 'GapFill.vst3/Contents/x86_64-win/GapFill.vst3'
+(cd "$OUT" && sha256sum -c GapFill-0.0.2-beta-SHA256SUMS.txt > /dev/null)
 
 # Version override used by release-beta.yml, plus Linux packaging.
 LIN="$TMP/lin-build"
