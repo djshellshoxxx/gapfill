@@ -87,6 +87,7 @@ public:
     //==========================================================================
     // Editor-facing helpers (message thread only)
     juce::AudioProcessorValueTreeState& getValueTreeState() noexcept { return apvts; }
+    const juce::AudioProcessorValueTreeState& getValueTreeState() const noexcept { return apvts; }
     MeterState& getMeterState() noexcept                            { return meters; }
     VisualisationFifo& getVisualisationFifo() noexcept              { return viz; }
     MidiLearnManager& getMidiLearnManager() noexcept                { return midiLearn; }

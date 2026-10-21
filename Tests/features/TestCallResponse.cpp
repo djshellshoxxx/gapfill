@@ -1,6 +1,7 @@
 // F-L10 Call and response (docs/dev/features/F-L10).
 
 #include "../support/TestRig.h"
+#include "../support/VoiceRig.h"
 #include "../support/AllocGuard.h"
 
 #include "features/callresponse/Motif.h"
@@ -56,15 +57,12 @@ namespace
         return part / total;
     }
 
-    Responder respondingTo (Algo a, int mode, float strength = 0.6f)
+    void respondTo (Responder& r, Algo a, int mode, float strength = 0.6f)
     {
-        Responder r;
         r.configure (settings (mode, strength), false);
 
         for (int i = 0; i < 3; ++i)
             startFill (r, recipeOf (a), i);
-
-        return r;
     }
 }
 
@@ -227,14 +225,15 @@ GF_TEST (CallResponse, complement_shifts_family_shares_and_echo_boosts_the_motif
     const auto baseRhythmic = 3.0 / 15.0;
     const auto baseOther = 9.0 / 15.0;
 
-    const auto comp = respondingTo (Algo::Stutter, 1, 0.6f);
+    Responder comp, echo;
+    respondTo (comp, Algo::Stutter, 1, 0.6f);
     GF_EXPECT (comp.active());
     const auto rhythmic = shareOfFamilies (comp, { AlgoFamily::Rhythmic });
     GF_EXPECT_MSG (rhythmic < 0.6 * baseRhythmic, "rhythmic share " + juce::String (rhythmic));
     GF_EXPECT_MSG (shareOfFamilies (comp, { AlgoFamily::Textural, AlgoFamily::PitchTape }) > 1.2 * baseOther,
                    "other share " + juce::String (shareOfFamilies (comp, { AlgoFamily::Textural, AlgoFamily::PitchTape })));
 
-    const auto echo = respondingTo (Algo::Stutter, 2, 0.6f);
+    respondTo (echo, Algo::Stutter, 2, 0.6f);
     GF_EXPECT (shareOfFamilies (echo, { AlgoFamily::Rhythmic }) >= 1.5 * baseRhythmic);
 }
 

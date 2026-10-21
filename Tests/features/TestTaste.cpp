@@ -1,6 +1,7 @@
 // F-X05 Local preference learning (docs/dev/features/F-X05).
 
 #include "../support/TestRig.h"
+#include "../support/VoiceRig.h"
 #include "../support/AllocGuard.h"
 
 #include "features/taste/RatingStore.h"
@@ -74,7 +75,7 @@ GF_TEST (Taste, scores_zero_without_ratings_and_not_ready_is_identity)
     for (int f = 0; f < kFeatures; ++f)
         GF_EXPECT (std::abs (score (c, f)) < 1.0e-6f);
 
-    GF_EXPECT (! isReady (biasFrom (c, 1.0f).ready));
+    GF_EXPECT (! biasFrom (c, 1.0f).ready);
 
     // Below the readiness threshold every multiplier is exactly 1.
     for (int i = 0; i < 7; ++i)
@@ -168,7 +169,7 @@ GF_TEST (Taste, explanation_top3_matches_the_simulated_truth)
 
         const auto c = simulate (u, liked, 150);                           // an engaged user: about ten ratings per fill type
         std::vector<ExplainItem> toward, away;
-        explain (c, 3, toward, away);
+        taste::explain (c, 3, toward, away);
 
         int correct = 0;
 
@@ -188,7 +189,7 @@ GF_TEST (Taste, explanation_top3_matches_the_simulated_truth)
     addRating (c, recipeFor (6), -1);                                       // too few ratings: not listed
 
     std::vector<ExplainItem> toward, away;
-    explain (c, 3, toward, away);
+    taste::explain (c, 3, toward, away);
     GF_EXPECT (toward.size() == 1 && toward[0].feature == 3 && toward[0].liked == 5 && toward[0].total == 7);
     GF_EXPECT (away.empty());
 }

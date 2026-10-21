@@ -4,6 +4,7 @@
 #include "../features/lock/LockStage.h"
 #include "../features/fx/FxHooks.h"
 #include "../features/context/ContextHooks.h"
+#include "../features/scale/ScaleHooks.h"
 
 namespace gapfill
 {
