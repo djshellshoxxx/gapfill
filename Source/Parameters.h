@@ -3,6 +3,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <atomic>
 
+#include "params/Groups.h"
+
 namespace gapfill
 {
 
@@ -45,7 +47,7 @@ juce::StringArray divisionNames();
     The string ids are permanent: they are the persistence + automation keys and
     must never change. Member names are only used for the cached-pointer struct.
 */
-#define GAPFILL_PARAMS(X) \
+#define GAPFILL_PARAMS_CORE(X) \
     /* ---- detection ---- */ \
     X (detMode,       "detMode") \
     X (detSource,     "detSource") \
@@ -120,6 +122,22 @@ juce::StringArray divisionNames();
     /* ---- performance (appended; ids are permanent) ---- */ \
     X (capture,       "capture")
 
+/** The complete parameter list: the core list above, then one macro per feature
+    group (Source/params/<group>.h). The group order is PERMANENT - it fixes the
+    parameter index order seen by hosts and MIDI learn. New groups are appended
+    at the end (and in createParameterLayout()); the four spare groups are
+    pre-registered so most features need no edit here at all. After Phase 0 no
+    feature edits this file. */
+#define GAPFILL_PARAMS(X) \
+    GAPFILL_PARAMS_CORE(X) \
+    GAPFILL_PARAMS_MACROS(X) GAPFILL_PARAMS_PERSONALITY(X) \
+    GAPFILL_PARAMS_CAPTURE2(X) GAPFILL_PARAMS_ENVELOPE(X) \
+    GAPFILL_PARAMS_LOCK(X) GAPFILL_PARAMS_BREATHING(X) \
+    GAPFILL_PARAMS_PHRASE(X) GAPFILL_PARAMS_MISTAKES(X) \
+    GAPFILL_PARAMS_SYNC(X) GAPFILL_PARAMS_BANDTYPE(X) GAPFILL_PARAMS_EVOLVE(X) \
+    GAPFILL_PARAMS_SPARE1(X) GAPFILL_PARAMS_SPARE2(X) \
+    GAPFILL_PARAMS_SPARE3(X) GAPFILL_PARAMS_SPARE4(X)
+
 //==============================================================================
 /** Cached raw-value pointers so the audio thread never touches the ValueTree. */
 struct ParamCache
@@ -174,5 +192,10 @@ juce::StringArray creativeParameterIDs();
 
 /** The ids that "Randomize All" is allowed to touch (never mix/output/latency). */
 juce::StringArray randomisableParameterIDs();
+
+/** Performance / runtime-state parameters that Random, Random All, Surprise and
+    Undo snapshots must never touch (collected from every group's
+    add<Group>PerformanceIds). Disjoint from randomisableParameterIDs(). */
+juce::StringArray performanceParameterIDs();
 
 } // namespace gapfill
