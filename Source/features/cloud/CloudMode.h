@@ -92,6 +92,7 @@ private:
     int dropped = 0;
     CloudPitchQuantiser quantiser = nullptr;
     void* quantiserUser = nullptr;
+    int grainCap = kCloudMaxGrains;     ///< F-D03 quality cap (<= kCloudMaxGrains)
     CloudGrain grains[kCloudMaxGrains];
 };
 

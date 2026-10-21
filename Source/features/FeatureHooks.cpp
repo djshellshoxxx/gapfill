@@ -62,6 +62,12 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     s.perf.budget.perBar = budget::kBudgetChoices[juce::jlimit (0, 6, pi (params.fillBudget))];
     s.perf.budget.zone   = juce::jlimit (0, budget::NumZones - 1, pi (params.quietZone));
 
+    // F-L13 sidechain-driven fills: gate mode, threshold and snap amount (the processor attaches the
+    // tracker only while the sidechain bus is connected, so these stay inert otherwise)
+    s.perf.sc.gate     = juce::jlimit (0, 2, pi (params.scGate));
+    s.perf.sc.threshDb = juce::jlimit (-60.0f, 0.0f, pv (params.scThresh));
+    s.perf.sc.snap01   = juce::jlimit (0.0f, 1.0f, pv (params.scSnap) * 0.01f);
+
     // C-7 phrase awareness (choice 0..4 -> Off, 2, 4, 8, 16 bars)
     s.perf.phrase.bars       = phrase::kBarChoices[juce::jlimit (0, 4, pi (params.phraseBars))];
     s.perf.phrase.bias01     = pv (params.phraseBias) * 0.01f;

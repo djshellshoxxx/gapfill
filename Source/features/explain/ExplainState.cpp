@@ -132,7 +132,10 @@ void ExplainState::timerTick (std::uint32_t nowMs)
     if (recordToggleRequested.exchange (false))
         events::toggleRecording (*owner);
 
-    cpu.setEnabled (owner->getVisualisationFifo().isEnabled());
+    // F-D03: Quality = Auto needs the CPU estimate even with the editor closed.
+    const auto* qualityMode = apvts->getRawParameterValue ("qualityMode");
+    const bool qualityAuto = qualityMode != nullptr && qualityMode->load() > 2.5f;
+    cpu.setEnabled (owner->getVisualisationFifo().isEnabled() || qualityAuto);
     healthTracker.update (healthMonitor.getMask(), nowMs);
 
     if (recorder.isRecording() || recorder.isFull())
