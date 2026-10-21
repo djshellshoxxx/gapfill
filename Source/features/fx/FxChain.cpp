@@ -114,6 +114,12 @@ void FxChain::processBus (juce::AudioBuffer<float>& wet, int start, int n, const
     ctx.numStarts = io.numStarts;
     ctx.blockStartPos = blockStartPos;
     ctx.duck = io.duck;
+    ctx.settings = &s;
+    ctx.samplesPerBeat = io.samplesPerBeat;
+    ctx.scaleMask = io.scaleMask;
+    ctx.scaleRoot = io.scaleRoot;
+    ctx.history = io.history;
+    ctx.historyOffset = io.historyOffset;
 
     const bool timed = (timingCounter++ & 63u) == 0;
     const auto t0 = timed ? juce::Time::getHighResolutionTicks() : 0;

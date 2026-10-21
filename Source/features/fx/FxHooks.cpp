@@ -49,6 +49,46 @@ void gatherFx (EngineSettings& s, const ParamCache& p) noexcept
     f.scrub.pos01 = pv (p.scrubPos) / 100.0f;
     f.scrub.widthMs = pv (p.scrubWidth);
 
+    f.resonator.amount01 = pv (p.resAmount) / 100.0f;
+    f.resonator.note = juce::jlimit (24, 96, pi (p.resNote));
+    f.resonator.mode = juce::jlimit (0, 1, pi (p.resMode));
+    f.resonator.decay01 = pv (p.resDecay) / 100.0f;
+    f.resonator.damp01 = pv (p.resDamp) / 100.0f;
+    f.resonator.spread01 = pv (p.resSpread) / 100.0f;
+
+    f.fsdelay.amount01 = pv (p.fsdAmount) / 100.0f;
+    f.fsdelay.shiftHz = juce::jlimit (-2000.0f, 2000.0f, pv (p.fsdShift));
+    f.fsdelay.time = juce::jlimit (0, (int) Division::NumDivisions - 1, pi (p.fsdTime));
+    f.fsdelay.feedback01 = juce::jlimit (0.0f, 0.85f, pv (p.fsdFeedback) / 100.0f);
+    f.fsdelay.damp01 = pv (p.fsdDamp) / 100.0f;
+    f.fsdelay.stereo01 = pv (p.fsdStereo) / 100.0f;
+
+    f.dub.amount01 = pv (p.dubAmount) / 100.0f;
+    f.dub.div = juce::jlimit (0, (int) Division::NumDivisions - 1, pi (p.dubDiv));
+    f.dub.feedback01 = juce::jlimit (0.0f, 0.9f, pv (p.dubFeedback) / 100.0f);
+    f.dub.lowHz = pv (p.dubLow);
+    f.dub.highHz = pv (p.dubHigh);
+    f.dub.move01 = pv (p.dubMove) / 100.0f;
+    f.dub.sat01 = pv (p.dubSat) / 100.0f;
+    f.dub.ping = pb (p.dubPing);
+
+    f.formant.amount01 = pv (p.fmtAmount) / 100.0f;
+    f.formant.shiftSt = juce::jlimit (-12.0f, 12.0f, pv (p.fmtShift));
+    f.formant.tilt01 = pv (p.fmtTilt) / 100.0f;
+    f.formant.vowel = juce::jlimit (0, 5, pi (p.fmtVowel));
+
+    f.spfreeze.amount01 = pv (p.sfzAmount) / 100.0f;
+    f.spfreeze.lengthMs = pv (p.sfzLength);
+    f.spfreeze.decay01 = pv (p.sfzDecay) / 100.0f;
+    f.spfreeze.smear01 = pv (p.sfzSmear) / 100.0f;
+    f.spfreeze.morph01 = pv (p.sfzMorph) / 100.0f;
+    f.spfreeze.pitchSt = juce::jlimit (-12.0f, 12.0f, pv (p.sfzPitch));
+    f.spfreeze.width01 = pv (p.sfzWidth) / 100.0f;
+
+    f.convo.amount01 = pv (p.cvAmount) / 100.0f;
+    f.convo.sizeMs = pv (p.cvSize);
+    f.convo.damp01 = pv (p.cvDamp) / 100.0f;
+
     f.bandFx.low = pb (p.bandLowFx);
     f.bandFx.mid = pb (p.bandMidFx);
     f.bandFx.high = pb (p.bandHighFx);

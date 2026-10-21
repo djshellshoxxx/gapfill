@@ -156,7 +156,12 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
     blockIO = io;                                   // HOOK (WP8, FX-0)
 
     if (io != nullptr)
+    {
         io->numStarts = 0;
+        io->samplesPerBeat = s.transportValid ? s.samplesPerBeat : 0.0;      // HOOK (WP9): bus cards
+        io->history = &history;
+        io->historyOffset = s.historyOffset;
+    }
 
     if (numSamples <= 0)
         return;

@@ -25,6 +25,11 @@
 
 #include <cstdint>
 
+namespace gapfill
+{
+class SourceHistory;
+}
+
 namespace gapfill::fx
 {
 
@@ -65,6 +70,18 @@ struct BusFxContext
     /** The engine's protection duck per sample of the wet buffer (index = buffer
         sample), published only while a BusFx is enabled; null otherwise. */
     const float* duck = nullptr;
+
+    // --- WP9 (bus cards) -------------------------------------------------------
+    const FxSettings* settings = nullptr;        ///< this block's effect settings (set by FxChain)
+    double samplesPerBeat = 0.0;                 ///< 0 = no valid transport (cards use kFallbackBpm)
+    /** Scale Lock seam (N-MUS, WP7): 12-bit mask of the scale relative to its root
+        (bit i set = the pitch class `scaleRoot + i` is in the scale). 0 = Scale
+        Lock off (cards behave as Manual). */
+    std::uint16_t scaleMask = 0;
+    int scaleRoot = 0;                           ///< pitch class 0-11
+    /** The dry source history (borrowed for the block; read on the audio thread only). */
+    const SourceHistory* history = nullptr;
+    std::int64_t historyOffset = 0;              ///< output position - historyOffset = history position
 };
 
 inline constexpr int kMaxFillStarts = 4;

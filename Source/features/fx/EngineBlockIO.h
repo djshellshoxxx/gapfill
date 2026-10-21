@@ -21,6 +21,14 @@ struct EngineBlockIO
         while a BusFx is enabled. */
     float* duck = nullptr;
 
+    /** WP9: tempo / scale / source for the bus cards, written by the engine hook
+        at the top of FillEngine::process. 0 = no valid transport. */
+    double samplesPerBeat = 0.0;
+    std::uint16_t scaleMask = 0;      ///< see BusFxContext (N-MUS seam)
+    int scaleRoot = 0;
+    const SourceHistory* history = nullptr;
+    std::int64_t historyOffset = 0;
+
     /** Fills started during the block (written by the engine, <= kMaxFillStarts). */
     FillStartInfo starts[kMaxFillStarts] {};
     int numStarts = 0;
