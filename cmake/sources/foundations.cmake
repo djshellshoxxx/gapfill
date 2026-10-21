@@ -2,6 +2,8 @@
 list(APPEND GAPFILL_SOURCES
     Source/gui/HelpRegistry.cpp
     Source/gui/HelpSections.cpp
+    Source/gui/SlotHost.cpp
+    Source/gui/slots/CaptureSlot.cpp
     Source/dsp/SchedulerTypes.cpp
     Source/features/FeatureHooks.cpp
     Source/features/state/StateSubtrees.cpp

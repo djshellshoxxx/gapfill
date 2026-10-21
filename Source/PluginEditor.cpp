@@ -275,6 +275,8 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     addAndMakeVisible (protectionPanel);
     addAndMakeVisible (mixPanel);
 
+    slots = std::make_unique<SlotHost> (proc, *this);
+
     for (auto* b : { &tabCreative, &tabWeights, &tabSpectral })
     {
         b->setClickingTogglesState (true);
@@ -379,6 +381,9 @@ void GapFillAudioProcessorEditor::setTab (Tab newTab)
     creativePanel.setVisible (newTab == Tab::Creative);
     weightsPanel.setVisible (newTab == Tab::Weights);
     spectralPanel.setVisible (newTab == Tab::Spectral);
+
+    if (slots != nullptr)
+        slots->setSlotVisible (Slot::CreativeExtra, newTab == Tab::Creative);
 
     tabCreative.setToggleState (newTab == Tab::Creative, juce::dontSendNotification);
     tabWeights.setToggleState (newTab == Tab::Weights, juce::dontSendNotification);
@@ -877,8 +882,16 @@ void GapFillAudioProcessorEditor::resized()
     weightsPanel.setBounds (controls);
     spectralPanel.setBounds (controls);
 
+    // One reserved rectangle per slot. Slots no feature has claimed yet stay
+    // empty (their components are hidden); a feature reserves its rectangle
+    // here the first time it registers a component for that slot.
+    slots->setSlotBounds (Slot::CreativeExtra,
+                          creativePanel.getExtraSlotBounds().translated (creativePanel.getX(), creativePanel.getY()));
+
     // ---- visualiser takes whatever is left --------------------------------
     visualiser.setBounds (b);
+    slots->setSlotBounds (Slot::VisualiserOverlay, b);
+    slots->setSlotBounds (Slot::FooterStatus, footerBounds());
 
     helpView.setBounds (getLocalBounds().withTrimmedTop (kTopBarHeight).reduced (24, 16));
 
