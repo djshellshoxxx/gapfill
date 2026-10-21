@@ -13,7 +13,13 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_RESONATOR(X)
+#define GAPFILL_PARAMS_RESONATOR(X) \
+    X (resAmount, "resAmount") \
+    X (resNote, "resNote") \
+    X (resMode, "resMode") \
+    X (resDecay, "resDecay") \
+    X (resDamp, "resDamp") \
+    X (resSpread, "resSpread")
 
 namespace gapfill
 {

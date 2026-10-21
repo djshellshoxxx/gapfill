@@ -80,7 +80,7 @@ GF_TEST (State, reserved_subtree_caps_fit_the_total_budget)
         sum += d.maxBytes;
 
     GF_EXPECT (sum <= state::kTotalSubtreeBudget);
-    GF_EXPECT (state::reservedSubtrees().size() == 13);          // 11 reserved in F0 + <Key> (F-X03) + <Taste> (F-X05), WP7
+    GF_EXPECT (state::reservedSubtrees().size() == 14);   // 11 reserved + Mutation (F-L17, WP11) + <Key> (F-X03) + <Taste> (F-X05, WP7)
 }
 
 GF_TEST (State, bad_oversized_and_absent_subtrees_fail_soft)

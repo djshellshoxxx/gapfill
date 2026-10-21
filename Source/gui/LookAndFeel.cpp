@@ -84,12 +84,17 @@ namespace
             return;
 
         g.setColour (colours::primary.withAlpha (0.95f));
-        g.drawRoundedRectangle (bounds.reduced (1.0f), radius, 2.0f);
+        g.drawRoundedRectangle (bounds.reduced (1.0f), radius, focusRingWidth);
     }
 }
 
 //==============================================================================
 GapFillLookAndFeel::GapFillLookAndFeel()
+{
+    refreshColours();
+}
+
+void GapFillLookAndFeel::refreshColours()
 {
     setColour (juce::ResizableWindow::backgroundColourId, colours::background);
     setColour (juce::Label::textColourId,                 colours::text);
@@ -111,7 +116,7 @@ GapFillLookAndFeel::GapFillLookAndFeel()
     setColour (juce::TextButton::textColourOffId,         colours::textMuted);
     setColour (juce::TextButton::textColourOnId,          colours::primary);
     setColour (juce::ToggleButton::textColourId,          colours::text);
-    setColour (juce::TooltipWindow::backgroundColourId,   juce::Colour (0xf20e1116));
+    setColour (juce::TooltipWindow::backgroundColourId,   colours::background.withAlpha (0.95f));
     setColour (juce::TooltipWindow::textColourId,         colours::textMuted);
     setColour (juce::TooltipWindow::outlineColourId,      colours::edge);
     setColour (juce::ScrollBar::thumbColourId,            colours::edge.brighter (0.4f));

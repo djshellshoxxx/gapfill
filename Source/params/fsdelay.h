@@ -13,7 +13,13 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_FSDELAY(X)
+#define GAPFILL_PARAMS_FSDELAY(X) \
+    X (fsdAmount, "fsdAmount") \
+    X (fsdShift, "fsdShift") \
+    X (fsdTime, "fsdTime") \
+    X (fsdFeedback, "fsdFeedback") \
+    X (fsdDamp, "fsdDamp") \
+    X (fsdStereo, "fsdStereo")
 
 namespace gapfill
 {

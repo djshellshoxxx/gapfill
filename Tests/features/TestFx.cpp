@@ -112,7 +112,7 @@ GF_TEST (Fx, chain_empty_is_identity)
 
     chain.processBus (wet, 0, 512, s, io, 0);
     GF_EXPECT (buffersIdentical (wet, before));
-    GF_EXPECT (chain.numBusCards() == 0);
+    GF_EXPECT (chain.numBusCards() == 6);          // the six WP9 bus cards, all off
 }
 
 GF_TEST (Fx, chain_order_fixed)

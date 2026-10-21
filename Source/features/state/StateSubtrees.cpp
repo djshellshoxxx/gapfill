@@ -10,6 +10,7 @@
 #include "../keydetect/KeyStateTree.h"
 #include "../taste/TasteStateTree.h"
 #include "../tension/TensionTree.h"
+#include "../mutation/State.h"
 
 namespace gapfill::state
 {
@@ -74,6 +75,7 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
         { "Learn",   4 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-X05
         { "Key",     64,      keydetect::validateKeyTree, keydetect::applyKeyTree, keydetect::serialiseKeyTree, keydetect::resetKeyTree },   // F-X03 (WP7)
         { "Taste",   160,     taste::validateTasteTree, taste::applyTasteTree, taste::serialiseTasteTree, taste::resetTasteTree },   // F-X05 (WP7)
+        { "Mutation", 2 * Ki, mutation::validateSubtree, mutation::applySubtree, mutation::serialiseSubtree, mutation::resetSubtree },   // F-L17 (WP11)
     };
 
     return table;

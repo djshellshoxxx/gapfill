@@ -19,6 +19,7 @@
 #include "EffectCard.h"
 #include "EngineBlockIO.h"
 #include "FxMeters.h"
+#include "bus/BusCards.h"
 
 #include <array>
 #include <vector>
@@ -29,7 +30,7 @@ namespace gapfill::fx
 class FxChain
 {
 public:
-    static constexpr int kMaxBusCards = 8;
+    static constexpr int kMaxBusCards = 10;
 
     FxChain();
 
@@ -58,6 +59,10 @@ public:
     /** Test / WP9 hook: appends a card to the explicit list (bounded). */
     bool addBusCard (BusFx*) noexcept;
 
+    /** The WP9 bus cards (control access for the editor and tests). */
+    bus::BusCards& cardsRef() noexcept { return busCards; }
+    const bus::BusCards& cardsRef() const noexcept { return busCards; }
+
     FxMeters& getMeters() noexcept { return meters; }
     const FxMeters& getMeters() const noexcept { return meters; }
 
@@ -67,6 +72,7 @@ private:
     /** The explicit, reviewable card list (permanent chain order). */
     void build();
 
+    bus::BusCards busCards;
     std::array<BusFx*, kMaxBusCards> cards {};
     int count = 0;
     double sr = 48000.0;

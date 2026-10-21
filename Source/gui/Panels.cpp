@@ -71,11 +71,37 @@ DetectionPanel::DetectionPanel (juce::AudioProcessorValueTreeState& s)
                                                              &lookahead, &protectHold, &retrigger,
                                                              &maxFillSync, &audition })
         addAndMakeVisible (c);
+
+    learnButton.setTitle ("Learn");
+    learnButton.setTooltip ("Listen to your track for a few seconds and suggest Sensitivity, Gap Threshold and Min Gap. "
+                            "Needs audio playing through GapFill.");
+    learnButton.setWantsKeyboardFocus (false);
+    learnButton.onClick = [this] { if (onLearn != nullptr) onLearn(); };
+    addAndMakeVisible (learnButton);
+}
+
+void DetectionPanel::setSimple (bool simple)
+{
+    simpleView = simple;
+
+    for (auto* c : std::initializer_list<juce::Component*> { &mode, &source, &maxFillDiv, &gapThreshold, &minGap, &maxFill,
+                                                             &gapRelease, &lookahead, &protectHold, &retrigger,
+                                                             &maxFillSync, &audition })
+        c->setVisible (! simple);
+
+    resized();
 }
 
 void DetectionPanel::resized()
 {
+    learnButton.setBounds (getWidth() - 10 - 56, 4, 56, 18);
     auto b = contentArea();
+
+    if (simpleView)
+    {
+        sensitivity.setBounds (b.withSizeKeepingCentre (juce::jmin (b.getWidth(), 96), juce::jmin (b.getHeight(), 110)));
+        return;
+    }
 
     // Fixed-height furniture first so the knobs absorb whatever slack is left.
     auto toggles = b.removeFromBottom (24);
@@ -133,9 +159,33 @@ CreativePanel::CreativePanel (juce::AudioProcessorValueTreeState& s)
         addAndMakeVisible (c);
 }
 
+void CreativePanel::setSimple (bool simple)
+{
+    simpleView = simple;
+
+    for (auto* c : std::initializer_list<juce::Component*> { &stutterDiv, &delayDiv, &seed, &width, &sync, &pingPong, &monoWet })
+        c->setVisible (! simple);
+
+    resized();
+}
+
 void CreativePanel::resized()
 {
     auto b = contentArea();
+
+    if (simpleView)
+    {
+        // Simple: the five macros on top, Fill Type underneath; the CreativeExtra cell (Capture) keeps a spot.
+        auto row = b.removeFromBottom (24);
+        constexpr int gap = 6;
+        const auto cell = juce::jmax (90, (row.getWidth() - gap * 3) / 4);
+        extraSlotBounds = row.removeFromLeft (cell);
+        b.removeFromBottom (5);
+        fillType.setBounds (b.removeFromBottom (34).withWidth (juce::jmax (140, b.getWidth() / 3)));
+        b.removeFromBottom (6);
+        layoutRow (b, { &fill, &intensity, &complexity, &chaos, &density }, 8);
+        return;
+    }
 
     {
         // Four equal cells; the fourth is reserved for Slot::CreativeExtra.
@@ -272,9 +322,25 @@ ProtectionPanel::ProtectionPanel (juce::AudioProcessorValueTreeState& s)
     addAndMakeVisible (note);
 }
 
+void ProtectionPanel::setSimple (bool simple)
+{
+    simpleView = simple;
+
+    for (auto* c : std::initializer_list<juce::Component*> { &lowProtect, &centreProtect, &nextProtect, &sidechainProtect, &note })
+        c->setVisible (! simple);
+
+    resized();
+}
+
 void ProtectionPanel::resized()
 {
     auto b = contentArea();
+
+    if (simpleView)
+    {
+        transientProtect.setBounds (b.withSizeKeepingCentre (juce::jmin (b.getWidth(), 96), juce::jmin (b.getHeight(), 110)));
+        return;
+    }
     note.setBounds (b.removeFromBottom (16));
 
     const auto rowHeight = juce::jmax (58, (b.getHeight() - 6) / 2);
