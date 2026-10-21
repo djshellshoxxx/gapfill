@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.22)
 
-project(GapFill VERSION 0.0.1 LANGUAGES C CXX)
+project(GapFill VERSION 0.0.2 LANGUAGES C CXX)
 set(GAPFILL_RELEASE_STAGE "beta")
 
 set(CMAKE_CXX_STANDARD 20)

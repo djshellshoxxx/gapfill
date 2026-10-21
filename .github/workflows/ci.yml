@@ -468,14 +468,14 @@ jobs:
         run: |
           set -euo pipefail
           cd dist
-          sha256sum -c GapFill-0.0.1-beta-SHA256SUMS.txt
+          sha256sum -c GapFill-0.0.2-beta-SHA256SUMS.txt
           for kind in Setup.exe Portable.zip VST3.zip CLAP.zip; do
-            test -s "GapFill-0.0.1-beta-Windows-x64-$kind"
+            test -s "GapFill-0.0.2-beta-Windows-x64-$kind"
           done
-          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-Portable.zip | grep -qx 'GapFill.exe'
-          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-VST3.zip | grep -q 'GapFill.vst3/Contents/'
-          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-CLAP.zip | grep -qx 'GapFill.clap'
-          file GapFill-0.0.1-beta-Windows-x64-Setup.exe | grep -qi 'PE32'
+          unzip -Z1 GapFill-0.0.2-beta-Windows-x64-Portable.zip | grep -qx 'GapFill.exe'
+          unzip -Z1 GapFill-0.0.2-beta-Windows-x64-VST3.zip | grep -q 'GapFill.vst3/Contents/'
+          unzip -Z1 GapFill-0.0.2-beta-Windows-x64-CLAP.zip | grep -qx 'GapFill.clap'
+          file GapFill-0.0.2-beta-Windows-x64-Setup.exe | grep -qi 'PE32'
 
   build-macos:
     name: build-macos-${{ matrix.arch }} (VST3, AU, CLAP, Standalone)

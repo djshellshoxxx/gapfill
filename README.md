@@ -16,19 +16,19 @@ KICK ——[granular reverse]—— SNARE ——[stutter]—— KICK ——[pitc
 
 ---
 
-## Download (v0.0.1 beta)
+## Download (v0.0.2 beta)
 
 Windows beta builds are packaged and published as GitHub prereleases only after the automated Linux/Windows build, plugin validation and archive checks pass. Until the release appears, binaries in Actions artifacts are beta candidates rather than verified downloads. The expected assets are:
 
 | Asset | What it is |
 |---|---|
-| `GapFill-0.0.1-beta-Windows-x64-Setup.exe` | Installer: VST3, CLAP and the standalone app (each optional) |
-| `GapFill-0.0.1-beta-Windows-x64-Portable.zip` | No-install: standalone `GapFill.exe` plus both plugin formats |
-| `GapFill-0.0.1-beta-Windows-x64-VST3.zip` | `GapFill.vst3` only - copy to `C:\Program Files\Common Files\VST3` |
-| `GapFill-0.0.1-beta-Windows-x64-CLAP.zip` | `GapFill.clap` only - copy to `C:\Program Files\Common Files\CLAP` |
-| `GapFill-0.0.1-beta-Linux-x64-*.zip` | The same three formats for Linux (`~/.vst3`, `~/.clap`) |
+| `GapFill-0.0.2-beta1-Windows-x64-Setup.exe` | Installer: VST3, CLAP and the standalone app (each optional) |
+| `GapFill-0.0.2-beta1-Windows-x64-Portable.zip` | No-install: standalone `GapFill.exe` plus both plugin formats |
+| `GapFill-0.0.2-beta1-Windows-x64-VST3.zip` | `GapFill.vst3` only - copy to `C:\Program Files\Common Files\VST3` |
+| `GapFill-0.0.2-beta1-Windows-x64-CLAP.zip` | `GapFill.clap` only - copy to `C:\Program Files\Common Files\CLAP` |
+| `GapFill-0.0.2-beta1-Linux-x64-*.zip` | The same three formats for Linux (`~/.vst3`, `~/.clap`) |
 
-## What's new in 0.0.1 beta
+## What's new in 0.0.1 beta (previous release)
 
 - **SURPRISE** (top bar) - one press jumps to one of eight curated, always-coherent creative
   profiles (Drum Edits, Dub Echoes, Glitch Storm, Tape Breakdown...). Detector, protection and
@@ -46,9 +46,9 @@ Windows beta builds are packaged and published as GitHub prereleases only after 
   a compile error in preset saving; unnamed weight sliders for screen readers; the CI
   `clap-validator` install step.
 
-## Unreleased: features added since 0.0.1 beta
+## What's new in 0.0.2 beta1 (features added since 0.0.1 beta)
 
-These are implemented, wired and covered by the automated suite on the development branch; they are **not in the 0.0.1 beta binaries**
+These are implemented, wired and covered by the automated suite; they are in the 0.0.2 beta1 binaries
 and have not yet been checked in real DAW hosts (see `docs/dev/features/IMPLEMENTATION-STATUS.md` for the per-ticket status and
 `docs/audits/2026-10-21-completeness-audit.md` for what the last audit verified and what is still open). Everything new is off or neutral
 by default, so an existing project sounds the same.
