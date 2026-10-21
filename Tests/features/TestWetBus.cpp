@@ -192,7 +192,13 @@ GF_TEST (WetBus, wet_bus_equals_the_wetSolo_signal)
     const auto r = renderBus (bus, in, 512, true, nullptr);
 
     GF_EXPECT (peak (reference.main) > 0.01f);
-    GF_EXPECT (sameValues (reference.main, r.wet));          // unity, untouched by Dry / Wet / Output
+
+    // Unity, untouched by Dry / Wet / Output. The two paths are different expressions of the same product
+    // (main: (dry*d + wet*w)*o; bus: wet*g), so the compiler may contract them differently on another CPU / toolchain:
+    // equal to within 1e-6 (-120 dBFS) rather than to the last bit (the F-M17 test holds the bit-exact claim).
+    const auto diff = compareBuffers (reference.main, r.wet, 1.0e-6);
+    GF_EXPECT_MSG (! diff.shapeMismatch && diff.firstBad < 0, "max abs diff " + juce::String (diff.maxAbs, 9)
+                                                              + " first bad " + juce::String (diff.firstBad));
 }
 
 GF_TEST (WetBus, wet_bus_contains_no_dry)
