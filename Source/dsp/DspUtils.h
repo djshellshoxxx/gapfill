@@ -158,6 +158,17 @@ struct SVF
         a3 = g * a2;
     }
 
+    /** Copies frequency/Q-derived coefficients without overwriting this
+        channel's filter memory. A stereo sweep needs only one tan() per frame. */
+    void copyCoefficientsFrom (const SVF& source) noexcept
+    {
+        g = source.g;
+        k = source.k;
+        a1 = source.a1;
+        a2 = source.a2;
+        a3 = source.a3;
+    }
+
     void process (float x, float& lp, float& bp, float& hp) noexcept
     {
         const auto v3 = x - ic2;
