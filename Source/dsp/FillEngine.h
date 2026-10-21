@@ -8,12 +8,19 @@
 #include "FillVoice.h"
 #include "SchedulerTypes.h"
 #include "VisualisationState.h"
+#include "../features/fx/EngineBlockIO.h"
+#include "../features/fx/FxMeters.h"
+#include "../features/scrub/ScrubVoice.h"
 
 #include <array>
 #include <limits>
 
 namespace gapfill
 {
+
+/** Gap confidence at which a region becomes an eligible gap. Exported so the
+    visualiser (E-3 threshold line) draws the engine's own number. */
+inline constexpr float kEnterGapConf = 0.55f;
 
 //==============================================================================
 /** Schedules fills into detected gaps and renders the voices that result.
@@ -49,9 +56,14 @@ public:
                   const SourceHistory& history,
                   const EngineSettings& settings,
                   VisualisationFifo* viz,
-                  FillEventQueue* events = nullptr) noexcept;
+                  FillEventQueue* events = nullptr,
+                  fx::EngineBlockIO* io = nullptr) noexcept;
+
+    /** Effect telemetry sink shared with the voices (owned by the processor's FxChain). */
+    void setFxMeters (fx::FxMeters* meters) noexcept;
 
     int  getActiveVoiceCount() const noexcept;
+    const fx::ScrubVoice& getScrubVoice() const noexcept { return scrub; }
     int  getCurrentAlgo() const noexcept { return lastRenderedAlgo; }
     float getCurrentDuck() const noexcept { return currentDuck; }
 
@@ -131,10 +143,14 @@ private:
     int channels = 2;
 
     FillVoice voices[numVoices];
+    fx::ScrubVoice scrub;                     // F-M19 performance voice (independent of the scheduler)
     SpectralSmear spectral;
+    fx::FxMeters* fxMeters = nullptr;
+    fx::EngineBlockIO* blockIO = nullptr;     ///< valid only inside process()
 
     // --- gap state machine ---
     bool inGap = false;
+    int prevActiveVoices = 0;          // F-M03: detects voices finishing between control updates
     bool gapEvaluated = false;
     std::int64_t gapStartPos = 0;
     std::int64_t lastFillStartPos = -1000000;

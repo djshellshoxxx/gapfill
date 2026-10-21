@@ -7,6 +7,7 @@
 #include "../features/evolve/Evolve.h"
 #include "../features/phrase/Phrase.h"
 #include "../features/timing/BarTiming.h"
+#include "../features/fx/FxHooks.h"
 
 namespace gapfill
 {
@@ -47,8 +48,12 @@ namespace
         /* TapeStop  */ {  90.0f, 350.0f, 0.30f, 0.75f },
     };
 
-    constexpr float kEnterGapConf = 0.55f;
     constexpr float kExitGapConf  = 0.28f;
+
+    inline std::uint16_t saturateMs (float ms) noexcept
+    {
+        return (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (juce::jmax (0.0f, ms)));
+    }
 
     /** How long protection takes to release once the safe region has passed. */
     constexpr double kProtectReleaseSeconds = 0.12;
@@ -73,6 +78,7 @@ void FillEngine::prepare (double sampleRate, int /*maxBlockSize*/, int numChanne
     for (auto& v : voices)
         v.prepare (sr, channels);
 
+    scrub.prepare (sr, channels);
     spectral.prepare (sr, 2);
 
     // Keep the visualiser feed at a roughly constant rate across sample rates.
@@ -85,6 +91,8 @@ void FillEngine::reset()
 {
     for (auto& v : voices)
         v.reset();
+
+    scrub.reset();
 
     spectral.reset();
     spectral.release();
@@ -105,6 +113,7 @@ void FillEngine::reset()
     rejectCounts.fill (0);
     telemetry.reset();
     recentFills.clear();
+    prevActiveVoices = 0;
     vizCounter = 0;
     vizAccum = {};
 
@@ -116,6 +125,8 @@ void FillEngine::reset()
 
 void FillEngine::panic() noexcept
 {
+    scrub.panic();
+
     for (auto& v : voices)
         if (v.isActive())
             v.requestStop (juce::jmax (16, (int) (sr * 0.004)));
@@ -155,8 +166,14 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
                           const SourceHistory& history,
                           const EngineSettings& s,
                           VisualisationFifo* viz,
-                          FillEventQueue* events) noexcept
+                          FillEventQueue* events,
+                          fx::EngineBlockIO* io) noexcept
 {
+    blockIO = io;                                   // HOOK (WP8, FX-0)
+
+    if (io != nullptr)
+        io->numStarts = 0;
+
     if (numSamples <= 0)
         return;
 
@@ -173,9 +190,19 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
 
         const auto chunk = juce::jmin (numSamples - offset, hop - phase);
 
+        if (io != nullptr && io->duck != nullptr)       // HOOK (WP8, FX-0): published for BusFx
+            std::fill_n (io->duck + wetStartSample + offset, chunk, currentDuck);
+
         for (auto& v : voices)
             if (v.isActive())
-                v.render (wet, wetStartSample + offset, chunk, history);
+                v.render (io != nullptr && io->plainWet != nullptr && v.isExcludedFromBus() ? *io->plainWet : wet,
+                          wetStartSample + offset, chunk, history);
+
+        // HOOK (WP8, F-M19): the Freeze & Scrub performance voice.
+        scrub.setWindowMs (s.fx.scrub.windowMs);
+        scrub.render (wet, wetStartSample + offset, chunk, history,
+                      juce::jlimit ((std::int64_t) 0, history.getWritePosition(), outputPos - s.historyOffset),
+                      s.fx.scrub, currentDuck);
 
         offset += chunk;
     }
@@ -187,6 +214,15 @@ void FillEngine::process (juce::AudioBuffer<float>& wet, int wetStartSample, int
             algo = (int) v.getAlgo();
 
     lastRenderedAlgo = algo;
+    blockIO = nullptr;
+}
+
+void FillEngine::setFxMeters (fx::FxMeters* meters) noexcept
+{
+    fxMeters = meters;
+
+    for (auto& v : voices)
+        v.setFxMeters (meters);
 }
 
 //==============================================================================
@@ -214,6 +250,27 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
 
         if (s.mode != DetMode::Transient || s.sidechainActive)
             lastEventPos = juce::jmax (lastEventPos, outputPos);
+    }
+
+    // Timeline events (F-M03) exist only while a visualiser or a recorder listens.
+    const bool wantTimeline = events != nullptr && ((viz != nullptr && viz->isEnabled()) || events->tapWantsAll());
+
+    auto makeEvent = [&] (FillEventType type)
+    {
+        FillEvent e;
+        e.type = type;
+        e.pos = outputPos;
+        e.conf8 = (std::uint8_t) juce::jlimit (0, 255, (int) std::lround (frame.conf * 255.0f));
+        e.generation = (std::uint32_t) gapIndex;
+        return e;
+    };
+
+    if (wantTimeline && (mainEventNow || scEventNow))
+    {
+        auto e = makeEvent (FillEventType::Onset);
+        e.protHoldMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (juce::jmax (0.0f, s.protectHoldMs)));
+        e.lookaheadMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (juce::jmax (0.0f, s.lookaheadMs)));
+        events->pushOptional (e);
     }
 
     const auto holdSamples = (float) (juce::jmax (0.0f, s.protectHoldMs) * 0.001 * sr);
@@ -273,6 +330,9 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             gapEvaluated = false;
             gapStartPos = outputPos;
             ++gapIndex;
+
+            if (wantTimeline)
+                events->pushOptional (makeEvent (FillEventType::GapOpen));
         }
     }
     else if (frame.conf < kExitGapConf)
@@ -288,18 +348,40 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
         const auto result = trySchedule (outputPos, blockStartPos, frame, analysis, history, s);
         startedFill = result.started;
 
-        // Recipes are always reported; rejections only while a visualiser is listening.
-        if (events != nullptr && (result.started || (viz != nullptr && viz->isEnabled())))
+        // Recipes are always reported; rejections only while a visualiser (or a recorder) is listening.
+        if (events != nullptr && (result.started || wantTimeline))
         {
-            FillEvent e;
-            e.type = result.started ? FillEventType::Started : FillEventType::Rejected;
+            FillEvent e = makeEvent (result.started ? FillEventType::Started : FillEventType::Rejected);
             e.reason = result.reason;
             e.recipe = result.recipe;
             e.availMs = result.availableMs;
             e.needMs = result.neededMs;
-            e.pos = outputPos;
             events->push (e);
         }
+
+        // E-3: the column that contains the evaluation carries the rejection so the
+        // decimated scrolling view can mark the gap start.
+        if (! result.started && viz != nullptr && viz->isEnabled())
+        {
+            vizAccum.flags |= VizFrame::flagRejected;
+            vizAccum.reason = (std::uint8_t) result.reason;
+            vizAccum.availMs = saturateMs (result.availableMs);
+            vizAccum.needMs = saturateMs (result.neededMs);
+        }
+    }
+
+    // ---- fill end (timeline) ----------------------------------------------
+    {
+        int activeNow = 0;
+
+        for (const auto& v : voices)
+            activeNow += v.isActive() ? 1 : 0;
+
+        if (wantTimeline)
+            for (int i = activeNow; i < prevActiveVoices; ++i)
+                events->pushOptional (makeEvent (FillEventType::FillEnd));
+
+        prevActiveVoices = activeNow;
     }
 
     // ---- visualiser feed -------------------------------------------------
@@ -634,6 +716,7 @@ RejectReason FillEngine::adjustRecipe (FillPlan& plan, const GapContext& ctx, co
     if (s.perf.mistakes01 > 0.0f)
         rollMistake (plan, ctx, s);
 
+    fx::decideRenderModes (plan, ctx, s);       // WP8: Reverse Swell / Granular Cloud flags
     return RejectReason::None;
 }
 
@@ -735,6 +818,7 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
         setup.pitchOverride = plan.recipe.pitchSemis;
     }
 
+    fx::prepareVoiceSetup (setup, plan, ctx, s, fxMeters);      // WP8: effect cards, swell landing, band routing
     return setup;
 }
 
@@ -764,6 +848,9 @@ void FillEngine::noteFillStarted (const FillPlan& plan, std::int64_t outputPos) 
     recentWrite = (recentWrite + 1) % historyLength;
     lastFillStartPos = outputPos;
     ++fillsStarted;
+
+    if (blockIO != nullptr && blockIO->numStarts < fx::kMaxFillStarts)      // HOOK (WP8, FX-0)
+        blockIO->starts[blockIO->numStarts++] = { plan.recipe, outputPos };
 }
 
 void FillEngine::noteRejected (RejectReason r) noexcept

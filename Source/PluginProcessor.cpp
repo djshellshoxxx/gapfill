@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "PluginProcessor.h"
+
 #include "PluginEditor.h"
 #include "features/FeatureHooks.h"
 #include "features/state/StateSubtrees.h"
@@ -33,6 +34,8 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     params.connect (apvts);
     bypassParameter = apvts.getParameter ("bypass");
     midiLearn.connect (apvts);
+    explainState.attach (*this, apvts);
+    fillEvents.setTap (&explainState.recorder);
 
     for (const auto& id : allParameterIDs())
         apvts.addParameterListener (id, this);
@@ -44,6 +47,7 @@ GapFillAudioProcessor::GapFillAudioProcessor()
 GapFillAudioProcessor::~GapFillAudioProcessor()
 {
     stopTimer();
+    fillEvents.setTap (nullptr);
 
     for (const auto& id : allParameterIDs())
         apvts.removeParameterListener (id, this);
@@ -98,6 +102,8 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     shaping.capture.prepare (currentSampleRate, 2);   // C-10: sample-rate change clears the latch
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    fxChain.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    engine.setFxMeters (&fxChain.getMeters());
     soloSplitter.prepare (currentSampleRate, 2);
 
     for (auto& hp : lowProtect)
@@ -144,6 +150,7 @@ void GapFillAudioProcessor::reset()
     // Hosts call this on transport jumps and when re-arming a track: every
     // piece of running DSP state has to go, without reallocating anything.
     engine.reset();
+    fxChain.reset();
     analysis.reset();
     history.clear();
     shaping.capture.reset();
@@ -177,6 +184,10 @@ void GapFillAudioProcessor::reset()
 
     lastPpqPosition = 0.0;
     lastTransportPlaying = false;
+    lastTransportPositionValid = false;
+   #ifdef GAPFILL_UNIT_TESTS
+    transportJumpCountForTests = 0;
+   #endif
     sidechainSilentSamples = kSidechainSilenceSeconds * (int) currentSampleRate;
     sidechainHasSignal = false;
 }
@@ -185,6 +196,7 @@ void GapFillAudioProcessor::reset()
 void GapFillAudioProcessor::timerCallback()
 {
     drainFillEvents();
+    explainState.timerTick (juce::Time::getMillisecondCounter());
 
     const auto wanted = latencyToReport.load();
 
@@ -234,12 +246,16 @@ int GapFillAudioProcessor::drainFillEvents()
             if (batch[i].type == FillEventType::Started)
                 recipeHistory.push (batch[i].recipe);
 
-            outcomeLog.push (batch[i]);
+            if (isGapOutcome (batch[i].type))
+                outcomeLog.push (batch[i]);
+
+            explainState.onFillEvent (batch[i]);
         }
 
         total += n;
     }
 
+    explainState.noteQueueDrops (fillEvents.getDroppedCount(), fillEvents.getDroppedOptionalCount());
     return total;
 }
 
@@ -250,6 +266,8 @@ void GapFillAudioProcessor::drainCommands() noexcept
 
     for (int i = 0; i < n; ++i)
     {
+        explainState.onCommand (batch[i]);
+
         // C-10 Capture v2 owns commands 7 and 8; everything else goes to the feature hook.
         if (batch[i].type == CommandType::Recapture)
             shaping.capture.requestRecapture();
@@ -328,7 +346,7 @@ EngineSettings GapFillAudioProcessor::gatherEngineSettings() const
     return s;
 }
 
-void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample, int numSamples)
+void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample, int /*numSamples*/)
 {
     double bpm = 120.0;
     bool tempoValid = false;
@@ -373,22 +391,27 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
     s.ppqAtBlockStart = ppq + (double) startSample / samplesPerBeat;
     s.transportValid = playing && ppqValid && tempoValid;
 
-    // A transport jump (or a fresh start) restarts the deterministic sequence.
+    // Compare this callback's position with the end predicted by the PREVIOUS
+    // complete host callback. Using the current chunk length is wrong when a
+    // DAW changes buffer sizes or processBlock splits oversized host buffers.
     if (playing && startSample == 0)
     {
-        const auto expected = lastPpqPosition + (double) numSamples / samplesPerBeat;
-
-        if (! lastTransportPlaying || ! ppqValid || std::abs (ppq - expected) > 0.25)
+        if (! lastTransportPlaying || ! lastTransportPositionValid || ! ppqValid
+             || std::abs (ppq - lastPpqPosition) > 0.25)
         {
             engine.noteTransportJump();
-            engine.panic();
+            panicWet();
+           #ifdef GAPFILL_UNIT_TESTS
+            ++transportJumpCountForTests;
+           #endif
         }
 
-        lastPpqPosition = ppq;
+        lastPpqPosition = ppqValid ? ppq + (double) hostBlockSamples / samplesPerBeat : 0.0;
+        lastTransportPositionValid = ppqValid;
     }
     else if (lastTransportPlaying && ! playing && startSample == 0)
     {
-        engine.panic();
+        panicWet();
     }
 
     if (startSample == 0)
@@ -397,7 +420,7 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
     // Tempo-synced lengths (E-2): the host tempo, else the last one it reported,
     // else the Options fallback (120 BPM by default). Out-of-range lengths are
     // clamped by halving/doubling the DIVISION, not by clipping milliseconds.
-    const auto beatSeconds = 60.0 / shaping.tempo.resolve (tempoValid, bpm, numSamples);
+    const auto beatSeconds = 60.0 / shaping.tempo.resolve (tempoValid, bpm, startSample == 0 ? (int) hostBlockSamples : 0);
     bool syncClamped = false;
 
     if (pb (params.syncEnable))
@@ -435,6 +458,7 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
 void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+    const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
     midiLearn.processMidi (midi);
     drainCommands();
@@ -448,6 +472,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     if (! prepared.load() || numSamples <= 0)
         return;
 
+    hostBlockSamples = numSamples;
     const bool bypassed = pb (params.bypass);
 
     int offset = 0;
@@ -463,6 +488,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+    const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
     midiLearn.processMidi (midi);
     drainCommands();
@@ -475,6 +501,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     if (! prepared.load() || numSamples <= 0)
         return;
 
+    hostBlockSamples = numSamples;
     int offset = 0;
 
     while (offset < numSamples)
@@ -623,12 +650,33 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     updateTempoInfo (engineSettings, startSample, numSamples);
     shaping.effective.publish (engineSettings);   // C-0
 
+    {
+        // WP3: health codes + event recording observe the chunk (bounded, allocation-free).
+        explain::ChunkInfo ci;
+        ci.numSamples = numSamples;
+        ci.sampleRate = currentSampleRate;
+        ci.blockStart = startSample == 0;
+        ci.transportValid = engineSettings.transportValid;
+        ci.ppq = engineSettings.ppqAtBlockStart;
+        ci.bpm = engineSettings.samplesPerBeat > 1.0 ? 60.0 * currentSampleRate / engineSettings.samplesPerBeat : 120.0;
+        ci.tsNum = engineSettings.perf.tsNum;
+        ci.tsDen = engineSettings.perf.tsDen;
+        ci.tempoFeatureOn = pb (params.syncEnable) || pb (params.maxFillSync)
+                             || engineSettings.perf.quantDivision >= 0 || engineSettings.perf.modSync;
+        ci.scRequested = detSource != DetSource::Main;
+        ci.scBusEnabled = sidechainBusEnabled;
+        ci.scPeak = sidechainBusEnabled ? explain::peakOf (monoSide.data(), numSamples) : 0.0f;
+        ci.bypassed = bypassed;
+        ci.droppedTotal = fillEvents.getDroppedCount();
+        explainState.onChunk (ci);
+    }
+
     if (bypassed)
     {
         // Keep analysing (so the visualiser still shows what the detector sees)
         // but stop scheduling and fade out anything still playing.
         engineSettings.fill01 = 0.0f;
-        engine.panic();
+        panicWet();
     }
 
     const auto outputStart = samplesProcessed - (std::int64_t) targetLatency;
@@ -636,11 +684,16 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
     analysis.discardEventsBefore (juce::jmax ((std::int64_t) 0, outputStart));
 
+    // WP8 (FX-0): bus effect chain sees the wet bus before the wet post-processing.
+    auto fxIo = fxChain.beginBlock (engineSettings.fx, numSamples);
+
     if (skip < numSamples)
     {
         engine.process (wetBuffer, skip, numSamples - skip, outputStart + skip,
-                        analysis, fillSource, engineSettings, &viz, &fillEvents);
+                        analysis, fillSource, engineSettings, &viz, &fillEvents, &fxIo);
     }
+
+    fxChain.processBus (wetBuffer, 0, numSamples, engineSettings.fx, fxIo, outputStart);
 
     // ---- dry path: lookahead delay with click-free latency changes -------
     {
@@ -1018,7 +1071,31 @@ bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state)
         {
             const auto text = value.toString().trim();
 
-            if (text.isEmpty() || ! text.containsOnly ("0123456789+-.eE"))
+            // A character whitelist alone accepts incomplete numbers such as
+            // "1e", "++2" and "1-2". Validate the full grammar
+            // [+-]digits[.digits][(e|E)[+-]digits] before the locale-independent
+            // juce parse. (std::from_chars<double> is unavailable on Apple libc++.)
+            const auto* p = text.toRawUTF8();
+            const auto skipDigits = [&p] { int n = 0; while (*p >= '0' && *p <= '9') { ++p; ++n; } return n; };
+            if (*p == '+' || *p == '-')
+                ++p;
+            int mantissaDigits = skipDigits();
+            if (*p == '.')
+            {
+                ++p;
+                mantissaDigits += skipDigits();
+            }
+            if (mantissaDigits == 0)
+                return false;
+            if (*p == 'e' || *p == 'E')
+            {
+                ++p;
+                if (*p == '+' || *p == '-')
+                    ++p;
+                if (skipDigits() == 0)
+                    return false;
+            }
+            if (*p != '\0')
                 return false;
 
             real = text.getDoubleValue();

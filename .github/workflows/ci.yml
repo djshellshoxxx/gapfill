@@ -405,6 +405,46 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  package-windows:
+    name: Package Windows beta (dry run)
+    needs: [changes, build-windows-x64]
+    if: needs.changes.outputs.native == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Windows installer packaging dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends nsis zip unzip file
+
+      - name: Download validated Windows build
+        uses: actions/download-artifact@v4
+        with:
+          name: gapfill-windows-x64
+          path: raw/windows
+
+      - name: Package installer and plugin ZIPs
+        run: |
+          set -euo pipefail
+          bash tools/release_stage_artifacts.sh windows raw/windows stage/win-build
+          bash packaging/package_release.sh stage/win-build "" dist
+
+      - name: Verify release packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd dist
+          sha256sum -c GapFill-0.0.1-beta-SHA256SUMS.txt
+          for kind in Setup.exe Portable.zip VST3.zip CLAP.zip; do
+            test -s "GapFill-0.0.1-beta-Windows-x64-$kind"
+          done
+          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-Portable.zip | grep -qx 'GapFill.exe'
+          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-VST3.zip | grep -q 'GapFill.vst3/Contents/'
+          unzip -Z1 GapFill-0.0.1-beta-Windows-x64-CLAP.zip | grep -qx 'GapFill.clap'
+          file GapFill-0.0.1-beta-Windows-x64-Setup.exe | grep -qi 'PE32'
+
   build-macos:
     name: build-macos-${{ matrix.arch }} (VST3, AU, CLAP, Standalone)
     needs: [changes, unit-tests]
@@ -630,7 +670,7 @@ jobs:
   # Native jobs are legitimately skipped for docs-only changes.
   ci-gate:
     name: CI gate
-    needs: [changes, preflight, unit-tests, build-linux-x64, build-windows-x64, build-macos]
+    needs: [changes, preflight, unit-tests, build-linux-x64, build-windows-x64, package-windows, build-macos]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -642,7 +682,7 @@ jobs:
           native='${{ needs.changes.outputs.native }}'
           results='${{ needs.changes.result }} ${{ needs.preflight.result }}'
           if [ "$native" = true ]; then
-            results="$results ${{ needs.unit-tests.result }} ${{ needs.build-linux-x64.result }} ${{ needs.build-windows-x64.result }} ${{ needs.build-macos.result }}"
+            results="$results ${{ needs.unit-tests.result }} ${{ needs.build-linux-x64.result }} ${{ needs.build-windows-x64.result }} ${{ needs.package-windows.result }} ${{ needs.build-macos.result }}"
           else
             echo "Docs-only change: native jobs skipped"
           fi

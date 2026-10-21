@@ -215,7 +215,6 @@ GF_TEST (Plugin, output_meter_measures_signal_after_spectral_solo)
 
 GF_TEST (Plugin, meter_decay_is_independent_of_host_block_size)
 {
-    constexpr double sr = 48000.0;
     constexpr double decayWindowSeconds = 0.25;
 
     const auto measure = [=] (int blockSize)
@@ -429,6 +428,55 @@ GF_TEST (Plugin, state_with_unknown_and_missing_parameters_is_tolerated)
     }
 }
 
+GF_TEST (Plugin, unrecognized_test_filter_is_a_failure)
+{
+    // A typo in a filtered CI invocation must not silently report green.
+    GF_EXPECT (gftest::Registry::get().run ("__gapfill_nonexistent_test_filter__") != 0);
+}
+
+//==============================================================================
+GF_TEST (Plugin, invalid_numeric_state_strings_are_rejected_atomically)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 512, false);
+    configure (proc, { { "fill", 73.0f }, { "wet", 41.0f } });
+
+    for (const char* invalid : { "1e", "++2", "1-2", ".", "--1", "1e+", "1.2.3", "+", "+-2" })
+    {
+        auto malformed = proc.getValueTreeState().copyState().createCopy();
+        bool found = false;
+        for (int i = 0; i < malformed.getNumChildren(); ++i)
+        {
+            auto child = malformed.getChild (i);
+            if (child.getProperty ("id").toString() == "fill")
+            {
+                child.setProperty ("value", juce::String (invalid), nullptr);
+                found = true;
+                break;
+            }
+        }
+        GF_EXPECT (found);
+        GF_EXPECT_MSG (! proc.applyParameterState (malformed),
+                       "malformed numeric value was accepted: " + juce::String (invalid));
+        auto* fill = proc.getValueTreeState().getParameter ("fill");
+        GF_EXPECT (fill != nullptr);
+        if (fill != nullptr)
+            GF_EXPECT_NEAR (fill->convertFrom0to1 (fill->getValue()), 73.0f, 0.05f);
+    }
+
+    // Valid exponent notation remains acceptable in existing XML projects.
+    auto valid = proc.getValueTreeState().copyState().createCopy();
+    for (int i = 0; i < valid.getNumChildren(); ++i)
+    {
+        auto child = valid.getChild (i);
+        if (child.getProperty ("id").toString() == "fill")
+            child.setProperty ("value", "7.5e1", nullptr);
+    }
+    GF_EXPECT (proc.applyParameterState (valid));
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fill")->load(), 75.0f, 0.05f);
+}
+
+//==============================================================================
 GF_TEST (Plugin, malformed_known_parameter_state_is_rejected_atomically)
 {
     GapFillAudioProcessor proc;
@@ -918,6 +966,39 @@ GF_TEST (Plugin, missing_tempo_information_is_handled)
     }
 }
 
+GF_TEST (Plugin, variable_host_buffers_do_not_trigger_false_transport_jumps)
+{
+    constexpr double sr = 48000.0;
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, sr, 512, false);
+
+    TestPlayHead playHead;
+    proc.setPlayHead (&playHead);
+    juce::MidiBuffer midi;
+
+    // A large callback followed by very short callbacks is legitimate in DAWs.
+    // The engine processes the large callback internally as multiple chunks.
+    for (int size : { 8192, 32, 4096, 64, 512, 128, 8192, 256 })
+    {
+        juce::AudioBuffer<float> block (2, size);
+        block.clear();
+        proc.processBlock (block, midi);
+        playHead.advance (size, sr);
+        GF_EXPECT_MSG (proc.getTransportJumpCountForTests() == 1,
+                       "continuous transport incorrectly reset on a " + juce::String (size) + "-sample block");
+    }
+
+    // An actual seek must still reset the deterministic sequence.
+    playHead.ppq += 4.0;
+    juce::AudioBuffer<float> afterSeek (2, 512);
+    afterSeek.clear();
+    proc.processBlock (afterSeek, midi);
+    GF_EXPECT_MSG (proc.getTransportJumpCountForTests() == 2,
+                   "transport seek was not detected");
+    proc.setPlayHead (nullptr);
+}
+
+//==============================================================================
 GF_TEST (Plugin, transport_start_stop_is_handled)
 {
     constexpr double sr = 48000.0;

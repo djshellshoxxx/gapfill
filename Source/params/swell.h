@@ -13,7 +13,11 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_SWELL(X)
+#define GAPFILL_PARAMS_SWELL(X) \
+    X (swellAmount, "swellAmount") \
+    X (swellCurve, "swellCurve") \
+    X (swellFilter, "swellFilter") \
+    X (swellTarget, "swellTarget")
 
 namespace gapfill
 {
