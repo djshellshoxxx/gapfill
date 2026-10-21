@@ -110,7 +110,7 @@ Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md
 | F-L21 Transient-derived convolution | no-IR identity, IR extraction and -24 dB normalisation, NaN / oversize rejected, zero latency, swap without click, no audio in state, 500 ms CPU, tail cap, thread stops (`Convo.*`) | Save / Load IR dialogs in a host | Implemented (WP9); file dialogs unverified |
 | F-L20 Formant shifting | pitch preserved < 5 cents, formant peak moves by ratio, stereo coherence, transient timing, silence / extremes finite, latency + duck, CPU / memory, no-alloc, Lite (`Formant.*`) | audible check | Implemented (WP9); latency 21.3 ms (N-1) |
 | F-X02 Spectral freeze and morph | capture / release stress (10k), thread race, phase continuity, memory ceiling, latency + duck, panic, morph endpoints, pitch / width, auto-capture, sr re-prepare, determinism, no-alloc (`SpFreeze.*`) | TSAN run; cross-platform tolerance | Implemented (WP9); TSAN and other platforms unverified |
-| F-X01 Harmonic granular resynthesis | per-card list in doc 12 section 7 | audible check | **Not started** (needs N-MUS, WP7) |
+| F-X01 Harmonic granular resynthesis | `TestHarmonic.cpp` (12 tests, see the WP7 rows above) | audible check | Automated; audibility unverified |
 | Routing (F-M17, F-L11, F-L12, F-L13, F-X06) | wet-solo identity, MIDI-out bounds, bus layout matrix, SC gate/snap, co-op lifecycle | pluginval 10, clap-validator, auval, real DAW | Specified; AU/Logic unverified |
 | E-2 Tempo-sync audit | clamp table 6 BPM x 12 divisions, tempo memory, fallback bounds, `<Perf>` round trip/malformed drop, Sync Mods formula, quantise grid, off identity (`TestSync.cpp`) | Reaper at 60 / 174 BPM, Standalone tempo option | Engine implemented; Options/Sync-panel UI and Reaper check unverified |
 | C-0 Effective-value display | id mapping, per-block publication, knob marker/description/clear (`TestEffectiveDisplay.cpp`) | screenshot and screen-reader check | Knob API, LookAndFeel marker, processor publication implemented; screenshot/screen-reader unverified |
@@ -122,6 +122,21 @@ Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md
 | C-9 Per-band fill type | Auto identical to baseline, forced type only in its lane, global Fill Type wins, NoAlgoFits without substitution, non-spectral modes ignore it, not randomised, state round trip (`TestBandType.cpp`) | audible check in Spectral mode | Engine implemented; lane combo boxes in the Spectral panel and audible check pending |
 | C-10 Capture v2 | default window equals v1, recapture content, pending keeps the old source, copy <= 4096 per block at 44.1/48/192 kHz, release cancels, sample-rate/reset clear, read floor never garbage, finite output, zero allocation (`TestCapture2.cpp`) | Capture + Recapture in a real host (MIDI-learned) | Engine implemented; button, status text and host check unverified |
 | C-3 Controlled Mistakes | zero = bit-identical and zero draws, 20 % probability, one type with amount, applicability table (5 types x 15 algorithms), skip rules, every type finite/bounded/not longer on every algorithm, no click, dropped repeat is one slice and never the first, brake curve, wobble within 3 %, mono untouched, plugin decisions unchanged and deterministic (`TestMistakes.cpp`) | audible check of each type | Engine implemented; knob and audible check unverified |
+
+### Completeness audit 2026-10-21 (wiring gaps closed; `docs/audits/2026-10-21-completeness-audit.md`)
+
+| Gap closed | Unit/regression evidence (file) | CI/host evidence | Current status |
+|---|---|---|---|
+| X-1 commands 24/25 had no handler | `TestAudit.cpp`: spectral_capture_and_release_commands_have_a_handler | none | Automated |
+| F-L11 `midiOutOffsetMs` not persisted, no Options row | `midi_out_offset_is_saved_with_the_project`, `options_extra_rows_scroll_and_never_overlap` | none | Automated |
+| F-M17 preserve rule | `wet_only_is_preserved_by_presets_reset_undo_and_file_load` | none | Automated |
+| F-M21 FX-send lane not consumed | `effect_send_scales_every_amount_and_is_identity_at_one`, `tension_fx_lane_is_neutral_when_off_and_matches_the_decision_stage_when_on` | none | Automated; audibility unverified |
+| E-2 `FreeTimingFallback` health input | `free_timing_fallback_reaches_the_health_mask` | none | Automated |
+| F-M19 scrub window vs `captureLength` | `scrub_window_follows_capture_length` | none | Automated |
+| Slot order ties (AUDITION/SHAPE, Panic chip/status) | `slot_orders_are_unique_within_each_slot` | none | Automated |
+| Missing controls: Panic button, Last good scene, Wet safety, Beat Battle, macro smoothing/LFO, key window/confidence, audition trigger, calibration length/auto-apply | `live_safety_card_has_a_large_panic_button_and_drives_panic`, `battle_card_stores_two_styles_and_reports_status`, `macro_editor_exposes_smoothing_and_the_lfo`, `calibration_options_write_the_global_settings` | Screenshots not captured | Automated (layout bounds only) |
+| FILE menu entries (audition, history, export, favourite) | `file_menu_entry_points_exist_while_the_editor_does` | none | Automated (menu items themselves are not clicked) |
+| Mechanical wiring audit | `python3 tools/audit/completeness_audit.py --selftest`; the audit exits 0 | `tools/validate_repo.py` unchanged | Automated |
 
 ### WP4 tickets (audition, recipes, export, A/B)
 

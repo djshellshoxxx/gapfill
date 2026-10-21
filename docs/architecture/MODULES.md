@@ -213,6 +213,21 @@ Migration notes: states and presets saved before WP9 load unchanged. Hot-file to
 
 Migration notes: sessions and presets saved before WP10 load unchanged (new IDs absent => defaults). Hot-file touch: `PluginProcessor.*` (bus declaration, layout, mix-loop wet-bus write, tracker feed, quality step, co-op, MIDI begin / finish), `FillEngine.*` (transition log, gate / coop returns in `checkEligibility`, snap deferral, voice pool), `FillVoice.cpp` (two lines: smear priming uses the order in force), `CMakeLists.txt` (`NEEDS_MIDI_OUTPUT` from the option), `ExplainState.cpp` (CPU meter on while Auto).
 
+## Completeness audit additions (2026-10-21)
+
+Report: `docs/audits/2026-10-21-completeness-audit.md`. No existing contract changed; default and neutral behaviour is bit-identical (goldens untouched).
+
+| Module | Files | Contract and invariants |
+|---|---|---|
+| Audit tool | `tools/audit/completeness_audit.py` (stdlib only) | Read-only. Checks parameter ids against lock files, ParamInfo, GUI sources, Random/Undo classification; cmake coverage of sources and tests; registrars; command ids; state subtree rows; slot/Help order ties; ticket status rows. `KNOWN_EXEMPTIONS` is the only place a gap may be waived and every entry carries a reason. Exit 1 on an un-exempted finding. `--selftest` unit-tests the parsers. |
+| MIDI output offset state | `features/midiout/MidiOutState.*` | `<Perf>` attribute `midiOutOffsetMs` (-100..100 ms, default 0, absent = default, malformed or out-of-range drops the whole `<Perf>` via the composite validator). Owner F-L11; composed in `state/StateSubtrees.cpp` next to the E-2 attribute. |
+| Options rows | `features/calibrate/OptionsRow.cpp`, `features/midiout/OptionsRow.cpp`, `features/audition/OptionsRow.cpp` (Slot::OptionsExtra, orders 270 / 280 / 290) | Calibration length and apply-automatically live in the per-user settings file (never in a project); the MIDI offset edits `GapFillAudioProcessor::setMidiOutOffsetMs`; the trigger rows edit `audition::MidiTrigger` (same state as the AUDITION menu). `OptionsExtra` is a Stack slot inside `OptionsView::getExtraViewport()`: each row keeps its own height and the area scrolls. |
+| Editor entry points | `ui::UiState::EditorActions` (`features/ui/UiState.h`) | Message-thread std::functions that `RecipeDrawer` (history, export) and `AuditionButton` register on construction and clear in their destructors; the FILE menu greys out an entry whose function is empty. Never called from the audio thread. |
+| Live cards | `gui/slots/LiveSafetySlot.cpp` (PerformanceTab 50), `gui/slots/BattleSlot.cpp` (250) | Plain controls over existing state: Panic/Recover, last good scene, `wetSafety`; `battleEvery`, STORE A/B, CLEAR over `battle::BattleModel`. No new state. |
+| Routing preserve rule | `routingParameterIDs()` in `Parameters.*`, `resetToDefaults` (`Presets.cpp`), `applyParameterState` (`PluginProcessor.cpp`) | The listed ids (`wetSolo`) keep their value through preset apply, Reset, Undo and `.gapfill` file load; only a DAW session restore (`setStateInformation`) writes them. Add an id here only for a routing switch whose hidden state would silence a project. |
+| Effect send | `fx::applyEffectSend` (`features/fx/FxSettings.h`), `ContextState::tensionFxSend`, one call in `PluginProcessor::processChunk` before `fxChain.beginBlock` | Scales every effect Amount by the F-M21 FX lane evaluated at the middle of the block; identity (no write) while Tension is off or the lane depth is 0. Bus and voice cards both read the scaled block settings. |
+| Spectral commands | `fx::FxChain::handleCommand` | `SpectralCapture` / `SpectralRelease` (X-1 24/25) forward to the spectral freeze card's atomic request counters, the same path as the Effects section buttons. |
+
 ## Change checklist
 
 - [ ] Update the ownership table and flow diagram if a boundary moves.

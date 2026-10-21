@@ -34,6 +34,15 @@ Version: 0.0.1 beta · Type: audio **effect** (not an instrument)
 
 ## Session log
 
+### 2026-10-21 - completeness and wiring audit (development branch, WP3-WP11 merged)
+
+- Full report: `docs/audits/2026-10-21-completeness-audit.md`; mechanical checker `tools/audit/completeness_audit.py` (exits 0, `--selftest` for its parsers); per-ticket status `docs/dev/features/IMPLEMENTATION-STATUS.md` (62 yes, 8 partial, 4 no, 1 out of scope).
+- **Fixed:** Undo and the header A/B flipped performance state (Lock, holds, battle ...); wet-only was not preserved by presets / Reset / file load; the F-M21 FX lane was never read; Spectral capture / release commands had no handler; `FreeTimingFallback` health input was never set; scrub snapshot ignored `captureLength`; AUDITION / SHAPE and Panic chip / status line shared slot orders (link-order dependent); `midiOutOffsetMs` was not saved.
+- **Added controls:** Performance tab PANIC button, LAST GOOD SCENE, WET SAFETY, BEAT BATTLE card, macro smoothing + LFO row, key window / confidence knobs; Options rows for calibration length / apply-automatically, MIDI output offset, audition trigger (Options extras now scroll); FILE menu Audition / Fill history / Export last fill / favourite.
+- ParamInfo allow-list is empty (34 ids documented). ADR 0001 (no Free/Pro split) and 0002 (no AAX / AUv3 / iOS) written as Proposed.
+- Still open (reasons in the report): F-L20 per-voice design, F-M21 curve editor, F-M17 Mix-panel selector + footer chip, F-X06 beyond the safe subset, T-01 / T-02 / W-01 / Q-01, real-host / hardware / Windows / macOS verification.
+
+
 ### 2026-10-07 - full audit, four new features, v0.0.1 beta release
 
 - Merged the two unmerged branches (`full-audit-fixes-20261006`, `codex/gapfill-creative-features-spec`) and removed every stale branch.
