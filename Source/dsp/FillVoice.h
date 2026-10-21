@@ -248,6 +248,7 @@ private:
     int   crushCounter = 0;
     float crushHoldL = 0.0f, crushHoldR = 0.0f;
     float driveAmount = 1.0f;
+    float distortNorm = 1.0f;
 
     // --- scramble ---
     static constexpr int maxSlices = 32;
@@ -286,6 +287,7 @@ private:
     int   modCrushBits = 8, modCrushDecimate = 1, modCrushCounter = 0;
     float modCrushHoldL = 0.0f, modCrushHoldR = 0.0f;
     float modDrive = 2.0f;
+    float modDistortNorm = 1.0f;
     float modTremRate = 8.0f, modTremDepth = 0.5f, modTremPhase = 0.0f;
     float modPanRate = 1.5f, modPanDepth = 0.6f, modPanPhase = 0.0f;
 

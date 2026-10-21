@@ -319,6 +319,7 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
         modCrushBits   = (int) std::round (lerp (10.0f, 3.0f, intensity));
         modCrushDecimate = juce::jmax (1, (int) std::round (lerp (1.0f, 14.0f, intensity * intensity)));
         modDrive       = lerp (1.2f, 9.0f, intensity);
+        modDistortNorm = 1.0f / juce::jmax (0.2f, std::tanh (modDrive));
         modTremRate    = rng.range (4.0f, 26.0f) * lerp (0.5f, 1.6f, intensity);
         modTremDepth   = lerp (0.25f, 0.95f, intensity);
         modTremPhase   = 0.0f;
@@ -557,6 +558,7 @@ void FillVoice::configureAlgorithm()
         case Algo::Distort:
         {
             driveAmount = lerp (1.5f, 18.0f, intensity);
+            distortNorm = 1.0f / juce::jmax (0.2f, std::tanh (driveAmount));
             playRate = 1.0;
             break;
         }
@@ -1029,7 +1031,7 @@ void FillVoice::genFilter (float& l, float& r) noexcept
     const auto cutoff = filterStart * std::pow (filterEnd / juce::jmax (1.0f, filterStart), t);
 
     filterL.set (sr, cutoff, filterQ);
-    filterR.set (sr, cutoff, filterQ);
+    filterR.copyCoefficientsFrom (filterL);
 
     float src0 = 0.0f, src1 = 0.0f;
     readFreezeLoop (std::fmod (playPos, (double) freezeLen), src0, src1);
@@ -1093,8 +1095,6 @@ void FillVoice::genDistort (float& l, float& r) noexcept
     float s0 = 0.0f, s1 = 0.0f;
     readFreezeLoop (std::fmod (playPos, (double) freezeLen), s0, s1);
 
-    const auto norm = 1.0f / juce::jmax (0.2f, std::tanh (driveAmount));
-
     if (setupData.intensity01 > 0.75f)
     {
         l = foldback (s0 * driveAmount * 0.5f, 0.85f);
@@ -1102,8 +1102,8 @@ void FillVoice::genDistort (float& l, float& r) noexcept
     }
     else
     {
-        l = softClip (s0 * driveAmount) * norm;
-        r = softClip (s1 * driveAmount) * norm;
+        l = softClip (s0 * driveAmount) * distortNorm;
+        r = softClip (s1 * driveAmount) * distortNorm;
     }
 
     playPos += playRate;
@@ -1191,7 +1191,7 @@ void FillVoice::applyModifiers (float& l, float& r) noexcept
                 const auto t = totalLength > 1 ? (float) elapsed / (float) (totalLength - 1) : 0.0f;
                 const auto cutoff = modFilterStart * std::pow (juce::jmax (0.02f, modFilterEnd / juce::jmax (1.0f, modFilterStart)), t);
                 modFilterL.set (sr, cutoff, modFilterQ);
-                modFilterR.set (sr, cutoff, modFilterQ);
+                modFilterR.copyCoefficientsFrom (modFilterL);
 
                 float lp = 0.0f, bp = 0.0f, hp = 0.0f;
                 modFilterL.process (l, lp, bp, hp);
@@ -1218,9 +1218,8 @@ void FillVoice::applyModifiers (float& l, float& r) noexcept
 
             case Modifier::Distort:
             {
-                const auto norm = 1.0f / juce::jmax (0.2f, std::tanh (modDrive));
-                l = softClip (l * modDrive) * norm;
-                r = softClip (r * modDrive) * norm;
+                l = softClip (l * modDrive) * modDistortNorm;
+                r = softClip (r * modDrive) * modDistortNorm;
                 break;
             }
 
