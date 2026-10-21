@@ -2,6 +2,7 @@
 
 #include "EngineEvents.h"
 #include "EngineSettings.h"
+#include "../features/budget/Budget.h"
 #include "../features/effective/Effective.h"
 #include "../features/shaping/DecisionTelemetry.h"
 #include "FillVoice.h"
@@ -33,7 +34,7 @@ public:
     void panic() noexcept;
 
     /** Forgets the deterministic gap counter, used when the transport jumps. */
-    void noteTransportJump() noexcept { gapIndex = 0; }
+    void noteTransportJump() noexcept { gapIndex = 0; recentFills.clear(); }
 
     /** Renders into `wet` (which must already be cleared) and returns the
         protection duck that the processor should apply to the wet bus. */
@@ -62,6 +63,9 @@ public:
 
     /** Last decision-stage figures for the editor (breathing LED, phrase bar ...). */
     const DecisionTelemetry& getDecisionTelemetry() const noexcept { return telemetry; }
+
+    /** F-D01: the last 16 fill starts (tests; audio-thread data, do not read while rendering). */
+    const budget::RecentFills& getRecentFills() const noexcept { return recentFills; }
 
 private:
     void controlUpdate (std::int64_t outputPos, std::int64_t blockStartPos,
@@ -149,6 +153,7 @@ private:
     int gapsTooShort = 0;
     std::array<int, (size_t) numRejectReasons> rejectCounts {};
     DecisionTelemetry telemetry;
+    budget::RecentFills recentFills;   // F-D01: last 16 fill starts (ppq ticks)
 
     // --- visualiser decimation ---
     int vizDecim = 2;

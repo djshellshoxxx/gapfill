@@ -2,7 +2,9 @@
 #include "../features/effective/Effective.h"
 #include "../features/sync/Sync.h"
 #include "../features/breathing/Breathing.h"
+#include "../features/budget/Budget.h"
 #include "../features/phrase/Phrase.h"
+#include "../features/timing/BarTiming.h"
 
 namespace gapfill
 {
@@ -100,6 +102,7 @@ void FillEngine::reset()
     gapsTooShort = 0;
     rejectCounts.fill (0);
     telemetry.reset();
+    recentFills.clear();
     vizCounter = 0;
     vizAccum = {};
 
@@ -348,6 +351,9 @@ void FillEngine::publishDecisionTelemetry (const EngineSettings& base, const Eng
 
     telemetry.phrasePosition.store ((float) phrase::positionAt (base.perf.phrase, ppq, transport), std::memory_order_relaxed);
     telemetry.phraseMultiplier.store (decided.perf.probabilityMul, std::memory_order_relaxed);
+    const auto bpb = timing::beatsPerBar (transport);
+    telemetry.barFills.store (bpb > 0.0 ? recentFills.countInBar (timing::barIndex (ppq, bpb), bpb) : 0,
+                              std::memory_order_relaxed);
     telemetry.decisions.fetch_add (1, std::memory_order_relaxed);
 }
 
@@ -418,6 +424,10 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
         return reject (RejectReason::SourceUnavailable);
 
     noteFillStarted (plan, outputPos);
+
+    if (havePpq)
+        recentFills.push (budget::tickFor (ppq));       // F-D01 bar counting (every started fill counts)
+
     result.started = true;
     result.recipe = plan.recipe;
     return result;
@@ -476,6 +486,28 @@ RejectReason FillEngine::checkEligibility (GapContext& ctx, const AnalysisEngine
     }
 
     ctx.usable = juce::jmin (ctx.available, ctx.maxFillSamples);
+
+    // F-D01 per-bar budget and quiet zones: decided before any RNG draw, neutral when Off
+    // or without a valid transport / time signature.
+    if (s.perf.budget.perBar > 0 || s.perf.budget.zone > 0)
+    {
+        const bool havePpq = s.transportValid && s.samplesPerBeat > 1.0;
+        const auto ppq = havePpq ? s.ppqAtBlockStart + (double) (ctx.outputPos - ctx.blockStartPos) / s.samplesPerBeat
+                                 : 0.0;
+        bool needsTransport = false;
+        const auto verdict = budget::evaluate (s.perf.budget, s.perf.phrase, ppq,
+                                               { havePpq, ppq, s.perf.tsNum, s.perf.tsDen, 0.0 },
+                                               recentFills, &needsTransport);
+        telemetry.budgetNeedsTransport.store (needsTransport, std::memory_order_relaxed);
+
+        if (verdict != RejectReason::None)
+            return verdict;
+    }
+    else
+    {
+        telemetry.budgetNeedsTransport.store (false, std::memory_order_relaxed);
+    }
+
     return RejectReason::None;
 }
 

@@ -1,6 +1,7 @@
 #include "FeatureHooks.h"
 #include "../dsp/FillEngine.h"
 #include "breathing/Breathing.h"
+#include "budget/Budget.h"
 #include "phrase/Phrase.h"
 
 namespace gapfill::hooks
@@ -31,6 +32,10 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     s.perf.breath.bars     = breathing::kBarChoices[juce::jlimit (0, 3, pi (params.densityBreathBars))];
     s.perf.breath.depth01  = pv (params.densityBreathDepth) * 0.01f;
     s.perf.breath.curve    = juce::jlimit (0, breathing::NumCurves - 1, pi (params.densityBreathCurve));
+
+    // F-D01 per-bar budget (choice 0..6 -> Off, 1, 2, 3, 4, 6, 8) and quiet zone
+    s.perf.budget.perBar = budget::kBudgetChoices[juce::jlimit (0, 6, pi (params.fillBudget))];
+    s.perf.budget.zone   = juce::jlimit (0, budget::NumZones - 1, pi (params.quietZone));
 
     // C-7 phrase awareness (choice 0..4 -> Off, 2, 4, 8, 16 bars)
     s.perf.phrase.bars       = phrase::kBarChoices[juce::jlimit (0, 4, pi (params.phraseBars))];

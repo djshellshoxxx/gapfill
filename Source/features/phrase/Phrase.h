@@ -20,6 +20,11 @@ inline constexpr int kBarChoices[5] { 0, 2, 4, 8, 16 };   // phraseBars choice i
     cannot be evaluated (off, invalid transport, unknown time signature). */
 double positionAt (const PhraseSettings&, double ppq, const Effective::TransportInfo&) noexcept;
 
+/** True while `ppq` lies in the final bar of the phrase (position >= 1 - 1/bars). Independent of
+    the bias, so F-D01 "Last bar of phrase" works with Bias 0. False when the phrase is Off, the
+    transport is invalid or the time signature unknown. */
+bool inFinalBar (const PhraseSettings&, double ppq, const Effective::TransportInfo&) noexcept;
+
 /** r = smoothstep (1 - 1/bars, 1, p) in [0, 1]. */
 float rampAt (double position, int bars) noexcept;
 

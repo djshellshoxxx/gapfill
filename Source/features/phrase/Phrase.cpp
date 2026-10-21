@@ -22,6 +22,14 @@ double positionAt (const PhraseSettings& ph, double ppq, const Effective::Transp
     return timing::frac ((ppq - offset) / lenBeats);
 }
 
+bool inFinalBar (const PhraseSettings& ph, double ppq, const Effective::TransportInfo& t) noexcept
+{
+    PhraseSettings probe = ph;
+    probe.bias01 = 1.0f;                      // the position does not depend on the bias
+    const auto p = positionAt (probe, ppq, t);
+    return p >= 0.0 && p >= 1.0 - 1.0 / (double) ph.bars;
+}
+
 float rampAt (double position, int bars) noexcept
 {
     if (bars <= 0 || position < 0.0)

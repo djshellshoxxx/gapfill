@@ -18,6 +18,7 @@ struct DecisionTelemetry
     std::atomic<float> phrasePosition { -1.0f };   ///< C-7: position 0..1 in the phrase
     std::atomic<float> phraseMultiplier { 1.0f };  ///< C-7: probability multiplier applied
     std::atomic<int>   evolveProfile { -1 };       ///< C-8: current waypoint (Surprise profile index)
+    std::atomic<bool>  budgetNeedsTransport { false }; ///< F-D01: a budget / zone is set but there is no usable transport
     std::atomic<int>   barFills { 0 };             ///< F-D01: fills started in the current bar
     std::atomic<int>   barIndexSeen { 0 };         ///< F-D01: the bar they were counted in (low 31 bits)
     std::atomic<std::uint32_t> decisions { 0 };    ///< gaps evaluated since reset (tests)
@@ -26,7 +27,7 @@ struct DecisionTelemetry
     {
         breathPhase.store (-1.0f); breathOffset.store (0.0f);
         phrasePosition.store (-1.0f); phraseMultiplier.store (1.0f);
-        evolveProfile.store (-1); barFills.store (0); barIndexSeen.store (0); decisions.store (0);
+        evolveProfile.store (-1); budgetNeedsTransport.store (false); barFills.store (0); barIndexSeen.store (0); decisions.store (0);
     }
 };
 

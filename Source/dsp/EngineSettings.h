@@ -15,6 +15,7 @@ namespace gapfill
 struct BreathSettings  { bool on = false; int bars = 4; float depth01 = 0.0f; int curve = 0; };   // C-6
 struct PhraseSettings  { int bars = 0; float bias01 = 0.0f; int offsetBars = 0; };                // C-7 (+F-L08 offset)
 struct EvolveSettings  { int periodBars = 0; };                                                   // C-8
+struct BudgetSettings  { int perBar = 0; int zone = 0; };                                         // F-D01 (0 = Off)
 
 struct PerformanceSettings
 {
@@ -25,6 +26,7 @@ struct PerformanceSettings
     BreathSettings breath;            // C-6
     PhraseSettings phrase;            // C-7
     EvolveSettings evolve;            // C-8
+    BudgetSettings budget;            // F-D01
     bool  likeActive = false;         // C-11
     int   quantDivision = -1;         // E-2 fill-length quantise, -1 off
     bool  modSync = false;            // E-2
