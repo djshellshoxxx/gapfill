@@ -59,6 +59,7 @@ public:
     std::uint32_t getPreviewStatusCode() const noexcept   { return preview.code(); }
     bool isPreviewActive() const noexcept                 { return preview.isActive(); }
     bool isPreviewPending() const noexcept                { return preview.request.pending; }
+    std::size_t getPreviewBufferBytes() const noexcept    { return preview.getBufferBytes(); }
 
     /** F-S06: RMS of the last preview that finished (voice only) and a counter that moves with it. */
     float getLastPreviewRms() const noexcept              { return preview.lastRms; }

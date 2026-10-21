@@ -76,6 +76,14 @@ public:
 
     bool isActive() const noexcept                  { return voice.isActive(); }
 
+    /** Heap bytes the preview adds (voice buffers, restart tail, measuring scratch). */
+    std::size_t getBufferBytes() const noexcept
+    {
+        return voice.getBufferBytes()
+             + (std::size_t) (tail.getNumChannels() * tail.getNumSamples()
+                              + scratch.getNumChannels() * scratch.getNumSamples()) * sizeof (float);
+    }
+
     /** Called once per process(): a finished preview returns the status to Idle and
         publishes the RMS it produced (F-S06). */
     void endBlock() noexcept

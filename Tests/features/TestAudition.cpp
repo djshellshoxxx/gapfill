@@ -585,6 +585,19 @@ GF_TEST (Audition, audition_finite_output_all_algorithms)
     }
 }
 
+GF_TEST (Audition, audition_memory_budget_under_one_megabyte_at_192k)
+{
+    FillEngine engine;
+    engine.prepare (192000.0, 512, 2);
+    const auto bytes = engine.getPreviewBufferBytes();
+
+    std::cout << "         sizeof(FillVoice) = " << sizeof (FillVoice) << " B, sizeof(PreviewChannel) = " << sizeof (PreviewChannel)
+              << " B, preview buffers at 192 kHz stereo = " << bytes << " B" << std::endl;
+
+    GF_EXPECT_MSG (bytes < 1024u * 1024u, "the extra voice stays under 1 MB at 192 kHz stereo: " + juce::String ((int) bytes));
+    GF_EXPECT (bytes > 100000u);
+}
+
 GF_TEST (Audition, audition_respects_fill_type_and_caps_length)
 {
     EngineRig rig;

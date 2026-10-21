@@ -88,6 +88,13 @@ public:
     int  getRemainingSamples() const noexcept { return juce::jmax (0, totalLength - elapsed); }
     int  getLengthSamples()    const noexcept { return totalLength; }
 
+    /** Heap bytes held by the voice's sample buffers (capture + comb); for memory budgeting and tests. */
+    std::size_t getBufferBytes() const noexcept
+    {
+        return (std::size_t) (capture.getNumChannels() * capture.getNumSamples()
+                              + combBuffer.getNumChannels() * combBuffer.getNumSamples()) * sizeof (float);
+    }
+
     /** The decisions the voice took at start(), for the FillRecipe (F0-3):
         bit per Modifier (bit0 = FilterSweep .. bit4 = PanMotion), and the
         Pitch Rise / Fall target in signed semitones (0 for other algorithms). */
