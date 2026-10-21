@@ -1,0 +1,242 @@
+name: Release beta
+
+# Publishes a GitHub PRERELEASE from the verified per-platform artifacts of a
+# successful CI run for the EXACT commit this workflow is dispatched on. Nothing
+# is rebuilt or re-tested here; binaries are only re-inspected, packaged,
+# checksummed and uploaded. See docs/dev/07-QA-AND-RELEASE.md section 5b.
+#
+#   verify -> package-desktop (Windows + Linux, incl. NSIS installer)
+#          -> package-macos   (arm64, x86_64; lipo + codesign re-check)
+#          -> publish         (combined SHA256SUMS, prerelease, checksum round-trip)
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, e.g. v0.0.2-beta1 (must match CMake version + stage)'
+        required: true
+        type: string
+      source_run_id:
+        description: 'CI run id to take artifacts from (optional; default = successful CI run for this SHA)'
+        required: false
+        type: string
+
+concurrency:
+  group: release-beta
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    name: Verify tag and source CI run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      run_id: ${{ steps.check.outputs.run_id }}
+      asset_tag: ${{ steps.check.outputs.asset_tag }}
+      display: ${{ steps.check.outputs.display }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      INPUT_TAG: ${{ inputs.tag }}
+      INPUT_RUN_ID: ${{ inputs.source_run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: check
+        name: Check tag, CI run, SHA and artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="$INPUT_TAG"
+          [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-beta[0-9]+$ ]] || { echo "::error::Tag '$tag' must look like v0.0.2-beta1"; exit 1; }
+
+          version="$(sed -n 's/^project(GapFill VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)"
+          stage="$(sed -n 's/^set(GAPFILL_RELEASE_STAGE "\(.*\)")/\1/p' CMakeLists.txt)"
+          [[ "$tag" == "v${version}-${stage}"* ]] || { echo "::error::Tag '$tag' does not match CMake version ${version} ${stage}; bump CMakeLists.txt first"; exit 1; }
+          [[ "${tag#v${version}-${stage}}" =~ ^[0-9]+$ ]] || { echo "::error::Tag '$tag' needs a numeric suffix after '${stage}'"; exit 1; }
+
+          if gh release view "$tag" >/dev/null 2>&1; then echo "::error::Release $tag already exists; refusing to overwrite"; exit 1; fi
+          if git ls-remote --tags origin "refs/tags/$tag" | grep -q .; then echo "::error::Tag $tag already exists; refusing to overwrite"; exit 1; fi
+
+          run_id="$INPUT_RUN_ID"
+          if [ -z "$run_id" ]; then
+            run_id="$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          fi
+          [ -n "$run_id" ] || { echo "::error::No successful CI run found for $GITHUB_SHA. Dispatch the CI workflow on this commit first (docs-only commits skip native jobs)."; exit 1; }
+
+          repo="$GITHUB_REPOSITORY"
+          read -r conclusion head_sha path < <(gh api "repos/$repo/actions/runs/$run_id" --jq '[.conclusion, .head_sha, .path] | @tsv')
+          [ "$conclusion" = success ] || { echo "::error::CI run $run_id concluded '$conclusion'"; exit 1; }
+          [ "$head_sha" = "$GITHUB_SHA" ] || { echo "::error::CI run $run_id built $head_sha, this workflow runs on $GITHUB_SHA"; exit 1; }
+          [[ "$path" == .github/workflows/ci.yml* ]] || { echo "::error::Run $run_id is not a CI workflow run ($path)"; exit 1; }
+
+          names="$(gh api --paginate "repos/$repo/actions/runs/$run_id/artifacts" --jq '.artifacts[] | select(.expired == false) | .name')"
+          for need in gapfill-linux-x64 gapfill-windows-x64 gapfill-macos-arm64 gapfill-macos-x86_64 unit-test-results; do
+            grep -qx "$need" <<<"$names" || { echo "::error::Run $run_id has no unexpired artifact '$need' (native jobs skipped or retention expired)"; exit 1; }
+          done
+
+          asset_tag="${tag#v}"
+          {
+            echo "run_id=$run_id"
+            echo "asset_tag=$asset_tag"
+            echo "display=${asset_tag/-/ }"
+          } >> "$GITHUB_OUTPUT"
+          echo "Releasing $tag from CI run $run_id at $GITHUB_SHA"
+
+  package-desktop:
+    name: Package Windows and Linux (installer, zips)
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install packaging tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nsis zip
+
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ needs.verify.outputs.run_id }}
+          github-token: ${{ github.token }}
+          name: gapfill-windows-x64
+          path: raw/windows
+
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ needs.verify.outputs.run_id }}
+          github-token: ${{ github.token }}
+          name: gapfill-linux-x64
+          path: raw/linux
+
+      - name: Inspect artifacts and rebuild build trees
+        run: |
+          set -euo pipefail
+          bash tools/release_stage_artifacts.sh windows raw/windows stage/win-build
+          bash tools/release_stage_artifacts.sh linux raw/linux stage/lin-build
+
+      - name: Package (NSIS installer, portable, VST3, CLAP zips)
+        env:
+          GAPFILL_ASSET_TAG: ${{ needs.verify.outputs.asset_tag }}
+          GAPFILL_DISPLAY_VERSION: ${{ needs.verify.outputs.display }}
+        run: |
+          set -euo pipefail
+          bash packaging/package_release.sh stage/win-build stage/lin-build dist
+          # The publish job writes one combined checksum file for every platform.
+          rm -f dist/GapFill-*-SHA256SUMS.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-desktop
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  package-macos:
+    name: Package macOS ${{ matrix.arch }}
+    needs: verify
+    strategy:
+      fail-fast: true
+      matrix:
+        arch: [arm64, x86_64]
+    # lipo/codesign can inspect both architectures on either host.
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ needs.verify.outputs.run_id }}
+          github-token: ${{ github.token }}
+          name: gapfill-macos-${{ matrix.arch }}
+          path: raw
+
+      - name: Package verified bundles
+        env:
+          GAPFILL_ASSET_TAG: ${{ needs.verify.outputs.asset_tag }}
+          GAPFILL_DISPLAY_VERSION: ${{ needs.verify.outputs.display }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p stage dist
+          tar -xf "raw/gapfill-macos-${{ matrix.arch }}.tar" -C stage
+          bash packaging/package_macos.sh stage "${{ matrix.arch }}" dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos-${{ matrix.arch }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Checksum and publish prerelease
+    needs: [verify, package-desktop, package-macos]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ inputs.tag }}
+      ASSET_TAG: ${{ needs.verify.outputs.asset_tag }}
+      DISPLAY_VERSION: ${{ needs.verify.outputs.display }}
+      RUN_ID: ${{ needs.verify.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release
+
+      - name: Combined SHA-256 checksums
+        run: |
+          set -euo pipefail
+          cd release
+          ls -la
+          for need in Windows-x64-Setup.exe Windows-x64-Portable.zip Linux-x64-Portable.zip macOS-arm64.zip macOS-x86_64.zip; do
+            test -s "GapFill-${ASSET_TAG}-${need}" || { echo "::error::missing asset GapFill-${ASSET_TAG}-${need}"; exit 1; }
+          done
+          sha256sum GapFill-"${ASSET_TAG}"-* > "GapFill-${ASSET_TAG}-SHA256SUMS.txt"
+          sha256sum -c "GapFill-${ASSET_TAG}-SHA256SUMS.txt"
+
+      - name: Publish prerelease (draft=false, prerelease=true)
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" >/dev/null 2>&1; then echo "::error::Release $TAG already exists"; exit 1; fi
+          cat > "$RUNNER_TEMP/RELEASE_NOTES.md" <<NOTES
+          GapFill ${DISPLAY_VERSION} - pre-release for Windows x64, Linux x86-64 and macOS (Apple Silicon + Intel).
+
+          Formats: VST3, CLAP and Standalone everywhere; Audio Unit on macOS; NSIS installer on Windows.
+          Built once and validated in CI run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}
+          at commit ${GITHUB_SHA}: full unit/golden/combinatorial suite (Linux), pluginval strictness 10,
+          clap-validator, auval (macOS) and standalone smoke launches. This release only repackages those
+          verified binaries; verify downloads with GapFill-${ASSET_TAG}-SHA256SUMS.txt.
+
+          Not Apple-notarized and not Authenticode-signed. Real-DAW and hardware acceptance
+          (docs/VALIDATION.md) is separate and is not implied by this pre-release.
+          NOTES
+          gh release create "$TAG" release/* \
+            --target "$GITHUB_SHA" \
+            --title "GapFill ${DISPLAY_VERSION}" \
+            --notes-file "$RUNNER_TEMP/RELEASE_NOTES.md" \
+            --prerelease \
+            --latest=false
+
+      - name: Verify published assets against checksums
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/release-check"
+          gh release download "$TAG" --dir "$RUNNER_TEMP/release-check"
+          (cd "$RUNNER_TEMP/release-check" && sha256sum -c "GapFill-${ASSET_TAG}-SHA256SUMS.txt")
+          test "$(gh release view "$TAG" --json isDraft,isPrerelease --jq '[.isDraft, .isPrerelease] | @csv')" = "false,true"
+          gh release view "$TAG" --json url,assets --jq '{url: .url, assets: [.assets[].name]}'
