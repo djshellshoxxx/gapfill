@@ -71,6 +71,59 @@ struct BandFxSettings
     bool forBand (int band) const noexcept { return band < 0 || band > 2 ? true : (band == 0 ? low : (band == 1 ? mid : high)); }
 };
 
+// ---- WP9: bus cards (docs/dev/12 section 7) ---------------------------------
+
+struct ResonatorSettings
+{
+    float amount01 = 0.0f;
+    int   note = 60;            ///< MIDI note 24-96
+    int   mode = 0;             ///< 0 Manual, 1 Scale degrees
+    float decay01 = 0.5f, damp01 = 0.4f, spread01 = 0.3f;
+};
+
+struct FsDelaySettings
+{
+    float amount01 = 0.0f;
+    float shiftHz = 50.0f;      ///< -2000..2000
+    int   time = 3;             ///< Division index (1/8)
+    float feedback01 = 0.4f;    ///< 0-0.85
+    float damp01 = 0.3f, stereo01 = 0.4f;
+};
+
+struct DubSettings
+{
+    float amount01 = 0.0f;
+    int   div = 3;
+    float feedback01 = 0.5f;    ///< 0-0.9
+    float lowHz = 120.0f, highHz = 4000.0f;
+    float move01 = 0.3f, sat01 = 0.2f;
+    bool  ping = true;
+};
+
+struct FormantSettings
+{
+    float amount01 = 0.0f;
+    float shiftSt = 0.0f;       ///< formant semitones -12..12
+    float tilt01 = 0.0f;        ///< -1..1
+    int   vowel = 0;            ///< 0 Shift only, 1..5 = A E I O U
+};
+
+struct SpFreezeSettings
+{
+    float amount01 = 0.0f;
+    float lengthMs = 800.0f;
+    float decay01 = 0.5f, smear01 = 0.3f, morph01 = 0.0f;
+    float pitchSt = 0.0f;
+    float width01 = 0.5f;
+};
+
+struct ConvoSettings
+{
+    float amount01 = 0.0f;
+    float sizeMs = 120.0f;
+    float damp01 = 0.4f;
+};
+
 /** Amounts below this are "off" for every card (docs/dev/12 FX-0). */
 inline constexpr float kOffThreshold = 0.001f;
 
@@ -83,6 +136,16 @@ struct FxSettings
     TapeSettings tape;
     ScrubSettings scrub;
     BandFxSettings bandFx;
+    ResonatorSettings resonator;
+    FsDelaySettings fsdelay;
+    DubSettings dub;
+    FormantSettings formant;
+    SpFreezeSettings spfreeze;
+    ConvoSettings convo;
+
+    /** Quality "Lite" seam (F-L11 quality group, not landed): the spectral and
+        convolution cards are disabled while true. */
+    bool lite = false;
 
     /** True when any VoiceFx card could be active for a new fill. */
     bool anyVoiceFx() const noexcept
@@ -91,8 +154,13 @@ struct FxSettings
             || tape.amount01 > kOffThreshold;
     }
 
-    /** True when any BusFx card is enabled. WP9 (bus effects) extends this. */
-    bool anyBusFx() const noexcept { return false; }
+    /** True when any BusFx card is enabled (Amount only; ringing tails are the chain's business). */
+    bool anyBusFx() const noexcept
+    {
+        return resonator.amount01 > kOffThreshold || fsdelay.amount01 > kOffThreshold
+            || dub.amount01 > kOffThreshold || formant.amount01 > kOffThreshold
+            || spfreeze.amount01 > kOffThreshold || convo.amount01 > kOffThreshold;
+    }
 };
 
 /** What a voice's effect chain learns when a fill starts. */

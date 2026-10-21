@@ -13,7 +13,15 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_DUB(X)
+#define GAPFILL_PARAMS_DUB(X) \
+    X (dubAmount, "dubAmount") \
+    X (dubDiv, "dubDiv") \
+    X (dubFeedback, "dubFeedback") \
+    X (dubLow, "dubLow") \
+    X (dubHigh, "dubHigh") \
+    X (dubMove, "dubMove") \
+    X (dubSat, "dubSat") \
+    X (dubPing, "dubPing")
 
 namespace gapfill
 {

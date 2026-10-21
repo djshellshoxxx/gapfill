@@ -27,7 +27,7 @@ namespace gapfill::fxgui
 
 struct ControlDef
 {
-    enum class Kind { Knob, Combo, Toggle };
+    enum class Kind { Knob, Combo, Toggle, Button };   ///< Button: paramId names an action (see EffectCardView)
 
     Kind kind;
     const char* paramId;
@@ -83,6 +83,9 @@ private:
     std::vector<std::unique_ptr<juce::Component>> controls;
     juce::Label readout;
     bool showMore = false;
+    std::unique_ptr<juce::FileChooser> chooser;
+
+    void runAction (const juce::String& action, juce::Button*);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EffectCardView)
 };

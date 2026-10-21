@@ -80,6 +80,8 @@ void applyFxTree (GapFillAudioProcessor& proc, const juce::ValueTree& tree)
 {
     auto& ui = proc.getFxUiState();
     ui.reset();
+    proc.getFxChain().cardsRef().convo.setAutoCapture (false);          // defaults: IR auto off,
+    proc.getFxChain().cardsRef().spfreeze.setAutoCapture (true);        // freeze auto on
 
     for (const auto& card : tree)
     {
@@ -90,6 +92,13 @@ void applyFxTree (GapFillAudioProcessor& proc, const juce::ValueTree& tree)
 
         ui.folded[i].store ((bool) card.getProperty ("folded", true), std::memory_order_relaxed);
         ui.rememberedAmount[i].store ((float) (double) card.getProperty ("amount", 0.0), std::memory_order_relaxed);
+
+        // WP9: capture preferences live with the cards, persisted here (no audio)
+        if (i == (int) CardId::Convo && card.hasProperty ("auto"))
+            proc.getFxChain().cardsRef().convo.setAutoCapture ((bool) card.getProperty ("auto"));
+
+        if (i == (int) CardId::SpFreeze && card.hasProperty ("auto"))
+            proc.getFxChain().cardsRef().spfreeze.setAutoCapture ((bool) card.getProperty ("auto"));
     }
 }
 
@@ -97,7 +106,10 @@ juce::ValueTree serialiseFxTree (const GapFillAudioProcessor& proc)
 {
     const auto& ui = proc.getFxUiState();
 
-    if (ui.isDefault())
+    const auto& cards = const_cast<GapFillAudioProcessor&> (proc).getFxChain().cardsRef();   // read-only use
+    const bool autoNonDefault = cards.convo.getAutoCapture() || ! cards.spfreeze.getAutoCapture();
+
+    if (ui.isDefault() && ! autoNonDefault)
         return {};                                  // write nothing: states without effects stay byte-identical
 
     juce::ValueTree tree ("Fx");
@@ -107,10 +119,20 @@ juce::ValueTree serialiseFxTree (const GapFillAudioProcessor& proc)
         const bool folded = ui.folded[i].load (std::memory_order_relaxed);
         const auto amount = ui.rememberedAmount[i].load (std::memory_order_relaxed);
 
-        if (folded && amount == 0.0f)
+        const bool autoCard = (i == (int) CardId::Convo && cards.convo.getAutoCapture())
+                           || (i == (int) CardId::SpFreeze && ! cards.spfreeze.getAutoCapture());
+
+        if (folded && amount == 0.0f && ! autoCard)
             continue;
 
         juce::ValueTree card ("Card");
+
+        if (i == (int) CardId::Convo)
+            card.setProperty ("auto", cards.convo.getAutoCapture(), nullptr);
+
+        if (i == (int) CardId::SpFreeze)
+            card.setProperty ("auto", cards.spfreeze.getAutoCapture(), nullptr);
+
         card.setProperty ("id", kKeys[i], nullptr);
         card.setProperty ("folded", folded, nullptr);
         card.setProperty ("amount", (double) juce::jlimit (0.0f, 100.0f, amount), nullptr);
@@ -123,6 +145,8 @@ juce::ValueTree serialiseFxTree (const GapFillAudioProcessor& proc)
 void resetFxTree (GapFillAudioProcessor& proc)
 {
     proc.getFxUiState().reset();
+    proc.getFxChain().cardsRef().convo.setAutoCapture (false);
+    proc.getFxChain().cardsRef().spfreeze.setAutoCapture (true);
 }
 
 } // namespace gapfill::fx

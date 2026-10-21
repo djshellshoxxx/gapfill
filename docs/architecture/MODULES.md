@@ -143,6 +143,17 @@ Migration notes: states and presets saved before WP8 load unchanged (new paramet
 | Breathing (C-6), Phrase (C-7), Budget (F-D01), Timing | `features/breathing`, `phrase`, `budget`, `timing/BarTiming.h` | Decision stage on the scheduler's copy; neutral without valid PPQ and time signature; budget runs in `checkEligibility` before any RNG draw, ring of 16 fill starts cleared on transport jump. |
 | Band type (C-9) | `buildRecipe`, `params/bandtype` | Lane forces its algorithm in Spectral mode; global Fill Type wins; `NoAlgoFits` when it does not fit. |
 | Capture v2 (C-10) | `features/capture2/CaptureLatch.*`, `SourceHistory::setReadFloor` | v1 pause-the-writer kept; Recapture copies <= 4096 samples/block into ping-pong snapshots; release/sample-rate change/reset clear it. |
+## Bus and spectral effects (WP9: SP-0, F-M15, F-L19, F-L15, F-L21, F-L20, F-X02)
+
+| Module | Files | Contract / dependencies | Invariants and errors |
+|---|---|---|---|
+| Spectral core (SP-0) | `Source/dsp/spectral/Stft.*` | `Stft::prepare(sr, channels, N)` (N 512-4096, default 2048 <= 96 kHz, else 4096), `process(in, out, n, SpectralCallback&)` with hop N/4, periodic Hann analysis + synthesis, `latencySamples() == N - 1`. Callback edits magnitude / phase per channel per frame. Helpers `wrapPi`, `instantaneousBin`, `identityPhaseLock`. Depends on `juce::dsp::FFT` only; `SpectralSmear` is untouched. | No allocation, locks or I/O in `process`; denormals flushed; non-finite bins zeroed. In/out may alias. |
+| Bus card base | `Source/features/fx/bus/BusCardBase.h`, `BusDsp.h` | Template for every `BusFx`: 20 ms Amount ramp, panic fade, tail cap with state clear, per-sample engine duck, 256-sample chunks. Cards implement `amountOf`, `renderChunk`, optional `blockSettings` / `resetCard`. | An off card is never called by `FxChain`; a card returning to Amount 0 resets itself. |
+| Bus cards | `ResonatorCard`, `FsDelayCard`, `DubCard`, `FormantCard`, `ConvoCard`, `SpFreezeCard` (+ `BusCards.h`) | Owned by `FxChain` (six `addBusCard` lines in `build()`, CardId order). Context supplies settings, tempo (`samplesPerBeat`, 0 = none), fill starts, dry `SourceHistory`, `scaleMask`/`scaleRoot` (N-MUS seam, 0 = off). | Tail caps: resonator 2 s, fsdelay 4 s, dub 8 s (2-16 s), convo 1.5 s, freeze 4.5 s. Latency cards (formant, freeze) declare `latencySamples()` and apply the duck to their output. Convo owns a joined worker thread; IR audio never enters the state. |
+| Controls and state | `FxChain::cardsRef()`, `FxUiState.cpp`, `EffectsSection.*` | `requestCapture/requestRelease/setAutoCapture` (atomic, any thread); `<Fx>` stores the two auto-capture flags. Help sections 4080-4130. | Defaults: IR auto-capture off, freeze auto-capture on; default state still writes no `<Fx>`. |
+| Parameters | `Source/params/{resonator,fsdelay,dub,formant,spfreeze,convo}.*`, `tools/param_ids/*.lock` | 34 permanent IDs (6 + 6 + 8 + 4 + 7 + 3, Amounts included). | Neutral = Amount 0; not part of Random / Surprise. |
+
+Migration notes: states and presets saved before WP9 load unchanged. Hot-file touch: four lines in `FillEngine::process` (tempo / history for the bus cards).
 
 ## Change checklist
 
