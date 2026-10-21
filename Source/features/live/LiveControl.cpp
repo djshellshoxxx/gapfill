@@ -231,9 +231,24 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t 
     {
         hold.setLatch (fm10Mode->load (std::memory_order_relaxed) > 0.5f);
 
+        // A restore leaves the parameter values exactly as saved (hosts compare them), but an ON hold must not
+        // sound until the user's next off -> on transition: `holdArmed` is cleared by a restore and set once the
+        // parameter is seen OFF.
+        if (disarmHolds.exchange (false, std::memory_order_acq_rel))
+        {
+            for (auto& a : holdArmed)
+                a = false;
+            hold.panic();
+        }
+
         for (int i = 0; i < 4; ++i)
             if (fm10Bool[i] != nullptr)
-                hold.setLevel ((momentary::Effect) i, momentary::Source::Param, fm10Bool[i]->load (std::memory_order_relaxed) > 0.5f);
+            {
+                const bool on = fm10Bool[i]->load (std::memory_order_relaxed) > 0.5f;
+                if (! on)
+                    holdArmed[i] = true;
+                hold.setLevel ((momentary::Effect) i, momentary::Source::Param, on && holdArmed[i]);
+            }
 
         const auto timeoutSeconds = juce::jlimit (2.0f, 60.0f, fm10Timeout->load (std::memory_order_relaxed));
         hold.tick (numSamples, (std::int64_t) ((double) timeoutSeconds * sampleRate));
@@ -387,12 +402,8 @@ const float* LiveControl::dryDuckGains (int n) noexcept
 
 void LiveControl::forceHoldsOff()
 {
-    for (const char* id : { "fm10_stutter", "fm10_freeze", "fm10_reverse", "fm10_tape" })
-        if (auto* p = apvts.getParameter (id))
-            if (p->getValue() > 0.0f)
-                p->setValueNotifyingHost (0.0f);
-
-    hold.panic();
+    // Values are left as saved; the audio thread ignores a restored ON hold until it is seen OFF (see prepareChunk).
+    disarmHolds.store (true, std::memory_order_release);
 }
 
 void LiveControl::onTransportStopped() noexcept

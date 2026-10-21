@@ -129,8 +129,8 @@ public:
     /** Dry-path multiplier for the next `n` samples while a hold with Dry Duck > 0 is engaged; nullptr (= exactly 1.0) otherwise. */
     const float* dryDuckGains (int n) noexcept;
 
-    /** Message thread: the four hold parameters are momentary state and are never ON after a restore. */
-    void forceHoldsOff();
+    /** Message thread: after a restore the engine ignores a restored ON hold until it is seen OFF. */
+    void forceHoldsOff();   ///< after a restore: parameter values stay as saved, but a restored ON hold is ignored until re-armed
 
     /** Bypass: every hold is released. Audio thread. */
     void clearHolds() noexcept                           { hold.panic(); holdEngaged.store (0, std::memory_order_relaxed); holdTimedOut.store (0, std::memory_order_relaxed); }
@@ -230,6 +230,8 @@ private:
     int pumpTicks = 0;
 
     momentary::HoldController hold;
+    std::atomic<bool> disarmHolds { false };
+    bool holdArmed[4] { true, true, true, true };      // audio thread
     std::atomic<std::uint8_t> holdEngaged { 0 }, holdTimedOut { 0 };
     // F-M10 parameters (raw atomics; null in a layout without the fm10 group)
     std::atomic<float>* fm10Bool[4] {};

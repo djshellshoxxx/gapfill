@@ -368,10 +368,6 @@ GF_TEST (Plugin, state_round_trips_through_save_and_restore)
         auto* pb = b.getValueTreeState().getParameter (id);
         GF_EXPECT (pa != nullptr && pb != nullptr);
 
-        // F-M10: the four hold bools are momentary state and are deliberately never restored ON.
-        if (id == "fm10_stutter" || id == "fm10_freeze" || id == "fm10_reverse" || id == "fm10_tape")
-            continue;
-
         // Compare what the DSP actually reads. A bool parameter keeps whatever
         // raw normalised float the host last pushed at it, so two parameters
         // that both mean "on" can hold different values for getValue().
@@ -2080,10 +2076,6 @@ GF_TEST (Plugin, random_normalised_values_survive_a_state_round_trip)
         for (int i = 0; i < proc.getParameters().size(); ++i)
         {
             auto* p = proc.getParameters()[i];
-
-            if (p->getName (32) == "Hold Stutter" || p->getName (32) == "Hold Freeze"
-                 || p->getName (32) == "Hold Reverse" || p->getName (32) == "Hold Tape Stop")
-                continue;                                   // F-M10 momentary state: forced off after a restore
 
             GF_EXPECT_MSG (std::abs (p->getValue() - expected[i]) < 1.0e-3f,
                            p->getName (32) + " not restored: " + juce::String (p->getValue())
