@@ -86,12 +86,18 @@ endif()
 # ---------------------------------------------------------------------------
 # Plugin target
 # ---------------------------------------------------------------------------
+# Audio Unit is Apple-only; preserve Windows/Linux target lists.
+set(GAPFILL_PLUGIN_FORMATS VST3 Standalone)
+if (APPLE)
+    list(APPEND GAPFILL_PLUGIN_FORMATS AU)
+endif()
+
 juce_add_plugin(GapFill
     COMPANY_NAME            "GapFill Audio"
     BUNDLE_ID               "com.gapfillaudio.gapfill"
     PLUGIN_MANUFACTURER_CODE Gfau
     PLUGIN_CODE             Gpfl
-    FORMATS                 VST3 Standalone
+    FORMATS                 ${GAPFILL_PLUGIN_FORMATS}
     PRODUCT_NAME            "GapFill"
     DESCRIPTION             "Intelligent gap-aware creative fill processor"
     VST3_CATEGORIES         Fx Delay Modulation

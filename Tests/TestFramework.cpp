@@ -24,23 +24,16 @@ int Registry::run (const juce::String& filter)
 {
     int passed = 0, failed = 0;
     juce::String lastGroup;
-
-    // A leading '-' excludes a test group, so the quick local gate can run
-    // everything except the lengthy Combinatorial suite.
-    const bool excludeGroup = filter.startsWithChar ('-');
-    const auto pattern = excludeGroup ? filter.substring (1) : filter;
+    const bool exclude = filter.startsWithChar ('-');
+    const auto term = exclude ? filter.substring (1) : filter;
 
     for (auto& t : tests)
     {
-        if (excludeGroup)
+        if (term.isNotEmpty())
         {
-            if (pattern.isEmpty() || t.group.equalsIgnoreCase (pattern))
+            const bool matched = t.group.containsIgnoreCase (term) || t.name.containsIgnoreCase (term);
+            if (exclude ? matched : ! matched)
                 continue;
-        }
-        else if (filter.isNotEmpty()
-                 && ! (t.group.containsIgnoreCase (filter) || t.name.containsIgnoreCase (filter)))
-        {
-            continue;
         }
 
         if (t.group != lastGroup)
@@ -73,12 +66,12 @@ int Registry::run (const juce::String& filter)
     std::cout << "\n--------------------------------------------------\n"
               << passed << " passed, " << failed << " failed\n" << std::endl;
 
-    // An unmatched filter used to return success without running any tests.
     if (passed + failed == 0)
     {
-        std::cout << "ERROR: no tests matched filter '" << filter << "'" << std::endl;
+        std::cerr << "ERROR: test filter matched zero tests: " << filter << std::endl;
         return 1;
     }
+
     return failed;
 }
 
