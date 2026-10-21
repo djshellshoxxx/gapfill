@@ -590,6 +590,8 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     setup.delaySeconds = s.delaySeconds;
     setup.pingPong = s.pingPong;
     setup.modSyncSeconds = s.perf.modSyncSeconds;   // E-2 (0 = off)
+    setup.envShape = s.perf.envShape;               // C-4
+    setup.envAmount01 = s.perf.envAmount01;
     setup.rngSeed = hashCombine (ctx.key, (std::uint64_t) (plan.algoIndex + 1) * 0x27D4EB2FULL);
 
     for (int b = 0; b < 3; ++b)

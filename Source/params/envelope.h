@@ -13,7 +13,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_ENVELOPE(X)
+#define GAPFILL_PARAMS_ENVELOPE(X) \
+    X (fillShape,       "fillShape") \
+    X (fillShapeAmount, "fillShapeAmount")
 
 namespace gapfill
 {

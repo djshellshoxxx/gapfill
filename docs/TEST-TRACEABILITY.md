@@ -63,6 +63,9 @@ Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md
 | Musical context (F-L09, F-L10, F-L22, F-M21, F-X03, F-X04, F-X05) | groove estimate within 2 ms, motif table, hysteresis, curve shapes, 24-key detection, boundary detection (`TestGroove.cpp` etc.) | host tempo/meter session | Specified; heuristics need listening tests |
 | Effect cards (F-M14, F-M15, F-M16, F-M19, F-M20, F-L14, F-L15, F-L19, F-L20, F-L21, F-X01, F-X02) | per-card lists in doc 12 section 7 | per-format validators; audible bypass/automation | One row per card to be split out when its PR starts |
 | Routing (F-M17, F-L11, F-L12, F-L13, F-X06) | wet-solo identity, MIDI-out bounds, bus layout matrix, SC gate/snap, co-op lifecycle | pluginval 10, clap-validator, auval, real DAW | Specified; AU/Logic unverified |
+| E-2 Tempo-sync audit | clamp table 6 BPM x 12 divisions, tempo memory, fallback bounds, `<Perf>` round trip/malformed drop, Sync Mods formula, quantise grid, off identity (`TestSync.cpp`) | Reaper at 60 / 174 BPM, Standalone tempo option | Engine implemented; Options/Sync-panel UI and Reaper check unverified |
+| C-0 Effective-value display | id mapping, per-block publication, knob marker/description/clear (`TestEffectiveDisplay.cpp`) | screenshot and screen-reader check | Knob API, LookAndFeel marker, processor publication implemented; screenshot/screen-reader unverified |
+| C-4 Fill Intensity Envelope | five shape values, seed repeatability, flat/zero bit-identical, level/cutoff bounds, no click, protection/duck unchanged (`TestEnvelope.cpp`) | audible check on drum loop | Engine implemented; audible check unverified |
 
 ## Test command policy
 
@@ -96,4 +99,3 @@ Manual steps and observed result:
 Audio metrics or crash trace:
 Known unverified checks:
 ```
-| E-2 Tempo-sync audit | clamp table 6 BPM x 12 divisions, tempo memory, fallback bounds, `<Perf>` round trip/malformed drop, Sync Mods formula, quantise grid, off identity (`TestSync.cpp`) | Reaper at 60 / 174 BPM, Standalone tempo option | Engine implemented; Options/Sync-panel UI and Reaper check unverified |

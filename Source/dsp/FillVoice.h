@@ -3,6 +3,7 @@
 #include "DspUtils.h"
 #include "AnalysisEngine.h"
 #include "SpectralSmear.h"
+#include "../features/envelope/Envelope.h"
 
 namespace gapfill
 {
@@ -50,6 +51,11 @@ struct VoiceSetup
         slice length to the tempo (value = the stutter time in seconds). 0 = off,
         and the voice behaves exactly as before. */
     float modSyncSeconds = 0.0f;
+
+    /** C-4 intensity envelope: shape (0 Flat) and amount 0..1. Flat or 0 = the
+        stage is skipped and the voice is bit-identical to before. */
+    int   envShape = 0;
+    float envAmount01 = 0.0f;
 
     float bandEnergy[3] { 0.3f, 0.3f, 0.3f };   // shapes the Texture algorithm
 
@@ -270,6 +276,9 @@ private:
     float modDrive = 2.0f;
     float modTremRate = 8.0f, modTremDepth = 0.5f, modTremPhase = 0.0f;
     float modPanRate = 1.5f, modPanDepth = 0.6f, modPanPhase = 0.0f;
+
+    // --- C-4 intensity envelope ---
+    envelope::EnvelopeStage envelopeStage;
 
     // --- band isolation ---
     BandSplitter bandFilter;

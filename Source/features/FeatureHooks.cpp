@@ -20,6 +20,10 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     s.perf.quantDivision = pi (params.fillQuant) - 1;
     s.perf.modSync       = pb (params.modSync);
 
+    // C-4 intensity envelope
+    s.perf.envShape    = pi (params.fillShape);
+    s.perf.envAmount01 = pv (params.fillShapeAmount) * 0.01f;
+
     // One explicit call per feature, in this order (add yours below):
     //   gatherLock (s, params);          // C-5
     //   gatherMistakes (s, params);      // C-3

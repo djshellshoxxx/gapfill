@@ -194,6 +194,7 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
     fadeOut = juce::jlimit (4, totalLength / 2, setup.fadeOutSamples);
 
     elapsed = 0;
+    envelopeStage.start (setup.envShape, setup.envAmount01, sr, setup.rngSeed);   // C-4
     killing = false;
     killGain = 1.0f;
     killStep = 0.0f;
@@ -707,6 +708,10 @@ void FillVoice::generateSample (float& left, float& right, const SourceHistory& 
         bandFilter.processStereo (1, r, lo, mi, hi);
         r = setupData.band == 0 ? lo : (setupData.band == 1 ? mi : hi);
     }
+
+    // C-4: shape the level / brightness over the fill's life, before fade and duck.
+    if (envelopeStage.isActive())
+        envelopeStage.process (l, r, (float) elapsed / (float) totalLength);
 
     auto gain = envelopeAt (elapsed) * setupData.amp;
 
