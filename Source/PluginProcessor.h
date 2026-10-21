@@ -169,6 +169,10 @@ public:
     void pushUndoSnapshot();
     bool canUndo() const noexcept { return ! undoStack.empty(); }
     int  getUndoDepth() const noexcept { return (int) undoStack.size(); }
+    /** F-S11: drops the newest snapshot, so a burst of preset steps leaves ONE undo entry (the sound before the burst). */
+    void discardNewestUndoSnapshot() noexcept { if (! undoStack.empty()) undoStack.pop_back(); }
+    /** Number of snapshots ever pushed (also when the oldest was evicted): lets a caller see that something pushed one. */
+    unsigned getUndoPushCount() const noexcept { return undoPushCount; }
     /** Restores the sound from before the most recent big action. */
     bool undo();
 
@@ -337,6 +341,7 @@ private:
     juce::Random randomSource;
     int lastSurpriseProfile = -1;
     std::vector<juce::ValueTree> undoStack;
+    unsigned undoPushCount = 0;
     std::atomic<int> latencyToReport { 0 };
     std::atomic<bool> prepared { false };
 

@@ -189,6 +189,9 @@ namespace
             setup (likeBtn, "MORE LIKE", "More like this",
                    "Bias the next four fills towards the selected recipe's algorithm family (or the latest fill).",
                    [this] { likeSelected(); });
+            setup (skipBtn, "SKIP", "Skip this kind of fill",
+                   "Tell the taste profile you do not like this kind of fill (the selected recipe, or the latest fill). "
+                   "Only recorded while LEARN MY TASTE is on.", [this] { skipSelected(); });
             setup (saveBtn, "SAVE...", "Save recipe",
                    "Save the selected recipe as a small .gfrecipe file.", [this] { saveSelected(); });
             setup (setABtn, "SET A", "Set recipe A",
@@ -328,6 +331,8 @@ namespace
             row2.removeFromLeft (kGap);
             likeBtn.setBounds (row2.removeFromRight (92));
             row2.removeFromRight (kGap);
+            skipBtn.setBounds (row2.removeFromRight (56));
+            row2.removeFromRight (kGap);
             lockThisBtn.setBounds (row2.removeFromRight (84));
             row2.removeFromRight (kGap);
             auditionBtn.setBounds (row2.removeFromRight (76));
@@ -464,7 +469,7 @@ namespace
             }
 
             for (auto* c : std::initializer_list<juce::Component*> { &lockToggle, &lockLabel, &auditionBtn, &lockThisBtn,
-                                                                     &likeBtn, &saveBtn, &loadBtn, &exportBtn,
+                                                                     &likeBtn, &skipBtn, &saveBtn, &loadBtn, &exportBtn,
                                                                      &setABtn, &setBBtn, &abBtn, &matchBtn, &abLabel })
                 c->setVisible (open);
 
@@ -586,6 +591,28 @@ namespace
             proc.getRecipes().postMessage ("More like that: the next four fills lean towards it");
         }
 
+        /** F-X05: a dislike for the taste profile (the History drawer counterpart of the Taste strip's SKIP). */
+        void skipSelected()
+        {
+            if (proc.getValueTreeState().getRawParameterValue ("fx05_on")->load() < 0.5f)
+            {
+                proc.getRecipes().postMessage ("Turn on LEARN MY TASTE (Performance tab) to record ratings");
+                return;
+            }
+
+            if (hasSelection())
+            {
+                const auto r = selectedRecipe();
+                stampedCommand (CommandType::SkipRecipe, &r);
+            }
+            else
+            {
+                stampedCommand (CommandType::SkipLatest, nullptr);
+            }
+
+            proc.getRecipes().postMessage ("Skipped: your taste profile leans away from this kind of fill");
+        }
+
         void saveSelected()
         {
             if (! hasSelection())
@@ -696,6 +723,7 @@ namespace
             menu.addItem (1, "Audition this");
             menu.addItem (2, "Lock this");
             menu.addItem (3, "More like this");
+            menu.addItem (8, "Skip this kind of fill");
             menu.addItem (4, "Save recipe...");
             menu.addItem (5, "Export fill...");
             menu.addItem (6, "Set as A");
@@ -714,6 +742,7 @@ namespace
                 else if (result == 5) safe->beginExport (ExportPurpose::File);
                 else if (result == 6) safe->setSlot (0);
                 else if (result == 7) safe->setSlot (1);
+                else if (result == 8) safe->skipSelected();
             });
         }
 
@@ -881,7 +910,7 @@ namespace
         std::array<ChipButton, (size_t) kChips> chips;
         GapToggle lockToggle;
         juce::Label lockLabel;
-        juce::TextButton auditionBtn, lockThisBtn, likeBtn, saveBtn, loadBtn, exportBtn, setABtn, setBBtn, abBtn, matchBtn;
+        juce::TextButton auditionBtn, lockThisBtn, likeBtn, skipBtn, saveBtn, loadBtn, exportBtn, setABtn, setBBtn, abBtn, matchBtn;
         juce::Label abLabel;
 
         juce::Rectangle<int> drawerBounds, extraRowArea;

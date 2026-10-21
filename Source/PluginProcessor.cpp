@@ -440,8 +440,13 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
     // DAW changes buffer sizes or processBlock splits oversized host buffers.
     if (playing && startSample == 0)
     {
-        if (! lastTransportPlaying || ! lastTransportPositionValid || ! ppqValid
-             || std::abs (ppq - lastPpqPosition) > 0.25)
+        // W-03: "playing without a PPQ" is a one-shot (the callback that loses the position), not a reset on every
+        // callback, which would panic the wet signal and restart the gap counter in every block.
+        const bool jumped = ! lastTransportPlaying
+                            || (ppqValid ? (! lastTransportPositionValid || std::abs (ppq - lastPpqPosition) > 0.25)
+                                         : lastTransportPositionValid);
+
+        if (jumped)
         {
             engine.noteTransportJump();
             contextState.onTransportJump();
@@ -1176,6 +1181,7 @@ juce::String GapFillAudioProcessor::surprise()
 void GapFillAudioProcessor::pushUndoSnapshot()
 {
     undoStack.push_back (apvts.copyState().createCopy());
+    ++undoPushCount;
 
     if ((int) undoStack.size() > maxUndoSteps)
         undoStack.erase (undoStack.begin());

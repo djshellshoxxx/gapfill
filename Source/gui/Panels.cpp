@@ -485,11 +485,18 @@ void SpectralPanel::resized()
 //==============================================================================
 MixPanel::MixPanel (juce::AudioProcessorValueTreeState& s)
     : PanelBase ("Mix", colours::accentGreen),
+      state (s),
       dry (s, "dry", "Dry", "Level of the original signal.", colours::accentGreen),
       wet (s, "wet", "Wet", "Level of the generated fills.", colours::accentWarm),
-      output (s, "output", "Output", "Final output trim.", colours::accentGreen)
+      output (s, "output", "Output", "Final output trim.", colours::accentGreen),
+      outputMode (s, "wetSolo", "OUTPUT: NORMAL",
+                  "Output only what GapFill generates, at unity, with no dry signal. Dry and Wet are ignored. Use it for stems and parallel setups.",
+                  colours::accentWarm)
 {
-    for (auto* c : std::initializer_list<juce::Component*> { &dry, &wet, &output })
+    outputMode.getButton().setTitle ("Output mode: normal");
+    refreshOutputMode();
+
+    for (auto* c : std::initializer_list<juce::Component*> { &dry, &wet, &output, &outputMode })
         addAndMakeVisible (c);
 
     for (auto* m : std::initializer_list<juce::Component*> { &inputMeter, &outputMeter, &wetMeter })
@@ -523,8 +530,30 @@ void MixPanel::resetMeterPeaks()
     wetMeter.resetPeak();
 }
 
+/** F-M17: the selector text and the dimming of the two level controls follow the (automatable) parameter. */
+void MixPanel::refreshOutputMode()
+{
+    const bool on = state.getRawParameterValue ("wetSolo")->load() > 0.5f;
+    auto& button = outputMode.getButton();
+    const juce::String text = on ? "OUTPUT: WET ONLY" : "OUTPUT: NORMAL";
+
+    if (button.getButtonText() != text)
+    {
+        button.setButtonText (text);
+        button.setTitle (on ? "Output mode: wet only. Dry and wet level controls bypassed" : "Output mode: normal");
+    }
+
+    if (on != wetOnlyShown)
+    {
+        wetOnlyShown = on;
+        dry.setAlpha (on ? 0.45f : 1.0f);         // still readable, still holds its value
+        wet.setAlpha (on ? 0.45f : 1.0f);
+    }
+}
+
 void MixPanel::setLevels (float in, float out, float wetLevel)
 {
+    refreshOutputMode();
     inputMeter.setLevel (in);
     outputMeter.setLevel (out);
     wetMeter.setLevel (wetLevel);
@@ -560,6 +589,8 @@ void MixPanel::resized()
     confidence.setBounds (readouts.removeFromTop (18));
     readouts.removeFromTop (6);
     status.setBounds (readouts.removeFromTop (18));
+    readouts.removeFromTop (4);
+    outputMode.setBounds (readouts.removeFromTop (28));
 
     b.removeFromRight (10);
 

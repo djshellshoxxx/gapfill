@@ -57,6 +57,7 @@ public:
         std::function<void()> openHistory;       ///< recipes drawer: open it (F-L02)
         std::function<void()> exportLatestFill;  ///< wet-only WAV of the selected / latest fill (F-L04)
         std::function<void()> auditionNow;       ///< same as the AUDITION button (E-1)
+        std::function<bool()> battleFromHeaderAb; ///< F-M18: styles A / B := the header A/B snapshots (false = could not)
     };
 
     EditorActions editorActions;

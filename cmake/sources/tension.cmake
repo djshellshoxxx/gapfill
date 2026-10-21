@@ -3,8 +3,10 @@ list(APPEND GAPFILL_SOURCES
     Source/features/tension/Curves.cpp
     Source/features/tension/Tension.cpp
     Source/features/tension/TensionTree.cpp
+    Source/features/tension/CurveEdit.cpp
     Source/features/effective/StageTension.cpp
     Source/gui/slots/TensionStrip.cpp
+    Source/gui/slots/TensionEditor.cpp
     Source/features/arrangement/SectionTracker.cpp
     Source/features/arrangement/Modulators.cpp
     Source/features/effective/StageArrangement.cpp

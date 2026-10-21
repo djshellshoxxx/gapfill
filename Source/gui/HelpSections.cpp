@@ -215,6 +215,10 @@ namespace
     {
         w.entry ("Dry / Wet", "independent levels for the original and the generated material.");
         w.entry ("Output", "final trim, -24 to +12 dB.");
+        w.entry ("OUTPUT: NORMAL / WET ONLY", "the button under the readouts. WET ONLY sends only what GapFill generates to the main "
+                                              "output, at unity, with no dry signal: Dry and Wet are shown dimmed and ignored, Output still "
+                                              "applies, bypass wins. A WET ONLY chip also appears in the footer next to PANIC so the "
+                                              "state cannot be forgotten. Presets, Reset, Undo and file loads never change it.");
         w.entry ("Wet Width / Mono Wet", "stereo width of the fills only. Mono Wet collapses them for "
                                        "maximum mono compatibility.");
         w.entry ("Meters", "input, fill and output levels, plus the live gap-confidence bar.");

@@ -147,8 +147,17 @@ public:
         settings have been thrown away, so RESET clears it. */
     void resetMeterPeaks();
 
+    /** F-M17: true while the OUTPUT selector reads WET ONLY (the Dry and Wet knobs are shown dimmed). */
+    bool isWetOnlyShown() const noexcept { return wetOnlyShown; }
+    juce::TextButton& getOutputModeButton() noexcept { return outputMode.getButton(); }
+
 private:
+    void refreshOutputMode();
+
+    juce::AudioProcessorValueTreeState& state;
+    bool wetOnlyShown = false;
     GapKnob dry, wet, output;
+    GapToggle outputMode;
     // The gradient is the same on every meter, per the identity spec, so
     // these are no longer tinted individually.
     LevelMeter inputMeter, outputMeter, wetMeter;

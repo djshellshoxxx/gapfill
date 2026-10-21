@@ -1,12 +1,13 @@
 // F-M21 Tension / release controls: TENSION switch, shape, length, end behaviour, start bar and
 // the four lane depths, plus a text status ("Bar 5 of 8, rising" / "waiting for transport").
-// The multi-lane curve editor popover is not part of this build: the Custom shape reads its
-// curves from the saved <Tension> state. Registered in Slot::PerformanceTab (hidden until UI-0).
+// EDIT CURVES... opens the curve editor popover (TensionEditor.cpp); the Custom shape reads the curves it
+// publishes (saved in the <Tension> state). Registered in Slot::PerformanceTab (hidden until UI-0).
 
 #include "../Knob.h"
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
 #include "MusicalStrip.h"
+#include "TensionEditor.h"
 #include "../../PluginProcessor.h"
 
 namespace gapfill
@@ -33,8 +34,17 @@ namespace
         {
             setTitle ("Tension and release");
 
-            for (auto* c : std::initializer_list<juce::Component*> { &on, &shape, &bars, &end, &start, &dDensity, &dIntensity, &dWidth, &dFx, &status })
+            for (auto* c : std::initializer_list<juce::Component*> { &on, &shape, &bars, &end, &start, &dDensity, &dIntensity, &dWidth, &dFx, &status, &editCurves })
                 addAndMakeVisible (c);
+
+            editCurves.setTitle ("Edit tension curves");
+            editCurves.setTooltip ("Draw the Custom curve for each lane: drag points, double-click to add, Delete to remove. "
+                                   "Editing switches Shape to Custom.");
+            editCurves.onClick = [this]
+            {
+                auto editor = std::make_unique<TensionCurveEditor> (proc);
+                juce::CallOutBox::launchAsynchronously (std::move (editor), editCurves.getScreenBounds(), getTopLevelComponent());
+            };
 
             status.setJustificationType (juce::Justification::centredLeft);
             status.setFont (fonts::label (11.0f));
@@ -60,6 +70,8 @@ namespace
                 c->setBounds (top.removeFromLeft (cell));
                 top.removeFromLeft (6);
             }
+
+            editCurves.setBounds (top.removeFromLeft (juce::jmin (130, top.getWidth())).withHeight (28));
 
             r.removeFromTop (6);
             const int knob = juce::jmax (52, r.getWidth() / 7);
@@ -109,6 +121,7 @@ namespace
         GapCombo shape, bars, end;
         GapKnob start, dDensity, dIntensity, dWidth, dFx;
         juce::Label status;
+        juce::TextButton editCurves { "EDIT CURVES..." };
     };
 
     const SlotRegistrar tensionStrip ({ Slot::PerformanceTab, 470,
@@ -121,7 +134,11 @@ namespace
     {
         w.body ("TENSION moves density, intensity, width and effect amount along a curve that lasts a number of bars, then repeats, holds or releases. "
                 "Each lane has a depth; 0 leaves that lane alone. Shapes: Build rises to the end, Build+Drop rises and then snaps back to neutral for the "
-                "last eighth, Breakdown falls and returns, Swell rises and falls, Custom uses curves from the saved project.");
+                "last eighth, Breakdown falls and returns, Swell rises and falls, Custom uses the curves you draw.");
+        w.body ("EDIT CURVES... opens the curve editor: pick a lane (Density, Intensity, Width, FX Send), drag a point to move it, double-click to add one "
+                "(up to 16 per lane), right-click or Delete to remove it, and use BUILD, BUILD+DROP, BREAKDOWN or SWELL to start from a built-in shape. "
+                "From the keyboard: Page Up and Page Down select a point, the arrow keys move it (Shift for ten times the step), Insert adds, Delete removes. "
+                "The first edit switches Shape to Custom so you hear what you draw; the cyan line is the playhead.");
         w.body ("The position comes from the host's bar count, so loops, seeks and offline renders land on the same value. Start bar counts from the start "
                 "of the song and assumes a constant time signature. Without host tempo and time signature it does nothing. Curves are saved in the project, "
                 "not in .gapfill parameter files.");

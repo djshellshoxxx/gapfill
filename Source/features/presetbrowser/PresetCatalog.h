@@ -23,6 +23,7 @@ inline constexpr int kMaxNameLength = 48;
 inline constexpr int kMaxDescriptionLength = 160;
 inline constexpr int kMaxAuthorLength = 48;
 inline constexpr int kMaxScanFiles = 2000;
+inline constexpr const char* kKeyStepScope = "presets.stepScope";   ///< GlobalSettings int: 0 all presets, 1 favourites only (F-S11)
 inline constexpr juce::int64 kMaxPresetFileBytes = 1024 * 1024;
 
 /** Fixed browser categories (the "Starting Points" group is the eighth). */
@@ -98,6 +99,14 @@ public:
     /** Previous / next with wrap-around. `current` < 0 (a modified "Custom" sound)
         steps to the first entry going forward and the last going back. */
     int step (int current, int delta) const noexcept;
+
+    /** F-S11: indices (ascending) of the entries whose identity is in `favourites`. */
+    std::vector<int> favouriteIndices (const juce::StringArray& favourites) const;
+
+    /** F-S11 "Favourites only" stepping: like step(), but only among `pool` (ascending entry indices).
+        A `current` outside the pool (a non-favourite, or < 0 for a modified sound) goes to the next
+        pool entry after it (previous one before it when going back), wrapping. -1 when the pool is empty. */
+    static int stepWithin (const std::vector<int>& pool, int current, int delta) noexcept;
 
 private:
     std::vector<PresetEntry> factory, user, all;

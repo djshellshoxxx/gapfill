@@ -2,6 +2,7 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 #include "LookAndFeel.h"
+#include "MeterMath.h"
 #include "../dsp/VisualisationState.h"
 
 namespace gapfill
@@ -86,14 +87,11 @@ public:
         const auto clamped = juce::jlimit (0.0f, 1.0f, newLevel);
         const auto db = toDb (clamped);
 
-        if (db >= peakDb)
+        if (peak.push (db, juce::Time::getMillisecondCounter()))
         {
-            peakDb = db;
-            holdUntilMs = juce::Time::getMillisecondCounter() + kHoldMs;
-
             // The peak now has to be animated back down.
             if (! isTimerRunning())
-                startTimerHz (30);
+                startTimerHz ((int) meter::kTimerHz);
         }
 
         if (std::abs (clamped - level) > 0.002f)
@@ -120,10 +118,7 @@ public:
         {
             // One gradient across the whole track, clipped to the filled part,
             // so a given level always has the same colour.
-            juce::ColourGradient grad (colours::secondary, bar.getX(), bar.getBottom(),
-                                       colours::clip,      bar.getX(), bar.getY(), false);
-            grad.addColour (0.62, colours::primary);
-            grad.addColour (0.86, colours::warning);
+            auto grad = meter::makeGradient (bar.getX(), bar.getBottom(), bar.getY());
 
             juce::Graphics::ScopedSaveState save (g);
             auto filled = bar.withTop (bar.getBottom() - bar.getHeight() * norm);
@@ -133,20 +128,20 @@ public:
         }
 
         // Peak hold line.
-        if (peakDb > kFloorDb)
+        if (peak.peakDb > kFloorDb)
         {
-            const auto y = bar.getBottom() - bar.getHeight() * normalised (peakDb);
-            g.setColour (peakDb >= -0.1f ? colours::clip : colours::text);
+            const auto y = bar.getBottom() - bar.getHeight() * normalised (peak.peakDb);
+            g.setColour (peak.peakDb >= -0.1f ? colours::clip : colours::text);
             g.fillRect (bar.getX(), juce::jlimit (bar.getY(), bar.getBottom() - 1.0f, y),
                         bar.getWidth(), 1.0f);
         }
 
         if (showReadout)
         {
-            g.setColour (peakDb >= -0.1f ? colours::clip : colours::textMuted);
+            g.setColour (peak.peakDb >= -0.1f ? colours::clip : colours::textMuted);
             g.setFont (fonts::mono (9.0f));
-            g.drawText (peakDb <= kFloorDb ? juce::String ("-inf")
-                                           : juce::String (peakDb, 1),
+            g.drawText (peak.peakDb <= kFloorDb ? juce::String ("-inf")
+                                                : juce::String (peak.peakDb, 1),
                         readout, juce::Justification::centredRight, false);
         }
     }
@@ -154,7 +149,7 @@ public:
     /** Clears the held peak - used when the meter is re-shown or reset. */
     void resetPeak()
     {
-        peakDb = kFloorDb;
+        peak.reset();
         stopTimer();
         repaint();
     }
@@ -162,39 +157,25 @@ public:
 private:
     void timerCallback() override
     {
-        const auto now = juce::Time::getMillisecondCounter();
+        // 20dB per second at the timer rate (meter::PeakHold).
+        const auto step = peak.tick (juce::Time::getMillisecondCounter());
 
-        if (now < holdUntilMs)
+        if (step == meter::PeakHold::Tick::Held)
             return;
 
-        // 20dB per second at the timer rate.
-        peakDb -= 20.0f / 30.0f;
-
-        if (peakDb <= kFloorDb)
-        {
-            peakDb = kFloorDb;
+        if (step == meter::PeakHold::Tick::Settled)
             stopTimer();
-        }
 
         repaint();
     }
 
-    static float toDb (float gain)
-    {
-        return juce::Decibels::gainToDecibels (juce::jmax (1.0e-5f, gain));
-    }
+    static float toDb (float gain)         { return meter::toDb (gain); }
+    static float normalised (float db)     { return meter::normalised (db); }
 
-    static float normalised (float db)
-    {
-        return juce::jlimit (0.0f, 1.0f, (db - kFloorDb) / (6.0f - kFloorDb));
-    }
-
-    static constexpr float kFloorDb = -60.0f;
-    static constexpr juce::uint32 kHoldMs = 1500;
+    static constexpr float kFloorDb = meter::kFloorDb;
 
     float level = 0.0f;
-    float peakDb = kFloorDb;
-    juce::uint32 holdUntilMs = 0;
+    meter::PeakHold peak;
 };
 
 //==============================================================================
