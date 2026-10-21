@@ -85,7 +85,7 @@ GF_TEST (CallResponse, describe_family_mode_ties_pitch_band_and_regularity)
     GF_EXPECT (m.family == AlgoFamily::Rhythmic && std::abs (m.familyShare - 0.75f) < 1.0e-6f);
     GF_EXPECT (m.band == 1 && m.pitchDir == 0);
     GF_EXPECT (m.regularity > 0.99f);                                  // perfectly regular
-    GF_EXPECT (m.confidence > 0.85f);
+    GF_EXPECT (m.confidence > 0.84f);                                // 0.6 * 0.75 + 0.4 * 1
 
     // Ties: two rhythmic, two textural -> lowest enum value (Rhythmic).
     e[2].algo = (std::uint8_t) Algo::Freeze;

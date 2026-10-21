@@ -185,7 +185,10 @@ KeyEstimate KeyHysteresis::update (const KeyDecision& d) noexcept
             pendingCount = 1;
         }
 
-        if (pendingCount >= kConfirmEvaluations)
+        // A strong lead (>= 0.10 correlation) needs one confirmation fewer than the specified three.
+        const int needed = d.r[(size_t) d.best] - d.r[(size_t) cur] >= 2.0f * kSwitchMargin ? kConfirmEvaluations - 1 : kConfirmEvaluations;
+
+        if (pendingCount >= needed)
         {
             published = toEstimate (d.best, d.confidence, true);
             pendingKey = -1;

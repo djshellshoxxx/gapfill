@@ -13,7 +13,12 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_SECTION(X)
+#define GAPFILL_PARAMS_SECTION(X) \
+    X (fx04_on, "fx04_on") \
+    X (fx04_calm, "fx04_calm") \
+    X (fx04_lift, "fx04_lift") \
+    X (fx04_settle, "fx04_settle") \
+    X (fx04_sensitivity, "fx04_sensitivity")
 
 namespace gapfill
 {

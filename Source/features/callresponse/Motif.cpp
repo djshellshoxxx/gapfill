@@ -77,6 +77,10 @@ Motif describe (const CallEntry* calls, int n) noexcept
         m.regularity = 0.5f;
 
     m.confidence = 0.6f * m.familyShare + 0.4f * m.regularity;
+
+    // A motif needs a dominant family: without one, regular spacing alone must not open a response.
+    if (m.familyShare < 0.5f)
+        m.confidence = std::min (m.confidence, kMotifGate - 0.01f);
     return m;
 }
 

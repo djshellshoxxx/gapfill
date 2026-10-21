@@ -4,6 +4,8 @@
 #include "../features/fx/FxSettings.h"
 #include "../features/callresponse/Responder.h"
 #include "../features/taste/TasteModel.h"
+#include "../features/tension/Curves.h"
+#include "../features/arrangement/Modulators.h"
 #include "../features/groove/GrooveSettings.h"
 #include "../features/keydetect/KeySettings.h"
 #include "../features/scale/ScaleLock.h"
@@ -38,6 +40,9 @@ struct PerformanceSettings
     keydetect::KeySettings key;       // F-X03
     callresponse::ResponderSettings call;   // F-L10
     taste::TasteSettings taste;             // F-X05
+    tension::TensionSettings tension;       // F-M21
+    arrangement::Fx04Settings arr;          // F-X04
+    float fxSend01 = 1.0f;                  // F-M21 output: effect amount scale (1 = neutral); read by the effect cards that honour it
     BudgetSettings budget;            // F-D01
     bool  likeActive = false;         // C-11
     int   quantDivision = -1;         // E-2 fill-length quantise, -1 off

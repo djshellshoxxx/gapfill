@@ -9,6 +9,7 @@
 #include "../groove/GrooveStateTree.h"
 #include "../keydetect/KeyStateTree.h"
 #include "../taste/TasteStateTree.h"
+#include "../tension/TensionTree.h"
 
 namespace gapfill::state
 {
@@ -66,7 +67,7 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
         { "Perf",    4 * Ki,  perfValidate, perfApply, perfSerialise, perfReset },   // U prefs (WP4: trigger, match)
         { "Scenes",  24 * Ki, nullptr, nullptr, nullptr, nullptr },   // F-L07 / N-VAL
         { "Cmd",     3 * Ki,  nullptr, nullptr, nullptr, nullptr },   // X-1
-        { "Tension", 3 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-M21
+        { "Tension", 3 * Ki,  tension::validateTree, tension::applyTree, tension::serialiseTree, tension::resetTree },   // F-M21
         { "Groove",  1 * Ki,  groove::validateTree, groove::applyTree, groove::serialiseTree, groove::resetTree },   // F-L09
         { "Fx",      1 * Ki,  fx::validateFxTree, fx::applyFxTree, fx::serialiseFxTree, fx::resetFxTree },   // FX-0
         { "Health",  1 * Ki,  explain::validateSubtree, explain::applySubtree, explain::serialiseSubtree, explain::resetSubtree },   // N-USE (WP3)

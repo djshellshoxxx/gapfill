@@ -11,6 +11,7 @@ namespace gapfill::taste
 namespace
 {
     constexpr float kAlpha = 2.0f;
+    constexpr float kConfidenceRatings = 40.0f;
     constexpr float kMin = 0.5f, kMax = 2.0f;
 
     void featuresOf (const FillRecipe& r, int (&out)[2], int& n) noexcept
@@ -65,7 +66,7 @@ bool isReady (const Counts& c) noexcept
 
 float confidence (const Counts& c) noexcept
 {
-    return std::min (1.0f, (float) (c.likes + c.skips) / 40.0f);
+    return std::min (1.0f, (float) (c.likes + c.skips) / kConfidenceRatings);
 }
 
 TasteBias biasFrom (const Counts& c, float strength01) noexcept

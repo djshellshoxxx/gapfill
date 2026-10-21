@@ -47,6 +47,8 @@ public:
     float energy() const noexcept               { return smoothed; }
     bool warmedUp() const noexcept              { return framesSeen >= kWarmupFrames; }
     int frameLength() const noexcept            { return frameLen; }
+    int samplesUntilFrameEnd() const noexcept   { return frameLen - posInFrame; }
+    int framesCompleted() const noexcept        { return framesSeen; }
     int levelChanges() const noexcept           { return changes; }
     const FrameFeatures& lastFrame() const noexcept { return last; }
 

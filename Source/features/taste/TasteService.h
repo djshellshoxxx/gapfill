@@ -63,7 +63,7 @@ public:
 private:
     struct RatingEvent { CommandType type = CommandType::None; FillRecipe recipe; };
 
-    void recompute();
+    void recompute (bool slew = false);
     void publish();
 
     RatingStore library;

@@ -156,7 +156,13 @@ void ChromaTracker::analyseFrame() noexcept
     for (int k = kLo; k <= kHi; ++k)
         totalEnergy += (double) mag[(size_t) k] * (double) mag[(size_t) k];
 
-    for (int k = kLo; k <= kHi; ++k)
+    // ---- collect the peaks (ascending frequency) ----------------------------------------------------
+    struct Peak { double freq; float mag; };
+    constexpr int kMaxPeaks = 96;
+    Peak peaks[kMaxPeaks];
+    int numPeaks = 0;
+
+    for (int k = kLo; k <= kHi && numPeaks < kMaxPeaks; ++k)
     {
         const float b = mag[(size_t) k];
 
@@ -177,14 +183,36 @@ void ChromaTracker::analyseFrame() noexcept
         const float delta = std::abs (den) > 1.0e-12f ? std::clamp (0.5f * (a - c) / den, -0.5f, 0.5f) : 0.0f;
         const double f = ((double) k + (double) delta) * binHz;
 
-        if (f < (double) kLowHz || f > (double) kHighHz)
-            continue;
+        if (f >= (double) kLowHz && f <= (double) kHighHz)
+            peaks[numPeaks++] = { f, b };
+    }
 
+    // ---- harmonic suppression ---------------------------------------------------------------------------
+    // A peak that sits on the 2nd..7th harmonic of a louder lower peak is a partial of that note, not a note of
+    // its own: it would otherwise add the major third (5th partial) and the fifth (3rd, 6th) to every tonic and
+    // make minor keys read as major. Its weight is cut to a quarter.
+    for (int i = 0; i < numPeaks; ++i)
+    {
+        float discount = 1.0f;
+
+        for (int j = 0; j < i && discount == 1.0f; ++j)
+        {
+            if (peaks[j].mag <= peaks[i].mag)
+                continue;
+
+            const double ratio = peaks[i].freq / peaks[j].freq;
+            const long h = std::lround (ratio);
+
+            if (h >= 2 && h <= 7 && std::abs (12.0 * std::log2 (ratio / (double) h)) < 0.45)
+                discount = 0.25f;
+        }
+
+        const double f = peaks[i].freq;
         const double midi = 69.0 + 12.0 * std::log2 (f / 440.0);
         const double corrected = midi - (double) tuning / 100.0;
         const long nearest = std::lround (corrected);
         const int pc = (int) (((nearest % 12) + 12) % 12);
-        const float w = std::pow (b, 0.7f);
+        const float w = std::pow (peaks[i].mag, 0.7f) * discount;
 
         chroma[pc] += w;
         chromaSum += w;

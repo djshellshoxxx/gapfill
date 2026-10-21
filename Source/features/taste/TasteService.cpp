@@ -101,7 +101,7 @@ void TasteService::onFillEvent (const FillEvent& e) noexcept
     }
 }
 
-void TasteService::recompute()
+void TasteService::recompute (bool slew)
 {
     if (! libraryLoaded)
     {
@@ -110,7 +110,26 @@ void TasteService::recompute()
     }
 
     displayCounts = library.counts();
-    const auto bias = biasFrom (displayCounts, lastStrength);
+    auto bias = biasFrom (displayCounts, lastStrength);
+
+    if (slew)
+    {
+        // One rating moves a published multiplier by at most 0.06 (F-X05 M4): the profile eases towards the model.
+        const auto old = dequantise (profile.q, true);
+        const auto limit = [] (float oldM, float newM) { return std::clamp (newM, oldM - 0.06f, oldM + 0.06f); };
+
+        if (bias.ready)
+        {
+            const bool wasReady = profile.ready;
+
+            for (int a = 0; a < kAlgoFeatures; ++a)
+                bias.algo[a] = limit (wasReady ? old.algo[a] : 1.0f, bias.algo[a]);
+
+            for (int b = 0; b < kBandFeatures; ++b)
+                bias.band[b] = limit (wasReady ? old.band[b] : 1.0f, bias.band[b]);
+        }
+    }
+
     profile.likes = displayCounts.likes;
     profile.skips = displayCounts.skips;
     profile.ready = bias.ready;
@@ -128,7 +147,7 @@ void TasteService::rate (const FillRecipe& r, int rating)
 
     library.add (r, rating);
     dirty = true;
-    recompute();
+    recompute (true);
 }
 
 void TasteService::rateLatest (int rating)
@@ -149,12 +168,19 @@ bool TasteService::undoLast()
         return false;
 
     dirty = true;
-    recompute();
+    recompute (true);
     return true;
 }
 
 void TasteService::rebuildFromLibrary()
 {
+    if (dirty)
+    {
+        library.save();                                  // unsaved ratings must survive the re-read
+        dirty = false;
+        dirtySinceMs = 0;
+    }
+
     library.load();
     libraryLoaded = true;
     recompute();

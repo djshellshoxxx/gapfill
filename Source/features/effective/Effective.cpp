@@ -16,8 +16,10 @@ void applyAtDecision (EngineSettings& sLocal, double ppq, const TransportInfo& t
     // Evolve slowly moves the base, breathing modulates density, phrase biases.
     applyEvolve (sLocal, ppq, ts);
     applyBreathing (sLocal, ppq, ts);
+    applyTension (sLocal, ppq, ts);      // F-M21 (WP7): after Breathing, before the Phrase probability multiplier
     applyPhrase (sLocal, ppq, ts);
     applyEnergy (sLocal, ppq, ts);       // F-L22 (WP7), after the other stages
+    applyArrangement (sLocal, ppq, ts);  // F-X04 (WP7)
 }
 
 } // namespace gapfill::Effective

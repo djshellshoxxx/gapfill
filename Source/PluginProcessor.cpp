@@ -784,7 +784,8 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         }
 
         centreProtect.setTargetValue (pv (params.protCenter) * 0.01f);
-        widthAmount.setTargetValue (pv (params.width) * 0.01f);
+        widthAmount.setTargetValue (pv (params.width) * 0.01f
+                                      + contextState.tensionWidthDelta (engineSettings, pv (params.width) * 0.01f, numSamples));      // WP7 F-M21 (0 while off)
         const bool monoWet = pb (params.wetMono);
 
         for (int i = 0; i < numSamples; ++i)

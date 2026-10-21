@@ -13,7 +13,16 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_TENSION(X)
+#define GAPFILL_PARAMS_TENSION(X) \
+    X (fm21_on, "fm21_on") \
+    X (fm21_bars, "fm21_bars") \
+    X (fm21_start, "fm21_start") \
+    X (fm21_shape, "fm21_shape") \
+    X (fm21_end, "fm21_end") \
+    X (fm21_depthDensity, "fm21_depthDensity") \
+    X (fm21_depthIntensity, "fm21_depthIntensity") \
+    X (fm21_depthWidth, "fm21_depthWidth") \
+    X (fm21_depthFx, "fm21_depthFx")
 
 namespace gapfill
 {
