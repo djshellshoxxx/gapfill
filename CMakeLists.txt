@@ -157,11 +157,16 @@ target_sources(GapFillTests PRIVATE
     Tests/TestDsp.cpp
     Tests/TestPlugin.cpp
     Tests/TestCombinatorial.cpp
+    Tests/support/TestRig.cpp
+    Tests/support/AllocGuard.cpp
+    Tests/features/TestGolden.cpp
+    Tests/features/TestStateFixtures.cpp
 )
 
 target_compile_definitions(GapFillTests PUBLIC
     ${GAPFILL_DEFS}
     GAPFILL_UNIT_TESTS=1
+    GAPFILL_TEST_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/Tests"
     JucePlugin_Name="GapFill"
     JucePlugin_IsSynth=0
     JucePlugin_IsMidiEffect=0

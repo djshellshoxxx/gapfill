@@ -1,4 +1,5 @@
-/JUCE/
+/JUCE
+/build-ci/
 /build/
 /artefacts/
 *.user
@@ -6,6 +7,6 @@
 __pycache__/
 /tools/pluginval/
 *.log
-/clap-juce-extensions/
+/clap-juce-extensions
 /dist/
 /build-win/

@@ -1,0 +1,2 @@
+*.f32 binary
+Tests/fixtures/*.bin binary
