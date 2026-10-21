@@ -17,8 +17,8 @@ F-M23, F-M18, F-L24, then the E-1-dependent ones (F-M10, F-S07, F-P02).
 | F-M18 | Done (engine) | `features/battle/Battle.*`: `battleEvery` param (group `battle`), `BattleModel` (two styles restricted to the scene whitelist), audio `BattleRuntime`, `Effective::applyBattle`. Overlay only. |
 | F-L24 | Done (core) | `features/commands/ControllerProfile.*`: JSON profile schema (<= 8 KiB, 48 bindings, 64 LED rules), two built-in profiles, user directory scan, `FeedbackEngine` (diff-only LED messages, reconnect refresh), `MidiSink` device wrapper (Standalone only). |
 | F-P02 | Done | `FillEngine::trySchedule(..., forced)`; `ctx.forced` skips TooSoon + the density roll, `ForcedUnsafe` for room < max(60 ms, minGap) or a detected event within protectHold (option `fillNowOverSustained`); recipe flag `flagForced`; LiveControl resolves the Beat/Bar boundary to an absolute output sample (`perf.fillNowId/Pos`), re-arms on seek/loop, falls back to Immediate without transport, panic cancels. |
-| F-M10 | PARTIAL: controller only | `features/momentary/HoldController`: momentary/latch, newest-wins stack, timeout, panic, `engageAt`; commands 20-23 wired (MIDI/GUI/bypass/panic), options in `<Perf>`. NOT built: the hold voices, dry duck, hold params (`fm10_*`) and UI pads, because E-1's dedicated performance voice (WP4) is not on the integration branch. |
-| F-S07 | PARTIAL: pattern only | `stormStepAt` (8-step pattern on the 1/32 grid, gate 80 %, accent, 1/8 tail), command 17 as a hold effect, `stormSeed`. Rendering needs the same E-1 voice. |
+| F-M10 | DONE (no UI pads) | `HoldController` + `HoldVoices` (2 ping-pong FillVoices from the WP4 performance voice): momentary/latch/stack/timeout/panic, dry duck (`fm10_*` params, group FM10), commands 20-23. GUI pads not built (UI-0 rectangles absent). Tests: TestMomentary, TestHoldVoices. |
+| F-S07 | DONE | Stutter Storm renders on the hold voices (1/32 grid pattern, gate 80 %, +1.5 dB accent, 1/8 tail); TestHoldVoices. |
 | N-VAL | Done (core) | `features/bank/BankFile.*`: `.gapbank` export/import (256 KiB, 64 scenes, SHA-256 digest, atomic apply, one-step undo), PC -> scene and Next/Prev/Cancel commands. |
 
 ## Deviations and gaps (honest list)
@@ -78,3 +78,6 @@ F-M23, F-M18, F-L24, then the E-1-dependent ones (F-M10, F-S07, F-P02).
   Bindings loaded from state are not re-checked against CC parameter mappings (only at learn time).
 * Panic clearing "all FX cards" is not testable yet: the FX-0 effect cards (WP8) do not exist; `LiveControl::onPanicAction` is the
   single place to call `fadeOut/reset` on them.
+
+
+* **WP4/WP5 merges**: 'Perf' state handler is a composite of WP4 recipes, WP5 sync and WP6 live (distinct attributes). Hold bools are forced off after state restore. Full suite 683/683.
