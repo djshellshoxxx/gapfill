@@ -4,6 +4,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/ui/UiState.cpp
     Source/features/info/ParamInfo.cpp
     Source/features/info/CoreInfo.cpp
+    Source/features/info/BusFxInfo.cpp
     Source/features/info/StatusBoard.cpp
     Source/features/info/HoverStatus.cpp
     Source/features/viewmode/ViewMode.cpp
