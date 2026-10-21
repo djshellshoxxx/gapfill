@@ -192,4 +192,45 @@ BufferDiff compareBuffers (const juce::AudioBuffer<float>& a, const juce::AudioB
     return d;
 }
 
+
+RenderResult renderGoldenScenario (char id)
+{
+    gapfill::GapFillAudioProcessor proc;
+    TestPlayHead playHead;
+    playHead.bpm = goldenBpm;
+
+    RenderOptions options;
+    options.playHead = &playHead;
+
+    const auto input = drumLoop (goldenSampleRate, goldenBpm, goldenBars);
+    juce::AudioBuffer<float> click;
+
+    switch (id)
+    {
+        case 'A': break;
+        case 'B': setParams (proc, { { "detMode", 2.0f }, { "fill", 70.0f } }); break;
+        case 'C':
+            click = makeImpulseTrain (goldenSampleRate, (double) input.getNumSamples() / goldenSampleRate, 60.0 / goldenBpm);
+            setParams (proc, { { "detSource", 1.0f }, { "fill", 60.0f } });
+            options.sidechain = &click;
+            break;
+        case 'D': setParams (proc, { { "fillType", 15.0f }, { "fill", 80.0f } }); break;
+        case 'E':
+            setParams (proc, { { "complexity", 100.0f }, { "chaos", 100.0f }, { "fill", 100.0f },
+                               { "density", 100.0f }, { "intensity", 100.0f } });
+            break;
+        case 'F':
+            setParams (proc, { { "bypass", 1.0f }, { "fill", 70.0f } });
+            options.onBlock = [&proc, half = input.getNumSamples() / 2] (int, int pos)
+            {
+                if (pos >= half)
+                    setParams (proc, { { "bypass", 0.0f } });
+            };
+            break;
+        default: break;
+    }
+
+    return renderOffline (proc, input, goldenBlockSize, goldenSampleRate, options);
+}
+
 } // namespace gftest

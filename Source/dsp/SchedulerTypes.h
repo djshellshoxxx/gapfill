@@ -89,6 +89,7 @@ struct ScheduleResult
     bool started = false;
     RejectReason reason = RejectReason::None;
     FillRecipe recipe;             ///< valid when started (and for LockSkipped diagnostics)
+    std::int64_t lengthSamples = 0;///< when started: the exact planned length (the recipe keeps whole ms)
     float availableMs = 0.0f;      ///< room that was available when rejected
     float neededMs = 0.0f;         ///< room that would have been needed
 };

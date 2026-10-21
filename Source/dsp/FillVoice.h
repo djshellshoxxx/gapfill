@@ -113,6 +113,36 @@ public:
     const fx::CloudMode& getCloudMode() const noexcept { return cloudMode; }
     fx::CloudMode& getCloudMode() noexcept { return cloudMode; }
 
+    /** Heap bytes held by the voice's sample buffers (capture + comb); for memory budgeting and tests. */
+    std::size_t getBufferBytes() const noexcept
+    {
+        return (std::size_t) (capture.getNumChannels() * capture.getNumSamples()
+                              + combBuffer.getNumChannels() * combBuffer.getNumSamples()) * sizeof (float);
+    }
+
+    /** The decisions the voice took at start(), for the FillRecipe (F0-3):
+        bit per Modifier (bit0 = FilterSweep .. bit4 = PanMotion), and the
+        Pitch Rise / Fall target in signed semitones (0 for other algorithms). */
+    std::uint8_t getModifierMask() const noexcept
+    {
+        std::uint8_t mask = 0;
+
+        for (int i = 0; i < numModifiers && i < maxModifiers; ++i)
+            if (modifiers[i] != Modifier::None)
+                mask = (std::uint8_t) (mask | (1 << ((int) modifiers[i] - 1)));
+
+        return mask;
+    }
+
+    std::int8_t getPitchSemis() const noexcept
+    {
+        if (setupData.algo != Algo::PitchRise && setupData.algo != Algo::PitchFall)
+            return 0;
+
+        const auto semis = (int) std::lround (12.0 * std::log2 (juce::jmax (1.0e-6, pitchRateEnd)));
+        return (std::int8_t) juce::jlimit (-48, 48, semis);
+    }
+
     /** Renders and adds `numSamples` of this voice into `wet`. */
     void render (juce::AudioBuffer<float>& wet, int startSample, int numSamples,
                  const SourceHistory& history) noexcept;

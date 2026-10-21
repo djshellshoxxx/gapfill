@@ -85,6 +85,7 @@ struct EngineSettings
     double samplesPerBeat  = 0.0;
     bool   transportValid  = false;
     bool   sidechainActive = false;
+    bool   bypassed        = false;   ///< E-1: the plugin is bypassed (a preview request is refused)
 
     /** Output position minus source-history position. Zero while the history
         follows the input; it grows while Capture holds the history frozen so
