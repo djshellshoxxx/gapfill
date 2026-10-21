@@ -18,6 +18,10 @@ fixtures unchanged: `Golden`, `StateCompat` and `every_effect_off_renders_exactl
 | F-L14 Multiband effect routing | Done (single-bus path and two-bus path; bus cards are WP9) | `FxChain.*`, `EngineBlockIO.h`, `Source/params/bandfx.*` |
 | F-M19 Freeze & Scrub | Done as a standalone performance voice; C-10 / F-M10 integration pending | `Source/features/scrub/ScrubVoice.*`, `Source/gui/slots/ScrubStrip.cpp`, `Source/params/scrub.*` |
 
+## Test evidence
+
+After merging `claude/inspiring-fermi-pv9gv5` (WP3 landed): `GapFillTests` 314 passed / 0 failed (143 before WP8; 87 new in the WP8 files `TestFx`, `TestSwell`, `TestCloud`, `TestVoiceFxCards`, `TestFxSection`, `TestScrub`). `GapFill_VST3`, `GapFill_CLAP`, `GapFill_Standalone` build; `tools/validate_repo.py` OK (99 IDs); `python -m unittest discover -s tools` 25 OK. The PR needs the `hot-file-ok` label (hook lines in `FillVoice.cpp`, `FillEngine.cpp`, `PluginProcessor.*`, as doc 12 section 11 allows WP8).
+
 ## New parameters (30 + 3, permanent, append-only, locks updated)
 
 `swellAmount swellCurve swellFilter swellTarget` | `cloudAmount cloudDensity cloudSize cloudSpan cloudJitter cloudPitch cloudSpread` |
