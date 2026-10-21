@@ -229,6 +229,8 @@ void ShapePanel::timerCallback()
 
 void ShapePanel::applyViewMode()
 {
+    advanced = proc.getUiState().getViewMode() == ui::ViewMode::Advanced;
+
     for (auto& pl : placed)
         for (size_t i = 0; i < pl.controls.size(); ++i)
         {
@@ -453,7 +455,7 @@ namespace
         juce::Slider slider;
     };
 
-    const SlotRegistrar tempoOption ({ Slot::OptionsExtra, 200,
+    const SlotRegistrar tempoOption ({ Slot::OptionsExtra, 260,
         [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component>
         {
             return std::make_unique<TempoOption> (proc);

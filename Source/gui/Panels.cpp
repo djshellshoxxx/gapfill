@@ -192,8 +192,8 @@ void CreativePanel::resized()
         // Four equal cells; the fourth is reserved for Slot::CreativeExtra.
         auto row = b.removeFromBottom (24);
         constexpr int gap = 6;
-        const auto w = (row.getWidth() - gap * 3) / 4;
-        layoutRow (row.removeFromLeft (w * 3 + gap * 2), { &sync, &pingPong, &monoWet });
+        const auto w = juce::jmax (150, (row.getWidth() - gap * 3) / 4);   // CAPTURE + SHAPE share this cell
+        layoutRow (row.removeFromLeft (row.getWidth() - w - gap), { &sync, &pingPong, &monoWet });
         row.removeFromLeft (gap);
         extraSlotBounds = row.withWidth (w);
     }
@@ -391,6 +391,9 @@ SpectralPanel::SpectralPanel (juce::AudioProcessorValueTreeState& s)
             lane.fillType->setTooltip (info::tooltipFor (typeIds[i], "Forces a fill type for gaps found in this lane (Spectral mode)."));
             tagParameter (*lane.fillType, typeIds[i]);
             lane.fillType->setWantsKeyboardFocus (false);
+
+            if (auto* choice = dynamic_cast<juce::AudioParameterChoice*> (s.getParameter (typeIds[i])))
+                lane.fillType->addItemList (choice->choices, 1);
             lane.fillType->onRightClick = [comp = lane.fillType.get(), &s, id = juce::String (typeIds[i])] { showParameterMenu (*comp, s, id); };
             addAndMakeVisible (*lane.fillType);
             lane.fillTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (s, typeIds[i], *lane.fillType);

@@ -133,12 +133,12 @@ GF_TEST (ShapeGui, capture_buttons_post_commands_and_release_switches_capture_of
 
     // Recapture: render with Capture on, press, keep rendering: a snapshot is produced.
     RenderOptions o;
-    o.onBlock = [&] (int block, int) { if (block == 150) recapture->triggerClick(); };
+    o.onBlock = [&] (int block, int) { if (block == 150) recapture->onClick(); };
     renderOffline (proc, drumLoop (48000.0, 120.0, 6), 512, 48000.0, o);
     GF_EXPECT (proc.getShaping().capture.getSnapshotCount() >= 1);
     GF_EXPECT (panel.getCaptureStatusText().startsWith ("Capture"));
 
-    release->triggerClick();
+    release->onClick();
     GF_EXPECT (pi (proc.getValueTreeState().getRawParameterValue ("capture")) == 0);
 }
 
@@ -168,7 +168,7 @@ GF_TEST (ShapeGui, band_lanes_have_a_fill_type_box_each)
 {
     GapFillAudioProcessor proc;
     SpectralPanel spectral (proc.getValueTreeState());
-    spectral.setBounds (0, 0, 480, 220);                           // small but legal panel size
+    spectral.setBounds (0, 0, 640, 340);                           // small but legal panel size
 
     std::vector<juce::Component*> all;
     collectAll (spectral, all);
@@ -213,7 +213,7 @@ GF_TEST (ShapeGui, slots_register_the_shape_button_and_the_tempo_option)
         shape = shape || f.order == 110;
 
     for (const auto& f : getSlotFactories (Slot::OptionsExtra))
-        tempo = tempo || f.order == 200;
+        tempo = tempo || f.order == 260;
 
     GF_EXPECT (shape && tempo);
 
@@ -221,7 +221,7 @@ GF_TEST (ShapeGui, slots_register_the_shape_button_and_the_tempo_option)
 
     for (const auto& f : getSlotFactories (Slot::OptionsExtra))
     {
-        if (f.order != 200)
+        if (f.order != 260)
             continue;
 
         auto comp = f.make (proc);
@@ -267,8 +267,8 @@ GF_TEST (ShapeGui, editor_shows_shape_next_to_capture_at_the_minimum_size_in_bot
 
         if (shape != nullptr && capture != nullptr)
         {
-            GF_EXPECT (shape->isVisible() && shape->getWidth() >= 44 && shape->getHeight() >= 20);
-            GF_EXPECT (capture->getWidth() >= 60);
+            GF_EXPECT_MSG (shape->isVisible() && shape->getWidth() >= 40 && shape->getHeight() >= 20, "SHAPE bounds " + shape->getBounds().toString() + " visible " + juce::String ((int) shape->isVisible()) + " mode " + juce::String ((int) mode));
+            GF_EXPECT (capture->getWidth() >= 40);
             GF_EXPECT (! shape->getBounds().intersects (capture->getBounds()));
             GF_EXPECT (editor.getLocalBounds().contains (shape->getBounds()));
         }

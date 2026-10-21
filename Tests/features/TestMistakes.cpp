@@ -387,6 +387,7 @@ GF_TEST (Mistakes, brake_slows_and_fades_the_last_quarter_only)
 GF_TEST (Mistakes, wobble_stays_within_three_percent_of_the_rate)
 {
     mistakes::MistakeStage stage;
+    stage.prepare();
     mistakes::StageConfig c;
     c.type = mistakes::Wobble; c.algo = (int) Algo::Texture; c.lengthSamples = 96000; c.amount01 = 1.0f; c.sampleRate = kSr;
 
