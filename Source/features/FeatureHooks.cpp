@@ -27,6 +27,11 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     s.perf.envShape    = pi (params.fillShape);
     s.perf.envAmount01 = pv (params.fillShapeAmount) * 0.01f;
 
+    // C-9 per-band fill type (0 Auto, otherwise Algo + 1)
+    s.perf.bandType[0] = juce::jlimit (0, numAlgos, pi (params.bandLowType));
+    s.perf.bandType[1] = juce::jlimit (0, numAlgos, pi (params.bandMidType));
+    s.perf.bandType[2] = juce::jlimit (0, numAlgos, pi (params.bandHighType));
+
     // C-6 density breathing (choice 0..3 -> 1, 2, 4, 8 bars)
     s.perf.breath.on       = pb (params.densityBreath);
     s.perf.breath.bars     = breathing::kBarChoices[juce::jlimit (0, 3, pi (params.densityBreathBars))];

@@ -559,11 +559,14 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
     // ---- algorithm ---------------------------------------------------------
     int algoIndex;
 
-    if (s.fillTypeIndex > 0)
-    {
-        algoIndex = juce::jlimit (0, numAlgos - 1, s.fillTypeIndex - 1);
+    // C-9: in Spectral mode a lane may force its own fill type; a global Fill Type wins over it.
+    const int laneType = (s.fillTypeIndex == 0 && band >= 0 && band < 3) ? s.perf.bandType[band] : 0;
 
-        // A manually chosen algorithm still has to fit the space.
+    if (s.fillTypeIndex > 0 || laneType > 0)
+    {
+        algoIndex = juce::jlimit (0, numAlgos - 1, (s.fillTypeIndex > 0 ? s.fillTypeIndex : laneType) - 1);
+
+        // A manually chosen algorithm still has to fit the space (no silent substitution).
         if (lengthMs < kProfiles[algoIndex].minMs * 0.6f)
         {
             plan.lengthMs = lengthMs;

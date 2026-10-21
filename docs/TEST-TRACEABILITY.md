@@ -70,6 +70,7 @@ Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md
 | C-6 Density Breathing | neutral cases, curve quarter points, formula, loop wrap, bounds, 6/8 and 7/4, block-size invariance (`TestBreathing.cpp`) | host loop/seek check | Engine implemented; host check unverified |
 | C-7 Phrase Awareness (+ offset) | identity, ramp values, invalid transport, loop/seek, offset shift/modulo, never fills ineligible gaps, block-size invariance (`TestPhrase.cpp`) | host loop/seek check | Engine implemented; host check unverified |
 | F-D01 Fill budget and quiet zones | off identity, N blocks N+1, new bar reset, seek recount, 16-entry ring, zone geometry (incl. 6/8, phrase offset), no-transport neutral, in-plugin enforcement and reasons, running fill continues, block-size invariance (`TestBudget.cpp`) | host loop/seek check | Engine implemented; GUI strip and host check unverified |
+| C-9 Per-band fill type | Auto identical to baseline, forced type only in its lane, global Fill Type wins, NoAlgoFits without substitution, non-spectral modes ignore it, not randomised, state round trip (`TestBandType.cpp`) | audible check in Spectral mode | Engine implemented; lane combo boxes in the Spectral panel and audible check pending |
 
 ## Test command policy
 
