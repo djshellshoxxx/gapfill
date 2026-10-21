@@ -1,6 +1,6 @@
 # 12 - Specs for the remaining backlog and six new features
 
-> **Precedence note (PR #25 takeover).** `docs/dev/features/*` and `docs/dev/features/DECISIONS.md` are the source of truth. Where this document differs, they win: in particular DECISIONS 1 (new parameter IDs are `<ticketlower>_<name>`; the unprefixed IDs in the 02 registry table are provisional names) and DECISIONS 3, 4 and 14. The empty parameter groups pre-registered by F0-10 are reserved slots; a ticket uses the group that matches it (or appends a new group at the end).
+> **Precedence note (PR #25 takeover).** `docs/dev/features/*` and `docs/dev/features/DECISIONS.md` are the source of truth. Where this document differs, they win: in particular DECISIONS 1 and 18 (IDs defined in this document keep their descriptive names; all other new IDs are `<ticketlower>_<name>`) and DECISIONS 3, 4 and 14. The empty parameter groups pre-registered by F0-10 are reserved slots; a ticket uses the group that matches it (or appends a new group at the end).
 
 Status: **authorized for implementation** (owner, 2026-10-21: beta1 shipped on all platforms; every catalogued item may be built). Gates A/B in `08` stay the *quality bar* for each PR (CI green, goldens, neutral defaults) but no longer block feature work. Features that need Phase 0 seams still wait for `02` (F0-1..F0-10).
 
