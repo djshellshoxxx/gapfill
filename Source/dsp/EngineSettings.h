@@ -14,8 +14,9 @@ namespace gapfill
 // the feature that owns the field existed.
 
 struct BreathSettings  { bool on = false; int bars = 4; float depth01 = 0.0f; int curve = 0; };   // C-6
-struct PhraseSettings  { int bars = 0; float bias01 = 0.0f; };                                    // C-7
+struct PhraseSettings  { int bars = 0; float bias01 = 0.0f; int offsetBars = 0; };                // C-7 (+F-L08 offset)
 struct EvolveSettings  { int periodBars = 0; };                                                   // C-8
+struct BudgetSettings  { int perBar = 0; int zone = 0; };                                         // F-D01 (0 = Off)
 
 struct PerformanceSettings
 {
@@ -26,12 +27,17 @@ struct PerformanceSettings
     BreathSettings breath;            // C-6
     PhraseSettings phrase;            // C-7
     EvolveSettings evolve;            // C-8
+    BudgetSettings budget;            // F-D01
     bool  likeActive = false;         // C-11
     int   quantDivision = -1;         // E-2 fill-length quantise, -1 off
     bool  modSync = false;            // E-2
     float modSyncSeconds = 0.0f;
     int   bandType[3] { 0, 0, 0 };    // C-9: 0 Auto, else Algo+1
     int   tsNum = 0, tsDen = 0;       // host time signature, valid when both > 0
+
+    /** Decision-stage OUTPUT (never a parameter): multiplier on the fill probability
+        of the gap being decided. Exactly 1.0 means neutral (C-7 Phrase). */
+    float probabilityMul = 1.0f;
 };
 
 //==============================================================================
@@ -78,6 +84,7 @@ struct EngineSettings
     double samplesPerBeat  = 0.0;
     bool   transportValid  = false;
     bool   sidechainActive = false;
+    bool   bypassed        = false;   ///< E-1: the plugin is bypassed (a preview request is refused)
 
     /** Output position minus source-history position. Zero while the history
         follows the input; it grows while Capture holds the history frozen so

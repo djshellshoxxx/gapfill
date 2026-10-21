@@ -50,4 +50,19 @@ int surpriseParameters (juce::AudioProcessorValueTreeState& state,
                         int previousProfile,
                         juce::String& name);
 
+/** The centre of one Surprise profile (C-8 Evolve waypoint). Read-only, derived from the
+    same table Surprise uses, so the two can never drift apart. Values are 0..1 fractions
+    (like EngineSettings); `weight[i]` is 0.80 for the profile's core algorithms and 0.06
+    for the rest; `stutterDivision` is the profile's first candidate division. */
+struct SurpriseTargets
+{
+    const char* name = "";
+    float fill = 0.0f, intensity = 0.0f, complexity = 0.0f, chaos = 0.0f, density = 0.0f;
+    float weight[numAlgos] {};
+    int stutterDivision = 0;
+};
+
+/** `profile` is clamped into [0, getNumSurpriseProfiles()). */
+const SurpriseTargets& surpriseTargets (int profile) noexcept;
+
 } // namespace gapfill

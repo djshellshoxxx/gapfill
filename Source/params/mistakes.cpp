@@ -4,13 +4,17 @@
 namespace gapfill
 {
 
-void addMistakesParameters (juce::AudioProcessorValueTreeState::ParameterLayout& /*layout*/)
+void addMistakesParameters (juce::AudioProcessorValueTreeState::ParameterLayout& layout)
 {
-    // No parameters yet. Add them here in the same order as GAPFILL_PARAMS_MISTAKES.
+    using namespace builders;
+
+    // C-3: 0 = no mistakes, no roll, no RNG draw. At 100 % about one fill in five carries one.
+    layout.add (percent ("mistakes", "Mistakes", 0.0f, 2));
 }
 
-void addMistakesPerformanceIds (juce::StringArray& /*ids*/)
+void addMistakesPerformanceIds (juce::StringArray& ids)
 {
+    ids.add ("mistakes");
 }
 
 } // namespace gapfill

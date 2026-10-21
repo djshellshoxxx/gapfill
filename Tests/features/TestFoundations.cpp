@@ -10,7 +10,8 @@ using namespace gftest;
 GF_TEST (Foundations, parameter_set_and_order_are_unchanged_by_the_group_split)
 {
     const auto ids = allParameterIDs();
-    GF_EXPECT (ids.size() >= 66);                 // 66 core ids, then the append-only feature groups
+    // The 66 core parameters keep their indices; feature groups only ever append after them.
+    GF_EXPECT (ids.size() >= 66);
     GF_EXPECT (ids[0] == "detMode");
     GF_EXPECT (ids[65] == "capture");
 

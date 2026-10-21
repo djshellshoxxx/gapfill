@@ -15,6 +15,8 @@
 #include "dsp/EventLogs.h"
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
+#include "features/shaping/ShapingRuntime.h"
+#include "features/recipes/RecipeServices.h"
 #include "features/fx/FxChain.h"
 #include "features/fx/FxUiState.h"
 #include "features/explain/ExplainState.h"
@@ -90,6 +92,10 @@ public:
     VisualisationFifo& getVisualisationFifo() noexcept              { return viz; }
     MidiLearnManager& getMidiLearnManager() noexcept                { return midiLearn; }
 
+    /** WP5 runtime state: tempo memory (E-2), effective creative values (C-0). */
+    ShapingRuntime& getShaping() noexcept                           { return shaping; }
+    const ShapingRuntime& getShaping() const noexcept               { return shaping; }
+    const EffectiveCreative& getEffectiveCreative() const noexcept  { return shaping.effective; }
     /** WP3 Explain & assist: health codes, telemetry, fix-it, timeline, event recorder. */
     explain::ExplainState& getExplainState() noexcept               { return explainState; }
     const explain::ExplainState& getExplainState() const noexcept   { return explainState; }
@@ -109,6 +115,11 @@ public:
     int drainFillEvents();
 
     const RecipeHistory& getRecipeHistory() const noexcept   { return recipeHistory; }
+    RecipeHistory& getRecipeHistory() noexcept               { return recipeHistory; }   // state restore (message thread)
+
+    /** WP4 facade: audition trigger, lock mirror, history, export, A/B match. */
+    recipes::RecipeServices& getRecipes() noexcept               { return recipeServices; }
+    const recipes::RecipeServices& getRecipes() const noexcept   { return recipeServices; }
     const GapOutcomeLog& getGapOutcomeLog() const noexcept   { return outcomeLog; }
     std::uint32_t getDroppedFillEvents() const noexcept      { return fillEvents.getDroppedCount(); }
 
@@ -216,9 +227,11 @@ private:
     fx::FxUiState  fxUi;          // WP8: <Fx> state subtree (fold state, remembered amounts)
 
     MidiLearnManager midiLearn;
+    recipes::RecipeServices recipeServices;
 
     MeterState meters;
     VisualisationFifo viz;
+    ShapingRuntime shaping;
 
     CommandQueue    commands;        // message -> audio, drained once per block
     FillEventQueue  fillEvents;      // audio -> message, drained by the timer

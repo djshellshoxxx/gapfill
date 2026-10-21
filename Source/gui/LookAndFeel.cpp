@@ -199,6 +199,34 @@ void GapFillLookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int 
         }
     }
 
+    // --- C-0 effective value: a thin inner arc from the base value to the value
+    // the engine really uses, plus a radial tick on the value arc (shape, not
+    // colour alone). Only drawn when GapKnob::setEffectiveValue supplied one.
+    if (enabled)
+    {
+        const auto eff = (double) slider.getProperties().getWithDefault ("gapfillEffective01", -1.0);
+
+        if (eff >= 0.0 && eff <= 1.0)
+        {
+            const auto effAngle = rotaryStartAngle + (float) eff * (rotaryEndAngle - rotaryStartAngle);
+            const auto innerRadius = juce::jmax (4.0f, arcRadius - arcWidth * 0.5f - gap * 0.5f);
+
+            juce::Path delta;
+            delta.addCentredArc (centre.x, centre.y, innerRadius, innerRadius, 0.0f,
+                                 juce::jmin (angle, effAngle), juce::jmax (angle, effAngle), true);
+            g.setColour (colours::text.withAlpha (0.85f));
+            g.strokePath (delta, juce::PathStrokeType (1.5f * scale, juce::PathStrokeType::curved,
+                                                       juce::PathStrokeType::butt));
+
+            juce::Path tick;
+            tick.startNewSubPath (0.0f, -(arcRadius - arcWidth * 1.1f));
+            tick.lineTo (0.0f, -(arcRadius + arcWidth * 0.9f));
+            tick.applyTransform (juce::AffineTransform::rotation (effAngle).translated (centre));
+            g.setColour (colours::text);
+            g.strokePath (tick, juce::PathStrokeType (1.5f * scale));
+        }
+    }
+
     // --- body --------------------------------------------------------------
     const auto body = juce::Rectangle<float> (bodyRadius * 2.0f, bodyRadius * 2.0f).withCentre (centre);
 

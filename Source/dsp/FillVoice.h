@@ -3,6 +3,8 @@
 #include "DspUtils.h"
 #include "AnalysisEngine.h"
 #include "SpectralSmear.h"
+#include "../features/envelope/Envelope.h"
+#include "../features/mistakes/Mistakes.h"
 #include "../features/cloud/CloudMode.h"
 #include "../features/fx/FxSettings.h"
 #include "../features/fx/VoiceFxChain.h"
@@ -49,6 +51,21 @@ struct VoiceSetup
     float stutterSeconds = 0.125f;   // musical subdivision for stutter
     float delaySeconds   = 0.125f;   // musical subdivision for delay taps
     bool  pingPong       = true;
+
+    /** E-2 Sync Mods: > 0 locks Tremolo / Pan Motion rates and the Scramble
+        slice length to the tempo (value = the stutter time in seconds). 0 = off,
+        and the voice behaves exactly as before. */
+    float modSyncSeconds = 0.0f;
+
+    /** C-4 intensity envelope: shape (0 Flat) and amount 0..1. Flat or 0 = the
+        stage is skipped and the voice is bit-identical to before. */
+    int   envShape = 0;
+    float envAmount01 = 0.0f;
+
+    /** C-3 mistake carried by the recipe (0 = none) with its amount 0..1 and the recipe seed. */
+    int   mistakeType = 0;
+    float mistakeAmt01 = 0.0f;
+    std::uint32_t mistakeSeed = 0;
 
     float bandEnergy[3] { 0.3f, 0.3f, 0.3f };   // shapes the Texture algorithm
 
@@ -104,6 +121,36 @@ public:
     const fx::SwellMode& getSwellMode() const noexcept { return swellMode; }
     const fx::CloudMode& getCloudMode() const noexcept { return cloudMode; }
     fx::CloudMode& getCloudMode() noexcept { return cloudMode; }
+
+    /** Heap bytes held by the voice's sample buffers (capture + comb); for memory budgeting and tests. */
+    std::size_t getBufferBytes() const noexcept
+    {
+        return (std::size_t) (capture.getNumChannels() * capture.getNumSamples()
+                              + combBuffer.getNumChannels() * combBuffer.getNumSamples()) * sizeof (float);
+    }
+
+    /** The decisions the voice took at start(), for the FillRecipe (F0-3):
+        bit per Modifier (bit0 = FilterSweep .. bit4 = PanMotion), and the
+        Pitch Rise / Fall target in signed semitones (0 for other algorithms). */
+    std::uint8_t getModifierMask() const noexcept
+    {
+        std::uint8_t mask = 0;
+
+        for (int i = 0; i < numModifiers && i < maxModifiers; ++i)
+            if (modifiers[i] != Modifier::None)
+                mask = (std::uint8_t) (mask | (1 << ((int) modifiers[i] - 1)));
+
+        return mask;
+    }
+
+    std::int8_t getPitchSemis() const noexcept
+    {
+        if (setupData.algo != Algo::PitchRise && setupData.algo != Algo::PitchFall)
+            return 0;
+
+        const auto semis = (int) std::lround (12.0 * std::log2 (juce::jmax (1.0e-6, pitchRateEnd)));
+        return (std::int8_t) juce::jlimit (-48, 48, semis);
+    }
 
     /** Renders and adds `numSamples` of this voice into `wet`. */
     void render (juce::AudioBuffer<float>& wet, int startSample, int numSamples,
@@ -286,6 +333,13 @@ private:
     float modDistortNorm = 1.0f;
     float modTremRate = 8.0f, modTremDepth = 0.5f, modTremPhase = 0.0f;
     float modPanRate = 1.5f, modPanDepth = 0.6f, modPanPhase = 0.0f;
+
+    // --- C-3 controlled mistake ---
+    mistakes::MistakeStage mistakeStage;
+    float mistakeRate = 1.0f;
+
+    // --- C-4 intensity envelope ---
+    envelope::EnvelopeStage envelopeStage;
 
     // --- band isolation ---
     BandSplitter bandFilter;

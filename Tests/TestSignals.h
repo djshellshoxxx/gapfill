@@ -104,6 +104,10 @@ public:
 
         info.setIsPlaying (playing);
         info.setTimeInSamples (timeInSamples);
+
+        if (tsNum > 0 && tsDen > 0)
+            info.setTimeSignature (TimeSignature { tsNum, tsDen });
+
         return info;
     }
 
@@ -117,6 +121,7 @@ public:
 
     bool provideInfo = true, provideBpm = true, providePpq = true, playing = true;
     double bpm = 120.0, ppq = 0.0;
+    int tsNum = 0, tsDen = 0;   ///< host time signature; 0 = not provided
     juce::int64 timeInSamples = 0;
 };
 

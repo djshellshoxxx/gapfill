@@ -13,7 +13,9 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_BUDGET(X)
+#define GAPFILL_PARAMS_BUDGET(X) \
+    X (fillBudget, "fillBudget") \
+    X (quietZone,  "quietZone")
 
 namespace gapfill
 {

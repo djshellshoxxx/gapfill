@@ -12,6 +12,7 @@ namespace gapfill
 {
 
 struct AnalysisFrame;
+class SourceHistory;
 
 /** Why a gap did not produce a fill. `trySchedule` runs once per gap, so a gap
     yields at most one reason. Values are persisted in logs and visualiser
@@ -68,6 +69,8 @@ struct GapContext
     std::int64_t minGapSamples = 0;
     std::int64_t preGuard = 0;
     const AnalysisFrame* frame = nullptr;
+    const SourceHistory* history = nullptr;   ///< the fill source (read-only; set before buildRecipe)
+    std::int64_t sourceAnchor = 0;     ///< absolute source position the fill is cut from (end of its material)
     std::uint64_t key = 0;             ///< deterministic decision key (seed + musical position)
     float conf = 0.0f;                 ///< clamped gap confidence at the decision sample
 };
@@ -89,6 +92,7 @@ struct ScheduleResult
     bool started = false;
     RejectReason reason = RejectReason::None;
     FillRecipe recipe;             ///< valid when started (and for LockSkipped diagnostics)
+    std::int64_t lengthSamples = 0;///< when started: the exact planned length (the recipe keeps whole ms)
     float availableMs = 0.0f;      ///< room that was available when rejected
     float neededMs = 0.0f;         ///< room that would have been needed
 };

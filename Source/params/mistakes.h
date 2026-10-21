@@ -13,7 +13,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_MISTAKES(X)
+#define GAPFILL_PARAMS_MISTAKES(X) \
+    X (mistakes, "mistakes")
 
 namespace gapfill
 {

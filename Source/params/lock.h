@@ -1,7 +1,7 @@
 #pragma once
 
 // Parameter group "lock" (docs/dev/02-FOUNDATIONS.md F0-1).
-// Owner: C-5 (fillLock).
+// Owner: C-5 (fl01_lock).
 //
 // The group's parameters are listed in GAPFILL_PARAMS_LOCK below as X-macro
 // entries (member name, then permanent string id) joined by line
@@ -13,7 +13,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_LOCK(X)
+#define GAPFILL_PARAMS_LOCK(X) \
+    X (fl01_lock, "fl01_lock")
 
 namespace gapfill
 {

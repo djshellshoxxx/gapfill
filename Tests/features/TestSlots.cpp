@@ -67,7 +67,8 @@ GF_TEST (Slots, capture_button_is_hosted_in_the_creative_extra_slot)
     GapFillAudioProcessor proc;
     juce::Component parent;
     SlotHost host (proc, parent);
-    GF_EXPECT (host.getNumComponents (Slot::CreativeExtra) == 1);
+    // CAPTURE plus any feature button registered next to it (E-1 adds AUDITION).
+    GF_EXPECT (host.getNumComponents (Slot::CreativeExtra) >= 1);
 }
 
 GF_TEST (Slots, editor_places_capture_where_the_creative_panel_used_to_and_survives_reopen)

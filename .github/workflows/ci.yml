@@ -150,6 +150,23 @@ jobs:
           mkdir -p test-results
           xvfb-run -a build-ci/artefacts/GapFillTests 2>&1 | tee test-results/GapFillTests-linux-full.log
 
+      - name: Golden diagnostics (only after a failure)
+        if: failure()
+        run: |
+          lscpu | grep -E 'Model name|Flags' | cut -c1-400 || true
+          mkdir -p golden-actual
+          xvfb-run -a build-ci/artefacts/GapFillTests --write-golden Golden > golden-actual/write.log 2>&1 || true
+          cp -r Tests/golden/linux golden-actual/ || true
+
+      - name: Upload golden diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: golden-actual
+          path: golden-actual/
+          if-no-files-found: warn
+          retention-days: 7
+
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4

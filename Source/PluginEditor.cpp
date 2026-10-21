@@ -970,6 +970,7 @@ void GapFillAudioProcessorEditor::toggleAB()
     if (target.isValid())
         state.replaceState (target.createCopy());
 
+    proc.getRecipes().noteHeaderAbSide (usingSlotB);        // F-S06: level matching follows the sounding side
     abButton.setButtonText (usingSlotB ? "B" : "A");
     setPresetDisplay (usingSlotB ? "B" : "A");
 }
