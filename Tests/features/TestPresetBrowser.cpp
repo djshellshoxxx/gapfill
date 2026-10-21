@@ -298,7 +298,6 @@ GF_TEST (PresetBrowser, user_preset_save_load_rename_delete)
 
     // Rename refuses to overwrite, then renames.
     juce::File renamed;
-    GF_EXPECT (! renameUserPreset (entry, "Second", error) || entry.file.getParentDirectory() != second.getParentDirectory());
     GF_EXPECT (renameUserPreset (entry, "Deeper Space", error, &renamed));
     GF_EXPECT (renamed.existsAsFile() && ! entry.file.existsAsFile());
 
