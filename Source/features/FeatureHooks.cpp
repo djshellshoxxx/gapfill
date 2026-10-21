@@ -23,6 +23,9 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     s.perf.quantDivision = pi (params.fillQuant) - 1;
     s.perf.modSync       = pb (params.modSync);
 
+    // C-3 controlled mistakes
+    s.perf.mistakes01 = pv (params.mistakes) * 0.01f;
+
     // C-4 intensity envelope
     s.perf.envShape    = pi (params.fillShape);
     s.perf.envAmount01 = pv (params.fillShapeAmount) * 0.01f;

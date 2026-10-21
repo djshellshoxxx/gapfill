@@ -109,6 +109,9 @@ private:
         a reject reason (LockSkipped). Empty in Phase 0. */
     RejectReason adjustRecipe (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept;
 
+    /** C-3: rolls (or clears) the recipe's mistake with the salted sub-RNG. */
+    void rollMistake (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept;
+
     VoiceSetup toVoiceSetup (const FillPlan& plan, const GapContext& ctx, const EngineSettings& s,
                              const SourceHistory& history) const noexcept;
 

@@ -3,6 +3,7 @@
 #include "../features/sync/Sync.h"
 #include "../features/breathing/Breathing.h"
 #include "../features/budget/Budget.h"
+#include "../features/mistakes/Mistakes.h"
 #include "../features/phrase/Phrase.h"
 #include "../features/timing/BarTiming.h"
 
@@ -384,6 +385,8 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
     ctx.outputPos = outputPos;
     ctx.blockStartPos = blockStartPos;
     ctx.frame = &frame;
+    ctx.history = &history;
+    ctx.sourceAnchor = juce::jlimit ((std::int64_t) 0, history.getWritePosition(), outputPos - s.historyOffset);
 
     ScheduleResult result;
     FillPlan plan;
@@ -615,13 +618,63 @@ RejectReason FillEngine::buildRecipe (const GapContext& ctx, Rng& rng, const Eng
     return RejectReason::None;
 }
 
-RejectReason FillEngine::adjustRecipe (FillPlan&, const GapContext&, const EngineSettings&) noexcept
+RejectReason FillEngine::adjustRecipe (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept
 {
-    // HOOK (empty in Phase 0): Fill Lock (C-5) substitutes the locked recipe
-    // here and may return LockSkipped; Mistakes (C-3) sets mistakeType/Amt.
-    // Features draw from their own salted sub-RNG (Source/features/Salts.h),
-    // never from the scheduler's Rng.
+    // HOOK: Fill Lock (C-5) substitutes the locked recipe here and may return
+    // LockSkipped. Features draw from their own salted sub-RNG
+    // (Source/features/Salts.h), never from the scheduler's Rng.
+
+    // C-3 Controlled Mistakes: a fresh roll for every fill (a locked recipe's mistake field is
+    // ignored). With mistakes at 0 nothing runs and no RNG is touched.
+    if (s.perf.mistakes01 > 0.0f)
+        rollMistake (plan, ctx, s);
+
     return RejectReason::None;
+}
+
+void FillEngine::rollMistake (FillPlan& plan, const GapContext& ctx, const EngineSettings& s) noexcept
+{
+    plan.recipe.mistakeType = 0;
+    plan.recipe.mistakeAmt = 0;
+
+    mistakes::Roller roller (s.perf.mistakes01, ctx.key);
+
+    if (! roller.hit())
+        return;
+
+    mistakes::Facts f;
+    f.algo = plan.algoIndex;
+    f.lengthSamples = plan.lengthSamples;
+    f.sampleRate = sr;
+    f.mono = channels < 2;
+    f.sourceAvailable = ctx.sourceAnchor;
+    f.seed = plan.recipe.seed;
+    f.repeats = mistakes::estimateRepeats (plan.algoIndex, plan.lengthSamples, sr, s.stutterSeconds,
+                                           s.delaySeconds, s.complexity01);
+
+    // Is the capture effectively mono? Estimated from at most 512 evenly spaced samples, and only
+    // when a stereo swing could be chosen at all.
+    if (! f.mono && ctx.history != nullptr
+         && 1000.0 * (double) plan.lengthSamples / sr >= mistakes::kMinBounceMs)
+    {
+        const auto span = juce::jmin ((std::int64_t) (sr * 0.32), plan.lengthSamples);
+        double diff = 0.0, energy = 0.0;
+
+        for (int i = 0; i < 512; ++i)
+        {
+            const auto p = (double) (ctx.sourceAnchor - span) + (double) span * (double) i / 512.0;
+            const auto a = (double) ctx.history->read (0, p);
+            const auto b = (double) ctx.history->read (1, p);
+            diff += (a - b) * (a - b);
+            energy += a * a + b * b;
+        }
+
+        f.stereoCoherent = energy < 1.0e-12 || diff <= 1.0e-6 * energy;        // < -60 dB difference
+    }
+
+    const auto roll = roller.pick (f);
+    plan.recipe.mistakeType = roll.type;
+    plan.recipe.mistakeAmt = roll.amount;
 }
 
 VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx,
@@ -652,6 +705,9 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     setup.modSyncSeconds = s.perf.modSyncSeconds;   // E-2 (0 = off)
     setup.envShape = s.perf.envShape;               // C-4
     setup.envAmount01 = s.perf.envAmount01;
+    setup.mistakeType = plan.recipe.mistakeType;    // C-3
+    setup.mistakeAmt01 = (float) plan.recipe.mistakeAmt * 0.01f;
+    setup.mistakeSeed = plan.recipe.seed;
     setup.rngSeed = hashCombine (ctx.key, (std::uint64_t) (plan.algoIndex + 1) * 0x27D4EB2FULL);
 
     for (int b = 0; b < 3; ++b)

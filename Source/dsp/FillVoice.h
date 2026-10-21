@@ -4,6 +4,7 @@
 #include "AnalysisEngine.h"
 #include "SpectralSmear.h"
 #include "../features/envelope/Envelope.h"
+#include "../features/mistakes/Mistakes.h"
 
 namespace gapfill
 {
@@ -56,6 +57,11 @@ struct VoiceSetup
         stage is skipped and the voice is bit-identical to before. */
     int   envShape = 0;
     float envAmount01 = 0.0f;
+
+    /** C-3 mistake carried by the recipe (0 = none) with its amount 0..1 and the recipe seed. */
+    int   mistakeType = 0;
+    float mistakeAmt01 = 0.0f;
+    std::uint32_t mistakeSeed = 0;
 
     float bandEnergy[3] { 0.3f, 0.3f, 0.3f };   // shapes the Texture algorithm
 
@@ -276,6 +282,10 @@ private:
     float modDrive = 2.0f;
     float modTremRate = 8.0f, modTremDepth = 0.5f, modTremPhase = 0.0f;
     float modPanRate = 1.5f, modPanDepth = 0.6f, modPanPhase = 0.0f;
+
+    // --- C-3 controlled mistake ---
+    mistakes::MistakeStage mistakeStage;
+    float mistakeRate = 1.0f;
 
     // --- C-4 intensity envelope ---
     envelope::EnvelopeStage envelopeStage;
