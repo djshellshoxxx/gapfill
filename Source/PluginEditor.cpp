@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "PluginEditor.h"
+#include "features/info/ParamInfo.h"
 
 // The standalone wrapper owns the audio and MIDI devices, so the options page
 // can only offer device settings when we are running inside it. The macro is
@@ -109,6 +110,7 @@ namespace
 GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor& p)
     : AudioProcessorEditor (&p),
       proc (p),
+      hoverStatus (p.getValueTreeState(), p.getUiState().status),
       visualiser (p.getVisualisationFifo()),
       detectionPanel (p.getValueTreeState()),
       creativePanel (p.getValueTreeState()),
@@ -118,6 +120,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
       mixPanel (p.getValueTreeState())
 {
     setLookAndFeel (&lookAndFeel);
+    addMouseListener (&hoverStatus, true);
     setWantsKeyboardFocus (false);
     setFocusContainerType (juce::Component::FocusContainerType::keyboardFocusContainer);
 
@@ -165,7 +168,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
                                "protection and mix are left exactly as they are.");
     undoButton.setTooltip ("Undo the last Random, Surprise, Reset, preset change or file load "
                            "(up to 32 steps).");
-    bypassButton.setTooltip ("Bypass GapFill. Latency compensation stays correct.");
+    bypassButton.setTooltip (info::tooltipFor ("bypass", "Bypass GapFill. Latency compensation stays correct."));
 
     prevPreset.onClick = [this]
     {
@@ -246,6 +249,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     {
         showParameterMenu (bypassButton, proc.getValueTreeState(), "bypass");
     };
+    tagParameter (bypassButton, "bypass");
     bypassButton.setClickingTogglesState (true);
     bypassButton.setColour (juce::TextButton::buttonOnColourId, juce::Colour (0xffff5252));
     bypassAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment> (
@@ -390,6 +394,9 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 GapFillAudioProcessorEditor::~GapFillAudioProcessorEditor()
 {
     stopTimer();
+    removeMouseListener (&hoverStatus);
+    proc.getUiState().status.clear (info::StatusKind::Learn);
+    proc.getUiState().status.clear (info::StatusKind::Capture);
     proc.getExplainState().openOptions = nullptr;
     proc.getVisualisationFifo().setEnabled (false);
     setLookAndFeel (nullptr);
@@ -811,6 +818,13 @@ void GapFillAudioProcessorEditor::timerCallback()
     undoButton.setEnabled (proc.canUndo());
 
     mixPanel.setStatusText (status);
+
+    // U-9: the footer shows the highest-priority message (learn > ... > capture here).
+    auto& board = proc.getUiState().status;
+    board.set (info::StatusKind::Learn, midiLearn.isLearning() ? status : juce::String());
+    board.set (info::StatusKind::Capture, meters.captureActive.load() && ! midiLearn.isLearning()
+                                              ? juce::String ("Capture is on - fills use the captured source")
+                                              : juce::String());
 
     // Keep the control animation policy in sync with project-state restores
     // that may occur while this editor is already open.

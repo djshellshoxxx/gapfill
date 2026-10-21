@@ -5,6 +5,7 @@
 #include "../events/Diagnostics.h"
 #include "../events/Replay.h"
 #include "../explain/ExplainState.h"
+#include "../info/StatusBoard.h"
 #include "../telemetry/Telemetry.h"
 
 namespace gapfill::health
@@ -69,7 +70,13 @@ FooterView computeFooterView (GapFillAudioProcessor& proc)
     const auto& log = proc.getGapOutcomeLog();
     const bool haveGap = log.size() > 0 && proc.getVisualisationFifo().isEnabled();
 
-    v.kind = selectFooter ({ haveHealth, haveFixit, haveGap });
+    // U-9: learn / export / preview / capture outrank health; a hovered or dragged control
+    // outranks only the last-gap line (see info/StatusBoard.h).
+    const auto& board = proc.getUiState().status;
+    const auto above = board.topAbove (info::StatusKind::Health);
+    const auto hover = board.get (info::StatusKind::Hover);
+
+    v.kind = selectFooter ({ haveHealth, haveFixit, haveGap, above.has_value(), hover.isNotEmpty() });
 
     switch (v.kind)
     {
@@ -84,6 +91,14 @@ FooterView computeFooterView (GapFillAudioProcessor& proc)
 
         case FooterKind::LastGap:
             v.text = reasons::statusLine (log.get (0));
+            break;
+
+        case FooterKind::Info:
+            v.text = above->text;
+            break;
+
+        case FooterKind::Hover:
+            v.text = hover;
             break;
 
         case FooterKind::Nothing:
@@ -546,6 +561,17 @@ void FooterStatusComponent::paint (juce::Graphics& g)
         colour = colours::accent;
         shape.addEllipse (glyph);                                             // circle: suggestion
     }
+    else if (view.kind == FooterKind::Info)
+    {
+        colour = colours::primary;
+        shape.addRoundedRectangle (glyph, 2.0f);                              // rounded square: live action
+    }
+    else if (view.kind == FooterKind::Hover)
+    {
+        colour = colours::secondary;
+        shape.addTriangle (glyph.getX(), glyph.getY(), glyph.getRight(), glyph.getCentreY(),
+                           glyph.getX(), glyph.getBottom());                  // play-arrow: the control under the mouse
+    }
     else
     {
         colour = colours::textMuted;
@@ -563,7 +589,7 @@ void FooterStatusComponent::paint (juce::Graphics& g)
     else
         g.fillPath (shape);
 
-    g.setColour (view.kind == FooterKind::LastGap ? colours::textDim : colours::text);
+    g.setColour (view.kind == FooterKind::LastGap || view.kind == FooterKind::Hover ? colours::textDim : colours::text);
     g.setFont (fonts::ui (11.0f));
     g.drawText (view.text, area.withTrimmedLeft (4), juce::Justification::centredLeft, true);
 }

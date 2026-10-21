@@ -1,5 +1,6 @@
 #include "Knob.h"
 #include "../MidiLearn.h"
+#include "../features/info/ParamInfo.h"
 
 namespace gapfill
 {
@@ -356,7 +357,9 @@ GapKnob::GapKnob (juce::AudioProcessorValueTreeState& s,
     slider.setDescription (tooltip);
     slider.setHelpText (tooltip);
     slider.setColour (juce::Slider::thumbColourId, accent);
-    slider.setTooltip (tooltip);
+    slider.setTooltip (info::tooltipFor (parameterID, tooltip));    // U-9: generated from the info table
+    tagParameter (*this, parameterID);
+    tagParameter (slider, parameterID);
 
     if (parameter != nullptr)
         slider.setDoubleClickReturnValue (true, parameter->convertFrom0to1 (parameter->getDefaultValue()));
@@ -480,7 +483,9 @@ GapCombo::GapCombo (juce::AudioProcessorValueTreeState& state,
     combo.setTitle (displayName);
     combo.setDescription (tooltip);
     combo.setHelpText (tooltip);
-    combo.setTooltip (tooltip);
+    combo.setTooltip (info::tooltipFor (parameterID, tooltip));
+    tagParameter (*this, parameterID);
+    tagParameter (combo, parameterID);
     combo.setWantsKeyboardFocus (false);
     combo.onRightClick = [this, &state, parameterID]
     {
@@ -514,7 +519,9 @@ GapToggle::GapToggle (juce::AudioProcessorValueTreeState& state,
     button.setDescription (tooltip);
     button.setHelpText (tooltip);
     button.setClickingTogglesState (true);
-    button.setTooltip (tooltip);
+    button.setTooltip (info::tooltipFor (parameterID, tooltip));
+    tagParameter (*this, parameterID);
+    tagParameter (button, parameterID);
     button.setWantsKeyboardFocus (false);
     button.setColour (juce::TextButton::buttonOnColourId, accent);
     button.setColour (juce::TextButton::textColourOnId, accent);
@@ -549,7 +556,9 @@ GapBar::GapBar (juce::AudioProcessorValueTreeState& s,
     slider.setHelpText (tooltip);
     slider.setDescription (tooltip);
     slider.setColour (juce::Slider::thumbColourId, accent);
-    slider.setTooltip (tooltip);
+    slider.setTooltip (info::tooltipFor (parameterID, tooltip));
+    tagParameter (*this, parameterID);
+    tagParameter (slider, parameterID);
     slider.onValueChange = [this] { refreshValueText(); };
     slider.onRightClick = [this] { showParameterMenu (*this, state, paramID); };
 

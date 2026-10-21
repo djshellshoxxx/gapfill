@@ -973,6 +973,7 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     root.setProperty ("tooltips", tooltipsEnabled.load (std::memory_order_relaxed), nullptr);
     root.setProperty ("reducedMotion", reducedMotionEnabled.load (std::memory_order_relaxed), nullptr);
     root.setProperty ("keyboardNavigation", keyboardNavigationEnabled.load (std::memory_order_relaxed), nullptr);
+    uiState.writeState (root);
     root.appendChild (apvts.copyState(), nullptr);
     root.appendChild (midiLearn.toValueTree(), nullptr);
     state::writeSubtrees (*this, root, state::reservedSubtrees());
@@ -1230,6 +1231,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         tooltipsEnabled.store (restoredTooltips, std::memory_order_relaxed);
         reducedMotionEnabled.store (restoredReducedMotion, std::memory_order_relaxed);
         keyboardNavigationEnabled.store (restoredKeyboardNavigation, std::memory_order_relaxed);
+        uiState.readState (root);
 
         // Absent in state written before MIDI learn existed; leave the current
         // mappings alone in that case rather than wiping them.

@@ -14,6 +14,7 @@
 #include "gui/OptionsView.h"
 #include "gui/SlotHost.h"
 #include "gui/SlotPanels.h"
+#include "features/info/HoverStatus.h"
 
 namespace gapfill
 {
@@ -72,6 +73,7 @@ private:
     GapFillAudioProcessor& proc;
 
     GapFillLookAndFeel lookAndFeel;
+    info::HoverStatus hoverStatus;      // U-9: "Name value (base -> effective)" in the footer
     // Destroyed rather than hidden when the user turns tooltips off, so no
     // stray window can appear.
     std::unique_ptr<juce::TooltipWindow> tooltips;
