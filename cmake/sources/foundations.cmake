@@ -4,6 +4,7 @@ list(APPEND GAPFILL_SOURCES
     Source/gui/HelpSections.cpp
     Source/dsp/SchedulerTypes.cpp
     Source/features/FeatureHooks.cpp
+    Source/features/state/StateSubtrees.cpp
     Source/features/effective/Effective.cpp
     Source/features/effective/StagePersonality.cpp
     Source/features/effective/StageMacros.cpp

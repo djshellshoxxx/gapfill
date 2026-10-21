@@ -6,6 +6,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "features/FeatureHooks.h"
+#include "features/state/StateSubtrees.h"
 
 namespace gapfill
 {
@@ -931,6 +932,7 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     juce::ValueTree root ("GAPFILL_STATE");
     root.setProperty ("version", 1, nullptr);
+    root.setProperty ("stateVersion", state::kStateVersion, nullptr);
     root.setProperty ("program", currentProgram.load (std::memory_order_relaxed), nullptr);
     root.setProperty ("editorWidth", savedEditorWidth.load (std::memory_order_relaxed), nullptr);
     root.setProperty ("editorHeight", savedEditorHeight.load (std::memory_order_relaxed), nullptr);
@@ -939,6 +941,7 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     root.setProperty ("keyboardNavigation", keyboardNavigationEnabled.load (std::memory_order_relaxed), nullptr);
     root.appendChild (apvts.copyState(), nullptr);
     root.appendChild (midiLearn.toValueTree(), nullptr);
+    state::writeSubtrees (*this, root, state::reservedSubtrees());
 
     if (auto xml = root.createXml())
         copyXmlToBinary (*xml, destData);
@@ -1130,6 +1133,9 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     if (! root.isValid())
         return;
 
+    // Older states (no stateVersion) are upgraded in place before anything is read.
+    state::migrate (root, state::readStateVersion (root));
+
     juce::ValueTree paramState;
     juce::ValueTree mapState;
     int restoredProgram = -1;
@@ -1170,6 +1176,11 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     if (! isParameterStateValid (paramState))
         return;
 
+    // Optional subtrees fail soft: validate all of them now, but a bad one only
+    // resets itself - it never blocks the parameters above.
+    const auto subtreePlan = wrappedState ? state::planSubtrees (root, state::reservedSubtrees())
+                                          : state::SubtreePlan {};
+
     programChangeInProgress.store (true, std::memory_order_relaxed);
     apvts.replaceState (paramState.createCopy());
     snapParametersToState();
@@ -1190,6 +1201,8 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
         // mappings alone in that case rather than wiping them.
         if (mapState.isValid())
             midiLearn.restoreFromValueTree (mapState);
+
+        state::applyPlan (*this, subtreePlan);
     }
 
     // Every parameter may have moved: CLAP hosts need a value rescan and VST3
