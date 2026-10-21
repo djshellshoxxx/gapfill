@@ -14,8 +14,8 @@ Branch: PR #25 (Phase 0 foundations F0-1..F0-10, WP3 explain/assist, WP8 voice e
 | F-L06-performance-macros | no | - | - |
 | F-L07-performance-scenes | no | - | - |
 | F-L08-phrase-aware-scheduling | no | - | - |
-| F-L09-groove-inheritance | no | - | - |
-| F-L10-call-and-response | no | - | - |
+| F-L09-groove-inheritance | yes | Source/features/groove/*, Source/gui/slots/GrooveStrip.cpp, Source/params/groove.* | Tests/features/TestGroove.cpp. Scramble not shifted; see docs/progress/WP7.md |
+| F-L10-call-and-response | yes | Source/features/callresponse/*, Source/gui/slots/CallStrip.cpp | Tests/features/TestCallResponse.cpp |
 | F-L11-midi-output | no | - | - |
 | F-L12-wet-only-output-bus | no | - | - |
 | F-L13-enhanced-sidechain-fills | no | - | - |
@@ -23,11 +23,11 @@ Branch: PR #25 (Phase 0 foundations F0-1..F0-10, WP3 explain/assist, WP8 voice e
 | F-L15-dub-feedback-network | no | - | - |
 | F-L16-controlled-evolve | no | - | - |
 | F-L17-mutation-lab | no | - | - |
-| F-L18-manual-scale-key | no | - | - |
+| F-L18-manual-scale-key | yes | Source/features/scale/* (N-MUS), Source/gui/slots/ScaleStrip.cpp | Tests/features/TestScale.cpp |
 | F-L19-frequency-shifted-delays | no | - | - |
 | F-L20-formant-transformations | no | - | - |
 | F-L21-transient-convolution-reverb | no | - | - |
-| F-L22-musical-energy-tracking | no | - | - |
+| F-L22-musical-energy-tracking | yes | Source/features/context/EnergyTracker.*, Source/features/effective/StageEnergy.cpp | Tests/features/TestEnergy.cpp |
 | F-L23-recipe-ab-comparison | no | - | - |
 | F-L24-controller-integration-feedback | no | - | - |
 | F-L25-live-safety-recovery | no | - | - |
@@ -51,7 +51,7 @@ Branch: PR #25 (Phase 0 foundations F0-1..F0-10, WP3 explain/assist, WP8 voice e
 | F-M18-beat-battles | no | - | - |
 | F-M19-freeze-and-scrub | partial | Source/features/scrub/ScrubVoice.*, Source/gui/slots/ScrubStrip.cpp, Source/params/scrub.* | Tests/features/TestScrub.cpp. Standalone voice; C-10 / F-M10 integration pending |
 | F-M20-tape-destruction-expansion | yes | Source/features/fx/TapeDestrCard.*, Source/params/tapedestr.* | Tests/features/TestVoiceFxCards.cpp |
-| F-M21-tension-release-curves | no | - | - |
+| F-M21-tension-release-curves | partial | Source/features/tension/*, Source/gui/slots/TensionStrip.cpp | Tests/features/TestTension.cpp. No curve editor popover |
 | F-M22-smart-preset-suggestions | no | - | - |
 | F-M23-advanced-modulation-macro-targets | no | - | - |
 | F-S01-cpu-latency-display | partial | Source/features/telemetry/*, Source/features/health/* | Tests/features/TestTelemetry.cpp, TestHealth.cpp. Options-page embedding deferred to UI-0 |
@@ -68,9 +68,9 @@ Branch: PR #25 (Phase 0 foundations F0-1..F0-10, WP3 explain/assist, WP8 voice e
 | F-S12-safe-return-panic | partial | PluginProcessor.h panicWet(), FxChain fadeOut, Command slots | Tests/features/TestFx.cpp (panic fades). Panic UI / recover not built |
 | F-X01-harmonic-granular-resynthesis | no | - | - |
 | F-X02-spectral-freeze-and-morph | no | - | - |
-| F-X03-automatic-key-detection | no | - | - |
-| F-X04-multi-section-arrangement-awareness | no | - | - |
-| F-X05-local-preference-learning | no | - | - |
+| F-X03-automatic-key-detection | yes | Source/features/keydetect/*, Source/gui/slots/KeyStrip.cpp | Tests/features/TestKey.cpp |
+| F-X04-multi-section-arrangement-awareness | yes | Source/features/arrangement/*, Source/gui/slots/ArrangementStrip.cpp | Tests/features/TestArrangement.cpp |
+| F-X05-local-preference-learning | partial | Source/features/taste/*, Source/gui/slots/TasteStrip.cpp | Tests/features/TestTaste.cpp. No Skip button in the History drawer; M1 +10 points |
 | F-X06-multi-track-cooperative-gapfill | no | - | - |
 | F-X07-adaptive-performance-quality-modes | no | - | - |
 | P-01-free-pro-build-flag | no | - | out of scope per DECISIONS 4 (never implemented) |
