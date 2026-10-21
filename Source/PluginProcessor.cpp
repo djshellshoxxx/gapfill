@@ -99,6 +99,10 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
 {
     prepared.store (false);
 
+    // Evolve (audio thread) reads this lazily-built table; build it here so the first fill never allocates
+    // or takes the static-initialisation lock inside the audio callback (found by TestIntegratedStress).
+    (void) surpriseTargets (0);
+
     currentSampleRate = juce::jmax (8000.0, sampleRate);
     preparedBlockSize = juce::jlimit (16, 65536, samplesPerBlock > 0 ? samplesPerBlock : 512);
     mainChannels = juce::jlimit (1, 2, juce::jmax (1, getMainBusNumOutputChannels()));
@@ -1229,8 +1233,11 @@ bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state)
 
         seenKnownParameters.add (id);
 
+        // JUCE writes `<PARAM id="x"/>` without a value for a parameter that was never set in this tree, which is
+        // exactly what a state saved by an older build (fewer parameters) looks like after it was loaded and saved
+        // again. That is "not stored", not "malformed": the loader gives such a parameter its default.
         if (! child.hasProperty ("value"))
-            return false;
+            continue;
 
         // APVTS stores real-unit (denormalised) values, and values that have
         // been through XML come back as strings, so parse rather than type-check.
@@ -1297,6 +1304,18 @@ bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state)
 
 void GapFillAudioProcessor::snapParametersToState()
 {
+    // A parameter the loaded state does not carry (state from an older build, or a node without a value) must come
+    // back at its default: replaceState() leaves such a parameter untouched, so it would keep the previous
+    // instance's value ("residue") and the next save would write a value-less node that older validators reject.
+    for (auto* p : getParameters())
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p))
+        {
+            const auto node = apvts.state.getChildWithProperty ("id", ranged->getParameterID());
+
+            if (! node.isValid() || ! node.hasProperty ("value"))
+                ranged->setValueNotifyingHost (ranged->getDefaultValue());
+        }
+
     // replaceState() only touches a parameter whose real value differs. A
     // discrete parameter left at an off-grid normalised value (a bool at 0.78
     // is already "on") would keep that raw value, so hosts that compare

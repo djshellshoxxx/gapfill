@@ -54,8 +54,23 @@ void GrooveState::requestLoad (const GrooveSnapshot& s, bool latchedByLearn) noe
     for (int i = 0; i < kSlots; ++i)
         loadOffsets[i].store (s.offsetSteps[i], std::memory_order_relaxed);
 
+    loadConfidence.store (s.confidence, std::memory_order_relaxed);
     loadLatched.store (latchedByLearn, std::memory_order_relaxed);
     loadPending.store (true, std::memory_order_release);
+}
+
+bool GrooveState::peekPendingLoad (GrooveSnapshot& out, bool& latchedByLearn) const noexcept
+{
+    if (! loadPending.load (std::memory_order_acquire))
+        return false;
+
+    for (int i = 0; i < kSlots; ++i)
+        out.offsetSteps[i] = loadOffsets[i].load (std::memory_order_relaxed);
+
+    out.confidence = loadConfidence.load (std::memory_order_relaxed);
+    out.valid = true;
+    latchedByLearn = loadLatched.load (std::memory_order_relaxed);
+    return true;
 }
 
 void GrooveState::publish (const GrooveSnapshot& s) noexcept

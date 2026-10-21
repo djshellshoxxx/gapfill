@@ -372,6 +372,7 @@ GapKnob::GapKnob (juce::AudioProcessorValueTreeState& s,
     // Label below the knob, always visible.
     nameLabel.setText (displayName.toUpperCase(), juce::dontSendNotification);
     nameLabel.setJustificationType (juce::Justification::centred);
+    nameLabel.setBorderSize ({ 0, 0, 0, 0 });      // the default 5 px side border cut "PROTECT HOLD" to "PROTECT HO..." in a 53 px knob
     nameLabel.setColour (juce::Label::textColourId, colours::textMuted);
     nameLabel.setInterceptsMouseClicks (false, false);
     addAndMakeVisible (nameLabel);
@@ -558,6 +559,11 @@ GapCombo::GapCombo (juce::AudioProcessorValueTreeState& state,
         showParameterMenu (*this, state, parameterID);
     };
     addAndMakeVisible (combo);
+
+    // JUCE's ComboBoxAttachment does not populate the list (it only maps the index), so without this every
+    // GapCombo (Mode, Detector Source, Fill Type, divisions ...) was an empty, unselectable box.
+    if (auto* choice = dynamic_cast<juce::AudioParameterChoice*> (state.getParameter (parameterID)))
+        combo.addItemList (choice->choices, 1);
 
     attachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (state, parameterID, combo);
 }

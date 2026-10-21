@@ -41,6 +41,13 @@ public:
     void requestLoad (const GrooveSnapshot&, bool latchedByLearn) noexcept;
     void requestReset() noexcept { resetRequested.store (true, std::memory_order_release); }
 
+    /** Message thread (state save): a reset the audio thread has not run yet. A save made right after a restore
+        must describe the restored state, not what the audio thread still holds from before it. */
+    bool isResetPending() const noexcept { return resetRequested.load (std::memory_order_acquire); }
+
+    /** Message thread (state save): the restored groove the audio thread has not adopted yet. False when none is pending. */
+    bool peekPendingLoad (GrooveSnapshot& out, bool& latchedByLearn) const noexcept;
+
     const GrooveTracker& tracker() const noexcept { return trk; }
 
 private:
@@ -71,6 +78,7 @@ private:
     // pending load from the message thread
     std::atomic<std::uint32_t> loadSeq { 0 };
     std::atomic<float> loadOffsets[kSlots];
+    std::atomic<float> loadConfidence { 0.5f };
     std::atomic<bool> loadPending { false }, loadLatched { false };
 };
 

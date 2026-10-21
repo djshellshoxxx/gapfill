@@ -63,7 +63,12 @@ void RecordTap::writeRecording (const float* in, int n) noexcept
     written.store (total, std::memory_order_release);
 
     if (total >= want)
-        state.store ((int) State::Done, std::memory_order_release);
+    {
+        // CAS, not a store: a cancel() that raced with the last block must stay Cancelled
+        // (a plain store would resurrect the recording as Done and start an analysis nobody asked for).
+        int expected = (int) State::Recording;
+        state.compare_exchange_strong (expected, (int) State::Done, std::memory_order_acq_rel);
+    }
 }
 
 std::vector<float> RecordTap::snapshot() const

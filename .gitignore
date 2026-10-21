@@ -10,3 +10,5 @@ __pycache__/
 /clap-juce-extensions
 /dist/
 /build-win/
+/build-asan/
+/build-tsan/

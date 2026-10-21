@@ -179,7 +179,7 @@ void CreativePanel::resized()
         // Simple: the five macros on top, Fill Type underneath; the CreativeExtra cell (Capture) keeps a spot.
         auto row = b.removeFromBottom (24);
         constexpr int gap = 6;
-        const auto cell = juce::jmax (150, (row.getWidth() - gap * 3) / 4);   // CAPTURE + SHAPE share this cell
+        const auto cell = juce::jmax (190, (row.getWidth() - gap * 3) / 4);   // CAPTURE + AUDITION + SHAPE share this cell (>= 3 x 60 px so no label is cut)
         extraSlotBounds = row.removeFromLeft (cell);
         b.removeFromBottom (5);
         fillType.setBounds (b.removeFromBottom (34).withWidth (juce::jmax (140, b.getWidth() / 3)));
@@ -192,7 +192,7 @@ void CreativePanel::resized()
         // Four equal cells; the fourth is reserved for Slot::CreativeExtra.
         auto row = b.removeFromBottom (24);
         constexpr int gap = 6;
-        const auto w = juce::jmax (150, (row.getWidth() - gap * 3) / 4);   // CAPTURE + SHAPE share this cell
+        const auto w = juce::jmax (190, (row.getWidth() - gap * 3) / 4);   // CAPTURE + AUDITION + SHAPE share this cell (>= 3 x 60 px so no label is cut)
         layoutRow (row.removeFromLeft (row.getWidth() - w - gap), { &sync, &pingPong, &monoWet });
         row.removeFromLeft (gap);
         extraSlotBounds = row.withWidth (w);
@@ -279,10 +279,19 @@ void WeightsPanel::resized()
     layoutRow (buttons, { &allOn, &allOff, &drumsOnly, &texturesOnly });
     b.removeFromBottom (6);
 
-    const auto columnsCount = b.getWidth() > 540 ? 2 : 1;
+    // 2 columns when wide, otherwise 1; then add columns (up to 4, each >= 120 px) until all 16 rows fit the height
+    // instead of letting the lower weights run out of the panel under the preset buttons.
+    constexpr int minRowHeight = 26;
+    auto columnsCount = b.getWidth() > 540 ? 2 : 1;
+
+    while (columnsCount < 4
+           && ((bars.size() + columnsCount - 1) / columnsCount) * minRowHeight > b.getHeight()
+           && b.getWidth() / (columnsCount + 1) >= 120)
+        ++columnsCount;
+
     const auto perColumn = (bars.size() + columnsCount - 1) / columnsCount;
     const auto colWidth = b.getWidth() / columnsCount;
-    const auto rowHeight = juce::jmax (26, b.getHeight() / juce::jmax (1, perColumn));
+    const auto rowHeight = juce::jmax (minRowHeight, b.getHeight() / juce::jmax (1, perColumn));
 
     for (int i = 0; i < bars.size(); ++i)
     {

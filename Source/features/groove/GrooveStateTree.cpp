@@ -80,12 +80,20 @@ juce::ValueTree serialiseTree (const GapFillAudioProcessor& p)
     const auto& gs = p.getContextState().grooveState();
     const bool holdParam = p.getValueTreeState().getRawParameterValue ("fl09_hold")->load() > 0.5f;
 
-    if (! holdParam && ! gs.isFrozenByLearn())
+    // A restore queues its request for the audio thread. Until the next chunk runs it, describe the queued state
+    // (a pending reset means "no groove", a pending load is the groove to write back), so that set-state followed
+    // directly by get-state is reproducible.
+    GrooveSnapshot snap;
+    bool latchedByLearn = gs.isFrozenByLearn();
+    const bool pendingLoad = gs.peekPendingLoad (snap, latchedByLearn);
+
+    if (! pendingLoad && gs.isResetPending())
         return {};
 
-    GrooveSnapshot snap;
+    if (! holdParam && ! latchedByLearn)
+        return {};
 
-    if (! gs.readSnapshot (snap) || ! snap.valid)
+    if (! pendingLoad && (! gs.readSnapshot (snap) || ! snap.valid))
         return {};
 
     juce::String offsets;

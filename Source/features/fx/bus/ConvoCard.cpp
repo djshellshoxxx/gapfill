@@ -124,6 +124,15 @@ bool ConvoCard::shapeIr (juce::AudioBuffer<float>& ir, int len, double sr, float
 
 void ConvoCard::prepareCard()
 {
+    // A re-prepare (sample-rate / block-size change) reallocates `mailbox` and rewrites `sr`, both of which the
+    // worker reads while it copies a captured IR. Quiesce the worker first; it is restarted below.
+    if (worker.joinable())
+    {
+        stopWorker.store (true, std::memory_order_release);
+        worker.join();
+        prepared = false;
+    }
+
     const auto maxBlock = std::max (blockMax, BusCardBase::kChunk);
     spec = { sr, (juce::uint32) maxBlock, 2 };
     conv.prepare (spec);

@@ -77,14 +77,13 @@ namespace
         std::vector<FillStartInfo> starts;
     };
 
-    /** Runs a card over `in` in blocks. The card must be prepared. */
-    juce::AudioBuffer<float> runCard (BusFx& card, Params& p, const juce::AudioBuffer<float>& in, int block = 512)
+    /** Runs a card over `out` in place, in blocks. The card must be prepared. Allocation-free (the allocation
+        tests call this one so that copying the input buffer is not counted as the card's allocation). */
+    void runCardInPlace (BusFx& card, Params& p, juce::AudioBuffer<float>& out, int block = 512)
     {
-        auto out = in;
-
-        for (int pos = 0; pos < in.getNumSamples(); pos += block)
+        for (int pos = 0; pos < out.getNumSamples(); pos += block)
         {
-            const auto len = std::min (block, in.getNumSamples() - pos);
+            const auto len = std::min (block, out.getNumSamples() - pos);
             BusFxContext ctx;
             ctx.sampleRate = kSr;
             ctx.settings = &p.s;
@@ -99,7 +98,13 @@ namespace
             ctx.blockStartPos = pos;
             card.processBus (out, pos, len, ctx);
         }
+    }
 
+    /** Runs a card over `in` in blocks. The card must be prepared. */
+    juce::AudioBuffer<float> runCard (BusFx& card, Params& p, const juce::AudioBuffer<float>& in, int block = 512)
+    {
+        auto out = in;
+        runCardInPlace (card, p, out, block);
         return out;
     }
 
@@ -1114,8 +1119,9 @@ GF_TEST (Formant, no_alloc)
     p.s.formant = { 1.0f, 5.0f, 0.3f, 1 };
     auto buf = noiseBuf (4096, 0.5f);
     runCard (card, p, buf);
+    auto work = buf;                         // the copy is the test's, not the card's
     AllocGuard guard;
-    runCard (card, p, buf);
+    runCardInPlace (card, p, work);
     GF_EXPECT (guard.count() == 0);
 }
 
@@ -1757,7 +1763,8 @@ GF_TEST (SpFreeze, no_alloc)
     auto in = silence (4096);
     runCard (card, p, in);
     card.requestCapture();
+    auto work = in;                          // the copy is the test's, not the card's
     AllocGuard guard;
-    runCard (card, p, in);
+    runCardInPlace (card, p, work);
     GF_EXPECT (guard.count() == 0);
 }
