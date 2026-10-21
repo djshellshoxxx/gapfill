@@ -5,6 +5,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/commands/CommandMap.cpp
     Source/features/commands/ControllerProfile.cpp
     Source/features/momentary/HoldController.cpp
+    Source/features/momentary/HoldVoices.cpp
     Source/features/panic/Panic.cpp
     Source/features/scenes/SceneModel.cpp
     Source/features/scenes/SceneOverlay.cpp
@@ -15,6 +16,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/macros/MacroModel.cpp
     Source/features/battle/Battle.cpp
     Source/features/effective/StageBattle.cpp
+    Source/params/fm10.cpp
     Source/features/live/LiveControl.cpp
     Source/features/live/Roulette.cpp
     Source/gui/slots/PanicSlot.cpp

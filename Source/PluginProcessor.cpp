@@ -105,6 +105,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     history.prepare (2, (int) std::ceil (kHistorySeconds * currentSampleRate));
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    recipeServices.prepare (currentSampleRate);
     fxChain.prepare (currentSampleRate, preparedBlockSize, mainChannels);
     engine.setFxMeters (&fxChain.getMeters());
     soloSplitter.prepare (currentSampleRate, 2);
@@ -213,6 +214,7 @@ void GapFillAudioProcessor::timerCallback()
 
     const bool learnChanged = midiLearn.applyPendingChanges();
     const bool learnTimedOut = midiLearn.advanceLearningTimeout();
+    recipeServices.tick();
 
     if (learnChanged || learnTimedOut)
         updateHostDisplay();
@@ -248,8 +250,11 @@ int GapFillAudioProcessor::drainFillEvents()
 
         for (int i = 0; i < n; ++i)
         {
+            if (recipeServices.onFillEvent (batch[i]))
+                continue;                                  // preview / lock events: not history, not outcomes
+
             if (batch[i].type == FillEventType::Started)
-                recipeHistory.push (batch[i].recipe);
+                recipeHistory.push (batch[i].recipe, { batch[i].pos, batch[i].lengthSamples });
 
             if (isGapOutcome (batch[i].type))
                 outcomeLog.push (batch[i]);
@@ -450,6 +455,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 
     midiLearn.processMidi (midi);
     liveControl.beginBlock (midi, engine, samplesProcessed - (std::int64_t) targetLatency);
+    recipeServices.onMidi (engine, midi);
     drainCommands();
 
     const auto numSamples = buffer.getNumSamples();
@@ -481,6 +487,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
 
     midiLearn.processMidi (midi);
     liveControl.beginBlock (midi, engine, samplesProcessed - (std::int64_t) targetLatency);
+    recipeServices.onMidi (engine, midi);
     drainCommands();
 
     const auto numSamples = buffer.getNumSamples();
@@ -625,10 +632,12 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
     auto engineSettings = gatherEngineSettings();
     engineSettings.sidechainActive = sidechainActive;
+    engineSettings.bypassed = bypassed;
     engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
     liveControl.prepareChunk (engineSettings, numSamples, samplesProcessed - (std::int64_t) targetLatency);
     const float* panicGains = liveControl.wetGains (numSamples);   // N-USE-a: fixed ramp on the wet bus
+    const float* dryDuck = liveControl.dryDuckGains (numSamples);   // F-M10: null unless a hold ducks the dry
 
     {
         // WP3: health codes + event recording observe the chunk (bounded, allocation-free).
@@ -784,6 +793,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
             panic::wetSafetyProcess (wl, wr, numSamples);
     }
 
+    // WP4: the wet bus after protect and width, before the dry/wet mix (U-2 tap, F-S06 loudness).
+    recipeServices.afterWet (wetBuffer, skip, numSamples - skip, outputStart + skip);
+
     // ---- mix -------------------------------------------------------------
     dryGain.setTargetValue (pv (params.dry) * 0.01f);
     wetGain.setTargetValue (pv (params.wet) * 0.01f);
@@ -805,9 +817,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     for (int i = 0; i < numSamples; ++i)
     {
         const auto byp = bypassMix.getNextValue();
-        const auto d = lerp (dryGain.getNextValue(), 1.0f, byp);
+        const auto d = lerp (dryGain.getNextValue(), 1.0f, byp) * (dryDuck != nullptr ? dryDuck[i] : 1.0f);   // F-M10 Dry Duck
         const auto w = wetGain.getNextValue() * (1.0f - byp) * panicGains[i];
-        const auto o = lerp (outGain.getNextValue(), 1.0f, byp);
+        const auto o = lerp (outGain.getNextValue() * recipeServices.nextMatchGain(), 1.0f, byp);   // F-S06 trim (1.0 when off)
 
         float l, r;
 
@@ -900,6 +912,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         meters.activeVoices.store (engine.getActiveVoiceCount());
         meters.currentAlgo.store (engine.getCurrentAlgo());
         meters.blockCounter.store (meters.blockCounter.load (std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+        meters.previewStatus.store ((int) engine.getPreviewStatusCode(), std::memory_order_relaxed);
+        recipeServices.publish (engine, engineSettings.transportValid && engineSettings.samplesPerBeat > 1.0
+                                          ? 60.0 * currentSampleRate / engineSettings.samplesPerBeat : 0.0);
 
         for (int r = 0; r < MeterState::numReasonCounters; ++r)
             meters.reasonCount[r].store ((std::uint32_t) engine.getRejectCount ((RejectReason) r), std::memory_order_relaxed);
@@ -1140,6 +1155,7 @@ bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state)
     programChangeInProgress.store (true, std::memory_order_relaxed);
     apvts.replaceState (state.createCopy());
     snapParametersToState();
+    liveControl.forceHoldsOff();                    // F-M10: holds are never ON after a restore
     currentProgram.store (-1, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
     updateHostDisplay();
@@ -1283,6 +1299,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     programChangeInProgress.store (true, std::memory_order_relaxed);
     apvts.replaceState (paramState.createCopy());
     snapParametersToState();
+    liveControl.forceHoldsOff();                    // F-M10: holds are never ON after a restore
     currentProgram.store (restoredProgram, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
 

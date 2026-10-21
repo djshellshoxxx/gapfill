@@ -63,8 +63,6 @@ struct PerfOptions
     panic::Options panic;
     FillNowQuant fillNowQuant = FillNowQuant::NextBeat;   ///< Immediate without a valid transport
     bool fillNowOverSustained = false;                    ///< allow a forced fill within protectHold of an event
-    bool holdLatch = false;                               ///< F-M10: pads latch instead of momentary
-    int  holdTimeoutSeconds = 15;                         ///< F-M10: lost-release safety, 2..60 s
 };
 
 class LiveControl
@@ -127,6 +125,12 @@ public:
     std::uint8_t getHoldEngagedMask() const noexcept     { return holdEngaged.load (std::memory_order_relaxed); }
     std::uint8_t getHoldTimedOutMask() const noexcept    { return holdTimedOut.load (std::memory_order_relaxed); }
     const momentary::HoldController& holds() const noexcept { return hold; }
+
+    /** Dry-path multiplier for the next `n` samples while a hold with Dry Duck > 0 is engaged; nullptr (= exactly 1.0) otherwise. */
+    const float* dryDuckGains (int n) noexcept;
+
+    /** Message thread: the four hold parameters are momentary state and are never ON after a restore. */
+    void forceHoldsOff();
 
     /** Bypass: every hold is released. Audio thread. */
     void clearHolds() noexcept                           { hold.panic(); holdEngaged.store (0, std::memory_order_relaxed); holdTimedOut.store (0, std::memory_order_relaxed); }
@@ -227,8 +231,16 @@ private:
 
     momentary::HoldController hold;
     std::atomic<std::uint8_t> holdEngaged { 0 }, holdTimedOut { 0 };
-    std::atomic<bool> holdLatchOpt { false };
-    std::atomic<int> holdTimeoutOpt { 15 };
+    // F-M10 parameters (raw atomics; null in a layout without the fm10 group)
+    std::atomic<float>* fm10Bool[4] {};
+    std::atomic<float>* fm10Mode = nullptr;
+    std::atomic<float>* fm10Level = nullptr;
+    std::atomic<float>* fm10DryDuck = nullptr;
+    std::atomic<float>* fm10Protect = nullptr;
+    std::atomic<float>* fm10Timeout = nullptr;
+    juce::SmoothedValue<float> holdDry;
+    std::vector<float> holdDryGains;
+    bool holdDryActive = false;
 
     // F-P02 Fill Now (audio-thread state, options read through atomics)
     std::atomic<std::uint8_t> fillNowQuantMode { (std::uint8_t) FillNowQuant::NextBeat };

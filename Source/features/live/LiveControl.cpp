@@ -22,6 +22,18 @@ LiveControl::LiveControl (juce::AudioProcessorValueTreeState& state)
     scenes::initTables();
     scenes::initOverlayTargets();
     macros::initTargets();
+
+    static const char* const kHoldIds[] = { "fm10_stutter", "fm10_freeze", "fm10_reverse", "fm10_tape" };
+
+    for (int i = 0; i < 4; ++i)
+        fm10Bool[i] = state.getRawParameterValue (kHoldIds[i]);
+
+    fm10Mode = state.getRawParameterValue ("fm10_mode");
+    fm10Level = state.getRawParameterValue ("fm10_level");
+    fm10DryDuck = state.getRawParameterValue ("fm10_dryDuck");
+    fm10Protect = state.getRawParameterValue ("fm10_protect");
+    fm10Timeout = state.getRawParameterValue ("fm10_timeout");
+    holdDry.setCurrentAndTargetValue (1.0f);
     bool available[macros::kNumTargets] {};
 
     for (int i = 0; i < macros::kNumTargets; ++i)
@@ -37,6 +49,10 @@ LiveControl::LiveControl (juce::AudioProcessorValueTreeState& state)
 void LiveControl::prepare (double sr, int maxChunk)
 {
     sampleRate = sr > 0.0 ? sr : 48000.0;
+    holdDry.reset (sampleRate, 0.010);                    // 10 ms
+    holdDry.setCurrentAndTargetValue (1.0f);
+    holdDryGains.assign ((size_t) std::max (1, maxChunk), 1.0f);
+    holdDryActive = false;
     panicCtl.prepare (sampleRate, maxChunk);
     reset();
 }
@@ -82,6 +98,7 @@ void LiveControl::onPanicAction (panic::Action action, FillEngine& engine) noexc
         sceneEngine.cancelPending();
         fillNowRequested = fillNowPending = false;      // panic cancels queued actions
         hold.panic();                                   // and releases every hold
+        engine.panicHolds();
         ringCount = 0;
         post (UiRequest::SceneCancel);
         post (UiRequest::PanicChanged, 1);
@@ -209,8 +226,25 @@ void LiveControl::fillModulationInputs (Effective::ModulationInputs& in, int see
 
 void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t outputPos) noexcept
 {
-    hold.setLatch (holdLatchOpt.load (std::memory_order_relaxed));
-    hold.tick (numSamples, (std::int64_t) (holdTimeoutOpt.load (std::memory_order_relaxed) * sampleRate));
+    // F-M10: automation / CC-learn path (Source::Param) and the mode / timeout / level options.
+    if (fm10Mode != nullptr)
+    {
+        hold.setLatch (fm10Mode->load (std::memory_order_relaxed) > 0.5f);
+
+        for (int i = 0; i < 4; ++i)
+            if (fm10Bool[i] != nullptr)
+                hold.setLevel ((momentary::Effect) i, momentary::Source::Param, fm10Bool[i]->load (std::memory_order_relaxed) > 0.5f);
+
+        const auto timeoutSeconds = juce::jlimit (2.0f, 60.0f, fm10Timeout->load (std::memory_order_relaxed));
+        hold.tick (numSamples, (std::int64_t) ((double) timeoutSeconds * sampleRate));
+        s.perf.holdLevel01 = juce::jlimit (0.0f, 1.0f, fm10Level->load (std::memory_order_relaxed) * 0.01f);
+        s.perf.holdRespectProtection = fm10Protect->load (std::memory_order_relaxed) > 0.5f;
+    }
+
+    s.perf.holdTop = hold.topEffect();
+    const float duck = fm10DryDuck != nullptr ? fm10DryDuck->load (std::memory_order_relaxed) * 0.01f : 0.0f;
+    holdDry.setTargetValue (hold.engagedMask() != 0 && duck > 0.0f ? 1.0f - juce::jlimit (0.0f, 1.0f, duck) : 1.0f);
+    holdDryActive = holdDry.isSmoothing() || holdDry.getTargetValue() < 1.0f;
     holdEngaged.store (hold.engagedMask(), std::memory_order_relaxed);
     holdTimedOut.store (hold.timedOutMask(), std::memory_order_relaxed);
 
@@ -336,6 +370,29 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t 
     uiPpq.store (t.valid ? t.ppq : -1.0, std::memory_order_relaxed);
     uiTsNum.store (t.tsNum, std::memory_order_relaxed);
     uiTsDen.store (t.tsDen, std::memory_order_relaxed);
+}
+
+const float* LiveControl::dryDuckGains (int n) noexcept
+{
+    if (! holdDryActive)
+        return nullptr;                                   // neutral: the processor skips the multiply entirely
+
+    n = std::min (n, (int) holdDryGains.size());
+
+    for (int i = 0; i < n; ++i)
+        holdDryGains[(size_t) i] = holdDry.getNextValue();
+
+    return holdDryGains.data();
+}
+
+void LiveControl::forceHoldsOff()
+{
+    for (const char* id : { "fm10_stutter", "fm10_freeze", "fm10_reverse", "fm10_tape" })
+        if (auto* p = apvts.getParameter (id))
+            if (p->getValue() > 0.0f)
+                p->setValueNotifyingHost (0.0f);
+
+    hold.panic();
 }
 
 void LiveControl::onTransportStopped() noexcept
@@ -550,8 +607,6 @@ PerfOptions LiveControl::getPerfOptions() const noexcept
     o.panic = panicCtl.getOptions();
     o.fillNowQuant = (FillNowQuant) fillNowQuantMode.load (std::memory_order_relaxed);
     o.fillNowOverSustained = fillNowOverSustainedOpt.load (std::memory_order_relaxed);
-    o.holdLatch = holdLatchOpt.load (std::memory_order_relaxed);
-    o.holdTimeoutSeconds = holdTimeoutOpt.load (std::memory_order_relaxed);
     return o;
 }
 
@@ -560,8 +615,6 @@ void LiveControl::setPerfOptions (const PerfOptions& o) noexcept
     panicCtl.setOptions (o.panic);
     fillNowQuantMode.store ((std::uint8_t) o.fillNowQuant, std::memory_order_relaxed);
     fillNowOverSustainedOpt.store (o.fillNowOverSustained, std::memory_order_relaxed);
-    holdLatchOpt.store (o.holdLatch, std::memory_order_relaxed);
-    holdTimeoutOpt.store (juce::jlimit (2, 60, o.holdTimeoutSeconds), std::memory_order_relaxed);
 }
 
 juce::ValueTree LiveControl::perfToValueTree() const
@@ -573,8 +626,6 @@ juce::ValueTree LiveControl::perfToValueTree() const
     t.setProperty ("panicToggles", o.panic.panicToggles ? 1 : 0, nullptr);
     t.setProperty ("fillNowQuant", (int) o.fillNowQuant, nullptr);
     t.setProperty ("fillNowSustained", o.fillNowOverSustained ? 1 : 0, nullptr);
-    t.setProperty ("holdLatch", o.holdLatch ? 1 : 0, nullptr);
-    t.setProperty ("holdTimeout", o.holdTimeoutSeconds, nullptr);
     return t;
 }
 
@@ -585,8 +636,7 @@ bool LiveControl::perfValidate (const juce::ValueTree& t)
 
     const auto rec = (int) t.getProperty ("recovery", 0);
     const auto q = (int) t.getProperty ("fillNowQuant", 1);
-    const auto to = (int) t.getProperty ("holdTimeout", 15);
-    return rec >= 0 && rec <= 3 && q >= 0 && q <= 2 && to >= 2 && to <= 60;
+    return rec >= 0 && rec <= 3 && q >= 0 && q <= 2;
 }
 
 void LiveControl::perfRestore (const juce::ValueTree& t)
@@ -599,8 +649,6 @@ void LiveControl::perfRestore (const juce::ValueTree& t)
         o.panic.panicToggles = (int) t.getProperty ("panicToggles", 1) != 0;
         o.fillNowQuant = (FillNowQuant) juce::jlimit (0, 2, (int) t.getProperty ("fillNowQuant", 1));
         o.fillNowOverSustained = (int) t.getProperty ("fillNowSustained", 0) != 0;
-        o.holdLatch = (int) t.getProperty ("holdLatch", 0) != 0;
-        o.holdTimeoutSeconds = juce::jlimit (2, 60, (int) t.getProperty ("holdTimeout", 15));
     }
 
     setPerfOptions (o);

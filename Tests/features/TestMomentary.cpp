@@ -274,9 +274,7 @@ GF_TEST (Momentary, bypass_clears_holds_and_a_lost_release_times_out_in_the_proc
 {
     GapFillAudioProcessor proc;
     auto& live = proc.getLiveControl();
-    live::PerfOptions o = live.getPerfOptions();
-    o.holdTimeoutSeconds = 2;
-    live.setPerfOptions (o);
+    setParams (proc, { { "fm10_timeout", 2.0f } });
 
     prepareProcessor (proc, 48000.0, 512, false);
     juce::AudioBuffer<float> work (2, 512);
@@ -304,23 +302,4 @@ GF_TEST (Momentary, bypass_clears_holds_and_a_lost_release_times_out_in_the_proc
     other.postCommand (down);
     other.processBlock (work, midi);
     GF_EXPECT (other.getLiveControl().getHoldEngagedMask() == 0);
-}
-
-GF_TEST (Momentary, hold_options_round_trip_and_are_clamped)
-{
-    GapFillAudioProcessor a;
-    live::PerfOptions o = a.getLiveControl().getPerfOptions();
-    o.holdLatch = true;
-    o.holdTimeoutSeconds = 30;
-    a.getLiveControl().setPerfOptions (o);
-    juce::MemoryBlock blob;
-    a.getStateInformation (blob);
-
-    GapFillAudioProcessor b;
-    b.setStateInformation (blob.getData(), (int) blob.getSize());
-    GF_EXPECT (b.getLiveControl().getPerfOptions().holdLatch && b.getLiveControl().getPerfOptions().holdTimeoutSeconds == 30);
-
-    o.holdTimeoutSeconds = 500;
-    b.getLiveControl().setPerfOptions (o);
-    GF_EXPECT (b.getLiveControl().getPerfOptions().holdTimeoutSeconds == 60);
 }

@@ -45,6 +45,9 @@ struct PerformanceSettings
     std::uint32_t fillNowId = 0;      // F-P02: a new id requests one forced fill at fillNowPos (output timeline)
     std::int64_t fillNowPos = 0;
     bool  fillNowOverSustained = false;
+    int   holdTop = -1;               // F-M10: newest engaged hold effect (momentary::Effect), -1 none
+    float holdLevel01 = 1.0f;
+    bool  holdRespectProtection = true;
     int   battleEvery = 0;            // F-M18: 0 off, else bars per style window
     const battle::BattleRuntime* battle = nullptr;
     bool  macroWidthOn = false;       // C-2: the Space macro drives the wet width
@@ -95,6 +98,7 @@ struct EngineSettings
     double samplesPerBeat  = 0.0;
     bool   transportValid  = false;
     bool   sidechainActive = false;
+    bool   bypassed        = false;   ///< E-1: the plugin is bypassed (a preview request is refused)
 
     /** Output position minus source-history position. Zero while the history
         follows the input; it grows while Capture holds the history frozen so

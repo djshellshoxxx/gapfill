@@ -45,3 +45,4 @@
 #include "learn.h"
 #include "coop.h"
 #include "quality.h"
+#include "fm10.h"

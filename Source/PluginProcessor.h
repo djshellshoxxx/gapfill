@@ -16,6 +16,7 @@
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
 #include "features/live/LiveControl.h"
+#include "features/recipes/RecipeServices.h"
 #include "features/fx/FxChain.h"
 #include "features/fx/FxUiState.h"
 #include "features/explain/ExplainState.h"
@@ -108,6 +109,11 @@ public:
     int drainFillEvents();
 
     const RecipeHistory& getRecipeHistory() const noexcept   { return recipeHistory; }
+    RecipeHistory& getRecipeHistory() noexcept               { return recipeHistory; }   // state restore (message thread)
+
+    /** WP4 facade: audition trigger, lock mirror, history, export, A/B match. */
+    recipes::RecipeServices& getRecipes() noexcept               { return recipeServices; }
+    const recipes::RecipeServices& getRecipes() const noexcept   { return recipeServices; }
     const GapOutcomeLog& getGapOutcomeLog() const noexcept   { return outcomeLog; }
     std::uint32_t getDroppedFillEvents() const noexcept      { return fillEvents.getDroppedCount(); }
 
@@ -216,6 +222,7 @@ private:
 
     MidiLearnManager midiLearn;
     live::LiveControl liveControl { apvts };
+    recipes::RecipeServices recipeServices;
 
     MeterState meters;
     VisualisationFifo viz;

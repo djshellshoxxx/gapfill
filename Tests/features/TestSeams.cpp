@@ -8,7 +8,9 @@
 #include "dsp/EventLogs.h"
 #include "features/FeatureHooks.h"
 
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstring>
 #include <iostream>
 #include <map>
@@ -394,11 +396,46 @@ GF_TEST (Effective, feature_hooks_leave_default_parameters_neutral)
     ParamCache cache;
     cache.connect (proc.getValueTreeState());
 
+    // `b` starts as a byte copy of `a`, so padding is identical by construction and
+    // only fields written by the hooks can differ. Float defaults travel through
+    // parameter range conversion (pow/log skews), which may differ in the last ulp
+    // between libm implementations, so the feature fields are compared with a
+    // tolerance and every other byte exactly.
     EngineSettings a;
     EngineSettings b;
     std::memcpy (&b, &a, sizeof (a));
     hooks::gatherFeatureSettings (b, cache);
-    GF_EXPECT (std::memcmp (&a, &b, sizeof (a)) == 0);
+
+    const auto near = [] (float x, float y) { return std::abs (x - y) <= 1.0e-5f * std::max (1.0f, std::abs (x)); };
+    const auto& fa = a.fx;
+    const auto& fb = b.fx;
+
+    GF_EXPECT (near (fa.swell.amount01, fb.swell.amount01) && fa.swell.curve == fb.swell.curve
+               && near (fa.swell.filter01, fb.swell.filter01) && fa.swell.target == fb.swell.target);
+    GF_EXPECT (near (fa.cloud.amount01, fb.cloud.amount01) && near (fa.cloud.densityHz, fb.cloud.densityHz)
+               && near (fa.cloud.sizeMs, fb.cloud.sizeMs) && near (fa.cloud.spanMs, fb.cloud.spanMs)
+               && near (fa.cloud.jitter01, fb.cloud.jitter01) && near (fa.cloud.pitchCents, fb.cloud.pitchCents)
+               && near (fa.cloud.spread01, fb.cloud.spread01));
+    GF_EXPECT (near (fa.ratchet.amount01, fb.ratchet.amount01) && fa.ratchet.division == fb.ratchet.division
+               && fa.ratchet.repeats == fb.ratchet.repeats && near (fa.ratchet.accel, fb.ratchet.accel)
+               && near (fa.ratchet.gate01, fb.ratchet.gate01));
+    GF_EXPECT (near (fa.rcrush.amount01, fb.rcrush.amount01) && fa.rcrush.bits == fb.rcrush.bits
+               && fa.rcrush.rate == fb.rcrush.rate && fa.rcrush.hold == fb.rcrush.hold
+               && near (fa.rcrush.tone, fb.rcrush.tone));
+    GF_EXPECT (near (fa.tape.amount01, fb.tape.amount01) && near (fa.tape.wow01, fb.tape.wow01)
+               && near (fa.tape.flutter01, fb.tape.flutter01) && near (fa.tape.sat01, fb.tape.sat01)
+               && near (fa.tape.dropout01, fb.tape.dropout01) && near (fa.tape.splice01, fb.tape.splice01));
+    GF_EXPECT (fa.scrub.on == fb.scrub.on && near (fa.scrub.pos01, fb.scrub.pos01)
+               && near (fa.scrub.widthMs, fb.scrub.widthMs) && near (fa.scrub.windowMs, fb.scrub.windowMs));
+    GF_EXPECT (fa.bandFx.low == fb.bandFx.low && fa.bandFx.mid == fb.bandFx.mid && fa.bandFx.high == fb.bandFx.high);
+
+    // Everything outside `fx` must be untouched, byte for byte.
+    const auto fxOffset = (size_t) (reinterpret_cast<const unsigned char*> (&a.fx) - reinterpret_cast<const unsigned char*> (&a));
+    const auto fxEnd = fxOffset + sizeof (a.fx);
+    const auto* pa = reinterpret_cast<const unsigned char*> (&a);
+    const auto* pb = reinterpret_cast<const unsigned char*> (&b);
+    GF_EXPECT (std::memcmp (pa, pb, fxOffset) == 0);
+    GF_EXPECT (std::memcmp (pa + fxEnd, pb + fxEnd, sizeof (a) - fxEnd) == 0);
 
     const auto in = hooks::gatherModulationInputs (cache);
     GF_EXPECT (in.personality == 0 && ! in.macros.on);

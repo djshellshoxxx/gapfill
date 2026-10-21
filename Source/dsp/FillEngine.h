@@ -5,9 +5,13 @@
 #include "FillVoice.h"
 #include "SchedulerTypes.h"
 #include "VisualisationState.h"
+#include "../features/audition/PreviewChannel.h"
+#include "../features/lock/LikeBias.h"
+#include "../features/lock/LockState.h"
 #include "../features/fx/EngineBlockIO.h"
 #include "../features/fx/FxMeters.h"
 #include "../features/scrub/ScrubVoice.h"
+#include "../features/momentary/HoldVoices.h"
 
 #include <array>
 #include <limits>
@@ -37,8 +41,13 @@ public:
     /** Fades every voice out quickly (bypass, transport jumps, reset). */
     void panic() noexcept;
 
-    /** Forgets the deterministic gap counter, used when the transport jumps. */
-    void noteTransportJump() noexcept { gapIndex = 0; }
+    /** User Panic only (not transport stop / jump / bypass): fades the F-M10 hold voices over <= 48 samples. */
+    void panicHolds() noexcept                            { holdVoices.panic(); }
+    const momentary::HoldVoices& getHoldVoices() const noexcept { return holdVoices; }
+
+    /** Forgets the deterministic gap counter, used when the transport jumps. A jump
+        also ends a More Like That bias (C-11). */
+    void noteTransportJump() noexcept { gapIndex = 0; like.cancel(); }
 
     /** Renders into `wet` (which must already be cleared) and returns the
         protection duck that the processor should apply to the wet bus. */
@@ -53,6 +62,57 @@ public:
 
     /** Effect telemetry sink shared with the voices (owned by the processor's FxChain). */
     void setFxMeters (fx::FxMeters* meters) noexcept;
+
+    //--------------------------------------------------------------------------
+    // E-1 Fill Audition (audio thread; implemented in features/audition/AuditionEngine.cpp).
+    // A request is a one-slot mailbox: presses queued before the next block collapse
+    // to the last one. It is served at the start of the next process() call.
+
+    void requestPreview (std::uint8_t velocity) noexcept;
+    void requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb = 0) noexcept;
+
+    /** PreviewChannel::code(): status, algorithm and sequence number. */
+    std::uint32_t getPreviewStatusCode() const noexcept   { return preview.code(); }
+    bool isPreviewActive() const noexcept                 { return preview.isActive(); }
+    bool isPreviewPending() const noexcept                { return preview.request.pending; }
+    std::size_t getPreviewBufferBytes() const noexcept    { return preview.getBufferBytes(); }
+
+    /** F-S06: RMS of the last preview that finished (voice only) and a counter that moves with it. */
+    float getLastPreviewRms() const noexcept              { return preview.lastRms; }
+    std::uint32_t getPreviewDoneCount() const noexcept    { return preview.doneCount; }
+
+    //--------------------------------------------------------------------------
+    // C-5 Fill Lock / C-11 More Like That (audio thread; features/lock/LockEngine.cpp).
+    // The same entry points serve the commands LockLatest, LockRecipe, Unlock,
+    // LikeLatest and LikeRecipe.
+
+    void lockLatest() noexcept;
+    void lockRecipe (const FillRecipe&) noexcept;
+    void unlockRecipe() noexcept;
+    void likeLatest() noexcept;
+    void likeRecipe (const FillRecipe&) noexcept;
+
+    const LockState& getLockState() const noexcept   { return lockState; }
+    const LikeState& getLikeState() const noexcept   { return like; }
+
+    /** The gap bookkeeping a preview must never change (E-1 acceptance; used by tests). */
+    struct GapBookkeeping
+    {
+        bool inGap = false, gapEvaluated = false;
+        std::int64_t gapStartPos = 0, lastFillStartPos = 0, gapIndex = 0;
+        int fillsStarted = 0, recent[4] { -1, -1, -1, -1 };
+
+        bool operator== (const GapBookkeeping& o) const noexcept
+        {
+            return inGap == o.inGap && gapEvaluated == o.gapEvaluated && gapStartPos == o.gapStartPos
+                && lastFillStartPos == o.lastFillStartPos && gapIndex == o.gapIndex
+                && fillsStarted == o.fillsStarted
+                && recent[0] == o.recent[0] && recent[1] == o.recent[1]
+                && recent[2] == o.recent[2] && recent[3] == o.recent[3];
+        }
+    };
+
+    GapBookkeeping getGapBookkeeping() const noexcept;
 
     int  getActiveVoiceCount() const noexcept;
     const fx::ScrubVoice& getScrubVoice() const noexcept { return scrub; }
@@ -119,11 +179,28 @@ private:
     int chooseBand (const AnalysisFrame& frame, const EngineSettings& s, Rng& rng) noexcept;
     FillVoice* findFreeVoice() noexcept;
 
+    /** E-1: starts the preview voice. `recipe` (optional) replays that recipe
+        instead of choosing one. Sets the preview status. */
+    bool startPreview (std::uint8_t velocity, std::int64_t outputPos,
+                       const AnalysisEngine&, const SourceHistory&, const EngineSettings&,
+                       const FillRecipe* recipe, int gainCentiDb, FillEventQueue* events) noexcept;
+    /** C-11: the bias is ignored while Fill Lock is on. */
+    bool likeApplies (const EngineSettings& s) const noexcept   { return like.active() && ! s.perf.lockOn; }
+
+    void resetPreview() noexcept;
+    void flushLockEvents (std::int64_t pos, FillEventQueue* events) noexcept;
+    void servePendingPreview (std::int64_t outputPos, const AnalysisEngine&, const SourceHistory&,
+                              const EngineSettings&, FillEventQueue* events) noexcept;
+
     double sr = 48000.0;
     int channels = 2;
 
     FillVoice voices[numVoices];
+    PreviewChannel preview;        // E-1: dedicated voice outside the pool of numVoices
+    LockState lockState;           // C-5
+    LikeState like;                // C-11
     fx::ScrubVoice scrub;                     // F-M19 performance voice (independent of the scheduler)
+    momentary::HoldVoices holdVoices;         // F-M10 / F-S07 hold voices (outside the pool and the preview)
     SpectralSmear spectral;
     fx::FxMeters* fxMeters = nullptr;
     fx::EngineBlockIO* blockIO = nullptr;     ///< valid only inside process()

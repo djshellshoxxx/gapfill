@@ -1,4 +1,7 @@
 #include "StateSubtrees.h"
+#include "../recipes/RecipeServices.h"
+#include "../lock/LockSubtree.h"
+#include "../history/HistorySubtree.h"
 #include "../fx/FxUiState.h"
 
 #include "../../PluginProcessor.h"
@@ -47,12 +50,50 @@ namespace
     {
         const auto o = p.getLiveControl().getPerfOptions();
         const bool isDefault = o.panic.recovery == panic::RecoveryMode::Manual && o.panic.panicToggles
-                               && o.fillNowQuant == live::FillNowQuant::NextBeat && ! o.fillNowOverSustained && ! o.holdLatch && o.holdTimeoutSeconds == 15;
+                               && o.fillNowQuant == live::FillNowQuant::NextBeat && ! o.fillNowOverSustained;
         return isDefault ? juce::ValueTree() : p.getLiveControl().perfToValueTree();
     }
 
     void perfApply (GapFillAudioProcessor& p, const juce::ValueTree& t) { p.getLiveControl().perfRestore (t); }
     void perfReset (GapFillAudioProcessor& p)                           { p.getLiveControl().perfRestore ({}); }
+
+    // <Perf> is shared: WP4 (recipes: trigger, match) and WP6 (live control: panic, fill-now, holds) own
+    // distinct attributes of the same subtree. The composite validates/applies both and merges the properties.
+    bool perfValidateAll (const juce::ValueTree& t)
+    {
+        return recipes::validatePerf (t) && live::LiveControl::perfValidate (t);
+    }
+
+    void perfApplyAll (GapFillAudioProcessor& p, const juce::ValueTree& t)
+    {
+        recipes::applyPerf (p, t);
+        p.getLiveControl().perfRestore (t);
+    }
+
+    void perfResetAll (GapFillAudioProcessor& p)
+    {
+        recipes::resetPerf (p);
+        p.getLiveControl().perfRestore ({});
+    }
+
+    juce::ValueTree perfSerialiseAll (const GapFillAudioProcessor& p)
+    {
+        auto a = recipes::serialisePerf (p);
+        auto b = perfSerialise (p);
+
+        if (! a.isValid())
+            return b;
+
+        for (int i = 0; i < b.getNumProperties(); ++i)
+        {
+            const auto name = b.getPropertyName (i);
+
+            if (! a.hasProperty (name))
+                a.setProperty (name, b.getProperty (name), nullptr);
+        }
+
+        return a;
+    }
 
     juce::ValueTree scenesSerialise (const GapFillAudioProcessor& p)
     {
@@ -78,9 +119,9 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
     static const std::vector<SubtreeDesc> table =
     {
         { "Macros",  2 * Ki,  &macros::MacroModel::validateTree, &macrosApply, &macrosSerialise, &macrosReset },   // C-2
-        { "Lock",    1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // C-5
-        { "History", 1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // U-1
-        { "Perf",    4 * Ki,  &live::LiveControl::perfValidate, &perfApply, &perfSerialise, &perfReset },   // U prefs + panic options (WP6)
+        { "Lock",    1 * Ki,  lock::validate, lock::apply, lock::serialise, lock::reset },   // C-5
+        { "History", 1 * Ki,  history::validate, history::apply, history::serialise, history::reset },   // U-1
+        { "Perf",    4 * Ki,  &perfValidateAll, &perfApplyAll, &perfSerialiseAll, &perfResetAll },   // U prefs + panic options (WP6)
         { "Scenes",  24 * Ki, &scenes::SceneBank::validateTree, &scenesApply, &scenesSerialise, &scenesReset },   // F-L07 / N-VAL
         { "Cmd",     3 * Ki,  &commands::BindingModel::validateTree, &cmdApply, &cmdSerialise, &cmdReset },   // X-1
         { "Tension", 3 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-M21
