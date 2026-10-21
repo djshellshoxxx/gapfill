@@ -75,6 +75,10 @@ bool readGoldenFile (const juce::File& file, juce::AudioBuffer<float>& b, int ch
     processor that the caller has already configured. */
 RenderResult renderGoldenScenarioA (gapfill::GapFillAudioProcessor& proc);
 
+/** Golden scenarios A..F (see Tests/features/TestGolden.cpp): renders scenario `id` on a fresh processor.
+    An unknown id renders nothing (empty output). */
+RenderResult renderGoldenScenario (char id);
+
 /** Sets parameters by id using real (not normalised) values. */
 void setParams (gapfill::GapFillAudioProcessor& proc,
                 std::initializer_list<std::pair<const char*, float>> values);

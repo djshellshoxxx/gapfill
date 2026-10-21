@@ -101,6 +101,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     history.prepare (2, (int) std::ceil (kHistorySeconds * currentSampleRate));
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    recipeServices.prepare (currentSampleRate);
     fxChain.prepare (currentSampleRate, preparedBlockSize, mainChannels);
     engine.setFxMeters (&fxChain.getMeters());
     soloSplitter.prepare (currentSampleRate, 2);
@@ -206,6 +207,7 @@ void GapFillAudioProcessor::timerCallback()
     // indefinitely after the context menu closes.
     const bool learnChanged = midiLearn.applyPendingChanges();
     const bool learnTimedOut = midiLearn.advanceLearningTimeout();
+    recipeServices.tick();
 
     if (learnChanged || learnTimedOut)
         updateHostDisplay();
@@ -241,8 +243,11 @@ int GapFillAudioProcessor::drainFillEvents()
 
         for (int i = 0; i < n; ++i)
         {
+            if (recipeServices.onFillEvent (batch[i]))
+                continue;                                  // preview / lock events: not history, not outcomes
+
             if (batch[i].type == FillEventType::Started)
-                recipeHistory.push (batch[i].recipe);
+                recipeHistory.push (batch[i].recipe, { batch[i].pos, batch[i].lengthSamples });
 
             if (isGapOutcome (batch[i].type))
                 outcomeLog.push (batch[i]);
@@ -439,6 +444,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
     midiLearn.processMidi (midi);
+    recipeServices.onMidi (engine, midi);
     drainCommands();
 
     const auto numSamples = buffer.getNumSamples();
@@ -469,6 +475,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
     midiLearn.processMidi (midi);
+    recipeServices.onMidi (engine, midi);
     drainCommands();
 
     const auto numSamples = buffer.getNumSamples();
@@ -613,6 +620,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
     auto engineSettings = gatherEngineSettings();
     engineSettings.sidechainActive = sidechainActive;
+    engineSettings.bypassed = bypassed;
     engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
 
@@ -763,6 +771,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         }
     }
 
+    // WP4: the wet bus after protect and width, before the dry/wet mix (U-2 tap, F-S06 loudness).
+    recipeServices.afterWet (wetBuffer, skip, numSamples - skip, outputStart + skip);
+
     // ---- mix -------------------------------------------------------------
     dryGain.setTargetValue (pv (params.dry) * 0.01f);
     wetGain.setTargetValue (pv (params.wet) * 0.01f);
@@ -786,7 +797,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         const auto byp = bypassMix.getNextValue();
         const auto d = lerp (dryGain.getNextValue(), 1.0f, byp);
         const auto w = wetGain.getNextValue() * (1.0f - byp);
-        const auto o = lerp (outGain.getNextValue(), 1.0f, byp);
+        const auto o = lerp (outGain.getNextValue() * recipeServices.nextMatchGain(), 1.0f, byp);   // F-S06 trim (1.0 when off)
 
         float l, r;
 
@@ -879,6 +890,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         meters.activeVoices.store (engine.getActiveVoiceCount());
         meters.currentAlgo.store (engine.getCurrentAlgo());
         meters.blockCounter.store (meters.blockCounter.load (std::memory_order_relaxed) + 1, std::memory_order_relaxed);
+        meters.previewStatus.store ((int) engine.getPreviewStatusCode(), std::memory_order_relaxed);
+        recipeServices.publish (engine, engineSettings.transportValid && engineSettings.samplesPerBeat > 1.0
+                                          ? 60.0 * currentSampleRate / engineSettings.samplesPerBeat : 0.0);
 
         for (int r = 0; r < MeterState::numReasonCounters; ++r)
             meters.reasonCount[r].store ((std::uint32_t) engine.getRejectCount ((RejectReason) r), std::memory_order_relaxed);
