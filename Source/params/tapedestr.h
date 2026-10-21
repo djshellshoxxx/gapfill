@@ -13,7 +13,13 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_TAPEDESTR(X)
+#define GAPFILL_PARAMS_TAPEDESTR(X) \
+    X (tdAmount, "tdAmount") \
+    X (tdWow, "tdWow") \
+    X (tdFlutter, "tdFlutter") \
+    X (tdSat, "tdSat") \
+    X (tdDropout, "tdDropout") \
+    X (tdSplice, "tdSplice")
 
 namespace gapfill
 {

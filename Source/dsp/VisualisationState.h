@@ -25,14 +25,16 @@ struct VizFrame
     static constexpr std::uint8_t flagGapEligible = 1 << 3;
     static constexpr std::uint8_t flagLookahead   = 1 << 4;
     // Reserved in Phase 0 (docs/dev/02 F0-4) so E-1 and E-3 never both edit
-    // this header. Nothing sets them yet.
+    // this header. flagRejected is set by E-3; flagPreview is E-1's.
     static constexpr std::uint8_t flagPreview     = 1 << 5;
     static constexpr std::uint8_t flagRejected    = 1 << 6;
 
     std::uint8_t flags = 0;
     std::uint8_t algo  = 0xFF;   // 0xFF = no fill
     std::uint8_t band  = 0xFF;   // 0xFF = broadband
-    std::uint8_t reason = 0;     // RejectReason when flagRejected is set (reserved)
+    std::uint8_t reason = 0;     // RejectReason when flagRejected is set (E-3)
+    std::uint16_t availMs = 0;   // E-3: room that was available (whole ms, saturating)
+    std::uint16_t needMs = 0;    // E-3: room that would have been needed (whole ms, saturating)
 };
 
 static_assert (std::is_trivially_copyable_v<VizFrame>, "VizFrame travels through a lock-free FIFO");

@@ -34,6 +34,8 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     params.connect (apvts);
     bypassParameter = apvts.getParameter ("bypass");
     midiLearn.connect (apvts);
+    explainState.attach (*this, apvts);
+    fillEvents.setTap (&explainState.recorder);
 
     for (const auto& id : allParameterIDs())
         apvts.addParameterListener (id, this);
@@ -45,6 +47,7 @@ GapFillAudioProcessor::GapFillAudioProcessor()
 GapFillAudioProcessor::~GapFillAudioProcessor()
 {
     stopTimer();
+    fillEvents.setTap (nullptr);
 
     for (const auto& id : allParameterIDs())
         apvts.removeParameterListener (id, this);
@@ -98,6 +101,8 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     history.prepare (2, (int) std::ceil (kHistorySeconds * currentSampleRate));
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    fxChain.prepare (currentSampleRate, preparedBlockSize, mainChannels);
+    engine.setFxMeters (&fxChain.getMeters());
     soloSplitter.prepare (currentSampleRate, 2);
 
     for (auto& hp : lowProtect)
@@ -144,6 +149,7 @@ void GapFillAudioProcessor::reset()
     // Hosts call this on transport jumps and when re-arming a track: every
     // piece of running DSP state has to go, without reallocating anything.
     engine.reset();
+    fxChain.reset();
     analysis.reset();
     history.clear();
 
@@ -188,6 +194,7 @@ void GapFillAudioProcessor::reset()
 void GapFillAudioProcessor::timerCallback()
 {
     drainFillEvents();
+    explainState.timerTick (juce::Time::getMillisecondCounter());
 
     const auto wanted = latencyToReport.load();
 
@@ -237,12 +244,16 @@ int GapFillAudioProcessor::drainFillEvents()
             if (batch[i].type == FillEventType::Started)
                 recipeHistory.push (batch[i].recipe);
 
-            outcomeLog.push (batch[i]);
+            if (isGapOutcome (batch[i].type))
+                outcomeLog.push (batch[i]);
+
+            explainState.onFillEvent (batch[i]);
         }
 
         total += n;
     }
 
+    explainState.noteQueueDrops (fillEvents.getDroppedCount(), fillEvents.getDroppedOptionalCount());
     return total;
 }
 
@@ -252,7 +263,10 @@ void GapFillAudioProcessor::drainCommands() noexcept
     const auto n = commands.pop (batch, CommandQueue::capacity);
 
     for (int i = 0; i < n; ++i)
+    {
+        explainState.onCommand (batch[i]);
         hooks::dispatchCommand (engine, batch[i]);
+    }
 }
 
 //==============================================================================
@@ -377,7 +391,7 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
              || std::abs (ppq - lastPpqPosition) > 0.25)
         {
             engine.noteTransportJump();
-            engine.panic();
+            panicWet();
            #ifdef GAPFILL_UNIT_TESTS
             ++transportJumpCountForTests;
            #endif
@@ -388,7 +402,7 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
     }
     else if (lastTransportPlaying && ! playing && startSample == 0)
     {
-        engine.panic();
+        panicWet();
     }
 
     if (startSample == 0)
@@ -422,6 +436,7 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
 void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+    const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
     midiLearn.processMidi (midi);
     drainCommands();
@@ -451,6 +466,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
 {
     juce::ScopedNoDenormals noDenormals;
+    const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
     midiLearn.processMidi (midi);
     drainCommands();
@@ -600,12 +616,33 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
 
+    {
+        // WP3: health codes + event recording observe the chunk (bounded, allocation-free).
+        explain::ChunkInfo ci;
+        ci.numSamples = numSamples;
+        ci.sampleRate = currentSampleRate;
+        ci.blockStart = startSample == 0;
+        ci.transportValid = engineSettings.transportValid;
+        ci.ppq = engineSettings.ppqAtBlockStart;
+        ci.bpm = engineSettings.samplesPerBeat > 1.0 ? 60.0 * currentSampleRate / engineSettings.samplesPerBeat : 120.0;
+        ci.tsNum = engineSettings.perf.tsNum;
+        ci.tsDen = engineSettings.perf.tsDen;
+        ci.tempoFeatureOn = pb (params.syncEnable) || pb (params.maxFillSync)
+                             || engineSettings.perf.quantDivision >= 0 || engineSettings.perf.modSync;
+        ci.scRequested = detSource != DetSource::Main;
+        ci.scBusEnabled = sidechainBusEnabled;
+        ci.scPeak = sidechainBusEnabled ? explain::peakOf (monoSide.data(), numSamples) : 0.0f;
+        ci.bypassed = bypassed;
+        ci.droppedTotal = fillEvents.getDroppedCount();
+        explainState.onChunk (ci);
+    }
+
     if (bypassed)
     {
         // Keep analysing (so the visualiser still shows what the detector sees)
         // but stop scheduling and fade out anything still playing.
         engineSettings.fill01 = 0.0f;
-        engine.panic();
+        panicWet();
     }
 
     const auto outputStart = samplesProcessed - (std::int64_t) targetLatency;
@@ -613,11 +650,16 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
     analysis.discardEventsBefore (juce::jmax ((std::int64_t) 0, outputStart));
 
+    // WP8 (FX-0): bus effect chain sees the wet bus before the wet post-processing.
+    auto fxIo = fxChain.beginBlock (engineSettings.fx, numSamples);
+
     if (skip < numSamples)
     {
         engine.process (wetBuffer, skip, numSamples - skip, outputStart + skip,
-                        analysis, history, engineSettings, &viz, &fillEvents);
+                        analysis, history, engineSettings, &viz, &fillEvents, &fxIo);
     }
+
+    fxChain.processBus (wetBuffer, 0, numSamples, engineSettings.fx, fxIo, outputStart);
 
     // ---- dry path: lookahead delay with click-free latency changes -------
     {

@@ -3,6 +3,10 @@
 #include "DspUtils.h"
 #include "AnalysisEngine.h"
 #include "SpectralSmear.h"
+#include "../features/cloud/CloudMode.h"
+#include "../features/fx/FxSettings.h"
+#include "../features/fx/VoiceFxChain.h"
+#include "../features/swell/SwellMode.h"
 
 namespace gapfill
 {
@@ -58,6 +62,11 @@ struct VoiceSetup
     std::uint8_t modifierOverride = 0xFF;
     /** Pitch Rise / Pitch Fall target in signed semitones; 127 = derive. */
     std::int8_t  pitchOverride = 127;
+
+    /** Effect cards and render modes (docs/dev/12 FX-0, WP8). Neutral by default. */
+    fx::VoiceFxStart    fxStart;
+    fx::VoiceRenderModes modes;
+    bool excludeFromBus = false;     ///< F-L14: band voice whose effects are switched off
 };
 
 //==============================================================================
@@ -87,6 +96,14 @@ public:
     int  getBand()  const noexcept { return setupData.band; }
     int  getRemainingSamples() const noexcept { return juce::jmax (0, totalLength - elapsed); }
     int  getLengthSamples()    const noexcept { return totalLength; }
+    bool isExcludedFromBus() const noexcept { return setupData.excludeFromBus; }
+
+    /** Effect-chain telemetry sink (owned by the processor's FxChain). */
+    void setFxMeters (fx::FxMeters* m) noexcept { fxChain.setMeters (m); }
+    fx::VoiceFxChain& getFxChain() noexcept { return fxChain; }
+    const fx::SwellMode& getSwellMode() const noexcept { return swellMode; }
+    const fx::CloudMode& getCloudMode() const noexcept { return cloudMode; }
+    fx::CloudMode& getCloudMode() noexcept { return cloudMode; }
 
     /** Renders and adds `numSamples` of this voice into `wet`. */
     void render (juce::AudioBuffer<float>& wet, int startSample, int numSamples,
@@ -105,6 +122,8 @@ private:
     void readFreezeLoop (double position, float& l, float& r) const noexcept;
     float envelopeAt (int t) const noexcept;
     void applyModifiers (float& l, float& r) noexcept;
+    void renderWithFx (juce::AudioBuffer<float>& wet, int startSample, int numSamples,
+                       const SourceHistory& history) noexcept;
 
     // --- base algorithm generators ---
     void genReverse (float& l, float& r) noexcept;
@@ -271,6 +290,15 @@ private:
     // --- band isolation ---
     BandSplitter bandFilter;
     bool bandFilterActive = false;
+
+    // --- effects (docs/dev/12 FX-0, WP8) ---
+    fx::SwellMode swellMode;
+    fx::CloudMode cloudMode;
+    fx::VoiceFxChain fxChain;
+    float fxPostGain[fx::kMaxVoiceBlock] {};     ///< duck x kill, applied after the chain
+    float fxScratchL[fx::kMaxVoiceBlock] {};
+    float fxScratchR[fx::kMaxVoiceBlock] {};
+    float fxPostGainNow = 1.0f;
 };
 
 } // namespace gapfill

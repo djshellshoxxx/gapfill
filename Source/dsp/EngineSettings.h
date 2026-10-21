@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Parameters.h"
+#include "../features/fx/FxSettings.h"
 
 #include <cstdint>
 
@@ -85,6 +86,9 @@ struct EngineSettings
 
     /** Creative / performance settings owned by the feature tickets. */
     PerformanceSettings perf;
+
+    /** Voice / bus effect settings (docs/dev/12 FX-0, WP8). Neutral = every Amount 0. */
+    fx::FxSettings fx;
 };
 
 } // namespace gapfill

@@ -10,9 +10,9 @@ using namespace gftest;
 GF_TEST (Foundations, parameter_set_and_order_are_unchanged_by_the_group_split)
 {
     const auto ids = allParameterIDs();
-    GF_EXPECT (ids.size() == 66);
+    GF_EXPECT (ids.size() >= 66);                 // 66 core ids, then the append-only feature groups
     GF_EXPECT (ids[0] == "detMode");
-    GF_EXPECT (ids[ids.size() - 1] == "capture");
+    GF_EXPECT (ids[65] == "capture");
 
     GapFillAudioProcessor proc;
     GF_EXPECT ((int) proc.getParameters().size() == ids.size());
