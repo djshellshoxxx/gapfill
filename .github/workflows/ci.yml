@@ -68,7 +68,12 @@ jobs:
       - name: Repository preflight
         run: python tools/validate_repo.py
       - name: Preflight unit tests
-        run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py
+        run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py
+
+      - name: Completeness audit and layout-literal ratchet
+        run: |
+          python tools/audit/completeness_audit.py
+          python tools/check_layout_literals.py
 
       - name: Hot-file ownership (pull requests)
         if: github.event_name == 'pull_request'

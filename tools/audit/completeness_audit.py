@@ -39,7 +39,7 @@ for _id in ("fm10_stutter", "fm10_freeze", "fm10_reverse", "fm10_tape"):
     KNOWN_EXEMPTIONS[("param_gui", _id)] = ("host-automation / MIDI-learn mirror of a hold; the PERFORMANCE pads (HoldPadsSlot.cpp) drive the same "
                                             "holds through the momentary commands 20-23, so no second control is drawn")
 for _name in ("SkipLatest", "SkipRecipe"):
-    KNOWN_EXEMPTIONS[("command_map_range", _name)] = ("F-X05 ratings are given in the Taste strip; MIDI binding needs a controller-profile "
+    KNOWN_EXEMPTIONS[("command_map_range", _name)] = ("F-X05 ratings are given in the Taste strip and the History drawer (SKIP); MIDI binding needs a controller-profile "
                                                       "key (the v1 profile schema lists commands 1-30 only)")
 KNOWN_EXEMPTIONS[("feature_tests", "recipes")] = "RecipeServices/RecipeState are exercised by TestAudition, TestHistory, TestExport and TestAbCompare"
 
