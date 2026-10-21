@@ -62,13 +62,13 @@ Per chunk: while held, one extra block write into the tap (the same memcpy cost 
 - Narrow: chip collapses to an icon with tooltip below 1100 px.
 
 ## 7 MIDI / automation / CLAP / host
-`Recapture` is a command, MIDI-learnable through the shared command-learn table (see F-M01), CC rising edge >= 64 / re-arm < 48; not host-automatable (use the `capture` parameter for automation). `fm08_length`/`fm08_scan` are automatable. PDC/latency unchanged. Hosts that offline-render: window ends are sample-exact for given command positions; commands are not replayed from automation, so offline re-renders only match when Recapture is not used (documented).
+`Recapture` is a command, MIDI-bound through F-S12 `CommandBindings` (append `CommandId::Recapture`; CC press >= 64 / re-arm < 48 or NoteOn); not host-automatable (use the `capture` parameter for automation). `fm08_length`/`fm08_scan` are automatable. PDC/latency unchanged. Hosts that offline-render: window ends are sample-exact for given command positions; commands are not replayed from automation, so offline re-renders only match when Recapture is not used (documented).
 
 ## 8 Tests (`Tests/features/TestCapture2.cpp`)
 C-10 list plus: `scenario_G_golden_unchanged` | `tap_filled_only_while_held` | `recapture_rejected_when_not_held_or_tap_short` | `pending_copy_bounded_4096_per_chunk` | `pending_uses_old_material_until_flip` | `running_voice_unaffected_by_flip` | `recapture_during_pending_ignored` | `release_during_pending_cancels` | `window_bounds_exact_samples` | `scan_zero_bit_identical` | `scan_deterministic_same_seed_varies_by_seed_and_gap` | `scan_never_reads_unwritten_or_overwritten` | `samplerate_change_clears_all` | `ids_locked_old_state_defaults` | `no_audio_thread_allocation` | `block_size_32_to_8192_all_complete`. Fixtures: alternating sine-burst signal (distinct frequencies per 500 ms), scenario A/G.
 
 ## 9 Dependencies & build order
-Needs F0-2 (`adjustRecipe`), F0-4 (`Command::Recapture`), F0-1/F0-6. Shares the command-learn table with F-M01/F-M10. Interacts with F-L01 Lock (lock stores recipe incl. anchor semantics: replay uses the then-active source) and F-M01 preview. Build after F-M01.
+Needs F0-2 (`adjustRecipe`), F0-4 (`Command::Recapture`), F0-1/F0-6. Uses F-S12 `CommandBindings` (append `CommandId::Recapture`). Interacts with F-L01 Lock (lock stores recipe incl. anchor semantics: replay uses the then-active source) and F-M01 preview. Build after F-M01.
 
 ## 10 Effort & risks
 Effort L. Risks: edits the capture block in the largest hot file (`PluginProcessor.cpp`); extra memory at 192 kHz; the `historyOffset` quirk (anchor sits `latency + remaining block` before the frozen end) is preserved, not fixed, to keep goldens; owner may prefer fixing it in a separate [golden] PR. Decision D1 (shared): ID regex. Decision D2: confirm Scan as the meaning of `Length` (alternative: drop `fm08_length` and Scan, ship Recapture only with a fixed 1 s window).
@@ -79,5 +79,5 @@ Effort L. Risks: edits the capture block in the largest hot file (`PluginProcess
 - [ ] Recapture correlation metric met; memory recorded
 - [ ] IDs locked, old fixtures load, no audio/pending state serialised
 - [ ] Button/status/knobs usable at 1020x620, keyboard + screen reader
-- [ ] MIDI command-learn roundtrip; CLAP/VST3 parameters visible
+- [ ] `CommandBindings` binding roundtrip for Recapture; CLAP/VST3 parameters visible
 - [ ] AllocGuard and TSan queue tests pass

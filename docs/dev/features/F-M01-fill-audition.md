@@ -47,19 +47,19 @@ Follows E-1 "Engine design" 1-6. Gap-fixes and exact interfaces:
 - Visualiser: preview drawn in preview colour with hatch pattern (not colour only), via `VizFrame::flagPreview`.
 
 ## 7 MIDI / automation / CLAP / host
-- Not a host parameter: no automation lane, no CLAP param. CC learn through the existing right-click menu stores the mapping in `MIDIMAP` using a reserved command pseudo-ID (`cmd.audition`), validated on load, unknown IDs ignored (forward compatible). `MidiLearnManager` is parameter-index based; extend with a small command table (<= 8 entries) in one place and share with F-M10/F-M12. This extension is the shared prerequisite "command learn", build it once.
+- Not a host parameter: no automation lane, no CLAP param. MIDI binding (CC press or note) is owned by F-S12's `CommandBindings` (`CommandId::Audition`, shared by every command) and F-S04 (note trigger, Options row, right-click Learn); F-M01 ships the button and the audio-thread `Preview` path only and consumes `takePressed (CommandId::Audition, &info)` once F-S12 exists. Until then the CC rule from E-1 applies through a local stub behind the same interface.
 - `producesMidi()` stays false. Hosts that stop calling `processBlock` when transport stops (REAPER default option) show "Start playback to audition".
 - Standalone: identical path; no device -> same message.
 
 ## 8 Tests (`Tests/features/TestAudition.cpp`)
-All 16 tests listed in E-1 plus: `audition_idle_golden_unchanged` | `audition_discarded_in_bypassed_path` | `audition_stale_uint32_wrap` | `audition_plays_at_fill_zero` | `audition_ignores_density_and_breathing` | `audition_uses_personality_weights` | `audition_spectral_claimed_falls_back` | `audition_leaves_recent_algos_untouched` | `audition_midi_command_learn_roundtrip`. Fixtures: scenario A; drum loop with 1 s silence prefix (NoSource path); spectral scenario B with all bands off (NoBand).
+All 16 tests listed in E-1 plus: `audition_idle_golden_unchanged` | `audition_discarded_in_bypassed_path` | `audition_stale_uint32_wrap` | `audition_plays_at_fill_zero` | `audition_ignores_density_and_breathing` | `audition_uses_personality_weights` | `audition_spectral_claimed_falls_back` | `audition_leaves_recent_algos_untouched` | `audition_commandbindings_press_fires_once`. Fixtures: scenario A; drum loop with 1 s silence prefix (NoSource path); spectral scenario B with all bands off (NoBand).
 Edge: command pushed while queue full (returns false, UI shows "busy"); two presses in one block; press during sample-rate change.
 
 ## 9 Dependencies & build order
-Needs F0-2, F0-3, F0-4, F0-9. Unlocks F-S04 (MIDI note trigger), F-M10 (shares dedicated-voice pattern and command-learn), F-L04/F-L23. Build FIRST among F-M tickets. Shares `Command` struct growth with F-M08 (Recapture).
+Needs F0-2, F0-3, F0-4, F0-9. Unlocks F-S04 (MIDI note trigger), F-M10 (shares the dedicated-voice pattern), F-L04/F-L23. Build FIRST among F-M tickets. Shares `Command` struct growth with F-M08 (Recapture). Order with F-S12/F-S04: E-1 core first, then CommandBindings, then the MIDI trigger.
 
 ## 10 Effort & risks
-Effort L (E-1 estimate; M if the shared command-learn extension already exists). Risks: (1) extra `FillVoice` memory (measure); (2) `previewVoice` and pool `spectral` claim race (single audio thread, no race, but ensure release on all stop paths); (3) naming confusion with Audition Detector (D1); (4) transport-jump panic semantics (D2).
+Effort L (E-1 estimate). Risks: (1) extra `FillVoice` memory (measure); (2) `previewVoice` and pool `spectral` claim race (single audio thread, no race, but ensure release on all stop paths); (3) naming confusion with Audition Detector (D1); (4) transport-jump panic semantics (D2).
 Owner decisions: D1 button label `AUDITION FILL` vs renaming the old toggle to `LISTEN`; D2 whether transport jump cuts a running preview.
 
 ## 11 Acceptance checklist
