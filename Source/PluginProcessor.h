@@ -15,6 +15,7 @@
 #include "dsp/EventLogs.h"
 #include "dsp/FillEngine.h"
 #include "dsp/VisualisationState.h"
+#include "features/live/LiveControl.h"
 
 namespace gapfill
 {
@@ -85,6 +86,10 @@ public:
     MeterState& getMeterState() noexcept                            { return meters; }
     VisualisationFifo& getVisualisationFifo() noexcept              { return viz; }
     MidiLearnManager& getMidiLearnManager() noexcept                { return midiLearn; }
+
+    /** WP6 live control hub (panic, scenes, MIDI command map). */
+    live::LiveControl& getLiveControl() noexcept                    { return liveControl; }
+    const live::LiveControl& getLiveControl() const noexcept        { return liveControl; }
 
     //==========================================================================
     // Cross-thread queues (docs/dev/02 F0-4)
@@ -196,6 +201,7 @@ private:
     FillEngine     engine;
 
     MidiLearnManager midiLearn;
+    live::LiveControl liveControl { apvts };
 
     MeterState meters;
     VisualisationFifo viz;

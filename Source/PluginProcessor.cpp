@@ -33,6 +33,7 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     params.connect (apvts);
     bypassParameter = apvts.getParameter ("bypass");
     midiLearn.connect (apvts);
+    liveControl.setMidiLearn (&midiLearn);
 
     for (const auto& id : allParameterIDs())
         apvts.addParameterListener (id, this);
@@ -98,6 +99,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
     soloSplitter.prepare (currentSampleRate, 2);
+    liveControl.prepare (currentSampleRate, preparedBlockSize);
 
     for (auto& hp : lowProtect)
         hp.reset();
@@ -192,6 +194,8 @@ void GapFillAudioProcessor::timerCallback()
     // Applies CC moves and completed learns on the thread that owns them.
     // MIDI learn is intentionally bounded so the plugin cannot stay armed
     // indefinitely after the context menu closes.
+    liveControl.pump (*this);
+
     const bool learnChanged = midiLearn.applyPendingChanges();
     const bool learnTimedOut = midiLearn.advanceLearningTimeout();
 
@@ -247,7 +251,10 @@ void GapFillAudioProcessor::drainCommands() noexcept
     const auto n = commands.pop (batch, CommandQueue::capacity);
 
     for (int i = 0; i < n; ++i)
+    {
+        liveControl.handleCommand (batch[i], engine);
         hooks::dispatchCommand (engine, batch[i]);
+    }
 }
 
 //==============================================================================
@@ -414,6 +421,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     juce::ScopedNoDenormals noDenormals;
 
     midiLearn.processMidi (midi);
+    liveControl.beginBlock (midi, engine);
     drainCommands();
 
     const auto numSamples = buffer.getNumSamples();
@@ -442,6 +450,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     juce::ScopedNoDenormals noDenormals;
 
     midiLearn.processMidi (midi);
+    liveControl.beginBlock (midi, engine);
     drainCommands();
 
     const auto numSamples = buffer.getNumSamples();
@@ -587,6 +596,8 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     engineSettings.sidechainActive = sidechainActive;
     engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
+    liveControl.prepareChunk (engineSettings, numSamples);
+    const float* panicGains = liveControl.wetGains (numSamples);   // N-USE-a: fixed ramp on the wet bus
 
     if (bypassed)
     {
@@ -731,7 +742,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     {
         const auto byp = bypassMix.getNextValue();
         const auto d = lerp (dryGain.getNextValue(), 1.0f, byp);
-        const auto w = wetGain.getNextValue() * (1.0f - byp);
+        const auto w = wetGain.getNextValue() * (1.0f - byp) * panicGains[i];
         const auto o = lerp (outGain.getNextValue(), 1.0f, byp);
 
         float l, r;

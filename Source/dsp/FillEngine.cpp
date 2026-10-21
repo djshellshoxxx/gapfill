@@ -409,6 +409,10 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
 RejectReason FillEngine::checkEligibility (GapContext& ctx, const AnalysisEngine& analysis,
                                            const EngineSettings& s, float& neededMs) noexcept
 {
+    // N-USE-a: while panicked no natural fill starts (detection keeps running).
+    if (s.perf.panicked)
+        return RejectReason::Panicked;
+
     if (s.fill01 <= 0.001f)
         return RejectReason::FillOff;
 

@@ -47,12 +47,12 @@ Rows below are for the tickets specified in `docs/dev/12-SPEC-BACKLOG-AND-NEW.md
 | Ticket | Unit/regression evidence (file) | CI/host evidence | Current status |
 |---|---|---|---|
 | F0-10 pre-registration | golden identical; `validate_repo.py` with 30 empty locks | all CI jobs | Specified |
-| X-1 MIDI command map | edge/momentary/toggle, duplicate refusal, flood bound, panic direct path (`TestCommands.cpp`) | Physical controller in a real DAW and Standalone | Specified; hardware unverified |
+| X-1 MIDI command map | 15 tests: edge/momentary/toggle, duplicate refusal, flood bound, learn, state, no-alloc, panic direct path (`TestCommandMap.cpp`) | Physical controller in a real DAW and Standalone | **Automated (WP6)**; hardware unverified; F-L24 feedback profiles see `docs/progress/WP6.md` |
 | FX-0 effect-card framework | empty-chain identity, ramp, tail flush, panic clears, duck on tails (`TestFxChain.cpp`) | per-format validators | Specified |
 | SP-0 spectral core | identity reconstruction, latency exact, block invariance, 44.1-192 kHz (`TestSpectralCore.cpp`) | validators; CPU budget | Specified |
 | N-FX1 Reverse Swell | landing time +-1 sample, never overlaps protNext, curves, neutral (`TestSwell.cpp`) | audible check on drum loop in a DAW | Specified; audible check unverified |
 | N-FX2 Granular Cloud | <= 48 grains, density limit, jitter/pitch bounds, ends before protNext, neutral (`TestCloud.cpp`) | audible check; CPU per voice | Specified |
-| N-USE-a Panic & Recover | wet silent <= 5 ms, dry bit-identical, every algo/card, not quantised, not saved (`TestPanic.cpp`) | Hardware button + real DAW | Specified; hardware unverified |
+| N-USE-a Panic & Recover | 18 tests: ramp sample-exact, block-size invariance, dry bit-identical, recover, auto-recover, MIDI direct path, not saved, no-alloc (`TestPanic.cpp`) | Hardware button + real DAW | **Automated (WP6)**; FX-card panic and real-host/hardware checks unverified |
 | N-USE-b / F-S01 Health & telemetry | each code with hysteresis, priority, zero cost closed (`TestHealth.cpp`) | Standalone + DAW without sidechain/transport | Specified |
 | N-MUS Scale Lock | 12 scales x 12 roots, tie rule, RNG untouched, comb in-scale (`TestScale.cpp`) | audible check in a key | Specified |
 | F-L07 / N-VAL Scenes and Bank | quantised boundary exact PPQ, block invariance, loop/seek re-arm, file round trip, hostile import (`TestScenes.cpp`, `TestSceneBank.cpp`) | Looping DAW project on the bar line; cross-OS bank import | Specified; host unverified |

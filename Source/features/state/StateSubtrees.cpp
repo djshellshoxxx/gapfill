@@ -1,11 +1,51 @@
 #include "StateSubtrees.h"
 
+#include "../../PluginProcessor.h"
+
 namespace gapfill::state
 {
 
 namespace
 {
     constexpr std::size_t Ki = 1024;
+
+    // ---- WP6 rows: <Cmd> (X-1), <Perf> (panic options), <Scenes> (F-L07 / N-VAL) ----
+    juce::ValueTree cmdSerialise (const GapFillAudioProcessor& p)
+    {
+        const auto& m = p.getLiveControl().bindings();
+        const auto t = m.toValueTree();
+        const bool empty = m.size() == 0 && m.getTable().pcSceneEnabled == 0 && m.getFeedbackDevice().empty();
+        return empty ? juce::ValueTree() : t;
+    }
+
+    void cmdApply (GapFillAudioProcessor& p, const juce::ValueTree& t)  { p.getLiveControl().bindings().restore (t); }
+    void cmdReset (GapFillAudioProcessor& p)                            { p.getLiveControl().bindings().restore ({}); }
+
+    juce::ValueTree perfSerialise (const GapFillAudioProcessor& p)
+    {
+        const auto o = p.getLiveControl().getPerfOptions();
+        const bool isDefault = o.panic.recovery == panic::RecoveryMode::Manual && o.panic.panicToggles;
+        return isDefault ? juce::ValueTree() : p.getLiveControl().perfToValueTree();
+    }
+
+    void perfApply (GapFillAudioProcessor& p, const juce::ValueTree& t) { p.getLiveControl().perfRestore (t); }
+    void perfReset (GapFillAudioProcessor& p)                           { p.getLiveControl().perfRestore ({}); }
+
+    juce::ValueTree scenesSerialise (const GapFillAudioProcessor& p)
+    {
+        const auto& bank = p.getLiveControl().scenes().getBank();
+        return bank.size() == 0 && bank.getName().isEmpty() ? juce::ValueTree()
+                                                              : bank.toValueTree (24 * Ki - 64);
+    }
+
+    void scenesApply (GapFillAudioProcessor& p, const juce::ValueTree& t)
+    {
+        scenes::SceneBank bank;
+        bank.restore (t);
+        p.getLiveControl().scenes().replaceBank (bank);
+    }
+
+    void scenesReset (GapFillAudioProcessor& p)                         { p.getLiveControl().scenes().reset(); }
 }
 
 const std::vector<SubtreeDesc>& reservedSubtrees()
@@ -17,9 +57,9 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
         { "Macros",  2 * Ki,  nullptr, nullptr, nullptr, nullptr },   // C-2
         { "Lock",    1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // C-5
         { "History", 1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // U-1
-        { "Perf",    4 * Ki,  nullptr, nullptr, nullptr, nullptr },   // U prefs
-        { "Scenes",  24 * Ki, nullptr, nullptr, nullptr, nullptr },   // F-L07 / N-VAL
-        { "Cmd",     3 * Ki,  nullptr, nullptr, nullptr, nullptr },   // X-1
+        { "Perf",    4 * Ki,  &live::LiveControl::perfValidate, &perfApply, &perfSerialise, &perfReset },   // U prefs + panic options (WP6)
+        { "Scenes",  24 * Ki, &scenes::SceneBank::validateTree, &scenesApply, &scenesSerialise, &scenesReset },   // F-L07 / N-VAL
+        { "Cmd",     3 * Ki,  &commands::BindingModel::validateTree, &cmdApply, &cmdSerialise, &cmdReset },   // X-1
         { "Tension", 3 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-M21
         { "Groove",  1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // F-L09
         { "Fx",      1 * Ki,  nullptr, nullptr, nullptr, nullptr },   // FX-0

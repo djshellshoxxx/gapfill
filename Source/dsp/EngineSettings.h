@@ -7,6 +7,9 @@
 namespace gapfill
 {
 
+namespace scenes { struct OverlayView; }    // F-L07 (features/scenes/SceneOverlay.h)
+namespace macros { struct MacroRuntime; }   // C-2 / F-M23 (features/macros/MacroModel.h)
+
 //==============================================================================
 // Performance / creative settings (docs/dev/02-FOUNDATIONS.md F0-5). Every
 // field is NEUTRAL at its default: the engine behaves exactly as it did before
@@ -31,6 +34,12 @@ struct PerformanceSettings
     float modSyncSeconds = 0.0f;
     int   bandType[3] { 0, 0, 0 };    // C-9: 0 Auto, else Algo+1
     int   tsNum = 0, tsDen = 0;       // host time signature, valid when both > 0
+
+    // WP6 live control. Neutral at their defaults (null / false / 0).
+    bool  panicked = false;           // N-USE-a: no new natural fills while set
+    const scenes::OverlayView* sceneView = nullptr;   // F-L07: audio-thread-owned overlay
+    const macros::MacroRuntime* macroRuntime = nullptr;   // F-M23: LFO macros re-evaluated per decision
+    std::uint32_t macroOwnedMask = 0; // C-2: macro target bits claimed by macros (scenes skip them)
 };
 
 //==============================================================================

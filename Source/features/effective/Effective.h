@@ -67,8 +67,12 @@ void applyMacros      (EngineSettings&, const MacroState&, MacroOutputs&);      
 void applyBlock (EngineSettings&, const ModulationInputs&, MacroOutputs&);
 
 //==============================================================================
-// Decision stage (PPQ of the decision sample; ts from the block).
+// Decision stage (PPQ of the decision sample; ts from the block). The scene
+// overlay (F-L07) and LFO macros (F-M23) run first: they set the base values the
+// slow stages below then modulate.
 
+void applyScene     (EngineSettings&, double ppq, const TransportInfo&);           // F-L07 StageScene.cpp
+void applyMacroLfos (EngineSettings&, double ppq, const TransportInfo&);           // F-M23 StageMacros.cpp
 void applyEvolve    (EngineSettings&, double ppq, const TransportInfo&);           // C-8  StageEvolve.cpp
 void applyBreathing (EngineSettings&, double ppq, const TransportInfo&);           // C-6  StageBreathing.cpp
 void applyPhrase    (EngineSettings&, double ppq, const TransportInfo&);           // C-7  StagePhrase.cpp

@@ -8,4 +8,9 @@ void applyMacros (EngineSettings&, const MacroState&, MacroOutputs&)
 {
 }
 
+// F-M23 plugs in here (LFO macros sampled at the decision PPQ). Identity while no runtime is attached.
+void applyMacroLfos (EngineSettings&, double, const TransportInfo&)
+{
+}
+
 } // namespace gapfill::Effective
