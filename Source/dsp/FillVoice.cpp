@@ -40,6 +40,8 @@ void FillVoice::prepare (double sampleRate, int numChannels)
     sr = juce::jmax (8000.0, sampleRate);
     channels = juce::jlimit (1, 2, numChannels);
 
+    mistakeStage.prepare();   // C-3: the wobble delay lines live on the heap (small audio / Windows stacks)
+
     maxCaptureSamples = (int) std::ceil (sr * 0.32);
     capture.setSize (2, maxCaptureSamples + 8, false, true, false);
 

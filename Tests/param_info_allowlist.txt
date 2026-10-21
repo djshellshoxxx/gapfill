@@ -1,25 +1,7 @@
 # U-9 allow-list: parameter ids that may ship without a ParamInfo entry.
 # Shrinking only: delete a line when the owning feature adds its Source/features/<f>/Info.cpp.
 # A line whose id already has an entry (or no longer exists) fails Info.allowlist_only_shrinks.
-personality
-captureLength
-fillShape
-fillShapeAmount
 fl01_lock
-densityBreath
-densityBreathBars
-densityBreathDepth
-densityBreathCurve
-phraseBars
-phraseBias
-phraseOffset
-mistakes
-fillQuant
-modSync
-bandLowType
-bandMidType
-bandHighType
-evolve
 swellAmount
 swellCurve
 swellFilter
@@ -31,8 +13,6 @@ cloudSpan
 cloudJitter
 cloudPitch
 cloudSpread
-fillBudget
-quietZone
 ratAmount
 ratDiv
 ratRepeats

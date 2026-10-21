@@ -1,4 +1,5 @@
 #include "Panels.h"
+#include "../features/info/ParamInfo.h"
 
 namespace gapfill
 {
@@ -178,7 +179,7 @@ void CreativePanel::resized()
         // Simple: the five macros on top, Fill Type underneath; the CreativeExtra cell (Capture) keeps a spot.
         auto row = b.removeFromBottom (24);
         constexpr int gap = 6;
-        const auto cell = juce::jmax (90, (row.getWidth() - gap * 3) / 4);
+        const auto cell = juce::jmax (150, (row.getWidth() - gap * 3) / 4);   // CAPTURE + SHAPE share this cell
         extraSlotBounds = row.removeFromLeft (cell);
         b.removeFromBottom (5);
         fillType.setBounds (b.removeFromBottom (34).withWidth (juce::jmax (140, b.getWidth() / 3)));
@@ -191,8 +192,8 @@ void CreativePanel::resized()
         // Four equal cells; the fourth is reserved for Slot::CreativeExtra.
         auto row = b.removeFromBottom (24);
         constexpr int gap = 6;
-        const auto w = (row.getWidth() - gap * 3) / 4;
-        layoutRow (row.removeFromLeft (w * 3 + gap * 2), { &sync, &pingPong, &monoWet });
+        const auto w = juce::jmax (150, (row.getWidth() - gap * 3) / 4);   // CAPTURE + SHAPE share this cell
+        layoutRow (row.removeFromLeft (row.getWidth() - w - gap), { &sync, &pingPong, &monoWet });
         row.removeFromLeft (gap);
         extraSlotBounds = row.withWidth (w);
     }
@@ -380,6 +381,24 @@ SpectralPanel::SpectralPanel (juce::AudioProcessorValueTreeState& s)
         lane.probability = std::make_unique<GapKnob> (s, defs[i].prob, "Prob",
                                                       "How likely a usable space in this lane is to be filled.", colour);
 
+        // C-9: per-lane fill type (Auto + the 15 algorithms), only used in Spectral mode.
+        {
+            static const char* typeIds[3] { "bandLowType", "bandMidType", "bandHighType" };
+            static const char* typeNames[3] { "Low band fill type", "Mid band fill type", "High band fill type" };
+            lane.fillType = std::make_unique<ParamComboBox>();
+            lane.fillType->setTitle (typeNames[i]);
+            lane.fillType->setDescription ("Forces a fill type for gaps found in this lane. Auto keeps the normal choice.");
+            lane.fillType->setTooltip (info::tooltipFor (typeIds[i], "Forces a fill type for gaps found in this lane (Spectral mode)."));
+            tagParameter (*lane.fillType, typeIds[i]);
+            lane.fillType->setWantsKeyboardFocus (false);
+
+            if (auto* choice = dynamic_cast<juce::AudioParameterChoice*> (s.getParameter (typeIds[i])))
+                lane.fillType->addItemList (choice->choices, 1);
+            lane.fillType->onRightClick = [comp = lane.fillType.get(), &s, id = juce::String (typeIds[i])] { showParameterMenu (*comp, s, id); };
+            addAndMakeVisible (*lane.fillType);
+            lane.fillTypeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment> (s, typeIds[i], *lane.fillType);
+        }
+
         addAndMakeVisible (*lane.enabled);
         addAndMakeVisible (*lane.amount);
         addAndMakeVisible (*lane.intensity);
@@ -454,8 +473,9 @@ void SpectralPanel::resized()
         auto lane = b.removeFromTop (laneHeight);
         auto left = lane.removeFromLeft (juce::jmin (110, lane.getWidth() / 4));
 
-        lanes[i].enabled->setBounds (left.removeFromTop (22).reduced (0, 1));
-        lanes[i].meterBounds = left.removeFromTop (16).reduced (0, 2);
+        lanes[i].enabled->setBounds (left.removeFromTop (20).reduced (0, 1));
+        lanes[i].meterBounds = left.removeFromTop (14).reduced (0, 1);
+        lanes[i].fillType->setBounds (left.removeFromTop (18).reduced (0, 1));
 
         layoutRow (lane.reduced (4, 2), { lanes[i].amount.get(), lanes[i].intensity.get(),
                                           lanes[i].probability.get() });
