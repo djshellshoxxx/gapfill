@@ -33,6 +33,11 @@ public:
     /** Fades every voice out quickly (bypass, transport jumps, reset). */
     void panic() noexcept;
 
+    /** C-10: the object fills read their source from changed (Capture recapture swap or
+        release). Voices that read the source while rendering (Granular) are faded out over
+        10 ms; every other voice already holds its own copy of the material. */
+    void sourceChanged() noexcept;
+
     /** Forgets the deterministic gap counter, used when the transport jumps. */
     void noteTransportJump() noexcept { gapIndex = 0; recentFills.clear(); }
 

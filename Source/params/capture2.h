@@ -13,7 +13,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 
-#define GAPFILL_PARAMS_CAPTURE2(X)
+#define GAPFILL_PARAMS_CAPTURE2(X) \
+    X (captureLength, "captureLength")
 
 namespace gapfill
 {

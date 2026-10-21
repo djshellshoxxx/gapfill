@@ -6,11 +6,13 @@
 // so the tickets add no members to the processor.
 //
 //   tempo        E-2   last known host tempo + fallback tempo (Options)
+//   capture      C-10  Capture v2 latch (live tap, snapshots, Pending status)
 //   effective    C-0   block-stage output of the macro-targetable controls,
 //                      written once per block by the audio thread, read by the
 //                      editor timer (relaxed atomics, values in parameter units)
 
 #include "../../dsp/EngineSettings.h"
+#include "../capture2/CaptureLatch.h"
 #include "../sync/Sync.h"
 
 #include <array>
@@ -49,6 +51,7 @@ struct ShapingRuntime
 {
     sync::TempoSource tempo;
     EffectiveCreative effective;
+    CaptureLatch capture;               // C-10 (audio-thread owned; status atomics for the editor)
 };
 
 } // namespace gapfill

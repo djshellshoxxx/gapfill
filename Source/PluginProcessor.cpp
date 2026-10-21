@@ -95,6 +95,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     monoSide.assign ((size_t) preparedBlockSize, 0.0f);
 
     history.prepare (2, (int) std::ceil (kHistorySeconds * currentSampleRate));
+    shaping.capture.prepare (currentSampleRate, 2);   // C-10: sample-rate change clears the latch
     analysis.prepare (currentSampleRate, preparedBlockSize);
     engine.prepare (currentSampleRate, preparedBlockSize, mainChannels);
     soloSplitter.prepare (currentSampleRate, 2);
@@ -145,6 +146,7 @@ void GapFillAudioProcessor::reset()
     engine.reset();
     analysis.reset();
     history.clear();
+    shaping.capture.reset();
 
     delayRing.clear();
     wetBuffer.clear();
@@ -247,7 +249,15 @@ void GapFillAudioProcessor::drainCommands() noexcept
     const auto n = commands.pop (batch, CommandQueue::capacity);
 
     for (int i = 0; i < n; ++i)
-        hooks::dispatchCommand (engine, batch[i]);
+    {
+        // C-10 Capture v2 owns commands 7 and 8; everything else goes to the feature hook.
+        if (batch[i].type == CommandType::Recapture)
+            shaping.capture.requestRecapture();
+        else if (batch[i].type == CommandType::ReleaseCapture)
+            shaping.capture.requestRelease();
+        else
+            hooks::dispatchCommand (engine, batch[i]);
+    }
 }
 
 //==============================================================================
@@ -568,10 +578,21 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     // engages once enough material exists, so a restored or early latch can
     // never leave the fills reading silence.
     const auto captureReady = history.getWritePosition() >= (std::int64_t) (kCaptureMinSeconds * currentSampleRate);
-    const bool captureHeld = pb (params.capture) && captureReady;
+    shaping.capture.noteParameter (pb (params.capture));
+    shaping.capture.setLengthMs (pv (params.captureLength));
+    const bool captureHeld = pb (params.capture) && captureReady && ! shaping.capture.isSuppressed();
 
     if (! captureHeld)
         history.write (mainBuffer, 0, numSamples);
+
+    // C-10: records the live tap, tracks engage / release, advances a pending recapture copy.
+    const bool captureSwapped = shaping.capture.update (captureHeld, mainBuffer, 0, numSamples, history);
+
+    if (captureSwapped)
+        engine.sourceChanged();
+
+    const SourceHistory* snapshot = shaping.capture.getActiveSnapshot();
+    const SourceHistory& fillSource = snapshot != nullptr ? *snapshot : history;
 
     meters.captureActive.store (captureHeld, std::memory_order_relaxed);
 
@@ -598,7 +619,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
 
     auto engineSettings = gatherEngineSettings();
     engineSettings.sidechainActive = sidechainActive;
-    engineSettings.historyOffset = samplesProcessed + numSamples - history.getWritePosition();
+    engineSettings.historyOffset = samplesProcessed + numSamples - fillSource.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
     shaping.effective.publish (engineSettings);   // C-0
 
@@ -618,7 +639,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     if (skip < numSamples)
     {
         engine.process (wetBuffer, skip, numSamples - skip, outputStart + skip,
-                        analysis, history, engineSettings, &viz, &fillEvents);
+                        analysis, fillSource, engineSettings, &viz, &fillEvents);
     }
 
     // ---- dry path: lookahead delay with click-free latency changes -------

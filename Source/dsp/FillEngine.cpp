@@ -119,6 +119,13 @@ void FillEngine::panic() noexcept
             v.requestStop (juce::jmax (16, (int) (sr * 0.004)));
 }
 
+void FillEngine::sourceChanged() noexcept
+{
+    for (auto& v : voices)
+        if (v.isActive() && v.getAlgo() == Algo::Granular)
+            v.requestStop (juce::jmax (16, (int) (sr * 0.010)));
+}
+
 int FillEngine::getActiveVoiceCount() const noexcept
 {
     int n = 0;
