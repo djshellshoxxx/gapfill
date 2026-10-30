@@ -662,8 +662,7 @@ void GapFillAudioProcessorEditor::stepPreset (int delta)
     // Undo coalescing: a burst of steps (each within 3 s of the previous, nothing else pushed an Undo entry in between)
     // keeps only the snapshot from before the burst, so browsing 20 presets does not push real work out of the 32 steps.
     const auto now = juce::Time::getMillisecondCounter();
-    const bool inBurst = lastPresetStepMs != 0 && now - lastPresetStepMs <= 3000u
-                         && proc.getUndoPushCount() == undoPushesAfterLastStep;
+    const bool inBurst = stepBurst.isContinuation (now, proc.getUndoPushCount());
     const auto pushesBefore = proc.getUndoPushCount();
 
     if (! loadCatalogEntry (navCatalog.entries()[(size_t) index]))
@@ -672,8 +671,7 @@ void GapFillAudioProcessorEditor::stepPreset (int delta)
     if (inBurst && proc.getUndoPushCount() > pushesBefore)
         proc.discardNewestUndoSnapshot();
 
-    lastPresetStepMs = juce::jmax<juce::uint32> (1u, now);
-    undoPushesAfterLastStep = proc.getUndoPushCount();
+    stepBurst.record (now, proc.getUndoPushCount());
 
     const auto total = (int) navCatalog.entries().size();
     showPresetStatus (fellBack ? juce::String ("No favourites yet - stepping all presets")

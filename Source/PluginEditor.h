@@ -20,6 +20,7 @@
 #include "features/access/Access.h"
 #include "features/calibrate/Gui.h"
 #include "features/presetbrowser/PresetBrowser.h"
+#include "features/presetbrowser/StepBurst.h"
 
 namespace gapfill
 {
@@ -47,7 +48,7 @@ public:
 
    #ifdef GAPFILL_UNIT_TESTS
     void stepPresetForTests (int delta)         { stepPreset (delta); }
-    void forgetPresetBurstForTests()            { lastPresetStepMs = 0; undoPushesAfterLastStep = 0; }
+    void forgetPresetBurstForTests()            { stepBurst.forget(); }
     bool feedBattleFromHeaderAbForTests()       { return feedBattleFromHeaderAb(); }
     void setHeaderSlotsForTests (const juce::ValueTree& a, const juce::ValueTree& b) { slotA = a; slotB = b; }
     void toggleCurrentFavouriteForTests()       { toggleCurrentFavourite(); }
@@ -92,8 +93,7 @@ private:
     enum class Tab { Creative = 0, Weights, Spectral, Performance };
 
     void timerCallback() override;
-    juce::uint32 lastPresetStepMs = 0;          // F-S11: steps within 3 s of each other share one Undo entry
-    unsigned undoPushesAfterLastStep = 0;
+    presets::StepBurst stepBurst;               // F-S11: steps within 3 s of each other share one Undo entry
     juce::uint32 presetStatusUntilMs = 0;       // F-S11: "Preset 12/25: name" in the footer for a short while
     juce::Rectangle<int> footerBounds() const;
     void setTab (Tab newTab);
