@@ -36,6 +36,17 @@ Test counts in older session entries below (42, 48, 50, 87) are historical snaps
 
 ## Session log
 
+### 2026-10-30 - autonomous pass: baseline, doc truth, Q-01 in CI, W-01 Linux test, one refactor seam
+
+- **Baseline** (`e89aecd`, Linux Release, Xvfb): `GapFillTests` 1186 passed, 0 failed (6 min, whole suite in one process, no OOM on 16 GB); `tools/` unit tests 46 passed; `validate_repo.py`, `completeness_audit.py`, `check_layout_literals.py` green. After this session: **1193 passed, 0 failed** (+6 `StepBurst`, +1 `EditorLifecycle`); `tools/` tests 49 passed. The old counts (42, 50, 87) in earlier entries are history.
+- **Inconsistencies resolved:** test count (header note above); `Next up` rewritten from the open-gap register; **AU vs ADR 0002 was not a conflict** - the ADR's own list includes AU v2, only AUv3 / AAX / iOS are out, so the AU build stays and the ADR wording was made explicit; Q-01 fast tier is now a CI step.
+- **Q-01:** `run_matrix.py --skip` (recorded `unverified`, never a pass; unknown step is an error). Wiring it found a real harness bug: the Python-test step used `-I` + `discover -s tools` and could not import `tools` (2 errors). Fixed with a test. Fast tier locally: 9 pass, 1 unverified-by-skip, exit 0. Not yet seen green on a hosted runner.
+- **W-01 (Linux only):** `EditorLifecycle.editor_create_destroy_while_automating_and_processing`: green on the first run, 33 s. No defect found, no fix made, nothing claimed about Windows. Limits recorded in `docs/progress/W-01.md` (message loop not pumped, no sanitizer build, one run).
+- **Refactor (separate commit, no feature work):** preset-step Undo burst rule moved from `PluginEditor::stepPreset` to `features/presetbrowser/StepBurst.h` (header-only, injected clock). Integration test `a_burst_of_preset_steps_...` passes before and after; 6 rule tests added. Hot file touched: `PluginEditor.*` (justification: the only seam in it with a test already in place).
+- **T-02 / T-01:** screenshots at min / default / large can be produced here (`GF_SCREENSHOT_DIR`, Xvfb); before-set saved under `docs/audits/screenshots/t02-before-*`. No layout value changed (ticket needs 150 / 200 % images and owner sign-off); pixel golden not built.
+- **Git:** all work is on `claude/epic-wozniak-e1pvza` (one draft PR) because the session allows pushing to that branch only; items are separate commits, not separate PRs. Each push cancels the previous hosted CI run (concurrency rule), so several "CI gate" failures in the PR history are cancellations, not test failures.
+- Unverified, as before: real hosts, hardware, Windows / macOS native behaviour, listening, screen readers, 150 / 200 % scale images, sanitizer runs.
+
 ### 2026-10-21 - completeness and wiring audit (development branch, WP3-WP11 merged)
 
 - Full report: `docs/audits/2026-10-21-completeness-audit.md`; mechanical checker `tools/audit/completeness_audit.py` (exits 0, `--selftest` for its parsers); per-ticket status `docs/dev/features/IMPLEMENTATION-STATUS.md` (62 yes, 8 partial, 4 no, 1 out of scope).
