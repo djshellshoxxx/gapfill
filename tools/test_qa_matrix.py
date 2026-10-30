@@ -75,6 +75,28 @@ class RunMatrixTests(unittest.TestCase):
         self.assertIn("perf", full)
         self.assertIn("bad-filter-must-fail", fast & full)
 
+    def test_python_test_step_can_import_the_tools_package(self):
+        step = {s.name: s for s in rm.default_steps(["x"], "fast")}["preflight-python-tests"]
+        self.assertNotIn("-I", step.cmd)                                # isolated mode drops the repo root from sys.path
+        self.assertNotIn("discover", step.cmd)                          # tools/ has no __init__.py
+        files = [a for a in step.cmd if a.endswith(".py")]
+        self.assertIn("tools/test_validate_repo.py", files)
+        self.assertTrue(all((rm.REPO / f).is_file() for f in files))
+
+    def test_skip_marks_a_step_unverified_with_the_reason_never_pass(self):
+        steps = rm.apply_skips(rm.default_steps(["x"], "fast"), ["unit"], "full suite ran in the previous CI step")
+        by_name = {s.name: s for s in steps}
+        self.assertIsNone(by_name["unit"].cmd)
+        row = self.run_one(by_name["unit"])
+        self.assertEqual(row["status"], "unverified")
+        self.assertIn("previous CI step", row["detail"])
+        self.assertIsNotNone(by_name["blocksweep"].cmd)                 # other steps untouched
+        self.assertEqual([s.name for s in steps], [s.name for s in rm.default_steps(["x"], "fast")])
+
+    def test_skip_of_an_unknown_step_is_an_error_not_a_silent_no_op(self):
+        with self.assertRaises(ValueError):
+            rm.apply_skips(rm.default_steps(["x"], "fast"), ["unti"], "typo")
+
     def test_evidence_schema_and_summary_exit_code(self):
         rows = [
             self.run_one(rm.StepSpec("good", fake("2 passed, 0 failed\n"), min_tests=1)),

@@ -165,6 +165,18 @@ jobs:
           fi
           exit "$status"
 
+      # Q-01: fast tier of the QA matrix harness (docs/dev/features/Q-01-release-qa-matrix-harness.md). The full suite
+      # just ran above, so its step is recorded as unverified-by-skip rather than executed twice; every other fast step
+      # (preflight, bad-filter guard, block / rate sweeps, determinism, state fixtures, GUI lifecycle) really runs here.
+      # The full tier (perf, pluginval, clap-validator, auval) stays manual: run_matrix.py --tier full.
+      - name: QA matrix, fast tier (Q-01)
+        run: |
+          mkdir -p test-results
+          xvfb-run -a python3 tools/qa/run_matrix.py --binary build-ci/artefacts/GapFillTests --tier fast \
+            --out test-results/qa-evidence --skip unit \
+            --skip-reason "full suite ran in the previous CI step (GapFillTests-linux-full.log)" \
+            2>&1 | tee test-results/qa-matrix-fast.log
+
       - name: Golden diagnostics (only after a failure)
         if: failure()
         run: |
