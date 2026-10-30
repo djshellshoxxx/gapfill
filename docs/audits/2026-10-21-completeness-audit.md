@@ -142,3 +142,20 @@ Each item has tests in `Tests/features/TestGapClose.cpp` (group `GapClose`), `Te
 ## Verification
 
 Build and test results of this audit are in the hand-off and in `PROGRESS.md` (session entry of 2026-10-21). `Tests/golden` and the state fixtures were not touched; no tolerance was loosened. One existing assertion was corrected rather than loosened: `ShapeGui.slots_register_the_shape_button_and_the_tempo_option` looked for SHAPE at order 110, which AUDITION also used (so it passed by accident); it now looks for 120.
+
+## Follow-up 2026-10-30 (autonomous session, Linux only)
+
+Measured and changed:
+
+- Baseline on `e89aecd`: `GapFillTests` 1186 passed, 0 failed (Linux Release, Xvfb, 6 min); `tools/` unit tests 46 passed; `validate_repo.py`, `completeness_audit.py` (0 failing, 8 exempt) and `check_layout_literals.py` green. After this session's additions: +6 `StepBurst`, +1 `EditorLifecycle`.
+- ADR 0002 and the AU target: no conflict. The ADR's own format list includes AU; only AUv3 (app extension), AAX and iOS are out. The ADR now says "AU v2 in scope, AUv3 out". `GapFill_AU`, `auval` and `.component` packaging stay.
+- Q-01 fast tier is a Linux CI step; wiring it exposed and fixed a harness bug (see the Q-01 row above). Full tier stays manual.
+- W-01: Linux stress test `EditorLifecycle` is green, no defect found, nothing is claimed for Windows (`docs/progress/W-01.md`).
+- Refactor: preset-step Undo burst rule extracted to `features/presetbrowser/StepBurst.h` (no behaviour change; integration test unchanged and green).
+
+T-02 / T-01 (screenshots are producible here: `GF_SCREENSHOT_DIR=<dir> xvfb-run -a GapFillTests GuiQa`):
+
+- "Before" set at three sizes, 100 % scale, advanced / Creative tab: `docs/audits/screenshots/t02-before-{min-1020x620,default-1100x700,large-1800x1000}.png`. Read by eye: no overlap or clipped text in the top bar or panels at any of the three sizes, which agrees with the existing `layout_has_no_clipping_overlap_or_truncated_text_across_sizes_modes_tabs_and_scales` test (green).
+- **No layout value was changed.** The ticket requires 3 sizes x 3 scales before / after and an owner sign-off of the screenshots; 150 % and 200 % images were not produced (the test sets those scales but does not write images), the odd literals (34 in `PluginEditor.cpp`, 26 in `Panels.cpp`, frozen by the ratchet) cause no visible defect in the set above, and moving controls by 1-2 px in hot files without that sign-off is the "blind" change the spec forbids. Open: T-02 (needs the scale images and the owner's review), T-01 pixel golden (needs per-platform images; fonts differ per OS).
+
+Recorded decisions kept (unchanged, nothing built): F-L20 per-voice design (gap 1, needs listening), F-X06 cross-instance protocol (gap 4, needs a multi-instance test plan), F-X04 prediction window (gap 5), F-L11 extras and F-L12 `fl12_main_mode` (gap 12, DECISIONS 18), scene `hg*` ids (gap 13), F-P04 localisation (not started).
