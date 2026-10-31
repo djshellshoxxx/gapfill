@@ -105,10 +105,12 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
         s.perf.modSyncSeconds = 0.0f;
     }
 
-    if (pb (params.maxFillSync))
+    const bool maxFillSync = s.perf.sceneMaxFillSync >= 0 ? s.perf.sceneMaxFillSync != 0 : pb (params.maxFillSync);
+    const auto maxFillDivision = s.perf.sceneMaxFillDivision >= 0 ? s.perf.sceneMaxFillDivision : pi (params.maxFillDiv);
+    if (maxFillSync)
     {
-        const auto mf = sync::clampToDivision ((float) (divisionInBeats (pi (params.maxFillDiv)) * beatSeconds),
-                                               0.02f, 2.0f, pi (params.maxFillDiv));
+        const auto mf = sync::clampToDivision ((float) (divisionInBeats (maxFillDivision) * beatSeconds),
+                                               0.02f, 2.0f, maxFillDivision);
         s.maxFillMs = mf.seconds * 1000.0f;
         syncClamped = syncClamped || mf.clamped;
     }

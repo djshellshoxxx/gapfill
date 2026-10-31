@@ -59,7 +59,11 @@ public:
 
     /** Forgets the deterministic gap counter, used when the transport jumps. A jump
         also ends a More Like That bias (C-11) and the F-D01 bar count. */
-    void noteTransportJump() noexcept { gapIndex = 0; like.cancel(); recentFills.clear(); responder.reset(); midiConfidenceValid = false; }
+    void noteTransportJump() noexcept
+    {
+        gapIndex = 0; like.cancel(); recentFills.clear(); responder.reset(); midiConfidenceValid = false;
+        vizCounter = 0; vizAccum = {}; vizDiscontinuityPending = true;
+    }
 
     /** Renders into `wet` (which must already be cleared) and returns the
         protection duck that the processor should apply to the wet bus. */
@@ -307,6 +311,7 @@ private:
     int vizDecim = 2;
     int vizCounter = 0;
     VizFrame vizAccum;
+    bool vizDiscontinuityPending = true;
     midiout::EngineEventBuffer* midiEventBuffer = nullptr;
     bool midiHitEnabled = false, midiConfidenceValid = false;
     int midiConfidenceCC = 0, lastMidiConfidenceValue = 0;

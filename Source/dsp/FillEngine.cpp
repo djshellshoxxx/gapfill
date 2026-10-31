@@ -115,6 +115,7 @@ void FillEngine::reset()
 
     inGap = false;
     midiConfidenceValid = false;
+    vizDiscontinuityPending = true;
     gapEvaluated = false;
     gapStartPos = 0;
     lastFillStartPos = -1000000;
@@ -528,6 +529,32 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
     // ---- visualiser feed -------------------------------------------------
     if (viz != nullptr && viz->isEnabled())
     {
+        if (vizCounter == 0)
+        {
+            vizAccum.posLo = (std::uint32_t) outputPos;
+            vizAccum.periodSamples = (std::uint32_t) (AnalysisEngine::hopSize * vizDecim);
+            vizAccum.sampleRateHz = (std::uint32_t) std::lround (sr);
+            vizAccum.timelineEpoch = events != nullptr ? events->getTimelineEpoch() : 0;
+            const auto ppq = s.ppqAtBlockStart + (double) (outputPos - blockStartPos) / s.samplesPerBeat;
+            const auto tick = ppq * 96.0;
+            vizAccum.ppqTick = s.transportValid && std::isfinite (tick)
+                && tick > (double) INT32_MIN && tick <= (double) INT32_MAX
+                ? (std::int32_t) std::llround (tick) : INT32_MIN;
+            const bool knownMeter = s.perf.tsNum > 0 && s.perf.tsNum <= 255 && s.perf.tsDen > 0 && s.perf.tsDen <= 255;
+            vizAccum.timeSigNumerator = knownMeter ? (std::uint8_t) s.perf.tsNum : 0;
+            vizAccum.timeSigDenominator = knownMeter ? (std::uint8_t) s.perf.tsDen : 0;
+            if (vizDiscontinuityPending)
+            {
+                vizAccum.flags |= VizFrame::flagDiscontinuity;
+                vizDiscontinuityPending = false;
+            }
+        }
+        if ((s.protTrans01 > 0.0f && transEnv > 0.0f) || (s.sidechainActive && s.protSC01 > 0.0f && scEnv > 0.0f))
+            vizAccum.protectionKinds |= VizFrame::protectionHit;
+        if (nextDuck < 1.0f)
+            vizAccum.protectionKinds |= VizFrame::protectionNext;
+        if (distanceToNext >= 0 && distanceToNext <= lookaheadSamples)
+            vizAccum.protectionKinds |= VizFrame::protectionLookahead;
         vizAccum.peak = juce::jmax (vizAccum.peak, frame.peak);
         vizAccum.conf = juce::jmax (vizAccum.conf, frame.conf);
         vizAccum.energy = juce::jmax (vizAccum.energy, frame.energy);

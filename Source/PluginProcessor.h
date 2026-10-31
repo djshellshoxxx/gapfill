@@ -30,6 +30,7 @@
 #include "features/coop/Coop.h"
 #include "features/transport/TransportTracker.h"
 #include "features/modelversions/ModelVersions.h"
+#include "features/wetbus/OutputRouting.h"
 
 namespace gapfill
 {
@@ -255,8 +256,8 @@ private:
     void startTimelineEpoch() noexcept;
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
-    EngineSettings gatherEngineSettings();
-    AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
+    EngineSettings gatherEngineSettings (int startSample);
+    AnalysisSettings gatherAnalysisSettings (bool sidechainActive, int startSample) const;
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
     void beginHostCallbackTiming();
     scenes::TransportSnap sceneTransportAt (int startSample, int numSamples) const noexcept;
@@ -345,6 +346,7 @@ private:
     BandSplitter soloSplitter;
 
     juce::SmoothedValue<float> dryGain, wetGain, outGain, centreProtect, widthAmount, bypassMix;
+    wetbus::LevelSmoother wetBusLevel;
 
     transport::TransportTracker transportTracker;
     transport::HostTiming hostTiming;
