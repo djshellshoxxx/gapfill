@@ -1,7 +1,13 @@
 #include "UiState.h"
+#include "../../Parameters.h"
 
 namespace gapfill::ui
 {
+
+UiState::UiState()
+{
+    headerAb.setPerformanceIds (performanceParameterIDs());
+}
 
 void UiState::writeState (juce::ValueTree& root) const
 {
@@ -10,6 +16,7 @@ void UiState::writeState (juce::ValueTree& root) const
 
 void UiState::readState (const juce::ValueTree& root)
 {
+    headerAb.requestReset(); // host restore may occur off the message thread
     if (! root.hasProperty (viewModeProperty))
     {
         setViewMode (ViewMode::Advanced);          // saved before U-5: nothing changes for the user
