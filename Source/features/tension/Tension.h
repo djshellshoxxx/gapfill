@@ -7,7 +7,10 @@
 #include "Curves.h"
 #include "../../dsp/EngineSettings.h"
 
+#include <array>
 #include <atomic>
+#include <mutex>
+#include <type_traits>
 
 namespace gapfill::tension
 {
@@ -22,9 +25,11 @@ float widthDelta (const TensionSettings&, float baseWidth01, double ppqMid, bool
 class TensionService
 {
 public:
-    /** Message thread: replaces the custom curves (rejected silently if invalid). */
+    TensionService() noexcept;
+    /** Non-RT editor/host restore: replaces valid curves; concurrent writers
+        serialize privately. The audio thread must never call this method. */
     bool publishCurves (const TensionCurves&) noexcept;
-    TensionCurves curves() const noexcept;                 ///< any thread (bounded seqlock)
+    TensionCurves curves() const noexcept;                 ///< any thread; two bounded, lock-free attempts
 
     /** Audio thread: records where the playhead is for the editor. */
     void setStatus (const TensionOut&) noexcept;
@@ -33,8 +38,15 @@ public:
     bool isDefault() const noexcept;                       ///< all lanes flat: nothing to save
 
 private:
-    std::atomic<std::uint32_t> seq { 0 };
-    TensionCurves stored;
+    static_assert (std::is_trivially_copyable_v<TensionCurves>
+                   && std::has_unique_object_representations_v<TensionCurves>
+                   && sizeof (TensionCurves) % sizeof (std::uint32_t) == 0);
+    static_assert (std::atomic<std::uint32_t>::is_always_lock_free
+                   && std::atomic<std::uint64_t>::is_always_lock_free);
+    static constexpr std::size_t wordCount = sizeof (TensionCurves) / sizeof (std::uint32_t);
+    std::atomic<std::uint64_t> seq { 0 };
+    std::array<std::atomic<std::uint32_t>, wordCount> stored {};
+    std::mutex curveWriter;                              // NON-RT writers only; readers never acquire it
     std::atomic<float> phase { 0.0f };
     std::atomic<bool> active { false };
 };
