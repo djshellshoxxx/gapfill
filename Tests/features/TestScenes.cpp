@@ -255,8 +255,10 @@ namespace
 GF_TEST (Scenes, scope_flags_select_the_expected_parameters_and_never_ids_are_excluded)
 {
     initTables();
-    const auto& creative = idsForScope (ScopeCreative);
-    GF_EXPECT (creative.size() == 6);
+    const auto& creative = idsForScope (ScopeCreative, 2);
+    GF_EXPECT (creative.size() == 13);
+    const auto& oldCreative = idsForScope (ScopeCreative, 1);
+    GF_EXPECT (oldCreative.size() == 6);
     const auto& weights = idsForScope (ScopeWeights);
     GF_EXPECT ((int) weights.size() == numAlgos);
 
@@ -264,6 +266,11 @@ GF_TEST (Scenes, scope_flags_select_the_expected_parameters_and_never_ids_are_ex
     {
         return std::find (v.begin(), v.end(), juce::String (id)) != v.end();
     };
+
+    for (const auto* id : { "fill", "intensity", "complexity", "chaos", "density", "fillType" })
+        GF_EXPECT (contains (creative, id) && contains (oldCreative, id));
+    for (const auto* id : { "pingPong", "fl01_lock", "personality", "mistakes", "fillShape", "fillShapeAmount", "evolve" })
+        GF_EXPECT (contains (creative, id) && ! contains (oldCreative, id));
 
     const auto& everything = idsForScope (kAllScopes);
 
@@ -290,13 +297,18 @@ GF_TEST (Scenes, capture_is_sparse_and_resolve_fills_the_rest_with_defaults)
     std::vector<ResolvedParam> out;
     juce::String why;
     GF_EXPECT (resolveScene (proc.getValueTreeState(), s, out, why));
-    GF_EXPECT (out.size() == 6);
+    GF_EXPECT (out.size() == 13);
 
     for (const auto& r : out)
         if (paramIdAt (r.index) == "fill")
             GF_EXPECT_NEAR (r.real, 80.0, 0.01);
         else if (paramIdAt (r.index) == "density")
             GF_EXPECT_NEAR (r.real, 65.0, 0.01);                          // default
+    auto legacy = s;
+    legacy.scopeVersion = 1;
+    GF_EXPECT (resolveScene (proc.getValueTreeState(), legacy, out, why));
+    GF_EXPECT (out.size() == 6);
+
 }
 
 GF_TEST (Scenes, scene_with_a_never_id_or_bad_value_is_invalid)
@@ -402,13 +414,22 @@ GF_TEST (Scenes, manual_edit_removes_only_that_overlay_entry)
     Overlay seen;
     prepareProcessor (proc, kSr, 256, false);
     GF_EXPECT (ctl.publisher().consume (seen));               // the audio side's view of the latest publication
-    GF_EXPECT (seen.kind == Overlay::Set && seen.n == 6 - 1);  // creative scope: 6 ids minus chaos
+    GF_EXPECT (seen.kind == Overlay::Set && seen.n == 13 - 1); // new creative scope minus the touched chaos
     bool hasChaos = false;
 
     for (int i = 0; i < seen.n; ++i)
         hasChaos = hasChaos || paramIdAt (seen.idx[i]) == "chaos";
 
     GF_EXPECT (! hasChaos);
+    auto legacy = sceneWith ("Legacy", { { "fill", .9f }, { "chaos", .8f } });
+    legacy.scopeVersion = 1;
+    GF_EXPECT (ctl.getBank().store (1, legacy));
+    GF_EXPECT (ctl.gotoScene (1));
+    setParams (proc, { { "chaos", 6.0f } });
+    ctl.poll();
+    GF_EXPECT (ctl.publisher().consume (seen));
+    GF_EXPECT (seen.kind == Overlay::Set && seen.n == 6 - 1);
+
 }
 
 GF_TEST (Scenes, next_prev_clamp_wrap_and_rapid_presses_advance_the_pending_target)

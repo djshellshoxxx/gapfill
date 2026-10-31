@@ -29,8 +29,13 @@ namespace
         for (int pos = 0; pos < input.getNumSamples();)
         {
             int n = juce::jmin (block, input.getNumSamples() - pos);
-            if (! useScene && pos < boundary)
-                n = juce::jmin (n, boundary - pos);
+            if (! useScene)
+            {
+                // Preserve the original host callback grid after the inserted
+                // parameter boundary, matching the scene path's internal split.
+                n = juce::jmin (n, block - pos % block);
+                if (pos < boundary) n = juce::jmin (n, boundary - pos);
+            }
             if (! useScene && pos == boundary)
                 setParams (proc, { { "fsdAmount", 70 } });
             playHead.ppq = (double) pos / (sr * 0.5);
