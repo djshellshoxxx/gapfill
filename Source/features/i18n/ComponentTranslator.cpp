@@ -191,6 +191,10 @@ void ComponentTranslator::refresh()
             case Node::Combo:
             {
                 auto* combo = static_cast<juce::ComboBox*> (component);
+                // JUCE changeItemText updates the menu only. getSelectedId()
+                // becomes zero while the label still contains the old text.
+                const auto selectedId = combo->getSelectedId();
+                bool itemChanged = false;
                 for (int i = 0; i < combo->getNumItems(); ++i)
                 {
                     const auto id = combo->getItemId (i);
@@ -199,11 +203,17 @@ void ComponentTranslator::refresh()
                     const auto inserted = found == node.choices.end();
                     if (found == node.choices.end())
                         found = node.choices.emplace (id, Field (current)).first;
-                    update (found->second, current, fieldChanged || inserted, [combo, id] (const juce::String& v) { combo->changeItemText (id, v); });
+                    update (found->second, current, fieldChanged || inserted, [combo, id, &itemChanged] (const juce::String& v)
+                    {
+                        combo->changeItemText (id, v);
+                        itemChanged = true;
+                    });
                 }
+                if (itemChanged && selectedId != 0)
+                    combo->setSelectedId (selectedId, juce::dontSendNotification);
                 break;
             }
-            default: break;
+            case Node::Other: break;
         }
     }
 }
