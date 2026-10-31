@@ -162,3 +162,27 @@ GF_TEST (MidiCommands, production_recipe_commands_reject_changed_or_missing_hist
     GF_EXPECT (rig.recorded (CommandType::SkipRecipe) == 0);
     GF_EXPECT (rig.proc.getLiveControl().getDroppedCommandEvents() > dropped);
 }
+
+GF_TEST (MidiCommands, header_ab_swaps_sound_with_the_editor_closed_and_preserves_routing)
+{
+    MidiCommandRig rig;
+    rig.bind (CommandType::AbSwap, 96);
+    setParams (rig.proc, { { "fill", 20.0f } });
+    rig.proc.setModelVersions (models::ModelVersions::legacy(), false);
+    rig.trigger (96);
+    rig.proc.flushLatencyReportForTests(); // initialise A/B, then enter B
+    setParams (rig.proc, { { "fill", 80.0f }, { "fl11_chan", 4.0f } });
+    rig.proc.setModelVersions ({}, false);
+    rig.block (96, 0);
+    rig.trigger (96);
+    rig.proc.flushLatencyReportForTests();
+    GF_EXPECT (rig.proc.getValueTreeState().getRawParameterValue ("fill")->load() == 20.0f);
+    GF_EXPECT (rig.proc.getValueTreeState().getRawParameterValue ("fl11_chan")->load() == 4.0f);
+    GF_EXPECT (rig.proc.getModelVersions() == models::ModelVersions::legacy());
+    rig.block (96, 0);
+    rig.trigger (96);
+    rig.proc.flushLatencyReportForTests();
+    GF_EXPECT (rig.proc.getValueTreeState().getRawParameterValue ("fill")->load() == 80.0f);
+    GF_EXPECT (rig.proc.getModelVersions() == models::ModelVersions());
+    GF_EXPECT (rig.proc.getActiveEditor() == nullptr);
+}

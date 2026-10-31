@@ -22,6 +22,8 @@ public:
 
     void requestStep (int delta) noexcept;
     void requestRefresh() noexcept;
+    void requestReset() noexcept;                  ///< host restore: atomic request, applied by pump
+    void forgetBurst() noexcept;
     void pump (GapFillAudioProcessor&);
 
     /** Call after successful browser/file loads and saves, including while an

@@ -27,6 +27,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/mutation/Gui.cpp
     Source/features/presetbrowser/GlobalSettings.cpp
     Source/features/presetbrowser/PresetCatalog.cpp
+    Source/features/presetbrowser/PresetNavigation.cpp
     Source/features/presetbrowser/PresetFiles.cpp
     Source/features/presetbrowser/PresetBrowser.cpp
 )

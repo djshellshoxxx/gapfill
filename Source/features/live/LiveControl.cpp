@@ -503,23 +503,37 @@ void LiveControl::handleUi (const UiRequest& r, GapFillAudioProcessor& proc)
         case (int) UiRequest::SceneCancel:   sceneCtl.cancel(); break;
         case (int) UiRequest::SceneLastGood: sceneCtl.gotoLastGood(); break;
         case (int) UiRequest::Roulette:      rouletteState.spin (proc); break;
+        case (int) UiRequest::AbSwap:
+        {
+            auto& ab = proc.getUiState().headerAb;
+            const auto target = ab.swap (apvts.copyState());
+            if (target.isValid())
+            {
+                proc.replaceParameterStateKeepingPerformance (target);
+                proc.syncModelVersions();
+                proc.getRecipes().noteHeaderAbSide (ab.isUsingB());
+                proc.updateHostDisplay();
+            }
+            break;
+        }
         case (int) UiRequest::PresetGoto:
             if (r.a >= 0 && r.a < proc.getNumPrograms())
+            {
                 proc.selectPreset (r.a);
+                auto& navigation = proc.getUiState().presetNavigation;
+                for (const auto& entry : navigation.catalog().entries())
+                    if (entry.origin == presets::PresetEntry::Origin::Factory && entry.factoryIndex == r.a)
+                    {
+                        navigation.noteLoaded (entry);
+                        break;
+                    }
+            }
             break;
 
         case (int) UiRequest::PresetNext:
         case (int) UiRequest::PresetPrev:
         {
-            const auto n = proc.getNumPrograms();
-
-            if (n > 0)
-            {
-                const auto cur = proc.getCurrentProgram();
-                const auto next = r.kind == UiRequest::PresetNext ? (cur < 0 ? 0 : (cur + 1) % n)
-                                                                  : (cur <= 0 ? n - 1 : cur - 1);
-                proc.selectPreset (next);
-            }
+            proc.getUiState().presetNavigation.requestStep (r.kind == UiRequest::PresetNext ? 1 : -1);
             break;
         }
 
@@ -579,6 +593,10 @@ void LiveControl::pump (GapFillAudioProcessor& proc)
 
     pumpGroupScenes (proc);
     sceneCtl.poll();
+    const auto pendingPresetSteps = proc.getUiState().takePresetStep();
+    if (pendingPresetSteps != 0)
+        proc.getUiState().presetNavigation.requestStep (pendingPresetSteps);
+    proc.getUiState().presetNavigation.pump (proc);
 
     // ---- F-L24 LED feedback (message thread; never touches audio) ------------
     {
