@@ -398,6 +398,18 @@ GF_TEST (Coop, deterministic_callback_work_reuses_preallocated_membership_and_vi
     GF_EXPECT (guard.count() == 0);
 }
 
+GF_TEST (Coop, deterministic_capacity_failure_pauses_fills_instead_of_inventing_an_owner)
+{
+    std::array<CoopMember, 33> members;
+    for (int i = 0; i < 32; ++i)
+        members[(std::size_t) i].configureDeterministic ({ GroupA, i + 1 });
+    const auto overflow = members[32].beginDeterministicChunk ({ GroupA, 1 }, { true, 0.0, 24000.0, 4.0, 512 });
+    GF_EXPECT (overflow.view != nullptr);
+    GF_EXPECT (evaluate (*overflow.view, true, 0.0, 0, 24000.0, 4.0) == RejectReason::CoopYield);
+    GF_EXPECT (yieldScale (*overflow.view, true, 0.0).density == 0.0f);
+    GF_EXPECT (members[32].describe().containsIgnoreCase ("capacity"));
+}
+
 namespace
 {
     struct Pair
