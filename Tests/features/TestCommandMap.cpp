@@ -174,7 +174,11 @@ GF_TEST (CommandMap, capacity_is_48_and_invalid_bindings_are_refused)
 
     BindingModel m2;
     GF_EXPECT (m2.add (cc ((CommandType) 0, 1)) == BindingModel::AddResult::Invalid);
-    GF_EXPECT (m2.add (cc ((CommandType) 31, 1)) == BindingModel::AddResult::Invalid);
+    GF_EXPECT (m2.add (cc ((CommandType) 34, 1)) == BindingModel::AddResult::Invalid);
+    GF_EXPECT (m2.add (cc ((CommandType) 255, 1)) == BindingModel::AddResult::Invalid);
+    GF_EXPECT (m2.add (cc (CommandType::SkipLatest, 31)) == BindingModel::AddResult::Ok);
+    GF_EXPECT (m2.add (cc (CommandType::SkipRecipe, 32)) == BindingModel::AddResult::Ok);
+    GF_EXPECT (m2.add (cc (CommandType::PresetGoto, 33)) == BindingModel::AddResult::Ok);
     auto bad = cc (CommandType::Panic, 200);
     GF_EXPECT (m2.add (bad) == BindingModel::AddResult::Invalid);
 }
