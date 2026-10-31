@@ -1,6 +1,7 @@
 #include "../TestFramework.h"
 #include "../support/AllocGuard.h"
 #include "features/events/EventRecorder.h"
+#include "features/events/Replay.h"
 
 #include <thread>
 
@@ -26,6 +27,13 @@ namespace
         r.flags = FillRecipe::flagFromLock | FillRecipe::flagResponse;
         r.seed = 0xEFCDAB89u;
         return r;
+    }
+
+    RecipeExtras eventExtras()
+    {
+        RecipeExtras extras;
+        extras.harmonic = { 1, harmonic::psola::Outcome::Used, 3, 2, 220.0f, 0.9f };
+        return extras;
     }
 
     ReplayData recordedCommand (CommandType type)
@@ -124,7 +132,7 @@ GF_TEST (EventsCodec, appended_commands_require_version_two_and_unknown_future_v
         GF_EXPECT (fromFileText (xml->toString(), parsed).wasOk());
         xml->setAttribute ("format", 1);
         GF_EXPECT (! fromFileText (xml->toString(), parsed).wasOk());
-        xml->setAttribute ("format", 3);
+        xml->setAttribute ("format", 4);
         GF_EXPECT (! fromFileText (xml->toString(), parsed).wasOk());
     }
 }
@@ -206,4 +214,113 @@ GF_TEST (EventsCodec, concurrent_drain_observes_only_complete_recipe_pairs)
         GF_EXPECT (commandAt (data, i, command));
         GF_EXPECT (command.index == (std::int16_t) ((i - 1) / 2));
     }
+}
+
+GF_TEST (EventsCodec, detailed_recipe_commands_use_format_three_and_keep_every_decision)
+{
+    EventRecorder recorder;
+    recorder.start ("<s/>", 48000.0, 512, "test", 2);
+    Command command;
+    command.type = CommandType::PreviewRecipe;
+    command.recipe = eventRecipe();
+    command.extras = eventExtras();
+    command.velocity = 91;
+    command.index = -123;
+    { AllocGuard guard; recorder.onCommand (command); GF_EXPECT (guard.count() == 0); }
+    command.extras = {};
+    recorder.onCommand (command); // a later legacy recipe must not downgrade the recording
+    recorder.stop();
+    const auto data = recorder.snapshot();
+    GF_EXPECT (data.formatVersion == 3 && data.records.size() == 7);
+    ReplayData parsed;
+    const auto text = toFileText (data);
+    GF_EXPECT (juce::parseXML (text)->getIntAttribute ("format") == 3);
+    GF_EXPECT (fromFileText (text, parsed).wasOk());
+    Command restored;
+    GF_EXPECT (commandAt (parsed, 0, restored) && restored.extras == eventExtras());
+    GF_EXPECT (restored.recipe.seed == command.recipe.seed && restored.velocity == 91 && restored.index == -123);
+    GF_EXPECT (commandAt (parsed, 5, restored) && ! hasRecipeExtras (restored.extras));
+}
+
+GF_TEST (EventsCodec, detailed_markers_reject_missing_or_malformed_extra_chunks_atomically)
+{
+    EventRecorder recorder;
+    recorder.start ("<s/>", 48000.0, 512, "test", 2);
+    Command command;
+    command.type = CommandType::LockRecipe;
+    command.recipe = eventRecipe(); command.extras = eventExtras();
+    recorder.onCommand (command); recorder.stop();
+    const auto data = recorder.snapshot();
+    GF_EXPECT (data.records.size() == 5);
+    for (size_t count = 1; count < 5; ++count)
+    {
+        auto truncated = data;
+        truncated.records.resize (count);
+        ReplayData untouched;
+        untouched.pluginVersion = "unchanged";
+        GF_EXPECT (! fromFileText (toFileText (truncated), untouched).wasOk());
+        GF_EXPECT (untouched.pluginVersion == "unchanged");
+    }
+    for (int mutation = 0; mutation < 4; ++mutation)
+    {
+        auto malformed = data;
+        if (mutation == 0) malformed.records[2].flags = 2;
+        if (mutation == 1) malformed.records[3].index = 15;
+        if (mutation == 2) malformed.records[4].p1 = 1; // noncanonical unused bytes
+        if (mutation == 3) malformed.records[2].pos |= 255; // unknown extras envelope schema
+        ReplayData parsed;
+        GF_EXPECT (! fromFileText (toFileText (malformed), parsed).wasOk());
+    }
+    auto xml = juce::parseXML (toFileText (data));
+    xml->setAttribute ("format", 2);
+    ReplayData parsed;
+    GF_EXPECT (! fromFileText (xml->toString(), parsed).wasOk());
+}
+
+GF_TEST (EventsCodec, natural_outcomes_record_the_actual_detailed_decision)
+{
+    EventRecorder recorder;
+    recorder.start ("<s/>", 48000.0, 512, "test", 2);
+    FillEvent event;
+    event.type = FillEventType::Started;
+    event.recipe = eventRecipe(); event.extras = eventExtras(); event.pos = 123456;
+    { AllocGuard guard; recorder.onFillEvent (event); GF_EXPECT (guard.count() == 0); }
+    recorder.stop();
+    const auto data = recorder.snapshot();
+    GF_EXPECT (data.formatVersion == 3 && data.records.size() == 5);
+    ReplayData parsed;
+    GF_EXPECT (fromFileText (toFileText (data), parsed).wasOk());
+    FillRecipe recipe;
+    RecipeExtras extras;
+    GF_EXPECT (outcomeDetailsAt (parsed, 0, recipe, extras));
+    GF_EXPECT (recipe.seed == event.recipe.seed && extras == event.extras);
+    const auto outcomes = outcomesOf (parsed);
+    GF_EXPECT (outcomes.size() == 1 && outcomes[0].detailed && outcomes[0].extras == event.extras);
+    auto different = outcomes;
+    different[0].extras.harmonic.f0Hz += 1.0f;
+    GF_EXPECT (findFirstDivergence (outcomes, different) == 0);
+    different = outcomes;
+    ++different[0].recipe.seed;
+    GF_EXPECT (findFirstDivergence (outcomes, different) == 0);
+    GF_EXPECT (findFirstDivergence (outcomes, outcomes) == -1);
+    auto mismatched = data;
+    mismatched.records[0].index = 0; // outcome algorithm must agree with its complete recipe
+    GF_EXPECT (! fromFileText (toFileText (mismatched), parsed).wasOk());
+}
+
+GF_TEST (EventsCodec, cap_never_publishes_a_partial_detailed_command_group)
+{
+    EventRecorder recorder;
+    recorder.start ("<s/>", 48000.0, 512, "test", 2);
+    Command command;
+    command.type = CommandType::Preview;
+    for (int i = 0; i < kRecordCap - 4; ++i)
+        recorder.onCommand (command);
+    command.type = CommandType::PreviewRecipe;
+    command.recipe = eventRecipe(); command.extras = eventExtras();
+    recorder.onCommand (command); recorder.stop();
+    const auto data = recorder.snapshot();
+    GF_EXPECT (data.incomplete && data.records.size() == (size_t) kRecordCap - 4);
+    ReplayData parsed;
+    GF_EXPECT (fromFileText (toFileText (data), parsed).wasOk());
 }

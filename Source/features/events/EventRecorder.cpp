@@ -1,5 +1,6 @@
 #include "EventRecorder.h"
 #include <array>
+#include <bit>
 #include <cmath>
 #include <cstring>
 
@@ -49,12 +50,19 @@ namespace
 
     int requiredFormat (const std::vector<Record>& records) noexcept
     {
+        int required = 1;
         for (const auto& r : records)
+        {
+            if (r.type == (std::uint8_t) RecType::RecipeExtras || r.type == (std::uint8_t) RecType::OutcomeRecipe
+                || (r.type == (std::uint8_t) RecType::Outcome && (r.flags & kOutcomeHasDetails) != 0)
+                || (r.type == (std::uint8_t) RecType::RecipePayload && r.index != 0))
+                return 3;
             if (r.type == (std::uint8_t) RecType::RecipePayload
                 || (r.type == (std::uint8_t) RecType::Command
                     && r.flags > (std::uint8_t) CommandType::PreviewRecipe))
-                return 2;
-        return 1;
+                required = 2;
+        }
+        return required;
     }
 
     void put16 (std::uint8_t* p, std::uint16_t v) noexcept { p[0] = (std::uint8_t) v; p[1] = (std::uint8_t) (v >> 8); }
@@ -92,6 +100,64 @@ namespace
 
         return v;
     }
+
+    void payloadBytes (Record& record, const std::uint8_t* bytes) noexcept
+    {
+        const auto bits = get64 (bytes);
+        std::memcpy (&record.pos, &bits, sizeof bits);
+        record.p0 = get32 (bytes + 8);
+        record.p1 = get32 (bytes + 12);
+    }
+
+    bool readRecipe (const Record& payload, FillRecipe& recipe) noexcept
+    {
+        std::uint8_t bytes[kRecordBytes], body[FillRecipe::serialisedBytes];
+        toBytes (payload, bytes);
+        std::memcpy (body, bytes + 8, sizeof body);
+        const auto decoded = gapfill::fromBytes (body);
+        if (! isValid (decoded))
+            return false;
+        recipe = decoded;
+        return true;
+    }
+
+    bool writeExtras (Record* records, std::uint32_t block, const gapfill::RecipeExtras& extras) noexcept
+    {
+        std::uint8_t bytes[48] {}; // last chunk's unused four bytes are canonical zeros
+        if (! encodeRecipeExtras (extras, std::span (bytes).first (kRecipeExtrasBytes)))
+            return false;
+        for (int chunk = 0; chunk < 3; ++chunk)
+        {
+            auto& record = records[chunk];
+            record.type = (std::uint8_t) RecType::RecipeExtras;
+            record.flags = (std::uint8_t) chunk;
+            record.index = (std::uint16_t) (chunk == 2 ? 12 : 16);
+            record.block = block;
+            payloadBytes (record, bytes + chunk * 16);
+        }
+        return true;
+    }
+
+    bool readExtras (const ReplayData& data, size_t first, std::uint32_t block, gapfill::RecipeExtras& out) noexcept
+    {
+        if (data.formatVersion < 3 || first + 3 > data.records.size())
+            return false;
+        std::uint8_t bytes[48] {};
+        for (int chunk = 0; chunk < 3; ++chunk)
+        {
+            const auto& record = data.records[first + (size_t) chunk];
+            if (record.type != (std::uint8_t) RecType::RecipeExtras || record.flags != chunk
+                || record.index != (chunk == 2 ? 12 : 16) || record.block != block)
+                return false;
+            std::uint8_t raw[kRecordBytes];
+            toBytes (record, raw);
+            std::memcpy (bytes + chunk * 16, raw + 8, 16);
+        }
+        for (int i = kRecipeExtrasBytes; i < 48; ++i)
+            if (bytes[i] != 0)
+                return false;
+        return decodeRecipeExtras (std::span (bytes).first (kRecipeExtrasBytes), out);
+    }
 }
 
 void toBytes (const Record& r, std::uint8_t* out) noexcept
@@ -112,7 +178,7 @@ Record fromBytes (const std::uint8_t* in) noexcept
     r.flags = in[1];
     r.index = get16 (in + 2);
     r.block = get32 (in + 4);
-    r.pos = (std::int64_t) get64 (in + 8);
+    r.pos = std::bit_cast<std::int64_t> (get64 (in + 8));
     r.p0 = get32 (in + 16);
     r.p1 = get32 (in + 20);
     return r;
@@ -137,16 +203,35 @@ bool commandAt (const ReplayData& data, std::size_t index, Command& out) noexcep
             return false;
         const auto& payload = data.records[index + 1];
         if (payload.type != (std::uint8_t) RecType::RecipePayload
-            || payload.block != r.block || payload.flags != r.flags || payload.index != 0)
+            || payload.block != r.block || payload.flags != r.flags
+            || payload.index > (data.formatVersion >= 3 ? 1 : 0))
             return false;
-        std::uint8_t bytes[kRecordBytes], recipe[FillRecipe::serialisedBytes];
-        toBytes (payload, bytes);
-        std::memcpy (recipe, bytes + 8, sizeof recipe);
-        command.recipe = gapfill::fromBytes (recipe);
-        if (! isValid (command.recipe))
+        if (! readRecipe (payload, command.recipe))
+            return false;
+        if (payload.index == 1 && ! readExtras (data, index + 2, r.block, command.extras))
             return false;
     }
     out = command;
+    return true;
+}
+
+bool outcomeDetailsAt (const ReplayData& data, size_t index, FillRecipe& recipe, gapfill::RecipeExtras& extras) noexcept
+{
+    if (index + 5 > data.records.size() || data.formatVersion < 3)
+        return false;
+    const auto& outcome = data.records[index];
+    const auto& payload = data.records[index + 1];
+    if (outcome.type != (std::uint8_t) RecType::Outcome || (outcome.flags & 3) != 3
+        || payload.type != (std::uint8_t) RecType::OutcomeRecipe || payload.flags != 0
+        || payload.index != 1 || payload.block != outcome.block)
+        return false;
+    FillRecipe decoded;
+    gapfill::RecipeExtras extra;
+    if (! readRecipe (payload, decoded) || decoded.algo != (std::uint8_t) (outcome.index >> 8)
+        || ! readExtras (data, index + 2, outcome.block, extra))
+        return false;
+    recipe = decoded;
+    extras = extra;
     return true;
 }
 
@@ -345,7 +430,7 @@ void EventRecorder::onCommand (const Command& cmd) noexcept
     if (! active.load (std::memory_order_relaxed))
         return;
 
-    Record records[2];
+    Record records[5];
     auto& r = records[0];
     r.type = (std::uint8_t) RecType::Command;
     r.flags = (std::uint8_t) cmd.type;
@@ -354,23 +439,27 @@ void EventRecorder::onCommand (const Command& cmd) noexcept
     r.p0 = cmd.velocity;
     if (needsRecipe (r.flags))
     {
-        formatVersion.store (2, std::memory_order_relaxed);
+        if (! isValid (cmd.recipe) || ! isValid (cmd.extras))
+            return;
+        const bool detailed = hasRecipeExtras (cmd.extras);
+        formatVersion.store (juce::jmax (formatVersion.load (std::memory_order_relaxed), detailed ? 3 : 2),
+                             std::memory_order_relaxed);
         auto& payload = records[1];
         payload.type = (std::uint8_t) RecType::RecipePayload;
         payload.flags = r.flags;
         payload.block = r.block;
+        payload.index = detailed ? 1 : 0;
         std::uint8_t bytes[FillRecipe::serialisedBytes];
         gapfill::toBytes (cmd.recipe, bytes);
-        const auto bits = get64 (bytes);
-        std::memcpy (&payload.pos, &bits, sizeof bits);
-        payload.p0 = get32 (bytes + 8);
-        payload.p1 = get32 (bytes + 12);
-        push (records, 2);
+        payloadBytes (payload, bytes);
+        if (detailed && ! writeExtras (records + 2, r.block, cmd.extras))
+            return;
+        push (records, detailed ? 5 : 2);
     }
     else
     {
         if (r.flags > (std::uint8_t) CommandType::PreviewRecipe)
-            formatVersion.store (2, std::memory_order_relaxed);
+            formatVersion.store (juce::jmax (2, formatVersion.load (std::memory_order_relaxed)), std::memory_order_relaxed);
         push (r);
     }
 }
@@ -382,7 +471,8 @@ void EventRecorder::onFillEvent (const FillEvent& e) noexcept
 
     const auto b = blockIndex.load (std::memory_order_relaxed);
 
-    Record r;
+    Record records[5];
+    auto& r = records[0];
     r.type = (std::uint8_t) RecType::Outcome;
     r.flags = e.type == FillEventType::Started ? 1 : 0;
     r.index = (std::uint16_t) ((std::uint16_t) e.reason | ((std::uint16_t) e.recipe.algo << 8));
@@ -390,7 +480,23 @@ void EventRecorder::onFillEvent (const FillEvent& e) noexcept
     r.pos = e.pos;
     r.p0 = floatBits (e.availMs);
     r.p1 = floatBits (e.needMs);
-    push (r);
+    if (e.type == FillEventType::Started && hasRecipeExtras (e.extras) && isValid (e.recipe) && isValid (e.extras))
+    {
+        r.flags |= kOutcomeHasDetails;
+        auto& payload = records[1];
+        payload.type = (std::uint8_t) RecType::OutcomeRecipe;
+        payload.index = 1;
+        payload.block = r.block;
+        std::uint8_t bytes[FillRecipe::serialisedBytes];
+        gapfill::toBytes (e.recipe, bytes);
+        payloadBytes (payload, bytes);
+        if (! writeExtras (records + 2, r.block, e.extras))
+            return;
+        formatVersion.store (3, std::memory_order_relaxed);
+        push (records, 5);
+    }
+    else
+        push (r);
 }
 
 //==============================================================================
@@ -430,7 +536,7 @@ juce::Result fromFileText (const juce::String& text, ReplayData& out)
         return juce::Result::fail ("Not a GapFill event file");
 
     const auto version = xml->getIntAttribute ("format", 0);
-    if (version < 1 || version > 2)
+    if (version < 1 || version > 3)
         return juce::Result::fail ("Unsupported event file format");
 
     ReplayData d;
@@ -471,7 +577,8 @@ juce::Result fromFileText (const juce::String& text, ReplayData& out)
     {
         auto r = fromBytes (static_cast<const std::uint8_t*> (decoded.getData()) + (size_t) i * (size_t) kRecordBytes);
 
-        const auto lastType = version == 1 ? (std::uint8_t) RecType::Outcome : kLastRecType;
+        const auto lastType = version == 1 ? (std::uint8_t) RecType::Outcome
+                            : version == 2 ? (std::uint8_t) RecType::RecipePayload : kLastRecType;
         if (r.type < 1 || r.type > lastType)
             return juce::Result::fail ("Event file contains an unknown record type");
 
@@ -484,6 +591,8 @@ juce::Result fromFileText (const juce::String& text, ReplayData& out)
 
         if (r.type == (std::uint8_t) RecType::BlockSize && (r.p0 < 1 || r.p0 > 65536))
             return juce::Result::fail ("Event file contains an invalid block size");
+        if (version >= 3 && r.type == (std::uint8_t) RecType::Outcome && r.flags > 3)
+            return juce::Result::fail ("Event file contains unknown outcome flags");
 
         const auto lastCommand = version == 1 ? (std::uint8_t) CommandType::PreviewRecipe : (std::uint8_t) CommandType::PresetGoto;
         if (r.type == (std::uint8_t) RecType::Command && (r.flags > lastCommand || (version >= 2 && r.p0 > 255)))
@@ -493,6 +602,7 @@ juce::Result fromFileText (const juce::String& text, ReplayData& out)
         d.records.push_back (r);
     }
 
+    size_t extrasFirst = 0, extrasEnd = 0;
     for (size_t i = 0; i < d.records.size(); ++i)
     {
         const auto& r = d.records[i];
@@ -501,11 +611,27 @@ juce::Result fromFileText (const juce::String& text, ReplayData& out)
             Command command;
             if (! commandAt (d, i, command))
                 return juce::Result::fail ("Event file contains an invalid command payload");
+            if (i + 1 < d.records.size() && needsRecipe (r.flags) && d.records[i + 1].index == 1)
+            { extrasFirst = i + 2; extrasEnd = i + 5; }
         }
         if (r.type == (std::uint8_t) RecType::RecipePayload
             && (i == 0 || d.records[i - 1].type != (std::uint8_t) RecType::Command
                 || ! needsRecipe (d.records[i - 1].flags)))
             return juce::Result::fail ("Event file contains an orphan recipe payload");
+        if (r.type == (std::uint8_t) RecType::Outcome && (r.flags & kOutcomeHasDetails) != 0)
+        {
+            FillRecipe recipe;
+            gapfill::RecipeExtras extra;
+            if (! outcomeDetailsAt (d, i, recipe, extra))
+                return juce::Result::fail ("Event file contains an invalid outcome payload");
+            extrasFirst = i + 2; extrasEnd = i + 5;
+        }
+        if (r.type == (std::uint8_t) RecType::OutcomeRecipe
+            && (i == 0 || d.records[i - 1].type != (std::uint8_t) RecType::Outcome
+                || (d.records[i - 1].flags & kOutcomeHasDetails) == 0))
+            return juce::Result::fail ("Event file contains an orphan outcome payload");
+        if (r.type == (std::uint8_t) RecType::RecipeExtras && (i < extrasFirst || i >= extrasEnd))
+            return juce::Result::fail ("Event file contains orphan recipe extras");
     }
 
     if (! d.records.empty() && (int) d.records.back().block > d.numBlocks)
