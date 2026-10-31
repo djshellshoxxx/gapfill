@@ -353,7 +353,7 @@ private:
 
     transport::TransportTracker transportTracker;
     transport::HostTiming hostTiming;
-    std::atomic<std::uint32_t> modelVersionsPacked { 0x020202u };
+    std::atomic<std::uint32_t> modelVersionsPacked { 0x02020202u };
    #ifdef GAPFILL_UNIT_TESTS
     int transportJumpCountForTests = 0;
    #endif

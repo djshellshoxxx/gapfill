@@ -12,10 +12,7 @@ void GapFillAudioProcessor::setModelVersions (models::ModelVersions versions, bo
 {
     if (! versions.valid())
         versions = models::ModelVersions::legacy();
-    for (int i = apvts.state.getNumChildren(); --i >= 0;)
-        if (apvts.state.getChild (i).hasType (models::kTreeType))
-            apvts.state.removeChild (i, nullptr);
-    apvts.state.appendChild (models::toModelVersionsTree (versions), nullptr);
+    models::writeToParameterState (apvts.state, versions);
     modelVersionsPacked.store (versions.packed(), std::memory_order_release);
     contextState.tasteService().setModelVersion (versions.taste);
     if (notifyHost)
@@ -27,12 +24,7 @@ void GapFillAudioProcessor::setModelVersions (models::ModelVersions versions, bo
 
 void GapFillAudioProcessor::syncModelVersions()
 {
-    int count = 0;
-    for (int i = 0; i < apvts.state.getNumChildren(); ++i)
-        count += apvts.state.getChild (i).hasType (models::kTreeType) ? 1 : 0;
-    const auto versions = count == 1
-        ? models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType))
-        : models::ModelVersions::legacy();
+    const auto versions = models::fromParameterState (apvts.state);
     modelVersionsPacked.store (versions.packed(), std::memory_order_release);
     contextState.tasteService().setModelVersion (versions.taste);
 }

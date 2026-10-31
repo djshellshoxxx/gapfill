@@ -466,6 +466,7 @@ EngineSettings GapFillAudioProcessor::gatherEngineSettings (int startSample)
     const auto models = getModelVersions();
     s.fx.cloud.modelVersion = models.cloud;
     s.perf.arr.modelVersion = models.arrangement;
+    s.perf.groove.modelVersion = models.groove;
     Effective::MacroOutputs macroOut;
     uiState.mutationOverlay.apply (s);          // F-L17 Mutation Lab preview: first stage, identity while inactive
     auto modulation = hooks::gatherModulationInputs (params);

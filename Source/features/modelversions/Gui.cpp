@@ -2,6 +2,7 @@
 #include "../../gui/Knob.h"
 #include "../../gui/SlotHost.h"
 #include "../../gui/HelpRegistry.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::models
 {
@@ -19,7 +20,7 @@ namespace
             hint.setColour (juce::Label::textColourId, colours::textMuted);
             upgrade.setButtonText ("UPGRADE MODELS");
             upgrade.setTitle ("Upgrade sound models");
-            upgrade.setTooltip ("Use the improved Cloud, Taste and Arrangement models. Changes future fills and learning; Undo restores the previous versions.");
+            upgrade.setTooltip ("Use the improved Cloud, Taste, Arrangement and Groove models. Changes future fills and learning; Undo restores the previous versions.");
             upgrade.onClick = [this] { proc.upgradeModels(); refresh(); };
             for (auto* child : std::initializer_list<juce::Component*> { &label, &hint, &upgrade })
                 addAndMakeVisible (*child);
@@ -41,9 +42,11 @@ namespace
         void refresh()
         {
             const auto v = proc.getModelVersions();
-            const auto text = "Cloud " + juce::String ((int) v.cloud) + ", Taste " + juce::String ((int) v.taste)
-                            + ", Arrangement " + juce::String ((int) v.arrangement) + ", Groove " + juce::String ((int) v.groove)
-                            + (v == ModelVersions {} ? ". Latest models." : ". Saved legacy behaviour; upgrade is optional and undoable.");
+            const auto text = i18n::format (v == ModelVersions {}
+                ? "Cloud {0}, Taste {1}, Arrangement {2}, Groove {3}. Latest models."
+                : "Cloud {0}, Taste {1}, Arrangement {2}, Groove {3}. Saved legacy behaviour; upgrade is optional and undoable.",
+                { juce::String ((int) v.cloud), juce::String ((int) v.taste),
+                  juce::String ((int) v.arrangement), juce::String ((int) v.groove) });
             hint.setText (text, juce::dontSendNotification);
             hint.setTitle (text);
             upgrade.setEnabled (v != ModelVersions {});
