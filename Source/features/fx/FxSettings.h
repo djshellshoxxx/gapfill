@@ -8,6 +8,7 @@
 // independent of host block size. Every field is NEUTRAL at its default.
 
 #include <cstdint>
+#include "../tapedamage/TapeSettings.h"
 
 namespace gapfill::fx
 {
@@ -153,6 +154,8 @@ struct FxSettings
 
     /** F-D03: multiplier on every bus-effect tail cap (Full 1.0, Balanced 0.5, Lite 0.25). */
     float tailCapScale = 1.0f;
+
+    TapeExtraSettings tapeExtra; ///< Explicit opt-in detailed Tape path; amount0 is exact legacy identity.
 
     /** True when any VoiceFx card could be active for a new fill. */
     bool anyVoiceFx() const noexcept
