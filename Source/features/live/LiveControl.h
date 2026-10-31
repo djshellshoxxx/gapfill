@@ -77,6 +77,7 @@ public:
     const commands::BindingModel& bindings() const noexcept { return bindingModel; }
     scenes::SceneController& scenes() noexcept           { return sceneCtl; }
     const scenes::SceneController& scenes() const noexcept { return sceneCtl; }
+    const scenes::OverlayView& sceneView() const noexcept { return sceneEngine.view(); }
     battle::BattleModel& battles() noexcept              { return battleModel; }
     battle::Status getBattleStatus() const noexcept      { return (battle::Status) uiBattle.load (std::memory_order_relaxed); }
     macros::MacroModel& macroMappings() noexcept         { return macroModel; }

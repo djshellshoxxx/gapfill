@@ -622,6 +622,12 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
     const Effective::TransportInfo transport { havePpq, ppq, base.perf.tsNum, base.perf.tsDen,
                                                havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0 };
     Effective::applyAtDecision (s, ppq, transport);
+    if (! forced && s.perf.coop.view != nullptr && s.perf.coop.view->mode == coop::Deterministic)
+    {
+        const auto scale = coop::yieldScale (*s.perf.coop.view, havePpq, ppq);
+        s.density01 *= scale.density;
+        s.fill01 *= scale.fill;
+    }
     publishDecisionTelemetry (base, s, ppq, transport);
 
     GapContext ctx;

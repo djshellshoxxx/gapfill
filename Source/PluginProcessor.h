@@ -261,6 +261,8 @@ private:
     void beginHostCallbackTiming();
     scenes::TransportSnap sceneTransportAt (int startSample, int numSamples) const noexcept;
     int sceneSegmentLength (int startSample, int numSamples) noexcept;
+    coop::DeterministicConfig gatherCoopConfig() const noexcept;
+    void pumpCoop();
     bool isParameterStateValid (const juce::ValueTree& state) const;
     void snapParametersToState();
     void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); midiOut.requestFlush(); extendedMidiOut.requestFlush(); }

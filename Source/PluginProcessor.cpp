@@ -51,7 +51,12 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     midiLearn.connect (apvts);
     liveControl.setMidiLearn (&midiLearn);
     liveControl.setEventQueue (&fillEvents);
-    liveControl.setPanicHook ([] (void* self) noexcept { static_cast<GapFillAudioProcessor*> (self)->panicWet(); }, this);
+    liveControl.setPanicHook ([] (void* self) noexcept
+    {
+        auto& processor = *static_cast<GapFillAudioProcessor*> (self);
+        processor.coopMember.cancelGroupScenes();
+        processor.panicWet();
+    }, this);
     liveControl.scenes().setModelVersionsCommittedCallback ([this] { syncModelVersions(); });
     liveControl.setGroupSceneCancelReader ([] (void* self, std::uint8_t group) noexcept
     {
@@ -149,6 +154,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     engine.setFxMeters (&fxChain.getMeters());
     soloSplitter.prepare (currentSampleRate, 2);
     liveControl.prepare (currentSampleRate, preparedBlockSize);
+    coopMember.configureDeterministic (gatherCoopConfig());
 
     for (auto& hp : lowProtect)
         hp.reset();
@@ -262,6 +268,7 @@ void GapFillAudioProcessor::timerCallback()
     // MIDI learn is intentionally bounded so the plugin cannot stay armed
     // indefinitely after the context menu closes.
     liveControl.pump (*this);
+    pumpCoop();
 
     const bool learnChanged = midiLearn.applyPendingChanges();
     const bool learnTimedOut = midiLearn.advanceLearningTimeout();
@@ -714,9 +721,14 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     }
 
     // F-X06 co-op: join / leave the group, snapshot the peers published up to the previous block.
-    const bool coopOn = pi (params.coopGroup) != 0;
+    const bool deterministicCoop = pb (params.coopDeterministic);
+    const bool coopOn = ! deterministicCoop && pi (params.coopGroup) != 0;
 
-    if (coopOn || coopMember.getId() != 0)
+    if (deterministicCoop)
+        engineSettings.perf.coop = coopMember.beginDeterministicChunk (gatherCoopConfig(),
+            { engineSettings.transportValid, engineSettings.ppqAtBlockStart, engineSettings.samplesPerBeat,
+              scenes::quantiser::barLength (engineSettings.perf.tsNum, engineSettings.perf.tsDen), numSamples });
+    else if (coopOn || coopMember.getId() != 0 || coopMember.getGroup() != 0)
         engineSettings.perf.coop = coopMember.beginChunk (pi (params.coopGroup), pi (params.coopMode), currentSampleRate,
                                                           juce::Time::getMillisecondCounterHiRes(), juce::Time::getMillisecondCounter());
     liveControl.prepareChunk (engineSettings, numSamples, samplesProcessed - (std::int64_t) targetLatency);
@@ -1175,7 +1187,9 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     root.setProperty ("reducedMotion", reducedMotionEnabled.load (std::memory_order_relaxed), nullptr);
     root.setProperty ("keyboardNavigation", keyboardNavigationEnabled.load (std::memory_order_relaxed), nullptr);
     uiState.writeState (root);
-    root.appendChild (apvts.copyState(), nullptr);
+    auto parameters = apvts.copyState();
+    coopMember.applyAssignedSlotToState (parameters);
+    root.appendChild (parameters, nullptr);
     root.appendChild (midiLearn.toValueTree(), nullptr);
     const auto written = state::writeSubtrees (*this, root, state::reservedSubtrees());
     if (! written.ok)
@@ -1398,7 +1412,9 @@ bool GapFillAudioProcessor::saveParameterStateToFile (const juce::File& file, ju
         return false;
     }
 
-    auto xml = apvts.copyState().createXml();
+    auto parameters = apvts.copyState();
+    coopMember.applyAssignedSlotToState (parameters);
+    auto xml = parameters.createXml();
 
     if (xml == nullptr)
     {

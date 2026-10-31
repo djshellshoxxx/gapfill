@@ -52,6 +52,7 @@ void GapFillAudioProcessor::beginHostCallbackTiming()
         {
             startTimelineEpoch();
             engine.noteTransportJump();
+            coopMember.noteTransportJump();
             contextState.onTransportJump();
             panicWet();
            #ifdef GAPFILL_UNIT_TESTS
@@ -60,6 +61,7 @@ void GapFillAudioProcessor::beginHostCallbackTiming()
         }
         else if (kind == transport::JumpKind::Stop)
         {
+            coopMember.cancelGroupScenes();
             panicWet();
         }
     }
