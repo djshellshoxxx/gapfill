@@ -8,9 +8,11 @@
 #include "features/presetbrowser/PresetBrowser.h"
 #include "features/info/ParamInfo.h"
 #include "features/info/StatusBoard.h"
+#include "features/coop/Coop.h"
 #include "gui/HelpView.h"
 #include "../support/AllocGuard.h"
 #include <array>
+#include <bit>
 
 using namespace gapfill::i18n;
 
@@ -264,6 +266,38 @@ GF_TEST (I18n, hover_parameter_readout_localizes_only_presentation)
     {
         ScopedLanguage language ("pseudo");
         GF_EXPECT (gapfill::info::describeParameter (state, "density") != english);
-        GF_EXPECT (state.getParameter ("density")->getValue() == value);
+        GF_EXPECT (std::bit_cast<std::uint32_t> (state.getParameter ("density")->getValue()) == std::bit_cast<std::uint32_t> (value));
+    }
+}
+
+GF_TEST (I18n, cooperative_status_localization_preserves_membership_and_slot)
+{
+    gapfill::coop::CoopMember member;
+    member.beginChunk (gapfill::coop::GroupH, gapfill::coop::AvoidOverlap, 48000.0, 1.0, 1);
+    const auto group = member.getGroup();
+    const auto id = member.getId();
+    juce::String english;
+    {
+        ScopedLanguage language ("en");
+        english = member.describe();
+    }
+    {
+        ScopedLanguage language ("pseudo");
+        GF_EXPECT (member.describe() != english);
+        GF_EXPECT (member.getGroup() == group && member.getId() == id);
+    }
+    gapfill::coop::DeterministicConfig settings;
+    settings.group = gapfill::coop::GroupH;
+    settings.slot = 7;
+    member.beginDeterministicChunk (settings, {}); // invalid transport pauses; language cannot supply timing
+    const auto slot = member.assignedSlot();
+    {
+        ScopedLanguage language ("en");
+        GF_EXPECT (member.describe() == "Cooperation paused: no host transport");
+    }
+    {
+        ScopedLanguage language ("pseudo");
+        GF_EXPECT (member.describe() == text ("Cooperation paused: no host transport"));
+        GF_EXPECT (member.assignedSlot() == slot);
     }
 }

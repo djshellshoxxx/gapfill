@@ -43,7 +43,7 @@ Validation completed locally:
 The real Help probe found that padding a whole pseudo paragraph at its end made
 one unbreakable token overflow at every width. Pseudo padding now distributes
 across breakable words while preserving placeholders and at least 40 percent
-codepoint expansion. One accented letter per word exercises Unicode within the
+codepoint expansion. One accented letter per entry exercises Unicode within the
 byte cap. The generated inventory prunes structure/thread/numeric literals and
 catalogs plain HelpRegistrar bodies at their actual split-paragraph sinks.
 
@@ -69,3 +69,16 @@ native syntax checks across this slice. The final source inventory additionally
 prunes factory identities, serialized state/reason/command keys and compiler
 diagnostics; English is 165,056 bytes and pseudo is 232,204 bytes on this branch,
 before the coordinator incorporates other feature owners' new text.
+
+On the committed `af1cae1` integration snapshot plus this readout slice, new
+feature strings initially grew pseudo JSON to 269,773 bytes. The 256 KiB cap
+remains enforced. Permanent parameter-ID CSV scope lists are excluded, and
+pseudo accents one eligible letter per entry while retaining every complete UI
+sentence, stable key, placeholder and at least 40 percent codepoint expansion.
+The integration catalogs are English 190,382 bytes / pseudo 247,915 bytes.
+A fresh native probe parsed these catalogs through the real C++ loader and
+verified localized legacy/deterministic co-op status without changing instance
+identity, group or assigned slot. Only `CoopMember::describe` presentation calls
+the language service; membership/timing/audio/state paths retain their existing
+behavior. This snapshot still requires final regeneration after the other UI
+handoffs and the coordinator's last editor changes.

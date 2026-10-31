@@ -29,8 +29,8 @@
 //    keeps everything deterministic. Alternate is reproducible for a fixed member set.
 //  * Time domain: musical position (ppq) when the host reports one, otherwise the wall
 //    clock. Only slots of the same domain are compared.
-//  * Not implemented (specified for later): per-slot priority/yield, rendezvous-hash
-//    ownership with a fixed slot number, group-wide scene recall, shared tempo estimate.
+//  * Deterministic mode adds per-slot priority/yield, fixed-slot rendezvous
+//    ownership and group-wide scene recall. Host transport supplies its timing.
 
 #include "CoopFwd.h"
 #include "DetRegistry.h"
@@ -136,7 +136,8 @@ double timeAt (const CoopView&, bool havePpq, double ppqAtChunkStart, std::int64
                double samplesPerBeat) noexcept;
 
 //==============================================================================
-/** One processor's membership. Message thread constructs/destroys; the audio thread calls the rest. */
+/** One processor's membership. The message thread owns construction, destruction
+    and presentation/state helpers; preparation/audio methods are marked below. */
 class CoopMember
 {
 public:
@@ -188,7 +189,8 @@ public:
     int  getGroup() const noexcept        { return activeGroup.load (std::memory_order_relaxed); }
     std::uint32_t getId() const noexcept  { return myId.load (std::memory_order_relaxed); }
 
-    /** "Co-op A: 2 other instances" / "Co-op: no other GapFill found"; empty when Off. */
+    /** MESSAGE THREAD ONLY. Localized presentation; no membership/state edits.
+        "Co-op A: 2 other instances" / deterministic status; empty when Off. */
     juce::String describe() const;
 
 private:

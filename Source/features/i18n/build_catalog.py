@@ -50,6 +50,9 @@ def classify(value: str, source: str, start: int, end: int, path: Path, ids: set
     suffix = source[end:end + 80]
     if re.search(r"(?:i18n::)?(?:text|format)\s*\(\s*$", prefix) and re.search(r"[A-Za-z]", value):
         return "explicit-translation"
+    csv = value.split(",")
+    if len(csv) > 1 and all(part in ids for part in csv):
+        return "protected-or-nonprose"  # permanent parameter-ID scope lists, never presentation
     if (path.name in ("StateSubtrees.cpp", "SchedulerTypes.cpp")
             or path.name in ("Presets.cpp", "Suggest.cpp") and re.search(r"\{\s*$", prefix)
             or re.search(r"\bstatic_assert\s*\([^;]*,\s*$", prefix)):
@@ -92,14 +95,19 @@ def pseudo(value: str) -> str:
     # Numbered placeholders are copied exactly. Their argument data is never
     # accented, padded or interpreted by the runtime formatter.
     parts = re.split(r"(\{\d+\}|\{\{|\}\}|\s+)", value)
+    accent_applied = False
     def accent_word(match):
+        nonlocal accent_applied
         word = match[0]
+        if accent_applied:
+            return word
         for index, character in enumerate(word):
             replacement = character.translate(ACCENTS)
             if replacement != character:
+                accent_applied = True
                 return word[:index] + replacement + word[index + 1:]
         return word
-    # One accent per word exercises non-ASCII glyphs while preserving catalog
+    # One accent per entry exercises non-ASCII glyphs while preserving catalog
     # room for real UI sentences. Expansion still measures Unicode codepoints,
     # not bytes, and remains at least +40% for every complete presentation key.
     target = max(len(value) + 2, math.ceil(len(value) * 1.4))

@@ -55,7 +55,7 @@ key and an estimated sink category. **Pending categories are not coverage.**
 Review runtime fragments, menus and custom drawing explicitly; the catalog's
 presence cannot prove a string is wired. The pseudo catalog accents and expands
 complete strings by at least 40 percent, retaining placeholders unchanged.
-It accents one letter per word to exercise glyph coverage within the byte cap;
+It accents one letter per entry to exercise glyph coverage within the byte cap;
 protocol IDs, structure tags, thread names and numeric character sets are pruned.
 Plain HelpRegistrar bodies are cataloged at the actual split-paragraph sinks.
 

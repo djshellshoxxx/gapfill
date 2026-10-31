@@ -1,4 +1,5 @@
 #include "Coop.h"
+#include "../i18n/Strings.h"
 
 #include <algorithm>
 #include <cmath>
@@ -247,17 +248,17 @@ juce::String CoopMember::describe() const
     if (status != DetOff)
     {
         if (status == DetFull)
-            return "Natural fills paused: co-op capacity is 32 instances";
+            return i18n::text ("Natural fills paused: co-op capacity is 32 instances");
         if (status == DetPaused)
-            return "Cooperation paused: no host transport";
+            return i18n::text ("Cooperation paused: no host transport");
         if (status == DetWaiting)
-            return "Co-op: waiting for coherent membership / fixed slots";
+            return i18n::text ("Co-op: waiting for coherent membership / fixed slots");
         if (status == DetPending)
-            return "Co-op settings pending; current membership still plays (a peer may not be advancing)";
+            return i18n::text ("Co-op settings pending; current membership still plays (a peer may not be advancing)");
         if (status == DetTransition)
-            return "Co-op membership changes at beat " + juce::String (std::bit_cast<double> (detBoundaryBits.load()), 2);
-        return "Deterministic co-op: slot " + juce::String (assignedSlot()) + ", "
-             + juce::String (getPeerCount() + 1) + " tracks; owner slot " + juce::String (detOwner.load());
+            return i18n::format ("Co-op membership changes at beat {0}", { juce::String (std::bit_cast<double> (detBoundaryBits.load()), 2) });
+        return i18n::format ("Deterministic co-op: slot {0}, {1} tracks; owner slot {2}",
+                             { juce::String (assignedSlot()), juce::String (getPeerCount() + 1), juce::String (detOwner.load()) });
     }
     const auto g = getGroup();
 
@@ -267,10 +268,10 @@ juce::String CoopMember::describe() const
     const auto n = getPeerCount();
 
     if (n <= 0)
-        return "Co-op: no other GapFill found";
+        return i18n::text ("Co-op: no other GapFill found");
 
-    return "Co-op " + juce::String::charToString ((juce::juce_wchar) ('A' + g - 1)) + ": "
-         + juce::String (n) + (n == 1 ? " other instance" : " other instances");
+    return i18n::format (n == 1 ? "Co-op {0}: {1} other instance" : "Co-op {0}: {1} other instances",
+                         { juce::String::charToString ((juce::juce_wchar) ('A' + g - 1)), juce::String (n) });
 }
 
 void CoopMember::releaseDeterministic() noexcept
