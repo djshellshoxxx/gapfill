@@ -50,14 +50,18 @@ struct TasteBias
 void addRating (Counts&, const FillRecipe&, int rating) noexcept;
 
 /** s_f = ln((L_f + 2) / (L + 4)) - ln((D_f + 2) / (D + 4)). */
-float score (const Counts&, int feature) noexcept;
+float score (const Counts&, int feature, std::uint8_t modelVersion = 1) noexcept;
 
 /** ready = L >= 3 && D >= 3 && L + D >= 8. Below that every multiplier is 1. */
 bool isReady (const Counts&) noexcept;
 
 float confidence (const Counts&) noexcept;       ///< min (1, (L + D) / 40)
 
-TasteBias biasFrom (const Counts&, float strength01) noexcept;
+TasteBias biasFrom (const Counts&, float strength01, std::uint8_t modelVersion = 1) noexcept;
+
+/** Quantise a rating update without allowing any multiplier to move by 0.1. */
+void quantiseRatingUpdate (const TasteBias&, const std::int8_t (&previous)[kFeatures],
+                           std::int8_t (&next)[kFeatures]) noexcept;
 
 /** int8 q = round (64 ln m), m = exp (q / 64), range +-44, as stored in the project. */
 void quantise (const TasteBias&, std::int8_t (&q)[kFeatures]) noexcept;
@@ -68,6 +72,7 @@ const char* featureName (int feature) noexcept;
 struct ExplainItem { int feature = 0; int liked = 0, total = 0; float score = 0.0f; };
 
 /** Features with L_f + D_f >= 3, ordered by |score|; toward = score > 0, away = score < 0. */
-void explain (const Counts&, int maxItems, std::vector<ExplainItem>& toward, std::vector<ExplainItem>& away);
+void explain (const Counts&, int maxItems, std::vector<ExplainItem>& toward, std::vector<ExplainItem>& away,
+              std::uint8_t modelVersion = 1);
 
 } // namespace gapfill::taste

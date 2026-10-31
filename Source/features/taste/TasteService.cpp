@@ -110,9 +110,9 @@ void TasteService::recompute (bool slew)
     }
 
     displayCounts = library.counts();
-    auto bias = biasFrom (displayCounts, lastStrength);
+    auto bias = biasFrom (displayCounts, lastStrength, modelVersion);
 
-    if (slew)
+    if (slew && modelVersion == 1)
     {
         // One rating moves a published multiplier by at most 0.06 (F-X05 M4): the profile eases towards the model.
         const auto old = dequantise (profile.q, true);
@@ -133,7 +133,10 @@ void TasteService::recompute (bool slew)
     profile.likes = displayCounts.likes;
     profile.skips = displayCounts.skips;
     profile.ready = bias.ready;
-    quantise (bias, profile.q);
+    if (slew && modelVersion == 2)
+        quantiseRatingUpdate (bias, profile.q, profile.q);
+    else
+        quantise (bias, profile.q);
     publish();
 }
 

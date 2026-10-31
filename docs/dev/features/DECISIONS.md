@@ -13,7 +13,7 @@ Defaults chosen so implementation is unblocked. Owner may override; changes go t
 9. F-S12 Panic mutes wet only (dry untouched).
 10. F-S05 ships now with the personality hook inactive until F-M06 lands.
 11. F-M12/F-S11 keep the existing AppData preset folder.
-12. F-X05 Skip semantics: skip = neutral (no preference signal). F-X06: in-process only, 16-slot cap.
+12. F-X05 Skip semantics (corrected 2026-10-31 to F-X05/WP7): an explicit user Skip is dislike (-1); an unrated fill is neutral and adds no rating. The shipped store already encoded explicit Skip as -1, so existing counts and quantised profiles are preserved; no implicit dislikes are inferred. Sound-model calibration upgrades are explicit through ModelVersions. F-X06: in-process only, 16-slot cap.
 13. F-FX0 history format: 24-byte `FillRecipeEx`, versioned.
 14. F-M09 band-splitter dip is NOT retrofitted (would change golden output); new multiband code (F-L14) uses a phase-compensated crossover and is default-off.
 15. F-M23 moves macro evaluation to the decision stage; F-L06 keeps unsmoothed scheduler-read targets (block-size invariance).
