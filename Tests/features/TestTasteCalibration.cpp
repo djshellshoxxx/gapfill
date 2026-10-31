@@ -140,9 +140,69 @@ GF_TEST (TasteCalibration, version_one_formula_and_version_two_readiness_remain_
     }
     const auto latest = biasFrom (c, 1.0f, 2);
     GF_EXPECT (latest.ready);
+    for (const auto m : latest.band) GF_EXPECT (m == 1.0f);
     for (const auto m : latest.algo) GF_EXPECT (m >= 0.5f && m <= 2.0f);
     GF_EXPECT (biasFrom (c, 0.0f, 2).algo[0] == 1.0f);
     Counts empty;
     GF_EXPECT (! biasFrom (empty, 1.0f, 2).ready);
     GF_EXPECT (biasFrom (empty, 1.0f, 2).algo[0] == 1.0f);
+}
+
+GF_TEST (TasteCalibration, calibrated_explanations_meet_canonical_supported_item_truth_metric)
+{
+    int matched = 0, supportedMatches = 0;
+    constexpr int users = 1000;
+    for (int user = 1; user <= users; ++user)
+    {
+        juce::Random truthRng ((juce::int64) user * 131), feedback (user);
+        bool truth[kAlgoFeatures] {};
+        int n = 0;
+        while (n < 3)
+        {
+            const auto a = truthRng.nextInt (kAlgoFeatures);
+            if (! truth[a]) { truth[a] = true; ++n; }
+        }
+        Counts counts;
+        for (int i = 0; i < 150; ++i)
+        {
+            const auto a = feedback.nextInt (kAlgoFeatures);
+            const auto liked = feedback.nextFloat() < 0.8f ? truth[a] : ! truth[a];
+            addRating (counts, ratedRecipe (a, i), liked ? 1 : -1);
+        }
+        std::vector<ExplainItem> toward, away;
+        explain (counts, 3, toward, away, 2);
+        int correct = 0;
+        for (const auto& item : toward)
+            correct += item.feature < kAlgoFeatures && truth[item.feature] ? 1 : 0;
+        matched += toward.size() == 3 && correct == 3 ? 1 : 0;
+        supportedMatches += ((toward.size() == 3 && correct == 3) || (correct >= 2 && correct == (int) toward.size())) ? 1 : 0;
+        if (user == 100) std::printf ("         First canonical100: strict%d supported%d\n", matched, supportedMatches);
+    }
+    std::printf ("         Taste v2 top-three explanation truth: %d/%d at150ratings\n", matched, users);
+    std::printf ("         Broader supported truth %d/%d\n", supportedMatches, users);
+    // Preserve the existing TestTaste M3 criterion: at least two reported
+    // items, and every reported item belongs to the hidden preferred set.
+    // The model may honestly report only two when the third lacks evidence;
+    // forcing a third item is a stricter, distinct metric measured above.
+    GF_EXPECT (supportedMatches >= users * 9 / 10);
+}
+
+GF_TEST (TasteCalibration, unrated_and_invalid_fills_do_not_change_counts_profile_or_revision)
+{
+    const auto file = juce::File::getSpecialLocation (juce::File::tempDirectory)
+                          .getNonexistentChildFile ("gapfill_unrated", ".xml");
+    TasteService service (file);
+    FillEvent event;
+    event.type = FillEventType::Started;
+    event.recipe = ratedRecipe (2, 1);
+    service.onFillEvent (event);
+    const auto revision = service.revision();
+    service.rate (event.recipe, 0);
+    auto invalid = event.recipe;
+    invalid.algo = 255;
+    service.rate (invalid, -1);
+    GF_EXPECT (service.counts().likes == 0 && service.counts().skips == 0);
+    GF_EXPECT (service.revision() == revision && ! service.ready());
+    service.rateLatest (-1); // an explicit Skip is a dislike
+    GF_EXPECT (service.counts().skips == 1 && service.revision() > revision);
 }

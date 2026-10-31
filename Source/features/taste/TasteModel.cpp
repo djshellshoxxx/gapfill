@@ -92,7 +92,14 @@ TasteBias biasFrom (const Counts& c, float strength01, std::uint8_t modelVersion
         b.algo[a] = std::clamp (std::exp (beta * score (c, a, modelVersion)), kMin, kMax);
 
     for (int i = 0; i < kBandFeatures; ++i)
+    {
+        const auto f = (std::size_t) (kAlgoFeatures + i);
+        // Full-band ratings contain no spectral-band preference evidence.
+        // Keep those unrelated odds neutral until the band itself is rated.
+        if (modelVersion == 2 && c.liked[f] + c.skipped[f] == 0)
+            continue;
         b.band[i] = std::clamp (std::exp (beta * score (c, kAlgoFeatures + i, modelVersion)), kMin, kMax);
+    }
 
     return b;
 }

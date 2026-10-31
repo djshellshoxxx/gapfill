@@ -60,6 +60,8 @@ public:
 
     void setModelVersion (std::uint8_t version) noexcept { modelVersion = version == 2 ? 2 : 1; }
     std::uint8_t getModelVersion() const noexcept { return modelVersion; }
+    /** Message-thread publication serial, for host non-parameter dirty notification. */
+    std::uint64_t revision() const noexcept { return publicationRevision; }
 
     TasteBias currentBias() const noexcept;                     ///< what the audio thread sees (any thread)
 
@@ -75,6 +77,7 @@ private:
     ProjectProfile profile;
     float lastStrength = 0.5f;
     std::uint8_t modelVersion = 2;
+    std::uint64_t publicationRevision = 0;
     FillRecipe latest;
     bool haveLatest = false;
     bool noticeShown = false;

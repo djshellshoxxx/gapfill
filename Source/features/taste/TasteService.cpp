@@ -50,6 +50,7 @@ void TasteService::publish()
 
     pubReady.store (profile.ready, std::memory_order_relaxed);
     seq.fetch_add (1, std::memory_order_release);
+    ++publicationRevision;
 }
 
 void TasteService::apply (EngineSettings& s) const noexcept
@@ -142,6 +143,9 @@ void TasteService::recompute (bool slew)
 
 void TasteService::rate (const FillRecipe& r, int rating)
 {
+    if ((rating != 1 && rating != -1) || ! isValid (r))
+        return; // an unrated or invalid fill supplies no preference signal
+
     if (! libraryLoaded)
     {
         library.load();
