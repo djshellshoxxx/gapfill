@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../features/midiout/EngineEvents.h"
+#include "../features/formant/FormantPool.h"
 
 #include "EngineEvents.h"
 #include "EngineTransitions.h"
@@ -160,6 +161,7 @@ public:
 
     /** Total number of fills started since the last reset (used by tests). */
     int  getFillsStarted() const noexcept { return fillsStarted; }
+    const formant::FormantPool& getFormantPool() const noexcept { return formants; }
 
     /** Number of eligible gaps rejected because they were shorter than the
         Minimum Gap setting (used by tests). */
@@ -250,6 +252,8 @@ private:
     double sr = 48000.0;
     int channels = 2;
 
+    // Must outlive every voice: their destructors release any outstanding claim.
+    formant::FormantPool formants;
     FillVoice voices[numVoices];
     PreviewChannel preview;        // E-1: dedicated voice outside the pool of numVoices
     LockState lockState;           // C-5

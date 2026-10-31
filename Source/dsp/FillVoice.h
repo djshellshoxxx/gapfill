@@ -12,6 +12,7 @@
 #include "../features/harmonic/HarmonicGrains.h"
 #include "../features/scale/VoiceQuantiser.h"
 #include "../features/swell/SwellMode.h"
+#include "../features/formant/FormantProcessor.h"
 
 namespace gapfill
 {
@@ -96,6 +97,7 @@ struct VoiceSetup
 
     /** F-X01 Harmonic granular: the pitch step result for a Granular fill. Neutral = disabled. */
     harmonic::HarmonicSetup harmonicSetup;
+    formant::FormantSetup formantSetup;
 };
 
 //==============================================================================
@@ -107,12 +109,18 @@ struct VoiceSetup
 class FillVoice
 {
 public:
+    ~FillVoice()
+    {
+        if (formantProcessor != nullptr)
+            formantProcessor->release();
+    }
+
     void prepare (double sampleRate, int numChannels);
     void reset();
 
     /** Starts a fill. Returns false if the setup cannot be honoured. */
     bool start (const VoiceSetup& setup, const SourceHistory& history,
-                SpectralSmear* spectral);
+                SpectralSmear* spectral, formant::FormantProcessor* formant = nullptr);
 
     /** Asks the voice to fade out over `fadeSamples` and finish. */
     void requestStop (int fadeSamples) noexcept;
@@ -125,6 +133,7 @@ public:
     int  getBand()  const noexcept { return setupData.band; }
     int  getRemainingSamples() const noexcept { return juce::jmax (0, totalLength - elapsed); }
     int  getLengthSamples()    const noexcept { return totalLength; }
+    int  getFormantInputSamples() const noexcept { return formantInputEnd; }
     bool isExcludedFromBus() const noexcept { return setupData.excludeFromBus; }
 
     /** Effect-chain telemetry sink (owned by the processor's FxChain). */
@@ -203,6 +212,8 @@ private:
     //--------------------------------------------------------------------------
     VoiceSetup setupData;
     bool   active = false;
+    formant::FormantProcessor* formantProcessor = nullptr;
+    int formantInputEnd = 0;
     double sr = 48000.0;
     int    channels = 2;
 

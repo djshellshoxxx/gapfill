@@ -56,6 +56,12 @@ void FillVoice::prepare (double sampleRate, int numChannels)
 
 void FillVoice::reset()
 {
+    if (formantProcessor != nullptr)
+    {
+        formantProcessor->release();
+        formantProcessor = nullptr;
+    }
+    formantInputEnd = 0;
     active = false;
     capture.clear();
     combBuffer.clear();
@@ -189,7 +195,7 @@ void FillVoice::captureSource (const SourceHistory& history, int lengthNeeded)
 
 //==============================================================================
 bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
-                       SpectralSmear* spectral)
+                       SpectralSmear* spectral, formant::FormantProcessor* formant)
 {
     setupData = setup;
     rng.seed (setup.rngSeed);
@@ -402,6 +408,11 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
     // HOOK (WP8, FX-0): latch the effect cards for this fill.
     { auto fxs = setup.fxStart; fxs.lengthSamples = totalLength; fxChain.start (fxs); }
 
+    // The scheduler has already claimed a free, prepared processor. Keep the
+    // planned output deadline; the generated source ends N samples earlier so
+    // the delayed stage drains before the next protected event, with no PDC change.
+    formantProcessor = formant;
+    formantInputEnd = formant != nullptr ? juce::jmax (0, totalLength - formant->latencySamples()) : totalLength;
     active = true;
     return true;
 }
@@ -789,7 +800,19 @@ void FillVoice::generateSample (float& left, float& right, const SourceHistory& 
     if (envelopeStage.isActive())
         envelopeStage.process (l, r, (float) elapsed / (float) totalLength);
 
+    if (formantProcessor != nullptr)
+    {
+        if (elapsed >= formantInputEnd)
+            l = r = 0.0f;
+        formantProcessor->process (l, r);
+    }
+
     auto gain = envelopeAt (elapsed) * setupData.amp;
+    if (formantProcessor != nullptr)
+    {
+        const int onsetAge = elapsed - formantProcessor->latencySamples();
+        gain *= onsetAge < 0 ? 0.0f : juce::jlimit (0.0f, 1.0f, (float) onsetAge / (float) juce::jmax (1, fadeIn));
+    }
     const auto preFxGain = gain;
 
     duck += duckCoeff * (duckTarget - duck);
@@ -831,6 +854,12 @@ void FillVoice::generateSample (float& left, float& right, const SourceHistory& 
 void FillVoice::deactivate() noexcept
 {
     active = false;
+
+    if (formantProcessor != nullptr)
+    {
+        formantProcessor->release();
+        formantProcessor = nullptr;
+    }
 
     if (spectralProcessor != nullptr)
     {

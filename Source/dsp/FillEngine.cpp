@@ -89,6 +89,7 @@ void FillEngine::prepare (double sampleRate, int /*maxBlockSize*/, int numChanne
     scrub.prepare (sr, channels);
     holdVoices.prepare (sr, channels);     // F-M10
     spectral.prepare (sr, 2);
+    formants.prepare (sr);
 
     // Keep the visualiser feed at a roughly constant rate across sample rates.
     vizDecim = juce::jmax (1, (int) std::round (sr / (double) AnalysisEngine::hopSize / 700.0));
@@ -110,6 +111,7 @@ void FillEngine::reset()
 
     spectral.reset();
     spectral.release();
+    formants.reset();
 
     inGap = false;
     midiConfidenceValid = false;
@@ -1078,6 +1080,9 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
 
     fx::prepareVoiceSetup (setup, plan, ctx, s, fxMeters);      // WP8: effect cards, swell landing, band routing
     context::prepareVoiceSetup (setup, plan, ctx, s, history, fxMeters);           // WP7: Scale Lock (N-MUS) voice setup, groove shifts (F-L09)
+    setup.formantSetup = s.voiceFormant;
+    if (setup.fxStart.skipVoiceFx)
+        setup.formantSetup = {};
     return setup;
 }
 
@@ -1091,11 +1096,21 @@ bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan
         plan.recipe.pitchSemis = voice.getPitchSemis();
     };
 
-    if (voice.start (setup, history, &spectral))
+    auto requestFormant = [&]
+    {
+        const auto minimum = (int) std::ceil (kProfiles[(int) setup.algo].minMs * 0.001 * sr);
+        return formants.request (setup.formantSetup, setup.lengthSamples, minimum);
+    };
+    auto* voiceFormant = requestFormant();
+
+    if (voice.start (setup, history, &spectral, voiceFormant))
     {
         record();
         return true;
     }
+
+    if (voiceFormant != nullptr)
+        voiceFormant->release();
 
     // Spectral processor busy - fall back to a simpler algorithm.
     setup.algo = Algo::Granular;
@@ -1103,8 +1118,14 @@ bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan
     if (plan.lengthMs < kProfiles[(int) Algo::Granular].minMs)
         setup.algo = Algo::Reverse;
 
-    if (! voice.start (setup, history, &spectral))
+    voiceFormant = requestFormant();
+
+    if (! voice.start (setup, history, &spectral, voiceFormant))
+    {
+        if (voiceFormant != nullptr)
+            voiceFormant->release();
         return false;
+    }
 
     plan.algoIndex = (int) setup.algo;
     plan.recipe.algo = (std::uint8_t) plan.algoIndex;
