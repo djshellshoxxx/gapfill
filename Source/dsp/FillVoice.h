@@ -13,6 +13,7 @@
 #include "../features/scale/VoiceQuantiser.h"
 #include "../features/swell/SwellMode.h"
 #include "../features/formant/FormantProcessor.h"
+#include "RecipeExtras.h"
 
 namespace gapfill
 {
@@ -98,6 +99,8 @@ struct VoiceSetup
     /** F-X01 Harmonic granular: the pitch step result for a Granular fill. Neutral = disabled. */
     harmonic::HarmonicSetup harmonicSetup;
     formant::FormantSetup formantSetup;
+    RecipeExtras recipeExtras;
+    bool replayRecipe = false;
 };
 
 //==============================================================================
@@ -134,6 +137,7 @@ public:
     int  getRemainingSamples() const noexcept { return juce::jmax (0, totalLength - elapsed); }
     int  getLengthSamples()    const noexcept { return totalLength; }
     int  getFormantInputSamples() const noexcept { return formantInputEnd; }
+    const RecipeExtras& getRecipeExtras() const noexcept { return setupData.recipeExtras; }
     bool isExcludedFromBus() const noexcept { return setupData.excludeFromBus; }
 
     /** Effect-chain telemetry sink (owned by the processor's FxChain). */

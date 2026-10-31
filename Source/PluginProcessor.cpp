@@ -329,7 +329,7 @@ int GapFillAudioProcessor::drainFillEvents()
                 continue;                                  // preview / lock events: not history, not outcomes
 
             if (batch[i].type == FillEventType::Started)
-                recipeHistory.push (batch[i].recipe, { batch[i].pos, batch[i].lengthSamples });
+                recipeHistory.push (batch[i].recipe, { batch[i].pos, batch[i].lengthSamples }, batch[i].extras);
 
             if (isGapOutcome (batch[i].type))
                 outcomeLog.push (batch[i]);
@@ -375,7 +375,10 @@ void GapFillAudioProcessor::publishRecipeTargets() noexcept
     snapshot.generation = recipeHistory.getGeneration();
     snapshot.count = recipeHistory.size();
     for (int i = 0; i < snapshot.count; ++i)
+    {
         snapshot.recipes[(size_t) i] = recipeHistory.get (i);
+        snapshot.extras[(size_t) i] = recipeHistory.getExtras (i);
+    }
     liveControl.publishRecipeTargets (snapshot);
 }
 

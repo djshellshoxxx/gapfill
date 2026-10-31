@@ -443,6 +443,8 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             FillEvent e = makeEvent (forcedResult.started ? FillEventType::Started : FillEventType::Rejected);
             e.reason = forcedResult.reason;
             e.recipe = forcedResult.recipe;
+            e.extras = forcedResult.extras;
+            e.lengthSamples = (std::int32_t) forcedResult.lengthSamples;
             e.availMs = forcedResult.availableMs;
             e.needMs = forcedResult.neededMs;
             events->push (e);
@@ -490,6 +492,7 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             FillEvent e = makeEvent (result.started ? FillEventType::Started : FillEventType::Rejected);
             e.reason = result.reason;
             e.recipe = result.recipe;
+            e.extras = result.extras;
             e.availMs = result.availableMs;
             e.needMs = result.neededMs;
             e.lengthSamples = (std::int32_t) result.lengthSamples;     // U-2 export span
@@ -735,6 +738,7 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
 
     result.started = true;
     result.recipe = plan.recipe;
+    result.extras = plan.extras;
     result.lengthSamples = plan.lengthSamples;
     return result;
 }
@@ -1070,6 +1074,8 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     const auto& frame = *ctx.frame;
 
     VoiceSetup setup;
+    setup.recipeExtras = plan.extras;
+    setup.replayRecipe = (plan.recipe.flags & FillRecipe::flagFromLock) != 0;
     setup.algo = (Algo) plan.algoIndex;
     setup.sampleRate = sr;
     setup.lengthSamples = (int) juce::jlimit ((std::int64_t) 32, (std::int64_t) (sr * 3.0), plan.lengthSamples);
@@ -1132,6 +1138,7 @@ bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan
     {
         plan.recipe.modifierMask = voice.getModifierMask();
         plan.recipe.pitchSemis = voice.getPitchSemis();
+        plan.extras = voice.getRecipeExtras();
     };
 
     auto requestFormant = [&]
@@ -1178,7 +1185,7 @@ void FillEngine::noteFillStarted (const FillPlan& plan, std::int64_t outputPos) 
     lastFillStartPos = outputPos;
     ++fillsStarted;
 
-    lockState.noteStarted (plan.recipe);        // C-5: latest natural recipe (previews never get here)
+    lockState.noteStarted (plan.recipe, plan.extras); // C-5: previews never get here
 
     if ((plan.recipe.flags & FillRecipe::flagFromLock) == 0)
         like.noteStarted();                     // C-11: only started, unlocked, natural fills count

@@ -94,7 +94,8 @@ public:
     // to the last one. It is served at the start of the next process() call.
 
     void requestPreview (std::uint8_t velocity) noexcept;
-    void requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb = 0) noexcept;
+    void requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb = 0,
+                               const RecipeExtras& extras = {}) noexcept;
 
     /** PreviewChannel::code(): status, algorithm and sequence number. */
     std::uint32_t getPreviewStatusCode() const noexcept   { return preview.code(); }
@@ -112,7 +113,7 @@ public:
     // LikeLatest and LikeRecipe.
 
     void lockLatest() noexcept;
-    void lockRecipe (const FillRecipe&) noexcept;
+    void lockRecipe (const FillRecipe&, const RecipeExtras& extras = {}) noexcept;
     void unlockRecipe() noexcept;
     void likeLatest() noexcept;
     void likeRecipe (const FillRecipe&) noexcept;
@@ -244,7 +245,8 @@ private:
         instead of choosing one. Sets the preview status. */
     bool startPreview (std::uint8_t velocity, std::int64_t outputPos,
                        const AnalysisEngine&, const SourceHistory&, const EngineSettings&,
-                       const FillRecipe* recipe, int gainCentiDb, FillEventQueue* events) noexcept;
+                       const FillRecipe* recipe, int gainCentiDb, FillEventQueue* events,
+                       const RecipeExtras& extras = {}) noexcept;
     /** C-11: the bias is ignored while Fill Lock is on. */
     bool likeApplies (const EngineSettings& s) const noexcept   { return like.active() && ! s.perf.lockOn; }
 

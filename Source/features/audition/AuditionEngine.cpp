@@ -19,13 +19,15 @@ void FillEngine::requestPreview (std::uint8_t velocity) noexcept
     preview.request.velocity = velocity;
 }
 
-void FillEngine::requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb) noexcept
+void FillEngine::requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb,
+                                      const RecipeExtras& extras) noexcept
 {
     preview.request = {};
     preview.request.pending = true;
     preview.request.velocity = velocity;
     preview.request.hasRecipe = true;
     preview.request.recipe = recipe;
+    preview.request.extras = extras;
     preview.request.gainCentiDb = juce::jlimit (-600, 600, gainCentiDb);
 }
 
@@ -70,13 +72,13 @@ void FillEngine::servePendingPreview (std::int64_t outputPos, const AnalysisEngi
     preview.request = {};
 
     startPreview (request.velocity, outputPos, analysis, history, s,
-                  request.hasRecipe ? &request.recipe : nullptr, request.gainCentiDb, events);
+                  request.hasRecipe ? &request.recipe : nullptr, request.gainCentiDb, events, request.extras);
 }
 
 bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
                                const AnalysisEngine& analysis, const SourceHistory& history,
                                const EngineSettings& s, const FillRecipe* recipeIn,
-                               int gainCentiDb, FillEventQueue* events) noexcept
+                               int gainCentiDb, FillEventQueue* events, const RecipeExtras& extras) noexcept
 {
     auto fail = [this] (PreviewStatus why)
     {
@@ -122,11 +124,12 @@ bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
     if (recipeIn != nullptr)
     {
         // E-1 addendum (U-1): replay that recipe, skipping algorithm / band / length selection.
-        if (! isValid (*recipeIn))
+        if (! isValid (*recipeIn) || ! isValid (extras))
             return fail (PreviewStatus::RejectedBuild);
 
         const auto lengthMs = juce::jmin ((float) recipeIn->lengthMs, (float) (kPreviewMaxSeconds * 1000.0));
         plan.recipe = *recipeIn;
+        plan.extras = extras;
         plan.algoIndex = recipeIn->algo;
         plan.band = recipeIn->band;
         plan.lengthSamples = juce::jmin (cap, (std::int64_t) ((double) juce::jmax (20.0f, lengthMs) * 0.001 * sr));
@@ -211,6 +214,7 @@ bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
         FillEvent e;
         e.type = FillEventType::Preview;
         e.recipe = plan.recipe;
+        e.extras = plan.extras;
         e.pos = outputPos;
         e.lengthSamples = (std::int32_t) plan.lengthSamples;
         events->push (e);
