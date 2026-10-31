@@ -34,7 +34,7 @@ namespace
         return v;
     }
 
-    Settings settings (int mode, int note = 36, int chan = 10, int offset = 0)
+    Settings scenarioSettings (int mode, int note = 36, int chan = 10, int offset = 0)
     {
         Settings s;
         s.mode = mode;
@@ -72,7 +72,7 @@ GF_TEST (MidiOut, off_emits_nothing_and_leaves_the_buffer_alone)
     juce::MidiBuffer midi;
     midi.addEvent (juce::MidiMessage::controllerEvent (1, 74, 90), 10);
     const auto log = logOf ({ { Transition::GapOpen, 100, 255, 0 }, { Transition::GapClose, 300, 0, 0 } });
-    const auto ev = runBlock (e, settings (ModeOff), log, midi);
+    const auto ev = runBlock (e, scenarioSettings (ModeOff), log, midi);
     GF_EXPECT (ev.empty());
 
     int n = 0;
@@ -85,7 +85,7 @@ GF_TEST (MidiOut, gap_notes_pair_on_the_configured_note_and_channel)
     MidiOutEmitter e;
     juce::MidiBuffer midi;
     const auto log = logOf ({ { Transition::GapOpen, 100, 255, 0 }, { Transition::GapClose, 300, 0, 0 } });
-    const auto ev = runBlock (e, settings (ModeGaps, 40, 3), log, midi);
+    const auto ev = runBlock (e, scenarioSettings (ModeGaps, 40, 3), log, midi);
 
     GF_EXPECT (ev.size() == 2);
     GF_EXPECT (ev[0].on && ev[0].offset == 100 && ev[0].note == 40 && ev[0].chan == 3 && ev[0].vel == 127);
@@ -99,7 +99,7 @@ GF_TEST (MidiOut, velocity_follows_the_gap_confidence_with_a_minimum_of_one)
     {
         MidiOutEmitter e;
         juce::MidiBuffer midi;
-        const auto ev = runBlock (e, settings (ModeGaps), logOf ({ { Transition::GapOpen, 10, conf, 0 } }), midi);
+        const auto ev = runBlock (e, scenarioSettings (ModeGaps), logOf ({ { Transition::GapOpen, 10, conf, 0 } }), midi);
         GF_EXPECT_MSG (ev.size() == 1 && ev[0].vel == expected, "conf " + juce::String (conf));
     }
 }
@@ -111,14 +111,14 @@ GF_TEST (MidiOut, fills_use_the_next_note_and_the_fill_velocity)
     const auto log = logOf ({ { Transition::GapOpen, 20, 200, 0 }, { Transition::FillStart, 50, 90, 400 },
                               { Transition::FillEnd, 450, 0, 0 }, { Transition::GapClose, 460, 0, 0 } });
 
-    const auto fills = runBlock (e, settings (ModeFills, 36), log, midi);
+    const auto fills = runBlock (e, scenarioSettings (ModeFills, 36), log, midi);
     GF_EXPECT (fills.size() == 2);
     GF_EXPECT (fills[0].on && fills[0].note == 37 && fills[0].vel == 90 && fills[0].offset == 50);
     GF_EXPECT (! fills[1].on && fills[1].note == 37 && fills[1].offset == 450);
 
     MidiOutEmitter both;
     juce::MidiBuffer m2;
-    const auto all = runBlock (both, settings (ModeBoth, 36), log, m2);
+    const auto all = runBlock (both, scenarioSettings (ModeBoth, 36), log, m2);
     GF_EXPECT (all.size() == 4);
     GF_EXPECT (all[0].note == 36 && all[1].note == 37 && all[2].note == 37 && all[3].note == 36);   // sorted by time
 }
@@ -127,7 +127,7 @@ GF_TEST (MidiOut, chunk_offsets_and_the_output_alignment_offset_are_applied_and_
 {
     MidiOutEmitter e;
     juce::MidiBuffer midi;
-    e.beginBlock (settings (ModeGaps, 36, 10, 100), 512);
+    e.beginBlock (scenarioSettings (ModeGaps, 36, 10, 100), 512);
     // second chunk of the block: host sample 256 is output position 1000
     e.consume (logOf ({ { Transition::GapOpen, 1100, 255, 0 }, { Transition::GapClose, 1150, 0, 0 } }), 1000, 256, 256);
     e.finish (midi);
@@ -137,11 +137,11 @@ GF_TEST (MidiOut, chunk_offsets_and_the_output_alignment_offset_are_applied_and_
     // clamped into the block at both ends
     MidiOutEmitter late, early;
     juce::MidiBuffer a, b;
-    late.beginBlock (settings (ModeGaps, 36, 10, 5000), 512);
+    late.beginBlock (scenarioSettings (ModeGaps, 36, 10, 5000), 512);
     late.consume (logOf ({ { Transition::GapOpen, 10, 255, 0 } }), 0, 0, 512);
     late.finish (a);
     GF_EXPECT (eventsOf (a).size() == 1 && eventsOf (a)[0].offset == 511);
-    early.beginBlock (settings (ModeGaps, 36, 10, -5000), 512);
+    early.beginBlock (scenarioSettings (ModeGaps, 36, 10, -5000), 512);
     early.consume (logOf ({ { Transition::GapOpen, 10, 255, 0 } }), 0, 0, 512);
     early.finish (b);
     GF_EXPECT (eventsOf (b).size() == 1 && eventsOf (b)[0].offset == 0);
@@ -151,7 +151,7 @@ GF_TEST (MidiOut, never_more_than_sixteen_events_per_block_and_no_note_off_is_dr
 {
     MidiOutEmitter e;
     juce::MidiBuffer midi;
-    e.beginBlock (settings (ModeFills), 512);
+    e.beginBlock (scenarioSettings (ModeFills), 512);
     int ons = 0;
 
     for (int chunk = 0; chunk < 6; ++chunk)
@@ -188,10 +188,10 @@ GF_TEST (MidiOut, sounding_notes_get_their_note_off_on_flush_mode_note_and_chann
     {
         MidiOutEmitter e;
         juce::MidiBuffer m1, m2;
-        runBlock (e, settings (ModeBoth, 36, 10), logOf ({ { Transition::GapOpen, 10, 255, 0 }, { Transition::FillStart, 20, 100, 9999 } }), m1);
+        runBlock (e, scenarioSettings (ModeBoth, 36, 10), logOf ({ { Transition::GapOpen, 10, 255, 0 }, { Transition::FillStart, 20, 100, 9999 } }), m1);
         GF_EXPECT (e.hasSoundingNotes());
         e.requestFlush();
-        const auto ev = runBlock (e, settings (ModeBoth, 36, 10), {}, m2);
+        const auto ev = runBlock (e, scenarioSettings (ModeBoth, 36, 10), {}, m2);
         GF_EXPECT (ev.size() == 2);
         GF_EXPECT (! ev[0].on && ! ev[1].on && ev[0].offset == 0 && ev[1].offset == 0);
         GF_EXPECT (! e.hasSoundingNotes());
@@ -201,8 +201,8 @@ GF_TEST (MidiOut, sounding_notes_get_their_note_off_on_flush_mode_note_and_chann
     {
         MidiOutEmitter e;
         juce::MidiBuffer m1, m2;
-        runBlock (e, settings (ModeGaps, 36, 10), logOf ({ { Transition::GapOpen, 10, 255, 0 } }), m1);
-        const auto ev = runBlock (e, settings (ModeOff, 50, 2), {}, m2);
+        runBlock (e, scenarioSettings (ModeGaps, 36, 10), logOf ({ { Transition::GapOpen, 10, 255, 0 } }), m1);
+        const auto ev = runBlock (e, scenarioSettings (ModeOff, 50, 2), {}, m2);
         GF_EXPECT (ev.size() == 1 && ! ev[0].on && ev[0].note == 36 && ev[0].chan == 10);
     }
 
@@ -210,12 +210,12 @@ GF_TEST (MidiOut, sounding_notes_get_their_note_off_on_flush_mode_note_and_chann
     {
         MidiOutEmitter e;
         juce::MidiBuffer m1, m2, m3;
-        runBlock (e, settings (ModeGaps, 36, 10), logOf ({ { Transition::GapOpen, 10, 255, 0 } }), m1);
-        const auto ev = runBlock (e, settings (ModeGaps, 40, 10), {}, m2);
+        runBlock (e, scenarioSettings (ModeGaps, 36, 10), logOf ({ { Transition::GapOpen, 10, 255, 0 } }), m1);
+        const auto ev = runBlock (e, scenarioSettings (ModeGaps, 40, 10), {}, m2);
         GF_EXPECT (ev.size() == 1 && ! ev[0].on && ev[0].note == 36);
-        runBlock (e, settings (ModeGaps, 40, 10), logOf ({ { Transition::GapOpen, 10, 255, 0 } }), m3);
+        runBlock (e, scenarioSettings (ModeGaps, 40, 10), logOf ({ { Transition::GapOpen, 10, 255, 0 } }), m3);
         juce::MidiBuffer m4;
-        const auto ev2 = runBlock (e, settings (ModeGaps, 40, 11), {}, m4);
+        const auto ev2 = runBlock (e, scenarioSettings (ModeGaps, 40, 11), {}, m4);
         GF_EXPECT (ev2.size() == 1 && ! ev2[0].on && ev2[0].chan == 10);
     }
 }
@@ -229,7 +229,7 @@ GF_TEST (MidiOut, random_sequences_never_leave_a_note_hanging)
     for (int blockIndex = 0; blockIndex < 1000; ++blockIndex)
     {
         const auto mode = rng.nextInt (4);
-        Settings s = settings (mode, 30 + rng.nextInt (3), 1 + rng.nextInt (3));
+        Settings s = scenarioSettings (mode, 30 + rng.nextInt (3), 1 + rng.nextInt (3));
         TransitionLog log;
         int pos = 0;
 
@@ -255,7 +255,7 @@ GF_TEST (MidiOut, random_sequences_never_leave_a_note_hanging)
     // quiesce
     juce::MidiBuffer last;
     e.requestFlush();
-    e.beginBlock (settings (ModeOff), 512);
+    e.beginBlock (scenarioSettings (ModeOff), 512);
     e.finish (last);
 
     for (auto& x : eventsOf (last))
@@ -271,7 +271,7 @@ GF_TEST (MidiOut, output_is_sorted_and_does_not_echo_the_incoming_midi_when_on)
     juce::MidiBuffer midi;
     midi.addEvent (juce::MidiMessage::controllerEvent (1, 74, 90), 10);
     const auto log = logOf ({ { Transition::FillStart, 300, 80, 100 }, { Transition::GapOpen, 100, 255, 0 }, { Transition::GapClose, 200, 0, 0 } });
-    const auto ev = runBlock (e, settings (ModeBoth), log, midi);
+    const auto ev = runBlock (e, scenarioSettings (ModeBoth), log, midi);
 
     for (size_t i = 1; i < ev.size(); ++i)
         GF_EXPECT (ev[i - 1].offset <= ev[i].offset);

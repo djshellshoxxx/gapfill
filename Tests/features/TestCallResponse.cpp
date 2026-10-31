@@ -27,7 +27,7 @@ namespace
         return r;
     }
 
-    ResponderSettings settings (int mode, float strength = 0.6f, int calls = 3, int replies = 2)
+    ResponderSettings scenarioSettings (int mode, float strength = 0.6f, int calls = 3, int replies = 2)
     {
         ResponderSettings s;
         s.mode = mode; s.strength01 = strength; s.calls = calls; s.replies = replies;
@@ -59,7 +59,7 @@ namespace
 
     void respondTo (Responder& r, Algo a, int mode, float strength = 0.6f)
     {
-        r.configure (settings (mode, strength), false);
+        r.configure (scenarioSettings (mode, strength), false);
 
         for (int i = 0; i < 3; ++i)
             startFill (r, recipeOf (a), i);
@@ -119,7 +119,7 @@ GF_TEST (CallResponse, describe_family_mode_ties_pitch_band_and_regularity)
 GF_TEST (CallResponse, off_is_neutral_and_inactive)
 {
     Responder r;
-    r.configure (settings (0), false);
+    r.configure (scenarioSettings (0), false);
 
     for (int i = 0; i < 6; ++i)
         startFill (r, recipeOf (Algo::Stutter), i);
@@ -136,7 +136,7 @@ GF_TEST (CallResponse, off_is_neutral_and_inactive)
 GF_TEST (CallResponse, state_machine_collect_respond_collect_and_responses_not_in_next_call)
 {
     Responder r;
-    r.configure (settings (1, 0.6f, 3, 2), false);
+    r.configure (scenarioSettings (1, 0.6f, 3, 2), false);
 
     for (int i = 0; i < 2; ++i)
         startFill (r, recipeOf (Algo::Stutter), i);
@@ -167,7 +167,7 @@ GF_TEST (CallResponse, unclear_motif_gives_no_response_and_window_slides)
     for (int c = 0; c < 200; ++c)
     {
         Responder r;
-        r.configure (settings (1), false);
+        r.configure (scenarioSettings (1), false);
         // Three different families at random times (irregular spacing).
         const Algo picks[3] = { Algo::Stutter, Algo::Granular, Algo::Crush };
         double t = 0.0;
@@ -187,7 +187,7 @@ GF_TEST (CallResponse, unclear_motif_gives_no_response_and_window_slides)
     // Unclear keeps collecting with a sliding window: after three scattered fills, two more rhythmic fills
     // at regular beats make the last three a clear motif.
     Responder r;
-    r.configure (settings (1), false);
+    r.configure (scenarioSettings (1), false);
     r.onNaturalFillStarted (recipeOf (Algo::Granular), true, 0.0, 0, 48000.0);
     r.onNaturalFillStarted (recipeOf (Algo::Crush), true, 0.3, 7200, 48000.0);
     r.onNaturalFillStarted (recipeOf (Algo::Granular), true, 4.0, 96000, 48000.0);
@@ -240,7 +240,7 @@ GF_TEST (CallResponse, complement_shifts_family_shares_and_echo_boosts_the_motif
 GF_TEST (CallResponse, pitch_direction_contrast_band_and_length_bounds)
 {
     Responder r;
-    r.configure (settings (1, 1.0f), false);
+    r.configure (scenarioSettings (1, 1.0f), false);
 
     for (int i = 0; i < 3; ++i)
         startFill (r, recipeOf (Algo::PitchRise, 2, 0), i);
@@ -251,7 +251,7 @@ GF_TEST (CallResponse, pitch_direction_contrast_band_and_length_bounds)
     GF_EXPECT (r.lengthScale() > 1.0f && r.lengthScale() <= 1.3f + 1.0e-6f);                          // short call -> longer reply
 
     Responder e;
-    e.configure (settings (2, 1.0f), false);
+    e.configure (scenarioSettings (2, 1.0f), false);
 
     for (int i = 0; i < 3; ++i)
         startFill (e, recipeOf (Algo::Stutter, 2, 3), i);
@@ -266,28 +266,28 @@ GF_TEST (CallResponse, pitch_direction_contrast_band_and_length_bounds)
 GF_TEST (CallResponse, higher_precedence_features_pause_and_resets_clear)
 {
     Responder r;
-    r.configure (settings (1), false);
+    r.configure (scenarioSettings (1), false);
     startFill (r, recipeOf (Algo::Stutter), 0);
     startFill (r, recipeOf (Algo::Stutter), 1);
 
-    r.configure (settings (1), true);                                    // Fill Lock / Like / forced type
+    r.configure (scenarioSettings (1), true);                                    // Fill Lock / Like / forced type
     startFill (r, recipeOf (Algo::Stutter), 2);                          // frozen: does not count
     GF_EXPECT (r.status().k == 2 && ! r.active());
 
-    r.configure (settings (1), false);
+    r.configure (scenarioSettings (1), false);
     startFill (r, recipeOf (Algo::Stutter), 3);
     GF_EXPECT (r.active());
 
-    r.configure (settings (1), true);
+    r.configure (scenarioSettings (1), true);
     GF_EXPECT (! r.active() && r.algoFactor ((int) Algo::Stutter) == 1.0f);
 
-    r.configure (settings (1), false);
+    r.configure (scenarioSettings (1), false);
     r.reset();                                                           // transport jump / stop / bypass / sample-rate change
     GF_EXPECT (! r.active() && r.status().k == 0);
 
     // Changing the cycle lengths restarts it.
     startFill (r, recipeOf (Algo::Stutter), 0);
-    r.configure (settings (1, 0.6f, 4, 2), false);
+    r.configure (scenarioSettings (1, 0.6f, 4, 2), false);
     GF_EXPECT (r.status().k == 0);
 }
 
