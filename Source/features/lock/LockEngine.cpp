@@ -19,6 +19,15 @@ void FillEngine::setLockPublication (lock::LockPublication* publication) noexcep
     lockRestoreEpoch = publication != nullptr ? 0 : 1;
 }
 
+bool FillEngine::acceptsLockCommand (const Command& command) const noexcept
+{
+    if (! lock::isStateCommand (command.type))
+        return true;
+    if (lockPublication != nullptr && lockRestoreEpoch != lockPublication->currentEpoch())
+        return false;
+    return lock::acceptsCommandEpoch (command, lockRestoreEpoch);
+}
+
 bool FillEngine::adoptLockRestore (Command& accepted) noexcept
 {
     if (lockPublication == nullptr)
