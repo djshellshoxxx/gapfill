@@ -45,6 +45,16 @@ void gatherFx (EngineSettings& s, const ParamCache& p) noexcept
     f.tape.dropout01 = pv (p.tdDropout) / 100.0f;
     f.tape.splice01 = pv (p.tdSplice) / 100.0f;
 
+    f.tapeExtra.amount01 = pv (p.tapeExtraAmount) * 0.01f;
+    f.tapeExtra.wow01 = pv (p.tapeExtraWow) * 0.01f;
+    f.tapeExtra.flutter01 = pv (p.tapeExtraFlutter) * 0.01f;
+    f.tapeExtra.sat01 = pv (p.tapeExtraSat) * 0.01f;
+    f.tapeExtra.dropDensity01 = pv (p.tapeExtraDropDensity) * 0.01f;
+    f.tapeExtra.dropDepth01 = pv (p.tapeExtraDropDepth) * 0.01f;
+    f.tapeExtra.splice01 = pv (p.tapeExtraSplice) * 0.01f;
+    f.tapeExtra.instab01 = pv (p.tapeExtraInstab) * 0.01f;
+    f.tapeExtra.mix01 = pv (p.tapeExtraMix) * 0.01f;
+
     f.scrub.on = pb (p.scrubOn);
     f.scrub.pos01 = pv (p.scrubPos) / 100.0f;
     f.scrub.widthMs = pv (p.scrubWidth);

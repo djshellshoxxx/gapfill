@@ -92,6 +92,13 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     //   gatherLearn, gatherCoop, gatherQuality
 
     context::gatherContext (s, params); // WP7: F-L22 energy follow (tracker runs in ContextState::onChunk)
+    s.perf.pitchSync.enabled = pi (params.fx01_mode) != 0;
+    s.perf.pitchSync.intervals = (harmonic::psola::IntervalSet) juce::jlimit (0, 5, pi (params.fx01_intervals));
+    s.perf.pitchSync.voices = juce::jlimit (1, 4, pi (params.fx01_voices));
+    s.perf.pitchSync.motion01 = pv (params.fx01_motion) * 0.01f;
+    s.perf.pitchSync.scatter01 = pv (params.fx01_scatter) * 0.01f;
+    s.perf.pitchSync.tone = pv (params.fx01_tone) * 0.01f;
+    s.perf.pitchSync.snap01 = pv (params.fx01_snap) * 0.01f;
     scale::gatherScale (s, params);     // WP7: N-MUS Scale Lock
     fx::gatherFx (s, params);           // WP8: swell, cloud, ratchet, rcrush, tapedestr, bandfx (scrub: F-M19)
 }

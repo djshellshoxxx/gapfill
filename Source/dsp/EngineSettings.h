@@ -8,6 +8,7 @@
 #include "../features/arrangement/Modulators.h"
 #include "../features/groove/GrooveSettings.h"
 #include "../features/harmonic/HarmonicSettings.h"
+#include "../features/harmonic/psola/Settings.h"
 #include "../features/keydetect/KeySettings.h"
 #include "../features/scale/ScaleLock.h"
 #include "../features/coop/CoopFwd.h"
@@ -22,6 +23,7 @@ namespace gapfill
 namespace scenes { struct OverlayView; }    // F-L07 (features/scenes/SceneOverlay.h)
 namespace macros { struct MacroRuntime; }   // C-2 / F-M23 (features/macros/MacroEngine.h)
 namespace battle { struct BattleRuntime; }  // F-M18 (features/battle/Battle.h)
+namespace harmonic::psola { class PitchTracker; }
 
 //==============================================================================
 // Performance / creative settings (docs/dev/02-FOUNDATIONS.md F0-5). Every
@@ -51,6 +53,8 @@ struct PerformanceSettings
     tension::TensionSettings tension;       // F-M21
     arrangement::Fx04Settings arr;          // F-X04
     harmonic::HarmonicParams harmonic;      // F-X01
+    harmonic::psola::Settings pitchSync;    // opt-in detailed F-X01; released hg* remains independent
+    const harmonic::psola::PitchTracker* pitchTracker = nullptr;
     float fxSend01 = 1.0f;                  // F-M21 output: effect amount scale (1 = neutral); read by the effect cards that honour it
     BudgetSettings budget;            // F-D01
     bool  likeActive = false;         // C-11
