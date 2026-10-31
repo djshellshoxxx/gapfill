@@ -51,6 +51,15 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     liveControl.setMidiLearn (&midiLearn);
     liveControl.setEventQueue (&fillEvents);
     liveControl.setPanicHook ([] (void* self) noexcept { static_cast<GapFillAudioProcessor*> (self)->panicWet(); }, this);
+    liveControl.setFeatureCommandSink ([] (void* self, const Command& command) noexcept
+    {
+        static_cast<GapFillAudioProcessor*> (self)->dispatchFeatureCommand (command);
+    }, this);
+    recipeHistory.setChangeCallback ([] (void* self) noexcept
+    {
+        static_cast<GapFillAudioProcessor*> (self)->publishRecipeTargets();
+    }, this);
+    publishRecipeTargets();
     explainState.attach (*this, apvts);
     fillEvents.setTap (&explainState.recorder);
 
@@ -309,18 +318,30 @@ void GapFillAudioProcessor::drainCommands() noexcept
     for (int i = 0; i < n; ++i)
     {
         liveControl.handleCommand (batch[i], engine);
-        explainState.onCommand (batch[i]);
-
-        // C-10 Capture v2 owns commands 7 and 8; everything else goes to the feature hook.
-        if (batch[i].type == CommandType::Recapture)
-            shaping.capture.requestRecapture();
-        else if (batch[i].type == CommandType::ReleaseCapture)
-            shaping.capture.requestRelease();
-        else if (! fxChain.handleCommand (batch[i]))      // X-1 24/25: spectral freeze capture / release
-            hooks::dispatchCommand (engine, batch[i]);
-
-        contextState.onCommand (batch[i]);
+        dispatchFeatureCommand (batch[i]);
     }
+}
+
+void GapFillAudioProcessor::dispatchFeatureCommand (const Command& command) noexcept
+{
+    explainState.onCommand (command);
+    if (command.type == CommandType::Recapture)
+        shaping.capture.requestRecapture();
+    else if (command.type == CommandType::ReleaseCapture)
+        shaping.capture.requestRelease();
+    else if (! fxChain.handleCommand (command))
+        hooks::dispatchCommand (engine, command);
+    contextState.onCommand (command);
+}
+
+void GapFillAudioProcessor::publishRecipeTargets() noexcept
+{
+    commands::RecipeTargetSnapshot snapshot;
+    snapshot.generation = recipeHistory.getGeneration();
+    snapshot.count = recipeHistory.size();
+    for (int i = 0; i < snapshot.count; ++i)
+        snapshot.recipes[(size_t) i] = recipeHistory.get (i);
+    liveControl.publishRecipeTargets (snapshot);
 }
 
 //==============================================================================

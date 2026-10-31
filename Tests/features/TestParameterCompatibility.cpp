@@ -67,3 +67,23 @@ GF_TEST (ParameterCompatibility, voice_formant_is_appended_neutral_and_undoable)
         GF_EXPECT (! performanceParameterIDs().contains (id));
     }
 }
+
+GF_TEST (ParameterCompatibility, extended_midi_output_is_opt_in_and_preserved_by_undo)
+{
+    GapFillAudioProcessor proc;
+    const auto all = allParameterIDs();
+    GF_EXPECT (all.indexOf ("fl11_on") == 222);
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fl11_on")->load(), 0.0f, 0.0f);
+    proc.pushUndoSnapshot();
+    setParams (proc, { { "fl11_on", 1.0f }, { "fl11_chan", 12.0f } });
+    GF_EXPECT (proc.undo());
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fl11_on")->load(), 1.0f, 0.0f);
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fl11_chan")->load(), 12.0f, 0.0f);
+    for (const char* id : { "fl11_on", "fl11_chan", "fl11_hit_on", "fl11_gap_on", "fl11_fill_on",
+                           "fl11_note_hit", "fl11_note_gap", "fl11_note_fill", "fl11_vel", "fl11_len_ms",
+                           "fl11_cc", "fl11_timing" })
+    {
+        GF_EXPECT (performanceParameterIDs().contains (id));
+        GF_EXPECT (! randomisableParameterIDs().contains (id));
+    }
+}

@@ -73,13 +73,27 @@ public:
 
     std::uint32_t getGeneration() const noexcept    { return generation.load (std::memory_order_relaxed); }
 
+    /** Message-thread notification; the owner publishes a copied audio-thread view. */
+    void setChangeCallback (void (*fn) (void*) noexcept, void* context) noexcept
+    {
+        changed = fn;
+        changedContext = context;
+    }
+
 private:
-    void touch() noexcept                           { generation.fetch_add (1, std::memory_order_relaxed); }
+    void touch() noexcept
+    {
+        generation.fetch_add (1, std::memory_order_relaxed);
+        if (changed != nullptr)
+            changed (changedContext);
+    }
 
     std::array<FillRecipe, (size_t) capacity> items {};
     std::array<FillSpan, (size_t) capacity> spans {};
     int count = 0;
     std::atomic<std::uint32_t> generation { 0 };
+    void (*changed) (void*) noexcept = nullptr;
+    void* changedContext = nullptr;
 };
 
 /** The last 64 gap outcomes (started or rejected), newest first. */

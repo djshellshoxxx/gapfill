@@ -128,6 +128,7 @@ public:
     const quality::QualityController& getQualityController() const noexcept { return qualityCtl; }    // F-D03
     int getAppliedQualityLevel() const noexcept     { return appliedQuality.load (std::memory_order_relaxed); }
     const coop::CoopMember& getCoop() const noexcept                       { return coopMember; }      // F-X06
+    coop::CoopMember& getCoop() noexcept                                   { return coopMember; }
 
     /** WP11 UI shell state: status board, Simple/Advanced view mode (message thread). */
     ui::UiState& getUiState() noexcept                              { return uiState; }
@@ -239,6 +240,8 @@ public:
 private:
     void timerCallback() override;
     void drainCommands() noexcept;
+    void dispatchFeatureCommand (const gapfill::Command&) noexcept;
+    void publishRecipeTargets() noexcept;
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
     EngineSettings gatherEngineSettings();

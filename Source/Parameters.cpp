@@ -230,6 +230,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     addQualityParameters (layout);
     addFm10Parameters (layout);
     addFl20Parameters (layout);
+    addMidiextParameters (layout);
 
     return layout;
 }
@@ -321,6 +322,7 @@ juce::StringArray performanceParameterIDs()
     addQualityPerformanceIds (ids);
     addFm10PerformanceIds (ids);
     addFl20PerformanceIds (ids);
+    addMidiextPerformanceIds (ids);
     return ids;
 }
 
