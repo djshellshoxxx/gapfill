@@ -332,7 +332,7 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t 
 
     if (r.missedDeadlineId != 0)
         post (UiRequest::SceneMissedDeadline, (int) r.missedDeadlineId);
-    if (sceneEngine.view().appliesAt (s.ppqAtBlockStart, s.transportValid))
+    if (! s.perf.sceneBaseApplied && sceneEngine.view().appliesAt (s.ppqAtBlockStart, s.transportValid))
         sceneEngine.view().applyFxTo (s);
 
     if (r.appliedId != 0)
