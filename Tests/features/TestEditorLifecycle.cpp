@@ -70,12 +70,16 @@ namespace
                 probe.reset();
 
                 if (proc != nullptr)
+                {
+                    proc->setPlayHead (nullptr);
                     proc->releaseResources();
+                }
 
                 proc.reset();
             });
         }
 
+        TestPlayHead playHead;
         std::unique_ptr<GapFillAudioProcessor> proc;
         std::unique_ptr<juce::AudioProcessorEditor> editor;
         std::unique_ptr<DispatchProbe> probe;
@@ -94,6 +98,7 @@ namespace
         GF_EXPECT (juce::MessageManager::callSync ([&]
         {
             host.proc = std::make_unique<GapFillAudioProcessor>();
+            host.proc->setPlayHead (&host.playHead);
             host.proc->setPlayConfigDetails (2, 2, sampleRate, blockSize);
             host.proc->prepareToPlay (sampleRate, blockSize);
             host.proc->getStateInformation (saved);
@@ -123,6 +128,7 @@ namespace
                 position = (position + blockSize) % input.getNumSamples();
                 midi.clear();
                 host.proc->processBlock (buffer, midi);
+                host.playHead.advance (blockSize, sampleRate);
 
                 for (int ch = 0; ch < 2; ++ch)
                     for (int i = 0; i < blockSize; ++i)
