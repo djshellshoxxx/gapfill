@@ -33,6 +33,25 @@ struct PresetNavigation::Impl
         ++serial;
     }
 
+    void cancel() noexcept
+    {
+        ++operationGeneration;
+        pendingStep = 0;
+        refreshRequested = false;
+    }
+
+    void applyReset() noexcept
+    {
+        if (! resetRequested.exchange (false, std::memory_order_acq_rel))
+            return;
+        cancel();
+        file = juce::File();
+        name.clear();
+        message.clear();
+        burst.forget();
+        ++serial;
+    }
+
     bool step (GapFillAudioProcessor& proc, int delta, std::uint32_t now,
                const std::shared_ptr<settings::GlobalSettings>& preferences)
     {
@@ -85,6 +104,11 @@ struct PresetNavigation::Impl
     bool refreshRequested = false;
     std::future<ScanResult> scan;
     std::atomic<bool> resetRequested { false };
+    std::uint64_t operationGeneration = 0, scanGeneration = 0;
+   #ifdef GAPFILL_UNIT_TESTS
+    std::function<ScanResult()> testWorker;
+    std::shared_ptr<settings::GlobalSettings> testPreferences;
+   #endif
 };
 
 PresetNavigation::PresetNavigation() : impl (std::make_unique<Impl>()) {}
@@ -92,37 +116,44 @@ PresetNavigation::~PresetNavigation() = default; // joins any value-only scan be
 
 void PresetNavigation::requestStep (int delta) noexcept
 {
+    impl->applyReset();
+    ++impl->operationGeneration;
     impl->pendingStep = (int) std::clamp ((std::int64_t) impl->pendingStep + delta,
                                         (std::int64_t) -64, (std::int64_t) 64);
     impl->refreshRequested = true;
 }
 
-void PresetNavigation::requestRefresh() noexcept { impl->refreshRequested = true; }
+void PresetNavigation::requestRefresh() noexcept
+{
+    impl->applyReset();
+    ++impl->operationGeneration;
+    impl->refreshRequested = true;
+}
 void PresetNavigation::requestReset() noexcept { impl->resetRequested.store (true, std::memory_order_release); }
+void PresetNavigation::cancelPending() noexcept { impl->cancel(); }
 void PresetNavigation::forgetBurst() noexcept { impl->burst.forget(); }
 
 void PresetNavigation::pump (GapFillAudioProcessor& proc)
 {
-    if (impl->resetRequested.exchange (false, std::memory_order_acq_rel))
-    {
-        impl->file = juce::File();
-        impl->name.clear();
-        impl->message.clear();
-        impl->burst.forget();
-        impl->pendingStep = 0;
-        impl->refreshRequested = false;
-        ++impl->serial;
-    }
+    impl->applyReset();
     if (impl->refreshRequested && ! impl->scan.valid())
     {
         impl->refreshRequested = false;
+        impl->scanGeneration = impl->operationGeneration;
         const auto roots = defaultScanRoots();
         try
         {
-            impl->scan = std::async (std::launch::async, [roots] { return scanUserPresets (roots); });
+           #ifdef GAPFILL_UNIT_TESTS
+            if (impl->testWorker)
+                impl->scan = std::async (std::launch::async, impl->testWorker);
+            else
+           #endif
+                impl->scan = std::async (std::launch::async, [roots] { return scanUserPresets (roots); });
         }
         catch (const std::exception&)
         {
+            if (impl->scanGeneration != impl->operationGeneration)
+                return;
             impl->pendingStep = 0;
             impl->message = i18n::text ("Could not scan user presets");
             ++impl->serial;
@@ -137,15 +168,24 @@ void PresetNavigation::pump (GapFillAudioProcessor& proc)
         }
         catch (const std::exception&)
         {
+            if (impl->scanGeneration != impl->operationGeneration)
+                return;
             impl->pendingStep = 0;
             impl->message = i18n::text ("Could not scan user presets");
             ++impl->serial;
             return;
         }
+        if (impl->scanGeneration != impl->operationGeneration)
+            return; // a newer choice/reset owns the result; an explicit new request starts a fresh scan
         impl->catalog.setUser (std::move (result.entries));
         const auto delta = impl->pendingStep;
         impl->pendingStep = 0;
-        impl->step (proc, delta, juce::Time::getMillisecondCounter(), settings::GlobalSettings::shared());
+        std::shared_ptr<settings::GlobalSettings> preferences;
+       #ifdef GAPFILL_UNIT_TESTS
+        preferences = impl->testPreferences;
+       #endif
+        impl->step (proc, delta, juce::Time::getMillisecondCounter(),
+                    preferences ? preferences : settings::GlobalSettings::shared());
     }
     const auto name = proc.getCurrentPresetName();
     if (name != "Custom" && name != impl->name)
@@ -158,12 +198,16 @@ void PresetNavigation::pump (GapFillAudioProcessor& proc)
 
 void PresetNavigation::noteLoaded (const PresetEntry& entry)
 {
+    impl->applyReset();
+    impl->cancel();
     impl->adopt (entry);
     impl->burst.forget();
 }
 
 void PresetNavigation::noteFile (const juce::File& file, const juce::String& name)
 {
+    impl->applyReset();
+    impl->cancel();
     impl->file = file;
     impl->name = name.isNotEmpty() ? name : file.getFileNameWithoutExtension();
     impl->burst.forget();
@@ -178,6 +222,18 @@ const PresetCatalog& PresetNavigation::catalog() const noexcept { return impl->c
 int PresetNavigation::currentIndex (const GapFillAudioProcessor& proc) const { return impl->index (proc); }
 
 #ifdef GAPFILL_UNIT_TESTS
+void PresetNavigation::configureScanForTests (std::function<ScanResult()> worker,
+    std::shared_ptr<settings::GlobalSettings> preferences)
+{
+    impl->testWorker = std::move (worker);
+    impl->testPreferences = std::move (preferences);
+}
+
+bool PresetNavigation::scanPendingForTests() const noexcept
+{
+    return impl->scan.valid() || impl->refreshRequested || impl->pendingStep != 0;
+}
+
 bool PresetNavigation::stepNowForTests (GapFillAudioProcessor& proc, int delta, std::uint32_t now,
     const std::vector<ScanRoot>& roots, std::shared_ptr<settings::GlobalSettings> preferences)
 {

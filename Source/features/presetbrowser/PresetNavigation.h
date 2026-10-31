@@ -3,6 +3,7 @@
 #include "PresetCatalog.h"
 
 #include <memory>
+#include <functional>
 
 namespace gapfill { class GapFillAudioProcessor; }
 namespace gapfill::settings { class GlobalSettings; }
@@ -23,6 +24,7 @@ public:
     void requestStep (int delta) noexcept;
     void requestRefresh() noexcept;
     void requestReset() noexcept;                  ///< host restore: atomic request, applied by pump
+    void cancelPending() noexcept;                 ///< message thread: retain current sound/file identity
     void forgetBurst() noexcept;
     void pump (GapFillAudioProcessor&);
 
@@ -38,6 +40,9 @@ public:
     int currentIndex (const GapFillAudioProcessor&) const;
 
    #ifdef GAPFILL_UNIT_TESTS
+    void configureScanForTests (std::function<ScanResult()> worker,
+                                std::shared_ptr<settings::GlobalSettings>);
+    bool scanPendingForTests() const noexcept;
     /** Deterministic fixture sources: synchronous scan through the same bounded
         scanner, then step through the same load/Undo/favourites implementation. */
     bool stepNowForTests (GapFillAudioProcessor&, int delta, std::uint32_t nowMs,

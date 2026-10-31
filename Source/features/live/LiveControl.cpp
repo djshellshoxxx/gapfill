@@ -502,6 +502,10 @@ void LiveControl::handleUi (const UiRequest& r, GapFillAudioProcessor& proc)
         case (int) UiRequest::ScenePrev:     sceneCtl.prev(); break;
         case (int) UiRequest::SceneCancel:   sceneCtl.cancel(); break;
         case (int) UiRequest::SceneLastGood: sceneCtl.gotoLastGood(); break;
+        case (int) UiRequest::PanicChanged:
+            if (r.a != 0)
+                proc.getUiState().presetNavigation.cancelPending();
+            break;
         case (int) UiRequest::Roulette:      rouletteState.spin (proc); break;
         case (int) UiRequest::AbSwap:
         {
