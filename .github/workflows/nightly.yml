@@ -1,0 +1,162 @@
+name: Nightly release assurance
+
+# These expensive jobs supplement the existing PR gate. A green workflow is
+# automated evidence; real hosts, hardware, signing and long soak remain separate.
+on:
+  schedule:
+    - cron: '17 7 * * *'
+  workflow_dispatch:
+    inputs:
+      soak_seconds:
+        description: 'Continuous processor soak seconds (nightly default 300; 8h/7d need a persistent self-hosted/local run)'
+        required: false
+        default: '300'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nightly-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: false
+
+env:
+  CMAKE_BUILD_PARALLEL_LEVEL: '2'
+
+jobs:
+  sanitizers:
+    name: Linux ${{ matrix.name }}
+    runs-on: ubuntu-22.04
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASan-UBSan-full
+            flags: address,undefined
+          - name: TSan-threading
+            flags: thread
+    env:
+      ASAN_OPTIONS: detect_leaks=1:halt_on_error=1
+      UBSAN_OPTIONS: halt_on_error=1:print_stacktrace=1
+      TSAN_OPTIONS: halt_on_error=1:second_deadlock_stack=1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build xvfb libasound2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
+          bash tools/ci_fetch_deps.sh
+      - name: Configure and build dedicated sanitizer tree
+        env:
+          SANITIZERS: ${{ matrix.flags }}
+        run: |
+          cmake -S . -B "$RUNNER_TEMP/build-sanitizer" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_FLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=$SANITIZERS" \
+            -DCMAKE_CXX_FLAGS="-O1 -g -fno-omit-frame-pointer -fsanitize=$SANITIZERS" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fsanitize=$SANITIZERS" -DCMAKE_SHARED_LINKER_FLAGS="-fsanitize=$SANITIZERS"
+          cmake --build "$RUNNER_TEMP/build-sanitizer" --target GapFillTests --parallel 2
+      - name: Execute sanitizer tests and preserve each selection
+        env:
+          SANITIZERS: ${{ matrix.flags }}
+        run: |
+          binary="$RUNNER_TEMP/build-sanitizer/artefacts/GapFillTests"
+          common=(--binary "$binary" --out "$RUNNER_TEMP/sanitizer-evidence" --build-dir "$RUNNER_TEMP/build-sanitizer" --config RelWithDebInfo)
+          if [[ "$SANITIZERS" == address,undefined ]]; then
+            xvfb-run -a python tools/qa/nightly_run.py "${common[@]}" --label full --min-tests 100
+          else
+            status=0
+            for filter in Queues Audition Capture Export EditorLifecycle thread_exits_on_session_destruction concurrent_audio_thread_with_editor_cycles_state_loads_and_fuzz two_coop_instances_on_two_audio_threads_while_the_group_is_reconfigured; do
+              xvfb-run -a python tools/qa/nightly_run.py "${common[@]}" --label "$filter" --filter "$filter" || status=1
+            done
+            exit "$status"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-${{ matrix.name }}-${{ github.sha }}
+          path: ${{ runner.temp }}/sanitizer-evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+  performance-and-soak:
+    name: Linux Release performance and continuous processor soak
+    runs-on: ubuntu-22.04
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build xvfb libasound2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
+          bash tools/ci_fetch_deps.sh
+      - name: Release build
+        run: |
+          cmake -S . -B "$RUNNER_TEMP/build-release" -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/build-release" --target GapFillTests --parallel 2
+      - name: Measure performance (advisory until reference-machine baseline accepted)
+        run: |
+          xvfb-run -a python tools/qa/nightly_run.py --binary "$RUNNER_TEMP/build-release/artefacts/GapFillTests" \
+            --filter Perf --label performance --out "$RUNNER_TEMP/release-evidence" --build-dir "$RUNNER_TEMP/build-release"
+      - name: Continuous processor and RSS soak (actual requested duration)
+        env:
+          REQUESTED_SOAK_SECONDS: ${{ inputs.soak_seconds || '300' }}
+        run: |
+          xvfb-run -a python tools/qa/soak_run.py --binary "$RUNNER_TEMP/build-release/artefacts/GapFillTests" \
+            --seconds "$REQUESTED_SOAK_SECONDS" --warmup 30 --out "$RUNNER_TEMP/release-evidence/soak" --build-dir "$RUNNER_TEMP/build-release"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-performance-soak-${{ github.sha }}
+          path: ${{ runner.temp }}/release-evidence/
+          if-no-files-found: warn
+          retention-days: 30
+
+  native-full-qa:
+    name: Full QA ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022, macos-15, macos-15-intel]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Linux system dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libasound2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
+      - name: Pinned source dependencies
+        run: bash tools/ci_fetch_deps.sh
+      - name: Configure and build native formats and full test binary
+        run: |
+          cmake -S . -B "$RUNNER_TEMP/build-native" -DCMAKE_BUILD_TYPE=Release
+          targets=(GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone)
+          if [[ "$RUNNER_OS" == macOS ]]; then targets+=(GapFill_AU); fi
+          cmake --build "$RUNNER_TEMP/build-native" --config Release --target "${targets[@]}" --parallel 2
+      - name: Full native suites, validators and strict automated evidence
+        run: |
+          prefix=()
+          if [[ "$RUNNER_OS" == Linux ]]; then prefix=(xvfb-run -a); fi
+          "${prefix[@]}" python tools/qa/nightly_native.py --build-dir "$RUNNER_TEMP/build-native" \
+            --tools-dir "$RUNNER_TEMP/validators" --out "$RUNNER_TEMP/native-evidence"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-native-${{ matrix.os }}-${{ github.sha }}
+          path: ${{ runner.temp }}/native-evidence/
+          if-no-files-found: warn
+          retention-days: 30

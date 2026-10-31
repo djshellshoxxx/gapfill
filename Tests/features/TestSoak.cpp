@@ -89,6 +89,8 @@ GF_TEST (Soak, continuous_processor_with_automation_transport_and_state_churn)
         }
         if (blocks % 193u == 0u)
             playHead.ppq = (double) (random() % 32u);       // seeks / loop wraps
+        if (blocks % 16u == 0u)
+            proc.getLiveControl().pump (proc);            // message-thread requests between callbacks
         work.setSize (4, size, false, false, true);
         for (int i = 0; i < size; ++i)
         {

@@ -359,6 +359,19 @@ jobs:
           .\build-ci\artefacts\Release\GapFillTests.exe $env:SMOKE_FILTER
           if ($LASTEXITCODE -ne 0) { throw "GapFillTests ($env:SMOKE_FILTER) failed with exit code $LASTEXITCODE" }
 
+      - name: Native continuous-soak smoke with executed-test evidence
+        shell: pwsh
+        run: |
+          python tools/qa/nightly_run.py --binary build-ci/artefacts/Release/GapFillTests.exe --filter Soak --label windows-soak-smoke --out test-results/release-assurance --build-dir build-ci
+          if ($LASTEXITCODE -ne 0) { throw "Native soak smoke failed" }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-release-assurance-${{ github.sha }}
+          path: test-results/release-assurance/
+          if-no-files-found: warn
+
       - name: Validator cache key (refreshed monthly)
         id: month
         shell: bash
@@ -564,6 +577,19 @@ jobs:
           tests="$(find build-ci/artefacts -type f -name GapFillTests -perm -111 | head -n 1)"
           test -n "$tests"
           "$tests" "$SMOKE_FILTER"
+
+      - name: Native continuous-soak smoke with executed-test evidence
+        shell: bash
+        run: |
+          tests="$(find build-ci/artefacts -type f -name GapFillTests -perm -111 | head -n 1)"
+          python3 tools/qa/nightly_run.py --binary "$tests" --filter Soak --label macos-soak-smoke --out test-results/release-assurance --build-dir build-ci
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-${{ matrix.arch }}-release-assurance-${{ github.sha }}
+          path: test-results/release-assurance/
+          if-no-files-found: warn
 
       - name: Verify native bundles and architecture
         shell: bash
