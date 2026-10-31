@@ -1,0 +1,229 @@
+// Auxiliary writer compiled against production sources at the immutable
+// v0.0.2-beta1 tag. This file is not part of the released production code.
+// Run only with GF_RELEASE_FIXTURE_DIR pointing to a new evidence directory.
+
+#include "../support/TestRig.h"
+
+#include "features/context/ContextState.h"
+#include "features/scenes/SceneController.h"
+
+#include <cstring>
+#include <bit>
+#include <memory>
+
+using namespace gapfill;
+using namespace gftest;
+
+namespace
+{
+    constexpr const char* kReleaseCommit = "e89aecd218253141cfcd35ad3d9ddfe76c8891e3";
+
+    juce::String compilerIdentity()
+    {
+       #if defined (__clang__)
+        return "clang:" __clang_version__;
+       #elif defined (_MSC_VER)
+        return "msvc:" + juce::String (_MSC_VER);
+       #else
+        return "gcc:" __VERSION__;
+       #endif
+    }
+
+    juce::String renderFingerprint (const juce::AudioBuffer<float>& audio)
+    {
+        std::uint64_t hash = 14695981039346656037ull;
+        for (int ch = 0; ch < audio.getNumChannels(); ++ch)
+            for (int sample = 0; sample < audio.getNumSamples(); ++sample)
+            {
+                const auto bits = std::bit_cast<std::uint32_t> (audio.getSample (ch, sample));
+                for (int byte = 0; byte < 4; ++byte)
+                {
+                    hash ^= (std::uint8_t) (bits >> (8 * byte));
+                    hash *= 1099511628211ull;
+                }
+            }
+        return juce::String::toHexString ((juce::int64) hash).paddedLeft ('0', 16);
+    }
+
+    juce::String slug (const juce::String& name)
+    {
+        juce::String out;
+        for (const auto ch : name.toLowerCase())
+            out << (juce::CharacterFunctions::isLetterOrDigit (ch) ? juce::String::charToString (ch) : juce::String ("_"));
+        return out;
+    }
+
+    void writeImmutable (const juce::File& file, const juce::MemoryBlock& data)
+    {
+        if (file.existsAsFile())
+        {
+            juce::MemoryBlock old;
+            GF_EXPECT (file.loadFileAsData (old));
+            GF_EXPECT_MSG (old.getSize() == data.getSize()
+                           && std::memcmp (old.getData(), data.getData(), data.getSize()) == 0,
+                           "Existing immutable fixture differs: " + file.getFileName());
+            return;
+        }
+        GF_EXPECT (file.replaceWithData (data.getData(), data.getSize()));
+    }
+
+    void appendFixture (const juce::File& dir, const juce::String& name, GapFillAudioProcessor& p,
+                        juce::Array<juce::var>& entries)
+    {
+        juce::MemoryBlock bytes;
+        p.getStateInformation (bytes);
+        GF_EXPECT (bytes.getSize() > 0);
+        const auto filename = "state_0.0.2-beta1_" + name + ".bin";
+        writeImmutable (dir.getChildFile (filename), bytes);
+
+        auto row = std::make_unique<juce::DynamicObject>();
+        row->setProperty ("file", filename);
+        row->setProperty ("bytes", (juce::int64) bytes.getSize());
+        row->setProperty ("valid", true);
+        // Expected behavior is the old reader's interpretation, not a guess
+        // based on the newly improved implementation or unsaved live state.
+        GapFillAudioProcessor loaded;
+        loaded.setStateInformation (bytes.getData(), (int) bytes.getSize());
+        juce::Array<juce::var> params;
+        for (const auto& id : allParameterIDs())
+        {
+            auto value = std::make_unique<juce::DynamicObject>();
+            value->setProperty ("id", id);
+            value->setProperty ("raw", (double) loaded.getValueTreeState().getRawParameterValue (id)->load());
+            value->setProperty ("normalised", (double) loaded.getValueTreeState().getParameter (id)->getValue());
+            params.add (juce::var (value.release()));
+        }
+        row->setProperty ("parameters", juce::var (params));
+        juce::Array<juce::var> subtrees;
+        const auto xml = juce::AudioProcessor::getXmlFromBinary (bytes.getData(), (int) bytes.getSize());
+        GF_EXPECT (xml != nullptr);
+        for (const auto* child : xml->getChildIterator())
+            subtrees.add (child->getTagName());
+        row->setProperty ("subtrees", juce::var (subtrees));
+        const auto rendered = renderGoldenScenarioA (loaded);
+        GF_EXPECT (allFinite (rendered.out));
+        row->setProperty ("renderFingerprint", renderFingerprint (rendered.out));
+        row->setProperty ("renderPlatform", goldenPlatform());
+        row->setProperty ("renderCompiler", compilerIdentity());
+       #ifdef NDEBUG
+        row->setProperty ("renderReleaseBuild", true);
+       #else
+        row->setProperty ("renderReleaseBuild", false);
+       #endif
+        row->setProperty ("renderSamples", rendered.out.getNumSamples());
+        row->setProperty ("renderFills", rendered.fills);
+        entries.add (juce::var (row.release()));
+    }
+
+    void configureFullSession (GapFillAudioProcessor& p)
+    {
+        int index = 0;
+        for (const auto& id : allParameterIDs())
+        {
+            auto* param = p.getValueTreeState().getParameter (id);
+            const auto chosen = 0.19f + (float) ((index++ * 37) % 73) * 0.01f;
+            auto normalised = param->convertTo0to1 (param->convertFrom0to1 (chosen));
+            if (juce::exactlyEqual (normalised, param->getDefaultValue()))
+                normalised = param->getDefaultValue() < 0.5f ? 1.0f : 0.0f;
+            param->setValueNotifyingHost (normalised);
+        }
+
+        p.getMidiLearnManager().setMapping ("wet", 74);
+        p.getMidiLearnManager().setMapping ("fill", 21);
+        p.getMidiLearnManager().setMapping ("dry", 7);
+        int cc = 110;
+        for (auto command : { CommandType::Preview, CommandType::Panic, CommandType::SceneNext })
+        {
+            commands::Binding binding;
+            binding.cmd = command;
+            binding.number = (std::uint8_t) cc++;
+            p.getLiveControl().bindings().add (binding);
+        }
+        p.getLiveControl().bindings().setProgramChangeScenes (true, 2);
+        p.getLiveControl().macroMappings().rename (0, "Fixture macro");
+
+        for (int i = 0; i < 3; ++i)
+            GF_EXPECT (p.getLiveControl().scenes().saveCurrent (i, "Release " + juce::String (i + 1)));
+
+        for (int i = 0; i < RecipeHistory::capacity; ++i)
+        {
+            FillRecipe recipe;
+            recipe.algo = (std::uint8_t) i;
+            recipe.band = (std::int8_t) ((i % 4) - 1);
+            recipe.lengthMs = (std::uint16_t) (120 + i * 10);
+            recipe.seed = 1000u + (std::uint32_t) i;
+            recipe.flags = FillRecipe::flagBiased;
+            p.getRecipeHistory().push (recipe);
+        }
+        p.getRecipes().lockMirror.valid = true;
+        p.getRecipes().lockMirror.recipe = p.getRecipeHistory().get (0);
+
+        taste::ProjectProfile profile;
+        profile.ready = true;
+        profile.likes = 18;
+        profile.skips = 12;
+        for (int i = 0; i < taste::kFeatures; ++i)
+            profile.q[i] = (std::int8_t) ((i % 5 - 2) * 8);
+        p.getContextState().tasteService().setProjectProfile (profile);
+
+        groove::GrooveSnapshot groove;
+        groove.valid = true;
+        groove.confidence = 0.8f;
+        groove.swingPercent = 54.0f;
+        for (int i = 0; i < groove::kSlots; ++i)
+            groove.offsetSteps[i] = (i % 2) == 0 ? -0.04f : 0.08f;
+        p.getContextState().grooveState().requestLoad (groove, true);
+    }
+}
+
+GF_TEST (ReleaseFixtureWriter, generate_immutable_beta1_states_when_explicitly_requested)
+{
+    const auto path = juce::SystemStats::getEnvironmentVariable ("GF_RELEASE_FIXTURE_DIR", "");
+    GF_EXPECT_MSG (path.isNotEmpty(), "GF_RELEASE_FIXTURE_DIR is required for this auxiliary writer");
+    const juce::File dir (path);
+    GF_EXPECT (dir.createDirectory().wasOk());
+    juce::Array<juce::var> entries;
+
+    const auto& presets = getFactoryPresets();
+    for (int i = 0; i < (int) presets.size(); ++i)
+    {
+        GapFillAudioProcessor p;
+        p.setCurrentProgram (i);
+        appendFixture (dir, "preset_" + slug (presets[(size_t) i].name), p, entries);
+    }
+
+    {
+        GapFillAudioProcessor p;
+        configureFullSession (p);
+        appendFixture (dir, "session_complete", p, entries);
+    }
+    {
+        GapFillAudioProcessor p;
+        setParams (p, { { "wetSolo", 1.0f }, { "wet", 71.0f }, { "dry", 23.0f }, { "output", -3.0f },
+                       { "detSource", 1.0f }, { "scSnap", 65.0f }, { "scGate", 1.0f }, { "scThresh", -24.0f } });
+        appendFixture (dir, "session_wet_only_routing", p, entries);
+    }
+
+    GapFillAudioProcessor p;
+    juce::MemoryBlock good;
+    p.getStateInformation (good);
+    const juce::MemoryBlock truncated (good.getData(), good.getSize() / 3);
+    writeImmutable (dir.getChildFile ("state_0.0.2-beta1_corrupt_truncated.bin"), truncated);
+    juce::MemoryBlock flipped (good);
+    static_cast<std::uint8_t*> (flipped.getData())[0] ^= 0x80u; // invalid JUCE XML magic, never a valid state
+    writeImmutable (dir.getChildFile ("state_0.0.2-beta1_corrupt_bitflips.bin"), flipped);
+
+    auto manifest = std::make_unique<juce::DynamicObject>();
+    manifest->setProperty ("format", 1);
+    manifest->setProperty ("releaseTag", "v0.0.2-beta1");
+    manifest->setProperty ("productionCommit", kReleaseCommit);
+    manifest->setProperty ("generationMethod", "Auxiliary test writer linked against unchanged release production sources");
+    manifest->setProperty ("factoryPresetCount", (int) presets.size());
+    manifest->setProperty ("parameterCount", allParameterIDs().size());
+    manifest->setProperty ("validFixtures", juce::var (entries));
+    manifest->setProperty ("corruptFixtures", "corrupt_truncated,corrupt_bitflips");
+    const auto text = juce::JSON::toString (juce::var (manifest.release()), false);
+    const juce::MemoryBlock json (text.toRawUTF8(), text.getNumBytesAsUTF8());
+    writeImmutable (dir.getChildFile ("state_0.0.2-beta1_manifest.json"), json);
+    GF_EXPECT (entries.size() == (int) presets.size() + 2);
+}

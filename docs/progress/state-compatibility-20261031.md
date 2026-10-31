@@ -46,3 +46,17 @@ the immutable e89aecd release commit. Its production-source diff is empty; only
 test glue and its fragment were added. It must be built/run there, with output
 and provenance retained, before importing any new release fixtures. Fixtures
 have not been fabricated from the improved implementation.
+
+## Actual released-state fixtures
+
+The separate exact `e89aecd218253141cfcd35ad3d9ddfe76c8891e3` tag build executed
+`ReleaseFixtureWriter`: **1 passed, 0 failed**. Its production source diff was
+empty; 41 factory programs, two non-default sessions and two corrupted blobs
+were copied byte-for-byte into Tests/fixtures with generated old-reader values,
+old-reader audio fingerprints, SHA-256 checksums, production git blob IDs and
+the auxiliary writer source. The new StateCompat002 tests cover all 43 valid
+states, stable resave, finite rendering, platform/compiler-matched old audio,
+and rejection of both corrupted blobs. Their source was syntax-checked, but
+execution against the integrated new processor remains pending the shared
+native build. Do not conflate the successful **old writer** run with those
+new-reader tests.
