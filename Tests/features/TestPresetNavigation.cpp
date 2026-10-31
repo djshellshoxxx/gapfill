@@ -70,6 +70,11 @@ GF_TEST (PresetNavigation, favourites_use_shared_user_identity_and_empty_favouri
     GF_EXPECT (navigation.currentFile() == user && navigation.currentIndex (proc) >= proc.getNumPrograms());
     GF_EXPECT (navigation.stepNowForTests (proc, -1, 6000, files.roots(), files.preferences));
     GF_EXPECT (navigation.currentFile() == user);
+    files.preferences->setFavourite (navigation.catalog().entries()[0].identity, true);
+    files.preferences->setFavourite (navigation.catalog().entries()[1].identity, true);
+    proc.selectPreset (0);
+    GF_EXPECT (navigation.stepNowForTests (proc, 2, 7000, files.roots(), files.preferences));
+    GF_EXPECT (navigation.currentFile() == user); // coalesced requests keep every step, including favourites
     navigation.requestReset();
     navigation.pump (proc);
     GF_EXPECT (navigation.currentFile() == juce::File());

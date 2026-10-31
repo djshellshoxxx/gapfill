@@ -39,16 +39,20 @@ struct PresetNavigation::Impl
         if (delta == 0)
             return false;
         bool fallback = false;
-        int target = -1;
+        int target = index (proc);
+        const int direction = delta > 0 ? 1 : -1;
+        const auto steps = std::min ((std::int64_t) 64, std::abs ((std::int64_t) delta));
         if (preferences->getInt (kKeyStepScope, 0) == 1)
         {
             const auto pool = catalog.favouriteIndices (preferences->getFavourites());
             fallback = pool.empty();
-            target = fallback ? catalog.step (index (proc), delta)
-                              : PresetCatalog::stepWithin (pool, index (proc), delta);
+            for (std::int64_t i = 0; i < steps; ++i)
+                target = fallback ? catalog.step (target, direction)
+                                  : PresetCatalog::stepWithin (pool, target, direction);
         }
         else
-            target = catalog.step (index (proc), delta);
+            for (std::int64_t i = 0; i < steps; ++i)
+                target = catalog.step (target, direction);
         if (target < 0)
             return false;
         const auto entry = catalog.entries()[(size_t) target];
