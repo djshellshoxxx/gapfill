@@ -127,13 +127,23 @@ jobs:
           retention-days: 30
 
   native-full-qa:
-    name: Full QA ${{ matrix.os }}
+    name: Full QA ${{ matrix.os }} MIDI_OUT=${{ matrix.midi_out }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-15, macos-15-intel]
+        include:
+          - os: ubuntu-22.04
+            midi_out: 'OFF'
+          - os: windows-2022
+            midi_out: 'OFF'
+          - os: macos-15
+            midi_out: 'OFF'
+          - os: macos-15-intel
+            midi_out: 'OFF'
+          - os: ubuntu-22.04
+            midi_out: 'ON'
     defaults:
       run:
         shell: bash
@@ -150,11 +160,23 @@ jobs:
       - name: Pinned source dependencies
         run: bash tools/ci_fetch_deps.sh
       - name: Configure and build native formats and full test binary
+        env:
+          MIDI_OUT: ${{ matrix.midi_out }}
         run: |
-          config=(-DCMAKE_BUILD_TYPE=Release)
+          config=(-DCMAKE_BUILD_TYPE=Release "-DGAPFILL_MIDI_OUT=$MIDI_OUT")
           if [[ "$RUNNER_OS" == Windows ]]; then config+=(-G "Visual Studio 17 2022" -A x64); fi
           if [[ "$RUNNER_OS" == macOS ]]; then config+=(-DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 "-DCMAKE_OSX_ARCHITECTURES=$(uname -m)"); fi
           cmake -S . -B "$RUNNER_TEMP/build-native" "${config[@]}"
+          mkdir -p "$RUNNER_TEMP/native-evidence"
+          cp "$RUNNER_TEMP/build-native/CMakeCache.txt" "$RUNNER_TEMP/native-evidence/CMakeCache.txt"
+          python - "$RUNNER_TEMP/build-native/CMakeCache.txt" "$MIDI_OUT" <<'PY'
+          from pathlib import Path
+          import sys
+          observed = [line.split('=', 1)[1] for line in Path(sys.argv[1]).read_text().splitlines()
+                      if line.startswith('GAPFILL_MIDI_OUT:BOOL=')]
+          if observed != [sys.argv[2]]:
+              raise SystemExit(f'MIDI output build configuration mismatch: {observed!r}')
+          PY
           targets=(GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone)
           if [[ "$RUNNER_OS" == macOS ]]; then targets+=(GapFill_AU); fi
           cmake --build "$RUNNER_TEMP/build-native" --config Release --target "${targets[@]}" --parallel 2
@@ -170,7 +192,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: nightly-native-${{ matrix.os }}-${{ github.sha }}
+          name: nightly-native-${{ matrix.os }}-midi-${{ matrix.midi_out }}-${{ github.sha }}
           path: ${{ runner.temp }}/native-evidence/
           if-no-files-found: warn
           retention-days: 30

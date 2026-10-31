@@ -15,6 +15,7 @@ on:
   push:
     branches:
       - master
+      - 'integration/**'
   pull_request:
   workflow_dispatch:
     inputs:
@@ -25,7 +26,7 @@ on:
         type: boolean
 
 concurrency:
-  # Superseded PR runs are cancelled. Pushes to master and manual runs are keyed
+  # Superseded PR runs are cancelled. Branch pushes and manual runs are keyed
   # by SHA so a release candidate's artifacts are never cancelled by a later push.
   group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('sha-{0}', github.sha) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -78,6 +79,12 @@ jobs:
 
       - name: Release assurance tool regressions
         run: python -m unittest tools.qa.nightly_test tools.test_release_pipeline tools.test_i18n_catalog
+
+      - name: Transport trace analysis and bounded callback queue
+        run: |
+          python -m unittest tools.test_transport_jitter
+          c++ -std=c++20 -Wall -Wextra -Werror -pthread tools/transport_probe/TestTraceQueue.cpp -o "$RUNNER_TEMP/transport-trace-queue"
+          "$RUNNER_TEMP/transport-trace-queue"
 
       - name: Completeness audit and layout-literal ratchet
         run: |
@@ -771,9 +778,9 @@ jobs:
           retention-days: 90
 
   full-assurance:
-    name: Requested native and sanitizer assurance
+    name: Candidate native and sanitizer assurance
     needs: preflight
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.full_assurance }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.full_assurance) || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/integration/')) }}
     uses: ./.github/workflows/nightly.yml
     with:
       soak_seconds: '300'
@@ -798,7 +805,7 @@ jobs:
           else
             echo "Docs-only change: native jobs skipped"
           fi
-          if [ '${{ github.event_name }}' = workflow_dispatch ] && [ '${{ inputs.full_assurance }}' = true ]; then
+          if [ '${{ (github.event_name == 'workflow_dispatch' && inputs.full_assurance) || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/integration/')) }}' = true ]; then
             results="$results ${{ needs.full-assurance.result }}"
           fi
           echo "results: $results"
