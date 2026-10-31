@@ -20,6 +20,7 @@ Status: documentation roadmap and maintenance index, updated 2026-10-21. The doc
 | 10 | 10-SPEC-LIVE-CREATIVE-EFFECTS.md | Live performance workflow, scenes, MIDI/transport behavior, and creative effect specifications. |
 | 11 | 11-GUI-PLACEMENT-AND-FEATURE-PLAN.md | Plan the placement of new controls before changing the GUI. |
 | 12 | 12-SPEC-BACKLOG-AND-NEW.md | Full implementable specs for every remaining backlog item and the six new features (Reverse Swell, Granular Cloud, Panic and Health, Scale Lock, Scene Bank, Fix-it), parameter ID index, merge order, work packages. Wins over 10 on conflicts. |
+| 13 | 13-FINALIZATION-PROMPT.md | Agent prompt and work packages (FIN-0..FIN-8) to take 0.0.2-beta1 to a 1.0 release candidate; feature freeze, owner decisions, definition of done. |
 
 ## Additional developer references
 
