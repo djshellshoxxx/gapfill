@@ -47,7 +47,8 @@ const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask);
 const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask, std::uint8_t scopeVersion);
 
 /** dry, wet, output, bypass, lookahead, seed, wetSolo, wetSafety, qualityMode,
-    capture, audition, coop*, midiOut*. Never stored, never recalled. */
+    capture, audition, coop*, midiOut*, fl11_*, wetBus*, fm08_*.
+    Never stored, never recalled. */
 bool isNeverId (const juce::String& id);
 
 /** Position in allParameterIDs() (stable: ids are append-only), or -1. */

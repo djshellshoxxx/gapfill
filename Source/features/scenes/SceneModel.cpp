@@ -152,7 +152,8 @@ bool isNeverId (const juce::String& id)
         if (id == n)
             return true;
 
-    return id.startsWith ("coop") || id.startsWith ("midiOut") || id.startsWith ("fl11_") || id.startsWith ("wetBus");
+    return id.startsWith ("coop") || id.startsWith ("midiOut") || id.startsWith ("fl11_")
+        || id.startsWith ("wetBus") || id.startsWith ("fm08_");
 }
 
 const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask)

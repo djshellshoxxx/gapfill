@@ -287,6 +287,24 @@ GF_TEST (Scenes, scope_flags_select_the_expected_parameters_and_never_ids_are_ex
     GF_EXPECT (idsForScope (kDefaultScope).size() <= (size_t) kMaxSceneParams);
 }
 
+GF_TEST (Scenes, detailed_capture_controls_are_never_admitted_even_in_an_untrusted_all_scope_scene)
+{
+    initTables();
+    for (const auto* id : { "fm08_detail", "fm08_scan" })
+    {
+        GF_EXPECT (isNeverId (id));
+        const auto& all = idsForScope (kAllScopes);
+        GF_EXPECT (std::find (all.begin(), all.end(), juce::String (id)) == all.end());
+        const auto index = paramIndexOf (id);
+        GF_EXPECT (index >= 0);
+        Scene hostile;
+        hostile.scope = kAllScopes;
+        hostile.params.push_back ({ (std::uint16_t) index, 1.0f });
+        juce::String why;
+        GF_EXPECT (! isSceneValid (hostile, why) && why.contains (id));
+    }
+}
+
 GF_TEST (Scenes, capture_is_sparse_and_resolve_fills_the_rest_with_defaults)
 {
     GapFillAudioProcessor proc;
