@@ -1,0 +1,61 @@
+{
+  "kind": "exclusive coordinator CPU lease; all other workers idle",
+  "recorded_utc": "2026-10-31T12:05:29.682758+00:00",
+  "cpu": "Intel Xeon Platinum 8573C / KVM / x86_64",
+  "compiler": "g++ Debian14.2.0-19 14.2.0",
+  "flags": [
+    "-std=c++20",
+    "-O3",
+    "-DNDEBUG",
+    "JUCE_MODAL_LOOPS_PERMITTED=0"
+  ],
+  "juce_sha": "91ad83ae34a81e0833b1a2b0866f54846370ae53",
+  "tape": {
+    "command": "GAPFILL_PERF_ENFORCE=1 /workspace/work/runtime-probes/tapedamage_components Perf",
+    "sample_rate": 48000,
+    "instances": 4,
+    "controls": "all9values1",
+    "seeds": [
+      100,
+      101,
+      102,
+      103
+    ],
+    "warmup_samples": 4800,
+    "measured_samples": 48000,
+    "repeats": 12,
+    "denormals": "ScopedNoDenormals outside timing",
+    "target_percent": 0.6,
+    "measured_percent": 0.9205,
+    "accepted": false,
+    "source_snapshot_sha256": "a883ad2032b4fad5e2898633c6f058861dbddf10d1517e87debab363805d3ca6",
+    "tests_sha256": "3774c7e2cb56fa34d8581a5081604995ed91cd1d0bcf41386944cd6dd62536b6",
+    "binary_sha256": "9fed417c0d325781ee523dbf2ef409d8b3aa4c0542f1c7b381d47df4be279608",
+    "log_sha256": "ba1360b7673b6c1961adf9b53c7f2012d6c2df70fa97f874c3347d5e53f8cd0a",
+    "source_note": "Uncommitted immutable Pad\u00e9-curve prototype overb0b685f; old baseline for later cache work. Exact source reconstructed and verified by SHA before retention."
+  },
+  "formant": {
+    "command": "GAPFILL_PERF_ENFORCE=1 /workspace/work/runtime-probes/formant_components",
+    "sample_rate": 48000,
+    "instances": 2,
+    "settings": {
+      "amount01": 1,
+      "shiftSemitones": 12,
+      "tiltDbPerOct": 6,
+      "vowel": 2,
+      "preserve01": 0.5,
+      "detail": 2
+    },
+    "measured_samples": 48000,
+    "denormals": "ScopedNoDenormals outside timing",
+    "target_percent": 3,
+    "measured_percent": 2.628,
+    "accepted": true,
+    "component_suite": "22pass0fail",
+    "processor_sha256": "d9e6a02eeaa7292b9c22a68a69583bdabf71218617d6f6e0b36b120a816573c3",
+    "tests_sha256": "99bb68a6d2981892a244901d8f3e097aecee36ebacd35d59b7c4825e5c101a3f",
+    "binary_sha256": "8592e67ed364a8357d67bd82b575118403f9ee4709175c28d1b24a84b31bd19a",
+    "log_sha256": "85c4ea2ff86ebedb4fe7e86e7e7c8c78d4c63b2fcc41e2c41ed2fd31e787b708"
+  },
+  "scope": "Component CPU, not native host or full-plugin acceptance."
+}

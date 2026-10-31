@@ -14,6 +14,20 @@ namespace
     constexpr float kFlutterBudgetSeconds = 0.00065f;
     constexpr float kDriftBudgetSeconds = 0.00035f;
     constexpr float kPlusThreeDb = 1.4125375f;
+    constexpr int kTanhIntervals = 2048;
+    // Shared immutable Padé curve: interpolation error is below1e-6. Building
+    // it at compile time avoids either division or lazy initialisation in audio.
+    constexpr auto kTanh = []
+    {
+        std::array<float, kTanhIntervals + 1> table {};
+        for (int i = 0; i <= kTanhIntervals; ++i)
+        {
+            const float x = (float) i * (5.0f / kTanhIntervals), x2 = x*x;
+            table[(std::size_t) i] = x * (135135.0f + x2 * (17325.0f + x2 * (378.0f + x2)))
+                / (135135.0f + x2 * (62370.0f + x2 * (3150.0f + x2 * 28.0f)));
+        }
+        return table;
+    }();
 
     int nextInterval (Rng& random, float rate, double sr) noexcept
     {
@@ -208,12 +222,11 @@ forcedinline TapeDamage::Stereo TapeDamage::readTap (float delay) const noexcept
 
 float TapeDamage::boundedTanh (float value, float saturationDrive) noexcept
 {
-    // JUCE's Padé tanh form, range-clamped. The caller multiplies by the
-    // latched1/drive to remove the otherwise up-to6x small-signal gain.
-    const float x = std::clamp (value * saturationDrive, -5.0f, 5.0f), x2 = x*x;
-    const auto numerator = x * (135135.0f + x2 * (17325.0f + x2 * (378.0f + x2)));
-    const auto denominator = 135135.0f + x2 * (62370.0f + x2 * (3150.0f + x2 * 28.0f));
-    return numerator / denominator;
+    // The caller applies latched1/drive for level compensation.
+    const float position = std::min (std::abs (value * saturationDrive), 5.0f) * (kTanhIntervals / 5.0f);
+    const int index = std::min ((int) position, kTanhIntervals - 1);
+    const float a = kTanh[(std::size_t) index], b = kTanh[(std::size_t) index + 1];
+    return std::copysign (a + (b - a) * (position - (float) index), value);
 }
 
 void TapeDamage::process (float& l, float& r) noexcept

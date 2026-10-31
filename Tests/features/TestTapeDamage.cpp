@@ -326,3 +326,41 @@ GF_TEST (TapeDamage, dropout_and_splice_edges_obey_a_signal_derived_step_bound)
             GF_EXPECT (events > 0 && maximumStep <= bound);
         }
 }
+
+GF_TEST (TapeDamage, saturation_render_matches_the_level_compensated_tanh_oracle)
+{
+    for (const double sr : { 44100.0, 48000.0, 96000.0, 192000.0 })
+    {
+        constexpr int count = 20000;
+        std::vector<float> input ((std::size_t) count);
+        for (int i = 0; i < count; ++i)
+            input[(std::size_t) i] = 0.4f * (float) std::sin (i * 0.71) + 0.2f * (float) std::cos (i * 0.017);
+        TapeDamage stage;
+        stage.prepare (sr);
+        auto settings = baseSettings(); settings.sat01 = 1;
+        GF_EXPECT (stage.begin (settings, 211, count, 0));
+        const int delay = stage.latencySamples();
+        const float emphasis = (float) std::exp (-6.283185307179586 * 3000 / sr);
+        const float dc = (float) std::exp (-6.283185307179586 * 10 / sr);
+        float previousInput = 0, deemphasised = 0, previousDeemphasis = 0, highpassed = 0;
+        double maximumError = 0;
+        for (int i = 0; i < count; ++i)
+        {
+            float l = input[(std::size_t) i], r = l;
+            stage.process (l, r);
+            if (i >= delay)
+            {
+                const auto delayed = input[(std::size_t) (i - delay)];
+                const auto preemphasised = delayed - emphasis * previousInput;
+                previousInput = delayed;
+                const auto shaped = (float) std::tanh ((double) std::clamp (6 * preemphasised, -5.0f, 5.0f)) / 6;
+                deemphasised = shaped + emphasis * deemphasised;
+                highpassed = deemphasised - previousDeemphasis + dc * highpassed;
+                previousDeemphasis = deemphasised;
+            }
+            maximumError = std::max (maximumError, std::abs ((double) l - highpassed));
+        }
+        std::printf ("         Tape tanh oracle sr%.0f maximum absolute error %.8g\n", sr, maximumError);
+        GF_EXPECT (maximumError < 2e-4);
+    }
+}

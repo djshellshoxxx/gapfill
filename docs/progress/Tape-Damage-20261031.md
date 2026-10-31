@@ -66,3 +66,21 @@ an independent renamed class: 8,552,250 floats match bit for bit across four rat
 three Amounts, three active control sets, five seeds and 64 versus 17-sample chunks.
 This is an adapter for the opt-in Macro V3 target; it does not remap saved `td*`
 parameters or enable the new Tape Damage stage.
+
+## Retained performance evidence
+
+A shared immutable 2,049-point Padé saturation table removes per-sample divides;
+its full rendered filter chain is also checked against the independent
+level-compensated `std::tanh` oracle. Maximum absolute error was below 7.5e-7 on
+the four-rate fixture. The existing nine functional Tape cases remain passing.
+During the coordinator's exclusive quiet lease, Tape still failed its strict
+four-instance 0.6% target at 0.9205%; two FL20 processors passed their 3% target
+at 2.628% (22 component cases). Exact source/test/binary/log fingerprints and
+settings are retained in `DSP-quiet-CPU-20261031.json`.
+
+Discarded private prototypes included stereo-only SIMD tap packing and fixed
+control/output frame caches. The output cache was proved bit-identical on
+11,653,200 floats at 8/44.1/48/96/192 kHz, three configurations and twenty seeds,
+but paired measurements were slower (scalar 0.8759%, cached 1.0412%). Those
+prototypes and their extra layout/state do not ship. Further motion optimisation
+must preserve the requested objective limits; the CPU requirement remains open.
