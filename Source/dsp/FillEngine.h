@@ -119,6 +119,7 @@ public:
     void unlockRecipe() noexcept;
     void setLockPublication (lock::LockPublication*) noexcept;
     bool adoptLockRestore (Command& acceptedRestore) noexcept;
+    bool acceptsLockCommand (const Command&) const noexcept;
     void likeLatest() noexcept;
     void likeRecipe (const FillRecipe&) noexcept;
 
