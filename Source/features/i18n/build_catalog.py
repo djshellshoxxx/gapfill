@@ -19,18 +19,19 @@ import re
 REPO = Path(__file__).resolve().parents[3]
 LANG = REPO / "Resources/lang"
 ROOT = Path(__file__).resolve().parent
-TOKEN = re.compile(r'//[^\n]*|/\*[\s\S]*?\*/|R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\((?P<raw>[\s\S]*?)\)(?P=delimiter)"|(?:u8|u|U|L)?"(?:\\.|[^"\\])*"')
+TOKEN = re.compile(r'''//[^\n]*|/\*[\s\S]*?\*/|(?P<character>(?<![\w])(?:u8|u|U|L)?'(?:\\.|[^'\\\r\n])*')|R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\((?P<raw>[\s\S]*?)\)(?P=delimiter)"|(?:u8|u|U|L)?"(?:\\.|[^"\\])*"''')
 PROTECTED = {"GapFill", "Circuit Drift Labs", "VST3", "CLAP", "AU", "AAX", "MIDI", "PPQ", "BPM",
              "Hz", "kHz", "ms", "dB", "-inf", "+inf", "inf", "NaN", "nan",
              "UTF-8", "ASCII", "JSON", "XML", "true", "false", "yes", "no", "en", "pseudo"}
 ACCENTS = str.maketrans("AaEeIiOoUuCcNn", "ÁáËëÏïÖöÜüÇçÑñ")
+MAX_CATALOG_BYTES = 256 * 1024
 
 
 def literals(source: str):
     previous = None
     for match in TOKEN.finditer(source):
         token = match[0]
-        if token.startswith(("//", "/*")):
+        if token.startswith(("//", "/*")) or match["character"] is not None:
             continue
         try:
             value = match["raw"] if match["delimiter"] is not None else ast.literal_eval(re.sub(r'^(?:u8|u|U|L)', "", token))
@@ -51,6 +52,13 @@ def classify(value: str, source: str, start: int, end: int, path: Path, ids: set
     suffix = source[end:end + 80]
     if re.search(r"(?:i18n::)?(?:text|format)\s*\(\s*$", prefix) and re.search(r"[A-Za-z]", value):
         return "explicit-translation"
+    if (re.search(r"(?:containsOnly|retainCharacters|removeCharacters|indexOfAnyOf|containsAnyOf)\s*\(\s*$", prefix)
+            or re.search(r"(?:createNewChildElement|getChildByName|hasTagName|setAttribute|getStringAttribute|hasAttribute|getChildFile)\s*\(\s*$", prefix)
+            or re.search(r"\bXmlElement\s+\w+\s*[{(]\s*$", prefix)
+            or path.name == "MidiLearn.h" and re.search(r"\bstateType\s*=\s*$", prefix)):
+        # Syntax alphabets and XML/state keys describe bytes/identities. The
+        # same value still gets a key if it appears at a presentation sink.
+        return "protected-or-nonprose"
     csv = value.split(",")
     if len(csv) > 1 and all(part in ids for part in csv):
         return "protected-or-nonprose"  # permanent parameter-ID scope lists, never presentation
@@ -133,6 +141,14 @@ def pseudo(value: str) -> str:
     return "[" + "".join(output) + "]"
 
 
+def catalog_text(catalog: dict[str, str], code: str = "language") -> str:
+    """One canonical, compact JSON encoding; whitespace inside values is data."""
+    encoded = json.dumps(catalog, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n"
+    if len(encoded.encode("utf-8")) > MAX_CATALOG_BYTES:
+        raise ValueError(f"{code} catalog exceeds 256 KiB: {len(encoded.encode('utf-8'))} bytes; review protected/fragments first")
+    return encoded
+
+
 def build():
     english = {key: value for key, value in json.loads((LANG / "en.json").read_text()).items()
                if not key.startswith("s.") and not key.startswith("example.")}
@@ -173,9 +189,7 @@ def build():
     localized = {key: pseudo(value) for key, value in english.items()}
     localized["locale.nativeName"] = "Pseudo (+40%)"
     for code, catalog in (("en", english), ("pseudo", localized)):
-        encoded = (json.dumps(catalog, ensure_ascii=False, indent=0, separators=(",", ":"), sort_keys=True) + "\n").encode("utf-8")
-        if len(encoded) > 256 * 1024:
-            raise ValueError(f"{code} catalog exceeds 256 KiB: {len(encoded)} bytes; review protected/fragments first")
+        catalog_text(catalog, code)
     return english, localized, records
 
 
@@ -187,8 +201,7 @@ def main(argv=None):
     outputs = {LANG / "en.json": english, LANG / "pseudo.json": localized, ROOT / "INVENTORY.json": records}
     failed = []
     for path, value in outputs.items():
-        encoded = json.dumps(value, ensure_ascii=False, indent=0 if path.parent == LANG else 2,
-                             separators=(",", ":") if path.parent == LANG else None, sort_keys=True) + "\n"
+        encoded = catalog_text(value, path.stem) if path.parent == LANG else json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
         if args.check:
             if not path.is_file() or path.read_text(encoding="utf-8") != encoded:
                 failed.append(path.relative_to(REPO).as_posix())

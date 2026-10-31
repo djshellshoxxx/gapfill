@@ -58,6 +58,14 @@ complete strings by at least 40 percent, retaining placeholders unchanged.
 It accents one letter per entry to exercise glyph coverage within the byte cap;
 protocol IDs, structure tags, thread names and numeric character sets are pruned.
 Plain HelpRegistrar bodies are cataloged at the actual split-paragraph sinks.
+Catalog JSON uses compact separators and one trailing newline; formatting
+whitespace is not part of a translation, while whitespace inside each value is
+preserved exactly. The generator and runtime retain the same strict 256 KiB
+UTF-8 byte cap. The inventory lexer skips C++ character literals and preserves
+digit separators, adjacent strings, comments and raw strings. XML keys, fixed
+directory names and character-validation alphabets remain inventoried as
+non-presentation contexts; the same word at a display sink still receives its
+ordinary stable key. UI error sentences are retained.
 
 `I18n` tests cover validation, English fallback, placeholder preservation,
 project-state neutrality, user-data collisions, item IDs, language round trips,
