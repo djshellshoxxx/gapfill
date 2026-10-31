@@ -66,6 +66,9 @@ struct PerformanceSettings
     const macros::MacroRuntime* macroRuntime = nullptr;   // F-M23: LFO macros re-evaluated per decision
     std::uint32_t macroOwnedMask = 0; // C-2: macro target bits claimed by macros (scenes skip them)
     std::uint16_t advancedMacroOwnedMask = 0; // MacroV2: appended targets 21..35, independent of the released mask
+    bool sceneBaseApplied = false;       // v2 raw scene projected before personality/macros this segment
+    int sceneMaxFillSync = -1, sceneMaxFillDivision = -1; // -1: retain parameter-derived tempo controls
+    float sceneProtectLowHz = -1.0f, sceneProtectCenter01 = -1.0f; // -1: retain post-wet controls
     std::uint32_t fillNowId = 0;      // F-P02: a new id requests one forced fill at fillNowPos (output timeline)
     std::int64_t fillNowPos = 0;
     bool  fillNowOverSustained = false;

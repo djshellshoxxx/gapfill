@@ -21,6 +21,8 @@
 #include <atomic>
 #include <cstdint>
 
+namespace gapfill { struct AnalysisSettings; namespace Effective { struct ModulationInputs; } }
+
 namespace gapfill::scenes
 {
 enum ModelDomain : std::uint8_t { ModelCloud = 1 };
@@ -60,6 +62,7 @@ struct OverlayView
     float real[kMaxOverlayEntries] {};
     std::uint8_t modelDomains = 0;
     std::uint8_t cloudModelVersion = 1;
+    std::uint8_t scopeVersion = 2;
 
     /** True when the overlay governs a decision taken at `ppq`. */
     bool appliesAt (double ppq, bool ppqValid) const noexcept
@@ -72,6 +75,11 @@ struct OverlayView
     /** Apply only effect-card and voice-effect settings. Caller first checks
         appliesAt() at the segment start, before effect-chain preparation. */
     void applyFxTo (EngineSettings&) const noexcept;
+    /** New scenes project raw base/modulation values before Effective::applyBlock.
+        Caller gates appliesAt() for this segment. Legacy views are unchanged. */
+    void applyBaseTo (EngineSettings&, Effective::ModulationInputs&) const noexcept;
+    /** Opt-in detector/crossover projection before this segment's analysis. */
+    void applyAnalysisTo (AnalysisSettings&) const noexcept;
 
     void clear() noexcept { active = false; immediate = false; boundaryPpq = 0.0; n = 0; modelDomains = 0; cloudModelVersion = 1; }
 };

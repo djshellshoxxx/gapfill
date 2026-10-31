@@ -77,3 +77,22 @@ callback to syncModelVersions(). A manual model upgrade while a recall is
 pending removes that model domain from the overlay and commit. Other pending
 parameters still apply. Model-only overlays are supported even with no raw
 parameter entries. Tests live in TestSceneModels.
+
+Released scope membership is now a separate explicit ID table, frozen from
+the actual e89aecd sources: default128 IDs, all scopes158. New scope2 adds
+Ping Pong, Lock boolean, personality, mistakes, fill envelope and Evolve to
+Creative, plus per-band fill types to Bands. It never adds a recipe or held
+state. Old scenes keep their exact old ID lists despite these old-indexed
+parameters becoming scene eligible for new scenes.
+
+New views project through `applyBaseTo(settings, modulationInputs)` after raw
+gather and before personality/macros. Macro values and personality target their
+actual ModulationInputs fields; the scene base flag prevents a second raw
+projection from erasing those effective outputs at decision. Legacy scope1
+keeps its released decision overlay. `applyAnalysisTo` handles opt-in detector
+and crossover settings before analysis. `PerformanceTargets` resolves the
+remaining musical/shaping destinations with the same units/choice conversions
+as their gatherers. Tempo and post-wet values use neutral -1 override fields;
+the processor must consume them in tempo resolution and wet post-processing.
+All178 currently admitted v2 IDs have explicit destinations across these DSP
+stages; that coverage does not replace end-to-end processor timing tests.

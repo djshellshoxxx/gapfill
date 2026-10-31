@@ -20,7 +20,7 @@ enum class Kind : std::uint8_t
     ProtTrans, ProtNext, ProtSC, MinGap, MaxFill, ProtectHold,
     BandOn, BandAmt, BandInt, BandProb, XoverLM, XoverMH,
     HarmonicAmount, HarmonicVoices, HarmonicMotion, HarmonicTone, Effect,
-    EnergyAdapt, ScaleAmount, GrooveAmount
+    EnergyAdapt, ScaleAmount, GrooveAmount, Performance
 };
 
 struct Ref
@@ -28,6 +28,7 @@ struct Ref
     Kind kind = Kind::None;
     std::uint8_t sub = 0;        ///< algorithm (Weight) or band (Band*)
     std::uint16_t advancedMacroMask = 0; ///< resolved once, MacroV2 targets 21..35
+    std::uint8_t performanceIndex = 0; ///< optional staged projection index + 1
 
     explicit operator bool() const noexcept { return kind != Kind::None; }
 };

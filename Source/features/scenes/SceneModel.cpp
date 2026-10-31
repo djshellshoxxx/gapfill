@@ -1,6 +1,7 @@
 #include "SceneModel.h"
 #include "../modelversions/State.h"
 #include "SceneCodec.h"
+#include "LegacySceneScope.h"
 
 #include "../../Parameters.h"
 
@@ -20,8 +21,9 @@ namespace
     {
         std::vector<juce::String> ids;
         std::unordered_map<std::string, int> index;
-        std::map<std::uint16_t, std::vector<juce::String>> scopeCache;
+        std::map<std::uint32_t, std::vector<juce::String>> scopeCache;
         std::vector<juce::String> byScope[8];     // one list per scope bit
+        std::vector<juce::String> legacyByScope[8];
     };
 
     Tables& tables()
@@ -91,6 +93,8 @@ namespace
 
         for (const char* id : { "fill", "intensity", "complexity", "chaos", "density", "fillType" })
             raw[0].emplace_back (id);
+        for (const char* id : { "pingPong", "fl01_lock", "personality", "mistakes", "fillShape", "fillShapeAmount", "evolve" })
+            raw[0].emplace_back (id);
 
         for (int a = 0; a < numAlgos; ++a)
             raw[1].emplace_back (algoWeightID ((Algo) a));
@@ -110,11 +114,18 @@ namespace
                                 "bandLowAmt", "bandMidAmt", "bandHighAmt", "bandLowInt", "bandMidInt",
                                 "bandHighInt", "bandLowProb", "bandMidProb", "bandHighProb" })
             raw[7].emplace_back (id);
+        for (const char* id : { "bandLowType", "bandMidType", "bandHighType" })
+            raw[7].emplace_back (id);
 
         for (int b = 0; b < 8; ++b)
+        {
             for (const auto& id : raw[b])
                 if (! isNeverId (id) && t.index.count (id.toStdString()) > 0)
                     t.byScope[b].push_back (id);
+            for (const auto& id : juce::StringArray::fromTokens (legacy::scopeIds[b], ",", ""))
+                if (! isNeverId (id) && t.index.count (id.toStdString()) > 0)
+                    t.legacyByScope[b].push_back (id);
+        }
     }
 }
 
@@ -137,10 +148,16 @@ bool isNeverId (const juce::String& id)
 
 const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask)
 {
+    return idsForScope (scopeMask, 2);
+}
+
+const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask, std::uint8_t scopeVersion)
+{
     initTables();
     auto& t = tables();
 
-    if (const auto it = t.scopeCache.find (scopeMask); it != t.scopeCache.end())
+    const auto cacheKey = (std::uint32_t) scopeMask | (scopeVersion == 1 ? 0x10000u : 0u);
+    if (const auto it = t.scopeCache.find (cacheKey); it != t.scopeCache.end())
         return it->second;
 
     // Parameter order, no duplicates.
@@ -148,7 +165,7 @@ const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask)
 
     for (int b = 0; b < 8; ++b)
         if ((scopeMask & (1u << b)) != 0)
-            for (const auto& id : t.byScope[b])
+            for (const auto& id : scopeVersion == 1 ? t.legacyByScope[b] : t.byScope[b])
                 picked.push_back (t.index[id.toStdString()]);
 
     std::sort (picked.begin(), picked.end());
@@ -159,7 +176,7 @@ const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask)
     for (const auto i : picked)
         out.push_back (t.ids[(size_t) i]);
 
-    return t.scopeCache.emplace (scopeMask, std::move (out)).first->second;
+    return t.scopeCache.emplace (cacheKey, std::move (out)).first->second;
 }
 
 int paramIndexOf (const juce::String& id)
@@ -289,13 +306,8 @@ bool resolveScene (juce::AudioProcessorValueTreeState& apvts, const Scene& scene
     for (const auto& p : scene.params)
         stored[p.index] = p.value01;
 
-    for (const auto& id : idsForScope (scene.scope))
+    for (const auto& id : idsForScope (scene.scope, scene.scopeVersion))
     {
-        // Released scenes did not control harmonic granular. New groups must
-        // also leave old recall semantics intact (the beta had 216 host IDs).
-        if (scene.scopeVersion == 1 && (id.startsWith ("hg") || paramIndexOf (id) >= 216))
-            continue;
-
         auto* p = apvts.getParameter (id);
 
         if (p == nullptr)

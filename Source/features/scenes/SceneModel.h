@@ -43,6 +43,8 @@ void initTables();
 
 /** Ids a scope mask covers, minus sceneNeverIDs(), in parameter order. */
 const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask);
+/** Explicit released-scope lookup for migration. Future groups never expand v1. */
+const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask, std::uint8_t scopeVersion);
 
 /** dry, wet, output, bypass, lookahead, seed, wetSolo, wetSafety, qualityMode,
     capture, audition, coop*, midiOut*. Never stored, never recalled. */

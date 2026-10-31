@@ -1,5 +1,6 @@
 #include "EngineTargets.h"
 #include "FxTargets.h"
+#include "PerformanceTargets.h"
 
 #include <algorithm>
 #include <cmath>
@@ -44,14 +45,19 @@ Ref refForId (const char* id) noexcept
 
 Ref sceneRefForId (const char* id) noexcept
 {
-    const auto legacy = refForId (id);
+    auto legacy = refForId (id);
+    const auto performance = performanceTargets::indexForId (id);
     if (legacy)
+    {
+        legacy.performanceIndex = (std::uint8_t) (performance + 1);
         return legacy;
+    }
     if (eq (id, "energyAdapt")) return { Kind::EnergyAdapt, 0, 1u << 12 };
     if (eq (id, "scaleAmount")) return { Kind::ScaleAmount, 0, 1u << 13 };
     if (eq (id, "fl09_amount")) return { Kind::GrooveAmount, 0, 1u << 14 };
     const auto effect = fxTargets::indexForId (id);
-    if (effect < 0) return {};
+    if (effect < 0)
+        return performance >= 0 ? Ref { Kind::Performance, (std::uint8_t) performance, 0, (std::uint8_t) (performance + 1) } : Ref {};
     constexpr const char* advanced[] = { "swellAmount", "cloudAmount", "ratAmount", "rcAmount", "tdAmount",
         "resAmount", "fsdAmount", "dubAmount", "fmtAmount", "sfzAmount", "cvAmount" };
     std::uint16_t mask = 0;
@@ -112,6 +118,7 @@ void apply (EngineSettings& s, Ref ref, float real) noexcept
         case Kind::EnergyAdapt: s.perf.energy.adapt01 = std::clamp (pct, 0.0f, 1.0f); break;
         case Kind::ScaleAmount: s.scaleLock.amount01 = std::clamp (pct, 0.0f, 1.0f); break;
         case Kind::GrooveAmount: s.perf.groove.amount01 = std::clamp (pct, 0.0f, 1.0f); break;
+        case Kind::Performance: performanceTargets::apply (s, ref.sub, real); break;
         case Kind::None:        break;
     }
 }

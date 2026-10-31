@@ -1,4 +1,7 @@
 #include "SceneOverlay.h"
+#include "../common/PerformanceTargets.h"
+#include "../effective/Effective.h"
+#include "../../dsp/AnalysisEngine.h"
 
 #include <algorithm>
 #include <array>
@@ -52,6 +55,28 @@ void OverlayView::applyFxTo (EngineSettings& s) const noexcept
             && (targets::macroBit (refs[i]) & s.perf.macroOwnedMask) == 0
             && (refs[i].advancedMacroMask & s.perf.advancedMacroOwnedMask) == 0)
             targets::apply (s, refs[i], real[i]);
+}
+
+void OverlayView::applyBaseTo (EngineSettings& s, Effective::ModulationInputs& inputs) const noexcept
+{
+    if (scopeVersion != 2) return;
+    if ((modelDomains & ModelCloud) != 0) s.fx.cloud.modelVersion = cloudModelVersion;
+    for (int i = 0; i < n; ++i)
+    {
+        targets::apply (s, refs[i], real[i]);
+        if (refs[i].performanceIndex != 0)
+            performanceTargets::applyModulation (inputs, refs[i].performanceIndex - 1, real[i]);
+    }
+    s.perf.sceneBaseApplied = true;
+}
+
+void OverlayView::applyAnalysisTo (AnalysisSettings& s) const noexcept
+{
+    if (scopeVersion != 2) return;
+    for (int i = 0; i < n; ++i)
+        if (refs[i].performanceIndex != 0)
+            performanceTargets::applyAnalysis (s, refs[i].performanceIndex - 1, real[i]);
+    s.xoverMidHigh = std::max (s.xoverMidHigh, s.xoverLowMid * 1.5f);
 }
 
 //==============================================================================
@@ -128,6 +153,7 @@ void SceneEngine::load (const Overlay& o) noexcept
     currentView.n = n;
     currentView.modelDomains = o.modelDomains;
     currentView.cloudModelVersion = o.cloudModelVersion;
+    currentView.scopeVersion = o.scopeVersion;
 
     for (int i = 0; i < n; ++i)
     {
