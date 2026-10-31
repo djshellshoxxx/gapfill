@@ -33,6 +33,10 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from provenance import collect_provenance, tool_version
+
 REPO = Path(__file__).resolve().parents[2]
 COUNT_RE = re.compile(r"(\d+) passed, (\d+) failed")
 PYTHON_COUNT_RE = re.compile(r"Ran (\d+) tests? in [^\n]+")
@@ -60,18 +64,31 @@ class StepSpec:
     extra: dict = field(default_factory=dict)
 
 
-def parse_counts(text: str) -> tuple[int, int] | None:
-    """(passed, failed) of the LAST ``N passed, M failed`` line of the test binary, or None."""
+def parse_test_counts(text: str) -> dict | None:
+    """Count test cases, not assertions/cleanup errors; skipped Python cases establish no executed coverage."""
     found = COUNT_RE.findall(text)
     if not found:
         python_counts = PYTHON_COUNT_RE.findall(text)
         if not python_counts:
             return None
+        total = int(python_counts[-1])
         failures = re.search(r"FAILED \(([^\n]+)\)", text)
-        failed = sum(int(n) for n in re.findall(r"(?:failures|errors)=(\d+)", failures[1])) if failures else 0
-        return int(python_counts[-1]) - failed, failed
+        events = sum(int(n) for n in re.findall(r"(?:failures|errors)=(\d+)", failures[1])) if failures else 0
+        skipped = re.findall(r"\bskipped=(\d+)", text)
+        skipped = min(total, int(skipped[-1])) if skipped else 0
+        # unittest can report FAIL and ERROR for one case (assertion then tearDown). Headers identify those cases.
+        headers = re.findall(r"^(?:FAIL|ERROR): (.+? \([^)]+\))", text, re.M)
+        failed = min(total - skipped, len(set(headers)) if headers else events)
+        return {"passed": max(0, total - skipped - failed), "failed": failed, "reported_tests": total,
+                "skipped_tests": skipped, "failure_events": events}
     passed, failed = found[-1]
-    return int(passed), int(failed)
+    return {"passed": int(passed), "failed": int(failed), "reported_tests": int(passed) + int(failed),
+            "skipped_tests": 0, "failure_events": int(failed)}
+
+
+def parse_counts(text: str) -> tuple[int, int] | None:
+    counts = parse_test_counts(text)
+    return (counts["passed"], counts["failed"]) if counts else None
 
 
 def run_step(spec: StepSpec, *, cwd: Path, log_dir: Path, runner=subprocess.run) -> dict:
@@ -106,9 +123,11 @@ def run_step(spec: StepSpec, *, cwd: Path, log_dir: Path, runner=subprocess.run)
     row["exit_code"] = code
     row["signal"] = -code if code < 0 else None
     row["log_sha256"] = hashlib.sha256(log_path.read_bytes()).hexdigest()
-    counts = parse_counts(output)
+    details = parse_test_counts(output)
+    counts = (details["passed"], details["failed"]) if details else None
 
     if counts is not None:
+        row.update(details)
         row["passed"], row["failed"] = counts
         row["executed"] = counts[0] + counts[1]
 
@@ -218,7 +237,8 @@ def apply_skips(steps: list[StepSpec], skip: list[str], reason: str) -> list[Ste
     unknown = sorted(set(skip) - known)
     if unknown:
         raise ValueError("--skip names no step in this tier: " + ", ".join(unknown))
-    return [StepSpec(s.name, None, tiers=s.tiers, unverified_reason=reason) if s.name in skip else s for s in steps]
+    return [StepSpec(s.name, None, tiers=s.tiers, unverified_reason=reason,
+                     extra={**s.extra, "skipped": True}) if s.name in skip else s for s in steps]
 
 
 def git_sha(repo: Path = REPO) -> str:
@@ -229,15 +249,17 @@ def git_sha(repo: Path = REPO) -> str:
         return "unknown"
 
 
-def make_evidence(rows: list[dict], *, sha: str, os_name: str, command_line: str, tier: str) -> dict:
+def make_evidence(rows: list[dict], *, sha: str, os_name: str, command_line: str, tier: str,
+                  provenance: dict | None = None) -> dict:
     return {
-        "schema": 1,
+        "schema": 2,
         "sha": sha,
         "os": os_name,
         "python": platform.python_version(),
         "tier": tier,
         "command_line": command_line,
         "steps": rows,
+        "provenance": provenance or {"build_configuration": "unverified", "tested_sha": sha},
         "manual_rows_open": MANUAL_ROWS,
     }
 
@@ -273,18 +295,41 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--vst3")
     ap.add_argument("--clap-validator")
     ap.add_argument("--clap")
+    ap.add_argument("--au", type=Path, help="built .component bundle whose AudioComponents identity auval must validate")
+    ap.add_argument("--build-dir", type=Path, help="CMake build directory used for the tested binaries")
+    ap.add_argument("--build-config", help="tested configuration (required for multi-config generators)")
+    ap.add_argument("--source-head", help="exact PR source head when checkout is a synthetic tested merge commit")
     args = ap.parse_args(argv)
 
     out = Path(args.out)
     sha = git_sha()
     os_name = platform.system().lower()
     log_dir = out / f"{sha}-{os_name}-logs"
-    steps = default_steps(shlex.split(args.binary), args.tier, pluginval=args.pluginval, vst3=args.vst3,
-                          clap_validator=args.clap_validator, clap=args.clap)
+    binary = shlex.split(args.binary)
+    if not binary:
+        ap.error("--binary must select an executable")
+    try:
+        provenance = collect_provenance(REPO, binary, build_dir=args.build_dir, build_config=args.build_config,
+                                        source_head=args.source_head, output_dir=out)
+        steps = default_steps(binary, args.tier, pluginval=args.pluginval, vst3=args.vst3,
+                              clap_validator=args.clap_validator, clap=args.clap, au_bundle=args.au)
+    except (OSError, ValueError, TypeError, KeyError, plistlib.InvalidFileException) as exc:
+        ap.error(str(exc))
     steps = apply_skips(steps, args.skip, args.skip_reason)
     rows = [run_step(s, cwd=REPO, log_dir=log_dir) for s in steps]
+    versions = {"python": {"status": "observed", "text": sys.version}}
+    for name, tool, options in (("pluginval", args.pluginval, ["--version"]),
+                                 ("clap-validator", args.clap_validator, ["--version"]),
+                                 ("auval", shutil.which("auval") if platform.system() == "Darwin" else None, ["-h"])):
+        versions[name] = tool_version([tool, *options]) if tool else {"status": "unverified", "text": "tool unavailable"}
+    for row in rows:
+        if row["log"]:
+            row["log_relative"] = Path(row["log"]).resolve().relative_to(out.resolve()).as_posix()
+        row["tool_version"] = versions.get(row["name"], versions["python"] if row["name"].startswith("preflight") else
+                                           {"status": "identified-by-hash", "text": provenance["binary_sha256"]})
 
-    evidence = make_evidence(rows, sha=sha, os_name=os_name, command_line=" ".join(shlex.quote(a) for a in sys.argv), tier=args.tier)
+    evidence = make_evidence(rows, sha=sha, os_name=os_name, command_line=" ".join(shlex.quote(a) for a in sys.argv),
+                             tier=args.tier, provenance=provenance)
     out.mkdir(parents=True, exist_ok=True)
     (out / f"{sha}-{os_name}.json").write_text(json.dumps(evidence, indent=2), encoding="utf-8")
     text, code = summarise(evidence)
