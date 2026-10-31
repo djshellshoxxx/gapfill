@@ -10,6 +10,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <vector>
+#include <functional>
+#include <utility>
 
 namespace gapfill::scenes
 {
@@ -22,6 +24,9 @@ public:
     SceneBank& getBank() noexcept                   { return bank; }
     const SceneBank& getBank() const noexcept       { return bank; }
     TripleBuffer<Overlay>& publisher() noexcept     { return pub; }
+    /** Message-thread owner synchronises the canonical model-selection child
+        after a scene commit. No callback runs on audio. */
+    void setModelVersionsCommittedCallback (std::function<void()> callback) { modelVersionsCommitted = std::move (callback); }
 
     //------------------------------------------------------------------------
     // Navigation (all quantised by the audio thread).
@@ -97,6 +102,10 @@ private:
     std::uint8_t pendingScopeVersion = 2;
     std::uint8_t pendingGroup = 0;
     std::uint64_t pendingCancelEpoch = 0;
+    std::uint8_t pendingModelDomains = 0;
+    std::uint8_t pendingCloudModelVersion = 1;
+    std::uint8_t baselineCloudModelVersion = 1;
+    std::function<void()> modelVersionsCommitted;
 
     std::vector<ResolvedParam> resolved;       ///< entries still governed by the overlay
     std::vector<float> baseline01;             ///< parameter value when the request was made

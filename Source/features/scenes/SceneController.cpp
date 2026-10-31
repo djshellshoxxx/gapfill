@@ -1,4 +1,5 @@
 #include "SceneController.h"
+#include "../modelversions/State.h"
 
 #include <cmath>
 
@@ -69,6 +70,11 @@ bool SceneController::request (int index, bool fixedBoundary, double targetPpq, 
     o.externalCancelEpoch = cancelEpoch;
     pendingGroup = group;
     pendingCancelEpoch = cancelEpoch;
+    o.modelDomains = (scene.scope & ScopeFx) != 0 ? ModelCloud : 0;
+    o.cloudModelVersion = scene.cloudModelVersion;
+    pendingModelDomains = o.modelDomains;
+    pendingCloudModelVersion = o.cloudModelVersion;
+    baselineCloudModelVersion = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType)).cloud;
     o.n = (std::uint16_t) resolved.size();
 
     for (size_t i = 0; i < resolved.size(); ++i)
@@ -205,6 +211,16 @@ void SceneController::onApplied (std::uint32_t requestId)
         }
     }
 
+    if ((pendingModelDomains & ModelCloud) != 0
+        && models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType)).cloud == baselineCloudModelVersion)
+    {
+        auto versions = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType));
+        versions.cloud = pendingCloudModelVersion;
+        apvts.state.removeChild (apvts.state.getChildWithName (models::kTreeType), nullptr);
+        apvts.state.appendChild (models::toModelVersionsTree (versions), nullptr);
+        if (modelVersionsCommitted) modelVersionsCommitted();
+    }
+
     committing = false;
 
     bank.current = pendingIndex;
@@ -225,10 +241,16 @@ void SceneController::onApplied (std::uint32_t requestId)
 
 void SceneController::poll()
 {
-    if (pendingId == 0 || committing || resolved.empty())
+    if (pendingId == 0 || committing)
         return;
 
     bool changed = false;
+    if ((pendingModelDomains & ModelCloud) != 0
+        && models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType)).cloud != baselineCloudModelVersion)
+    {
+        pendingModelDomains = 0;
+        changed = true;
+    }
 
     for (size_t i = 0; i < resolved.size();)
     {
@@ -258,6 +280,8 @@ void SceneController::poll()
         o.scopeVersion = pendingScopeVersion;
         o.externalGroup = pendingGroup;
         o.externalCancelEpoch = pendingCancelEpoch;
+        o.modelDomains = pendingModelDomains;
+        o.cloudModelVersion = pendingCloudModelVersion;
         o.n = (std::uint16_t) resolved.size();
 
         for (size_t i = 0; i < resolved.size(); ++i)

@@ -65,6 +65,7 @@ struct Scene
     std::uint16_t scope = kDefaultScope;
     Quant quant = Quant::Inherit;
     std::uint8_t scopeVersion = 2;       ///< v1 retains the released scope (no hg* or post-beta IDs)
+    std::uint8_t cloudModelVersion = 1;  ///< missing metadata preserves released Cloud; recalled only with ScopeFx
     std::vector<SceneParam> params;      ///< sparse: differs from the default
 
     bool operator== (const Scene& o) const noexcept;

@@ -60,3 +60,20 @@ as well as their legacy parameter scope. Recapturing/storing a scene creates
 the new scope/dispatch version. The legacy shared macro/battle lookup remains
 unchanged; enabling previously disconnected advanced macro mappings needs its
 own versioned contract and explicit upgrade.
+
+Scenes also carry the Cloud model version as a separate optional `cm` field
+(portable bank `cloudModel` attribute), never as a parameter index. Missing
+metadata, including released scenes, selects model 1. Capture reads the
+canonical APVTS ModelVersions child only when FX scope is selected; that domain
+travels coherently with the overlay and both effect-only/full projections
+apply it at the boundary. Other model domains are untouched: Taste is session
+learning state, and the canonical scene scope lists contain no section-aware
+arrangement controls. A later model scope addition must be explicit.
+
+The controller commits only the Cloud domain back to the canonical child on
+message, then invokes setModelVersionsCommittedCallback so the processor can
+publish its coherent model selection. Root integration must install that
+callback to syncModelVersions(). A manual model upgrade while a recall is
+pending removes that model domain from the overlay and commit. Other pending
+parameters still apply. Model-only overlays are supported even with no raw
+parameter entries. Tests live in TestSceneModels.

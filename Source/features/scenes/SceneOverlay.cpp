@@ -37,6 +37,7 @@ targets::Ref overlayTargetFor (int paramIndex) noexcept
 
 void OverlayView::applyTo (EngineSettings& s) const noexcept
 {
+    if ((modelDomains & ModelCloud) != 0) s.fx.cloud.modelVersion = cloudModelVersion;
     for (int i = 0; i < n; ++i)
         if ((targets::macroBit (refs[i]) & s.perf.macroOwnedMask) == 0
             && (refs[i].advancedMacroMask & s.perf.advancedMacroOwnedMask) == 0)
@@ -45,6 +46,7 @@ void OverlayView::applyTo (EngineSettings& s) const noexcept
 
 void OverlayView::applyFxTo (EngineSettings& s) const noexcept
 {
+    if ((modelDomains & ModelCloud) != 0) s.fx.cloud.modelVersion = cloudModelVersion;
     for (int i = 0; i < n; ++i)
         if (refs[i].kind == targets::Kind::Effect
             && (targets::macroBit (refs[i]) & s.perf.macroOwnedMask) == 0
@@ -124,6 +126,8 @@ void SceneEngine::load (const Overlay& o) noexcept
 {
     const int n = std::min<int> (o.n, kMaxOverlayEntries);
     currentView.n = n;
+    currentView.modelDomains = o.modelDomains;
+    currentView.cloudModelVersion = o.cloudModelVersion;
 
     for (int i = 0; i < n; ++i)
     {

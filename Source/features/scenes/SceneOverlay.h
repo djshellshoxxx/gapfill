@@ -23,6 +23,7 @@
 
 namespace gapfill::scenes
 {
+enum ModelDomain : std::uint8_t { ModelCloud = 1 };
 
 inline constexpr int kMaxOverlayEntries = kMaxSceneParams;
 
@@ -44,6 +45,8 @@ struct Overlay
     std::uint8_t scopeVersion = 2;                          ///< v1 retains released target dispatch
     std::uint8_t externalGroup = 0;                        ///< 0: local request; else coherent co-op guard
     std::uint64_t externalCancelEpoch = 0;
+    std::uint8_t modelDomains = 0;
+    std::uint8_t cloudModelVersion = 1;
 };
 
 /** What the scheduler sees. Owned by the audio thread (stable address). */
@@ -55,11 +58,13 @@ struct OverlayView
     int n = 0;
     targets::Ref refs[kMaxOverlayEntries] {};
     float real[kMaxOverlayEntries] {};
+    std::uint8_t modelDomains = 0;
+    std::uint8_t cloudModelVersion = 1;
 
     /** True when the overlay governs a decision taken at `ppq`. */
     bool appliesAt (double ppq, bool ppqValid) const noexcept
     {
-        return active && n > 0 && (immediate || (ppqValid && ppq >= boundaryPpq));
+        return active && (n > 0 || modelDomains != 0) && (immediate || (ppqValid && ppq >= boundaryPpq));
     }
 
     void applyTo (EngineSettings&) const noexcept;
@@ -68,7 +73,7 @@ struct OverlayView
         appliesAt() at the segment start, before effect-chain preparation. */
     void applyFxTo (EngineSettings&) const noexcept;
 
-    void clear() noexcept { active = false; immediate = false; boundaryPpq = 0.0; n = 0; }
+    void clear() noexcept { active = false; immediate = false; boundaryPpq = 0.0; n = 0; modelDomains = 0; cloudModelVersion = 1; }
 };
 
 //==============================================================================

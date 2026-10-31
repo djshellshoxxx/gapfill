@@ -1,4 +1,5 @@
 #include "SceneModel.h"
+#include "../modelversions/State.h"
 #include "SceneCodec.h"
 
 #include "../../Parameters.h"
@@ -186,7 +187,8 @@ int numParams()
 //==============================================================================
 bool Scene::operator== (const Scene& o) const noexcept
 {
-    if (name != o.name || scope != o.scope || quant != o.quant || scopeVersion != o.scopeVersion || params.size() != o.params.size())
+    if (name != o.name || scope != o.scope || quant != o.quant || scopeVersion != o.scopeVersion
+        || cloudModelVersion != o.cloudModelVersion || params.size() != o.params.size())
         return false;
 
     for (size_t i = 0; i < params.size(); ++i)
@@ -201,6 +203,8 @@ Scene captureScene (juce::AudioProcessorValueTreeState& apvts, const juce::Strin
     Scene s;
     s.name = name.substring (0, kMaxSceneNameLen);
     s.scope = scope;
+    if ((scope & ScopeFx) != 0)
+        s.cloudModelVersion = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType)).cloud;
 
     for (const auto& id : idsForScope (scope))
     {
@@ -218,7 +222,8 @@ Scene captureScene (juce::AudioProcessorValueTreeState& apvts, const juce::Strin
 
 bool isSceneValid (const Scene& scene, juce::String& why)
 {
-    if (scene.scopeVersion < 1 || scene.scopeVersion > 2 || scene.scope > kAllScopes || (int) scene.quant > (int) Quant::Phrase)
+    if (scene.scopeVersion < 1 || scene.scopeVersion > 2 || scene.cloudModelVersion < 1 || scene.cloudModelVersion > 2
+        || scene.scope > kAllScopes || (int) scene.quant > (int) Quant::Phrase)
     {
         why = "unsupported scene scope or quantise version";
         return false;
@@ -497,6 +502,7 @@ juce::ValueTree SceneBank::toValueTree (std::size_t maxBytes, bool* failed, juce
         n.setProperty ("sc", (int) s.scope, nullptr);
         n.setProperty ("q", (int) s.quant, nullptr);
         n.setProperty ("sv", (int) s.scopeVersion, nullptr);
+        n.setProperty ("cm", (int) s.cloudModelVersion, nullptr);
         n.setProperty ("d", encodeParams (s.params), nullptr);
         t.appendChild (n, nullptr);
     }
@@ -555,6 +561,9 @@ bool SceneBank::validateTree (const juce::ValueTree& t)
         if (scopeVersion != "1" && scopeVersion != "2")
             return false;
         s.scopeVersion = (std::uint8_t) scopeVersion.getIntValue();
+        const auto cloudVersion = version == 1 ? juce::String ("1") : n.getProperty ("cm", 1).toString();
+        if (cloudVersion != "1" && cloudVersion != "2") return false;
+        s.cloudModelVersion = (std::uint8_t) cloudVersion.getIntValue();
 
         if (! decodeParams (n.getProperty ("d").toString(), s.params, version))
             return false;
@@ -595,6 +604,7 @@ void SceneBank::restore (const juce::ValueTree& t)
         s.scope = (std::uint16_t) juce::jlimit (0, 255, (int) n.getProperty ("sc", kDefaultScope));
         s.quant = (Quant) juce::jlimit (0, 4, (int) n.getProperty ("q", 0));
         s.scopeVersion = (std::uint8_t) (version == 1 ? 1 : (int) n.getProperty ("sv"));
+        s.cloudModelVersion = (std::uint8_t) (version == 1 ? 1 : (int) n.getProperty ("cm", 1));
         decodeParams (n.getProperty ("d").toString(), s.params, version);
         next.scenes.push_back (std::move (s));
     }
@@ -611,7 +621,8 @@ juce::String SceneBank::canonicalPayload() const
 
     for (const auto& s : scenes)
     {
-        out << s.name << '|' << (int) s.scope << '|' << (int) s.quant << '|' << (int) s.scopeVersion << '|';
+        out << s.name << '|' << (int) s.scope << '|' << (int) s.quant << '|' << (int) s.scopeVersion
+            << '|' << (int) s.cloudModelVersion << '|';
 
         for (const auto& p : s.params)
             out << paramIdAt (p.index) << '=' << juce::String (p.value01, 6) << ';';

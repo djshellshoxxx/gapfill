@@ -192,7 +192,7 @@ juce::String canonicalPayload (const std::vector<Scene>& selected, const juce::S
         out << s.name << '|' << scopeToString (s.scope) << '|' << quantName (s.quant) << '|';
 
         if (formatVersion >= 2)
-            out << (int) s.scopeVersion << '|';
+            out << (int) s.scopeVersion << '|' << (int) s.cloudModelVersion << '|';
 
         for (const auto& p : s.params)
             out << paramIdAt (p.index) << '=' << valueText (p.value01, formatVersion) << ';';
@@ -242,6 +242,7 @@ juce::String exportToString (const SceneBank& bank, const ExportOptions& options
         e->setAttribute ("quant", quantName (s.quant));
         e->setAttribute ("scope", scopeToString (s.scope));
         e->setAttribute ("scopeVersion", (int) s.scopeVersion);
+        e->setAttribute ("cloudModel", (int) s.cloudModelVersion);
 
         for (const auto& p : s.params)
         {
@@ -347,6 +348,13 @@ ImportReport parseString (const juce::String& text)
         }
 
         s.scopeVersion = (std::uint8_t) scopeVersion.getIntValue();
+        const auto cloudVersion = version == 1 ? juce::String ("1") : se->getStringAttribute ("cloudModel", "1");
+        if (cloudVersion != "1" && cloudVersion != "2")
+        {
+            fail ("unsupported Cloud model version");
+            continue;
+        }
+        s.cloudModelVersion = (std::uint8_t) cloudVersion.getIntValue();
 
         if (se->getStringAttribute ("name").length() > kMaxSceneNameLen)
         {

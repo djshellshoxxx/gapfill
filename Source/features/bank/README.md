@@ -20,3 +20,9 @@ an empty export result is never written as a successful file.
 
 Tests: SceneBank and SceneFormat. Actual cross-OS file exchange remains an
 acceptance check until performed on the generated artifacts.
+
+Format 2 scene metadata includes `cloudModel` (1/2, missing means legacy 1)
+and the digest covers it. Only FX-scoped recall uses that domain. Optional
+MacrosV2 payloads are validated by MacroModel, including the preserved legacy
+target-engine version; valid new metadata takes precedence over valid legacy
+Macros, with fallback when the new optional subtree is invalid.
