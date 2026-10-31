@@ -17,6 +17,12 @@ on:
       - master
   pull_request:
   workflow_dispatch:
+    inputs:
+      full_assurance:
+        description: 'Also run native full QA, separate sanitizers, performance and a 300-second continuous soak'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
   # Superseded PR runs are cancelled. Pushes to master and manual runs are keyed
@@ -764,11 +770,19 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  full-assurance:
+    name: Requested native and sanitizer assurance
+    needs: preflight
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.full_assurance }}
+    uses: ./.github/workflows/nightly.yml
+    with:
+      soak_seconds: '300'
+
   # Single required status check: green when every job that had to run passed.
   # Native jobs are legitimately skipped for docs-only changes.
   ci-gate:
     name: CI gate
-    needs: [changes, preflight, unit-tests, build-linux-x64, build-windows-x64, package-windows, build-macos]
+    needs: [changes, preflight, unit-tests, build-linux-x64, build-windows-x64, package-windows, build-macos, full-assurance]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -783,6 +797,9 @@ jobs:
             results="$results ${{ needs.unit-tests.result }} ${{ needs.build-linux-x64.result }} ${{ needs.build-windows-x64.result }} ${{ needs.package-windows.result }} ${{ needs.build-macos.result }}"
           else
             echo "Docs-only change: native jobs skipped"
+          fi
+          if [ '${{ github.event_name }}' = workflow_dispatch ] && [ '${{ inputs.full_assurance }}' = true ]; then
+            results="$results ${{ needs.full-assurance.result }}"
           fi
           echo "results: $results"
           for r in $results; do

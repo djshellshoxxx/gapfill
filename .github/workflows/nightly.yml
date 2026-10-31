@@ -3,6 +3,13 @@ name: Nightly release assurance
 # These expensive jobs supplement the existing PR gate. A green workflow is
 # automated evidence; real hosts, hardware, signing and long soak remain separate.
 on:
+  workflow_call:
+    inputs:
+      soak_seconds:
+        description: 'Continuous processor soak seconds; long acceptance requires a persistent run'
+        required: false
+        default: '300'
+        type: string
   schedule:
     - cron: '17 7 * * *'
   workflow_dispatch:
