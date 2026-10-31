@@ -82,6 +82,27 @@ these commands are not evidence that either duration has run. Audio-device
 xruns, musical usefulness, hardware, actual concurrent host instances and
 listening remain separate manual acceptance rows.
 
+For a persistent Linux machine, start the command inside a named `tmux`
+session, with the candidate SHA, binary hash, compiler/dependency fingerprints
+and a dedicated absolute evidence directory recorded before starting:
+
+```bash
+tmux new-session -s gapfill-soak-7d
+xvfb-run -a -s '-screen 0 6000x4000x24' python3 tools/qa/soak_run.py \
+  --binary /absolute/build/artefacts/GapFillTests --build-dir /absolute/build \
+  --seconds 604800 --warmup 60 --seed 20261031 --out /absolute/evidence/soak-7d
+```
+
+Detach with Ctrl-B then D; reconnect with `tmux attach -t gapfill-soak-7d`.
+That resumes **observation of the same running process**, rather than restarting
+the workload. Preserve the session/host for the entire seven days and retain
+its final exit code plus `soak.json`, RSS samples and raw log. A terminated
+process, machine reboot or missing final report is an incomplete attempt;
+retain that evidence and start a fresh full-duration run in a new directory.
+Do not concatenate short sessions, auto-restart a crashed soak, or label an
+eight-hour report as seven-day acceptance. No persistent host run was started
+in this ephemeral workspace.
+
 ## Signing helper and workflow hook contract
 
 `packaging/sign_release.py` consumes already provisioned identities only:
@@ -114,7 +135,33 @@ Before changing `release-beta.yml`, review these required hook points:
    native OS with the helper below; install/upgrade/uninstall and DAWs still
    need recorded acceptance. Publish only after separate release authorization.
 
-Existing `release-beta.yml` is intentionally unchanged pending this review.
+The reviewed workflow now wires these steps through
+`packaging/release_pipeline.py` and the reusable `package-validation.yml`.
+It does not rebuild source. Windows payload signatures precede NSIS/ZIP
+creation; the finished installer is signed on Windows. macOS bundles and the
+optional system installer are signed, notarized, stapled and repackaged before
+final checksums. All native packaged validators must pass before publishing;
+they repeat against downloads of **every** published asset afterward.
+
+The `require_signing` dispatch flag defaults to false to preserve unsigned beta
+behavior. Missing provisioned selectors then retain **unverified** reports;
+actual signing failures still block publication. When true, all signing steps,
+the notarized installer and independently trusted checksum signatures must
+pass. Custom runner-label inputs select preprovisioned workers; no workflow
+imports private keys or obtains credentials. Repository variables select
+`GAPFILL_WINDOWS_CERT_SHA1`, `GAPFILL_APPLE_SIGN_IDENTITY`,
+`GAPFILL_APPLE_INSTALLER_IDENTITY`, `GAPFILL_NOTARY_PROFILE` and
+`GAPFILL_RELEASE_GPG_KEY`. Native validation additionally needs an independently
+provisioned public keyring at the path in
+`GAPFILL_RELEASE_TRUSTED_KEYRING_LINUX`, `_WINDOWS` or `_MACOS`. Do not construct
+that trust from the key bundled with the download. Select a runner with a clean
+validation account; an existing user AU installation is preserved and cannot
+produce a passing clean-account validation row.
+
+The versioned checksum filename is created directly; detached signatures are
+never renamed away from the exact manifest bytes. Assurance JSON/raw logs are
+retained in separate 30-day workflow artifacts. No release dispatch, tag,
+publication or production signing operation has been executed here.
 
 ## Downloaded package validation
 

@@ -227,7 +227,10 @@ def validate(args) -> dict:
                             process.kill()
                             process.wait()
     row["artifacts"] = artifacts
-    row["checks"]["code-signatures"] = {"status": "pass" if signatures and all(r["status"] == "pass" for r in signatures) else "unverified"}
+    row["checks"]["code-signatures"] = ({"status": "unverified", "applicable": False,
+                                         "detail": "Linux authenticity is covered by the separate detached manifest signature"}
+                                        if args.platform == "linux" else
+                                        {"status": "pass" if signatures and all(r["status"] == "pass" for r in signatures) else "unverified"})
     if any(r["status"] == "fail" for r in [*row["checks"].values(), *signatures]):
         row["status"] = "fail"
     elif any(row["checks"][name]["status"] == "unverified" for name in formats) or (args.require_signing and not all(r["status"] == "pass" for r in signatures)):

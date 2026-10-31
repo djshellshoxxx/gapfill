@@ -47,7 +47,8 @@ def require_identity(row: dict, variable: str, system: str | None, tools: tuple[
     elif any(shutil.which(tool) is None for tool in tools):
         row.update(status="unverified", detail="required native signing tools are unavailable")
     else:
-        if variable in ("GAPFILL_WINDOWS_CERT_SHA1", "GAPFILL_RELEASE_GPG_KEY") and not re.fullmatch(r"[A-Fa-f0-9]{40}|[A-Fa-f0-9]{64}", identity):
+        pattern = r"[A-Fa-f0-9]{40}" if variable == "GAPFILL_WINDOWS_CERT_SHA1" else r"[A-Fa-f0-9]{40}|[A-Fa-f0-9]{64}"
+        if variable in ("GAPFILL_WINDOWS_CERT_SHA1", "GAPFILL_RELEASE_GPG_KEY") and not re.fullmatch(pattern, identity):
             raise ValueError("signing selector must be a full public certificate/key fingerprint")
         return identity
     return None
@@ -57,8 +58,11 @@ def execute(args, row: dict) -> dict:
     if args.action == "checksums":
         if not args.directory.is_dir():
             raise ValueError("candidate asset directory does not exist")
-        manifest = args.directory / "SHA256SUMS.txt"
-        signature = args.directory / "SHA256SUMS.txt.asc"
+        name = getattr(args, "manifest_name", "SHA256SUMS.txt")
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name) or not name.endswith("SHA256SUMS.txt"):
+            raise ValueError("checksum manifest must be a safe basename ending in SHA256SUMS.txt")
+        manifest = args.directory / name
+        signature = args.directory / (name + ".asc")
         key = require_identity(row, "GAPFILL_RELEASE_GPG_KEY", None, ("gpg",))
         if key:
             public = command(["gpg", "--batch", "--no-tty", "--armor", "--export", key], row)
@@ -187,6 +191,7 @@ def main(argv=None) -> int:
         child.add_argument("--out", required=True, type=Path)
         if name == "checksums":
             child.add_argument("--directory", required=True, type=Path)
+            child.add_argument("--manifest-name", default="SHA256SUMS.txt")
         else:
             child.add_argument("--input", required=True, action="append", type=Path)
         if name == "windows":
