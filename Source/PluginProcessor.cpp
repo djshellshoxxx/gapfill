@@ -46,6 +46,7 @@ GapFillAudioProcessor::GapFillAudioProcessor()
       apvts (*this, nullptr, "GAPFILL", createParameterLayout())
 {
     params.connect (apvts);
+    setModelVersions ({}, false);
     bypassParameter = apvts.getParameter ("bypass");
     midiLearn.connect (apvts);
     liveControl.setMidiLearn (&midiLearn);
@@ -1050,6 +1051,7 @@ void GapFillAudioProcessor::setCurrentProgram (int index)
 
     programChangeInProgress.store (true, std::memory_order_relaxed);
     applyPreset (apvts, index);
+    setModelVersions ({}, false);
     currentProgram.store (index, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
 }
@@ -1088,6 +1090,7 @@ void GapFillAudioProcessor::resetAllParameters()
     pushUndoSnapshot();
     programChangeInProgress.store (true, std::memory_order_relaxed);
     resetToDefaults (apvts);
+    setModelVersions ({}, false);
     currentProgram.store (0, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
     updateHostDisplay();
@@ -1346,6 +1349,7 @@ bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state, b
     }
 
     snapParametersToState();
+    syncModelVersions();
     liveControl.forceHoldsOff();                    // F-M10: holds are never ON after a restore
     currentProgram.store (-1, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
@@ -1492,6 +1496,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     programChangeInProgress.store (true, std::memory_order_relaxed);
     apvts.replaceState (paramState.createCopy());
     snapParametersToState();
+    syncModelVersions();
     liveControl.forceHoldsOff();                    // F-M10: holds are never ON after a restore
     currentProgram.store (restoredProgram, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);

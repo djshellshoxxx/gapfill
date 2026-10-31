@@ -28,10 +28,10 @@
 #include "features/quality/Quality.h"
 #include "features/coop/Coop.h"
 #include "features/transport/TransportTracker.h"
+#include "features/modelversions/ModelVersions.h"
 
 namespace gapfill
 {
-namespace models { struct ModelVersions; }
 
 //==============================================================================
 class GapFillAudioProcessor  : public juce::AudioProcessor,
