@@ -4,6 +4,7 @@
 #include "features/events/Replay.h"
 
 #include <thread>
+#include <limits>
 
 using namespace gapfill;
 using namespace gapfill::events;
@@ -323,4 +324,20 @@ GF_TEST (EventsCodec, cap_never_publishes_a_partial_detailed_command_group)
     GF_EXPECT (data.incomplete && data.records.size() == (size_t) kRecordCap - 4);
     ReplayData parsed;
     GF_EXPECT (fromFileText (toFileText (data), parsed).wasOk());
+}
+
+GF_TEST (EventsCodec, direct_outcome_decoder_rejects_wrapping_indexes_without_touching_outputs)
+{
+    ReplayData data;
+    data.formatVersion = 3;
+    data.records.resize (1);
+    FillRecipe recipe = eventRecipe();
+    const auto original = recipe.seed;
+    auto extras = eventExtras();
+    for (const auto index : { (size_t) 0, (size_t) 1, std::numeric_limits<size_t>::max(),
+                              std::numeric_limits<size_t>::max() - 1 })
+    {
+        GF_EXPECT (! outcomeDetailsAt (data, index, recipe, extras));
+        GF_EXPECT (recipe.seed == original && extras == eventExtras());
+    }
 }

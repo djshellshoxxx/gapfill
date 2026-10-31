@@ -140,7 +140,7 @@ namespace
 
     bool readExtras (const ReplayData& data, size_t first, std::uint32_t block, gapfill::RecipeExtras& out) noexcept
     {
-        if (data.formatVersion < 3 || first + 3 > data.records.size())
+        if (data.formatVersion < 3 || first > data.records.size() || data.records.size() - first < 3)
             return false;
         std::uint8_t bytes[48] {};
         for (int chunk = 0; chunk < 3; ++chunk)
@@ -217,7 +217,7 @@ bool commandAt (const ReplayData& data, std::size_t index, Command& out) noexcep
 
 bool outcomeDetailsAt (const ReplayData& data, size_t index, FillRecipe& recipe, gapfill::RecipeExtras& extras) noexcept
 {
-    if (index + 5 > data.records.size() || data.formatVersion < 3)
+    if (data.formatVersion < 3 || index >= data.records.size() || data.records.size() - index < 5)
         return false;
     const auto& outcome = data.records[index];
     const auto& payload = data.records[index + 1];
