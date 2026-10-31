@@ -2,6 +2,9 @@
 #include "../support/TestRig.h"
 #include "features/i18n/Catalog.h"
 #include "features/i18n/Strings.h"
+#include "features/i18n/ComponentTranslator.h"
+#include "../support/AllocGuard.h"
+#include <array>
 
 using namespace gapfill::i18n;
 
@@ -59,4 +62,71 @@ GF_TEST (I18n, default_english_and_language_changes_never_touch_processor_state)
     GF_EXPECT (before == after);
     GF_EXPECT (! setLanguage ("../../outside", false));
     GF_EXPECT (currentLanguage() == "pseudo");
+}
+
+GF_TEST (I18n, component_translation_preserves_ids_user_data_and_english_originals)
+{
+    ScopedLanguage language ("en");
+    juce::Component root;
+    juce::Label label, userName;
+    juce::ComboBox choices, userChoices;
+    label.setText ("Language", juce::dontSendNotification);
+    userName.setText ("Language", juce::dontSendNotification); // intentional collision with a catalog entry
+    markUserContent (userName);
+    choices.addItem ("OK", 10);
+    choices.addItem ("Language", 20);
+    choices.setSelectedId (20, juce::dontSendNotification);
+    userChoices.addItem ("Language", 51);
+    userChoices.setSelectedId (51, juce::dontSendNotification);
+    markUserContent (userChoices);
+    for (auto* c : std::array<juce::Component*, 4> { &label, &userName, &choices, &userChoices })
+        root.addAndMakeVisible (*c);
+    ComponentTranslator translate (root);
+    GF_EXPECT (setLanguage ("pseudo", false));
+    translate.refresh();
+    const auto once = label.getText();
+    GF_EXPECT (once != "Language");
+    GF_EXPECT (userName.getText() == "Language");
+    GF_EXPECT (userChoices.getItemText (0) == "Language");
+    GF_EXPECT (choices.getSelectedId() == 20);
+    translate.refresh();
+    GF_EXPECT (label.getText() == once);
+    GF_EXPECT (setLanguage ("en", false));
+    translate.refresh();
+    GF_EXPECT (label.getText() == "Language");
+    GF_EXPECT (choices.getItemText (0) == "OK");
+}
+
+GF_TEST (I18n, unchanged_pseudo_refresh_does_not_allocate)
+{
+    ScopedLanguage language ("pseudo");
+    juce::Component root;
+    juce::Label label;
+    label.setText ("Language", juce::dontSendNotification);
+    root.addAndMakeVisible (label);
+    ComponentTranslator translate (root);
+    translate.refresh();
+    gftest::AllocGuard guard;
+    translate.refresh();
+    GF_EXPECT (guard.count() == 0);
+}
+
+GF_TEST (I18n, new_components_and_choices_translate_without_changing_model_ids)
+{
+    ScopedLanguage language ("pseudo");
+    juce::Component root;
+    ComponentTranslator translate (root);
+    juce::Label late;
+    late.setText ("Language", juce::dontSendNotification);
+    root.addAndMakeVisible (late);
+    translate.refresh();
+    GF_EXPECT (late.getText() == text ("Language"));
+    juce::ComboBox choices;
+    root.addAndMakeVisible (choices);
+    translate.refresh();
+    choices.addItem ("OK", 73);
+    choices.setSelectedId (73, juce::dontSendNotification);
+    translate.refresh();
+    GF_EXPECT (choices.getItemText (0) == text ("OK"));
+    GF_EXPECT (choices.getSelectedId() == 73);
 }

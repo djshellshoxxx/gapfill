@@ -3,6 +3,7 @@
 list(APPEND GAPFILL_SOURCES
     Source/features/i18n/Catalog.cpp
     Source/features/i18n/Strings.cpp
+    Source/features/i18n/ComponentTranslator.cpp
 )
 file(GLOB GF_I18N_CATALOGS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/lang/*.json")
 set(GF_I18N_GENERATED "${CMAKE_CURRENT_BINARY_DIR}/generated/i18n")

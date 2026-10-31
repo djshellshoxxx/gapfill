@@ -4,6 +4,7 @@
 // never be called from a processor callback, DSP stage or serialization path.
 #include <juce_events/juce_events.h>
 #include <initializer_list>
+#include <cstdint>
 #include <vector>
 
 namespace gapfill::i18n

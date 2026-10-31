@@ -17,7 +17,8 @@ namespace
                 if (juce::String (locale.code) == "en")
                     english.load (locale.bytes, locale.size, error);
             for (const auto& entry : english.entries())
-                byEnglish.emplace (entry.second, entry.first);
+                if (! entry.first.startsWith ("locale."))
+                    byEnglish.emplace (entry.second, entry.first);
             select (settings::GlobalSettings::shared()->getString (settings::GlobalSettings::keyLanguage, "en"), false);
         }
 
