@@ -21,6 +21,7 @@
 #include "features/calibrate/Gui.h"
 #include "features/presetbrowser/PresetBrowser.h"
 #include "features/presetbrowser/StepBurst.h"
+#include "features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -203,6 +204,8 @@ private:
 
     bool keyboardNavigationApplied = false;
     bool lastKeyboardNavigationState = false;
+
+    std::unique_ptr<i18n::ComponentTranslator> translatedPresentation;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GapFillAudioProcessorEditor)
 };

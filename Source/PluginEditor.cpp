@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "PluginEditor.h"
+#include "features/explain/OverlaySlot.h"
 #include "features/info/ParamInfo.h"
 #include "features/mutation/Gui.h"
 #include "features/uiscale/UiScale.h"
@@ -273,6 +274,11 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     addAndMakeVisible (mixPanel);
 
     slots = std::make_unique<SlotHost> (proc, *this);
+    for (auto* component : getChildren())
+    {
+        if (auto* overlay = dynamic_cast<explain::VisualiserOverlayComponent*> (component))
+            overlay->onExpansionChanged = [this] { resized(); };
+    }
 
     // U-6 Auto-Calibrate: the LEARN button is in the Detection panel header; the card floats over the visualiser.
     calibration = std::make_unique<calibrate::CalibrationSession> (proc);
@@ -391,6 +397,9 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     applyViewMode();
     applyScale();
+    i18n::markUserContent (presetBox);
+    translatedPresentation = std::make_unique<i18n::ComponentTranslator> (*this);
+    translatedPresentation->refresh();
 
     if (tourAutoShowEnabled())
         juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this)]
@@ -405,6 +414,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 GapFillAudioProcessorEditor::~GapFillAudioProcessorEditor()
 {
     stopTimer();
+    translatedPresentation.reset();
     calibrateCard.reset();
     calibration.reset();                // cancels the recording and stops the analysis thread
     removeMouseListener (&hoverStatus);
@@ -886,6 +896,7 @@ void GapFillAudioProcessorEditor::showFileMenu()
     if (performancePanel != nullptr && ! performanceAsTab)
         menu.addItem (kPerformance, "Performance...");
 
+    i18n::translateMenu (menu);
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&fileButton),
                         [this] (int result)
     {
@@ -1200,6 +1211,8 @@ void GapFillAudioProcessorEditor::timerCallback()
     // that may occur while this editor is already open.
     gapfill::setReducedMotionEnabled (proc.isReducedMotionEnabled());
     applyKeyboardNavigationSetting();
+    if (translatedPresentation != nullptr)
+        translatedPresentation->refresh();
 }
 
 //==============================================================================
@@ -1361,6 +1374,11 @@ void GapFillAudioProcessorEditor::resized()
 
     visualiser.setBounds (b);
     slots->setSlotBounds (Slot::VisualiserOverlay, b);
+    for (auto* component : getChildren())
+    {
+        if (auto* overlay = dynamic_cast<explain::VisualiserOverlayComponent*> (component))
+            overlay->setExpansionBounds ({ b.getX(), b.getY(), b.getWidth(), mixPanel.getY() - 8 - b.getY() });
+    }
 
     if (calibrateCard != nullptr)
     {
