@@ -40,7 +40,7 @@ void PitchTracker::reset() noexcept
     ring.fill (0); work.fill (0); difference.fill (0); normalised.fill (1); frames.fill ({});
     working = havePosition = false;
     expectedPosition = newestPosition = snapshotPosition = 0;
-    inputHop = decimCount = ringWrite = filled = frameWrite = stored = maximumMacs = maximumLags = 0;
+    inputHop = decimCount = ringWrite = filled = frameWrite = stored = maximumMacs = maximumLags = sinceSnapshot = 0;
     nextLag = 1;
     total = 0;
 }
@@ -67,12 +67,13 @@ void PitchTracker::push (const float* mono, int count, std::int64_t first) noexc
             ring[(std::size_t) ringWrite] = filtered;
             ringWrite = (ringWrite + 1) % kDecimatedRing;
             filled = std::min (filled + 1, kDecimatedRing);
+            sinceSnapshot = std::min (sinceSnapshot + 1, 128);
             newestPosition = position;
         }
         if (++inputHop == kInputHop)
         {
             inputHop = 0;
-            if (! working && filled >= kDifferenceWindow + tauMax) beginFrame();
+            if (! working && filled >= kDifferenceWindow + tauMax && sinceSnapshot >= 128) beginFrame();
             if (working) computeHop();
         }
     }
@@ -85,6 +86,7 @@ void PitchTracker::beginFrame() noexcept
     for (int i = 0; i < count; ++i)
         work[(std::size_t) i] = ring[(std::size_t) ((ringWrite + kDecimatedRing - count + i) % kDecimatedRing)];
     snapshotPosition = newestPosition;
+    sinceSnapshot = 0;
     nextLag = 1;
     working = true;
 }

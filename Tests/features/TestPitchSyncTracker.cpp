@@ -134,6 +134,22 @@ GF_TEST (PitchSyncTracker, frames_and_source_coordinates_are_identical_for_four_
         GF_EXPECT (candidate.maxMacsPerHop() <= 8192);
     }
 }
+GF_TEST (PitchSyncTracker, frame_ring_retains_the_entire_two_second_capture_at_every_rate)
+{
+    for (double rate : { 44100.0, 48000.0, 96000.0, 192000.0 })
+    {
+        PitchTracker tracker; tracker.prepare (rate); tracker.setActive (true);
+        const auto x = tone (rate, 220, 4);
+        feed (tracker, x, 512);
+        GF_EXPECT (tracker.storedFrames() == kPitchFrames);
+        const auto end = (std::int64_t) x.size();
+        GF_EXPECT (tracker.frame (0).histPos <= end - (std::int64_t) (2 * rate));
+        GF_EXPECT (tracker.frame (kPitchFrames - 1).histPos >= end - (std::int64_t) (0.03 * rate));
+        for (int i = 1; i < tracker.storedFrames(); ++i)
+            GF_EXPECT (tracker.frame (i).histPos - tracker.frame (i - 1).histPos == 128 * tracker.decimation());
+        GF_EXPECT (tracker.query (end - (std::int64_t) (2 * rate), end - 1).voiced);
+    }
+}
 GF_TEST (PitchSyncTracker, vibrato_tracks_within_fifty_cents_at_its_source_timestamp)
 {
     std::vector<float> input (48000);

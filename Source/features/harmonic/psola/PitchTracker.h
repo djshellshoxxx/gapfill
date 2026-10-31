@@ -33,6 +33,8 @@ public:
     const PitchFrame& frame (int oldestFirstIndex) const noexcept;
     int maxMacsPerHop() const noexcept { return maximumMacs; }
     int maxLagsPerHop() const noexcept { return maximumLags; }
+    // Full analysed PCM extent plus a conservative low-pass settling interval.
+    int sourceFootprintSamples() const noexcept { return (kDifferenceWindow + tauMax + 128) * decim; }
 
 private:
     struct Biquad
@@ -48,7 +50,7 @@ private:
     int decim = 4, tauMin = 12, tauMax = 240;
     bool active = false, working = false, havePosition = false;
     std::int64_t expectedPosition = 0, newestPosition = 0, snapshotPosition = 0;
-    int inputHop = 0, decimCount = 0, ringWrite = 0, filled = 0, nextLag = 1;
+    int inputHop = 0, decimCount = 0, ringWrite = 0, filled = 0, nextLag = 1, sinceSnapshot = 0;
     std::array<Biquad, 2> lowpass;
     std::array<float, kDecimatedRing> ring {};
     std::array<float, kDifferenceWindow + kMaxPitchLag> work {};

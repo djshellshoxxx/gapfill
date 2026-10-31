@@ -13,10 +13,12 @@ completed frame stores its snapshot's inclusive source-history endpoint; callbac
 completion time is never substituted. Query uses bounded stack scratch to return
 the median voiced pitch and fraction in an inclusive source window.
 
-Call `setActive` from the current mode, then push only samples that were actually
-written to source history. Capture hold makes no push call. Non-contiguous source
-positions or non-finite input reset learned signal/history; position overflow is
-rejected. Reset retains the active selection; prepare returns inactive. Getter/
+Snapshots begin every128 decimated samples, retaining more than two seconds at
+all supported rates while keeping the16-lag ceiling per32-input hop. Call
+`setActive` from the current mode, then push only samples actually written by the
+analysis source. Non-contiguous source positions or non-finite input reset the
+incremental detector; position overflow is rejected. Reset retains the active
+selection; prepare returns inactive. Getter/
 query/frame methods share the audio owner and must not be called concurrently
 from the UI. Publish meter atomics from the adapter instead.
 
@@ -30,8 +32,16 @@ opt-in detector choices, not changes to the released synchronousYin implementati
 legacy recipe behavior; the outer RecipeExtras carrier is independently versioned.
 Its base FillRecipe remains16 bytes with all eight existing flags unchanged.
 
-Epoch finder and pitch-synchronous captured-buffer voice are the next separate
-modules; their production wiring is not claimed by this tracker/codec checkpoint.
+`PitchSourceRouter` is the production Capture adapter: it maintains one live
+detector and immutable frame banks for the frozen history and two snapshots.
+History freezes before incoming held audio. Recapture banks freeze at copy start,
+remap live endpoints to snapshot coordinates0..N-1, and require matching nonzero
+generation before activation. Analysis-writer coordinate restarts cannot erase
+the held source bank. Release starts a new history segment; a query crossing the
+join is unknown until its whole range belongs to the fresh segment. Frames whose
+analysis/filter footprint crosses a source boundary are excluded. There is no
+catch-up over old PCM. Cold enabling while already held remains unknown until a
+new recapture; incoming audio is never substituted for the unseen old source.
 
 `PitchMarks` is the single prepared mono scratch owner for sequential fill starts.
 It leaves captured L/R untouched, returns owned ascending epoch marks with full
