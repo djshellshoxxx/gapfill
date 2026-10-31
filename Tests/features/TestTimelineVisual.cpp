@@ -303,7 +303,7 @@ GF_TEST (PresentationVisual, localized_readouts_options_tour_and_health_across_s
             explain.healthTracker.update (explain.healthMonitor.getMask(), juce::Time::getMillisecondCounter());
             explain.fallbackBpm.store (137.0);
             health::DetailsPanel details (proc);
-            juce::CallOutBox callout (details, editor.getLocalBounds().removeFromBottom (22).toFloat(), &editor);
+            juce::CallOutBox callout (details, editor.getLocalBounds().removeFromBottom (22), &editor);
             callout.setVisible (true);
             snapshot (editor, name + "-health-fixture", scale);
         }
