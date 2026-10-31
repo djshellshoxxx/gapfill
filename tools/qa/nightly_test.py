@@ -7,6 +7,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import zipfile
+import shutil
 
 REPO = Path(__file__).resolve().parents[2]
 
@@ -116,6 +118,82 @@ class NightlyTests(unittest.TestCase):
         from tools.qa import soak_run
         evidence = soak_run.run(self.binary, seconds=0.01, warmup=0, seed=42, out=self.root / "soak")
         self.assertEqual(evidence["status"], "fail")
+
+    def test_downloaded_checksum_tampering_fails(self):
+        asset = self.root / "candidate.zip"
+        asset.write_bytes(b"original")
+        manifest = self.root / "SHA256SUMS.txt"
+        manifest.write_text(hashlib.sha256(asset.read_bytes()).hexdigest() + "  candidate.zip\n")
+        command = [sys.executable, str(REPO / "packaging/verify_release.py"), "checksums", "--manifest", str(manifest)]
+        self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
+        asset.write_bytes(b"tampered")
+        self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
+
+    def test_checksum_manifest_cannot_read_outside_download_directory(self):
+        manifest = self.root / "SHA256SUMS.txt"
+        manifest.write_text("0" * 64 + "  ../outside\n")
+        result = subprocess.run([sys.executable, str(REPO / "packaging/verify_release.py"), "checksums",
+                                 "--manifest", str(manifest)], capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+
+    def test_package_extraction_rejects_traversal(self):
+        archive = self.root / "bad.zip"
+        with zipfile.ZipFile(archive, "w") as zipped:
+            zipped.writestr("../escaped", "unsafe")
+        result = subprocess.run([sys.executable, str(REPO / "packaging/verify_release.py"), "extract",
+                                 "--archive", str(archive), "--out", str(self.root / "unpacked")], capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse((self.root / "escaped").exists())
+
+    def test_package_extracts_regular_asset(self):
+        archive = self.root / "good.zip"
+        with zipfile.ZipFile(archive, "w") as zipped:
+            zipped.writestr("GapFill/LICENSE.txt", "AGPL-3.0-or-later")
+        result = subprocess.run([sys.executable, str(REPO / "packaging/verify_release.py"), "extract",
+                                 "--archive", str(archive), "--out", str(self.root / "unpacked")], capture_output=True)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual((self.root / "unpacked/GapFill/LICENSE.txt").read_text(), "AGPL-3.0-or-later")
+
+    def test_missing_signing_identity_is_unverified_and_never_success(self):
+        env = dict(os.environ)
+        env.pop("GAPFILL_WINDOWS_CERT_SHA1", None)
+        env.pop("GAPFILL_APPLE_SIGN_IDENTITY", None)
+        env.pop("GAPFILL_NOTARY_PROFILE", None)
+        result = subprocess.run([sys.executable, str(REPO / "packaging/sign_release.py"), "windows",
+                                 "--input", str(self.root / "candidate.exe"), "--out", str(self.root / "signing.json")],
+                                capture_output=True, env=env)
+        self.assertEqual(result.returncode, 2)
+        evidence = json.loads((self.root / "signing.json").read_text())
+        self.assertEqual(evidence["status"], "unverified")
+
+    @unittest.skipUnless(shutil.which("gpg"), "GnuPG integration requires the actual gpg executable")
+    def test_detached_manifest_signature_with_ephemeral_fixture_key(self):
+        key_dir = self.root / "fixture-keyring"
+        key_dir.mkdir(mode=0o700)
+        env = dict(os.environ, GNUPGHOME=str(key_dir))
+        created = subprocess.run(["gpg", "--batch", "--passphrase", "", "--quick-generate-key",
+                                  "GapFill fixture <assurance@example.invalid>", "ed25519", "sign", "0"],
+                                 capture_output=True, env=env)
+        self.assertEqual(created.returncode, 0, created.stderr.decode(errors="replace"))
+        if shutil.which("gpgconf"):
+            self.addCleanup(subprocess.run, ["gpgconf", "--kill", "gpg-agent"], env=env, capture_output=True)
+        keys = subprocess.run(["gpg", "--batch", "--with-colons", "--list-keys"],
+                              capture_output=True, text=True, env=env, check=True)
+        fingerprint = next(line.split(":")[9] for line in keys.stdout.splitlines() if line.startswith("fpr:"))
+        env["GAPFILL_RELEASE_GPG_KEY"] = fingerprint
+        assets = self.root / "assets"
+        assets.mkdir()
+        (assets / "candidate.zip").write_bytes(b"candidate")
+        result = subprocess.run([sys.executable, str(REPO / "packaging/sign_release.py"), "checksums",
+                                 "--directory", str(assets), "--out", str(self.root / "signed.json")],
+                                capture_output=True, env=env)
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+        verified = subprocess.run(["gpg", "--batch", "--verify", str(assets / "SHA256SUMS.txt.asc"),
+                                   str(assets / "SHA256SUMS.txt")], capture_output=True, env=env)
+        self.assertEqual(verified.returncode, 0)
+        (assets / "SHA256SUMS.txt").write_text("tampered")
+        self.assertNotEqual(subprocess.run(["gpg", "--batch", "--verify", str(assets / "SHA256SUMS.txt.asc"),
+                                            str(assets / "SHA256SUMS.txt")], capture_output=True, env=env).returncode, 0)
 
 
 if __name__ == "__main__":
