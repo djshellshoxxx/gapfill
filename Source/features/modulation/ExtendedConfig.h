@@ -25,4 +25,13 @@ struct ExtendedConfig
 ExtendedConfig extendedFromLegacy (const macros::MacroConfig&);
 static_assert (std::is_trivially_copyable_v<ExtendedConfig>);
 
+/** One publication switches modes and configuration coherently. When disabled,
+    config.retainedLegacy contains the current unchanged legacy configuration. */
+struct ConfigSnapshot
+{
+    std::uint8_t enabled = 0;
+    ExtendedConfig config;
+};
+static_assert (std::is_trivially_copyable_v<ConfigSnapshot>);
+
 } // namespace gapfill::modulation

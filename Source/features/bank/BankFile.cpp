@@ -439,17 +439,19 @@ ImportReport parseString (const juce::String& text)
         r.accepted.push_back (std::move (s));
     }
 
-    if (auto* current = xml->getChildByName (macros::MacroModel::subtreeName))
+    // A malformed newer optional schema falls back without applying two configs.
+    for (const auto* name : { modulation::kSubtreeName, macros::MacroModel::subtreeName, macros::MacroModel::legacySubtreeName })
     {
-        auto tree = juce::ValueTree::fromXml (*current);
-        if (macros::MacroModel::validateTree (tree)) r.macros = tree;
-    }
-    if (! r.macros.isValid())
-        if (auto* legacy = xml->getChildByName (macros::MacroModel::legacySubtreeName))
+        if (auto* child = xml->getChildByName (name))
         {
-            auto tree = juce::ValueTree::fromXml (*legacy);
-            if (macros::MacroModel::validateTree (tree)) r.macros = tree;
+            auto tree = juce::ValueTree::fromXml (*child);
+            if (macros::MacroModel::validateTree (tree))
+            {
+                r.macros = tree;
+                break;
+            }
         }
+    }
 
     if (auto* d = xml->getChildByName ("Digest"))
     {

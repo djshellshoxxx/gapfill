@@ -96,3 +96,31 @@ clock, huge/nonfinite input, random-channel separation, seek repeatability,
 RandomGlide boundary continuity, Knob depth identity and signed Energy/depth.
 Five repository tests include allocation guarding. No runtime/host wiring is
 claimed by this source-only slice.
+
+
+### V3 persistence and model slice
+
+The new mapping record is16bytes: u8 target, u8 curve, u8 bipolar,
+u8 reserved0, followed by min01/max01/smoothMs as explicit IEEE754float32 LE.
+Eight compact M records carry names and up to8 base64 mapping records each.
+A nested unchanged MacrosV2 snapshot retains old target-engine selection and
+all four legacy LFOs; it is validated against its original2KiB budget. The V3
+wrapper uses v3 and enc=m16le, strictly rejects unsupported versions/duplicate
+indices/nonfinite/out-of-range/truncated records, and assigns only after complete
+validation. New mapping floats roundtrip exactly, without the old permille
+quantization. Existing V1/V2 writers keep their serialized form.
+
+A maximum native probe with64records, eight16-quote names and the largest
+retained4x8 legacy config/LFOs measured3770escaped XMLbytes, below8KiB. The
+actual repository Modulation tests ran in a native focused executable:9passed,
+0failed, including allocation guard, exact documented LE bytes, full64record
+admission, hostile inputs, precision and opt-in/return snapshot coherence.
+Processor project-save/bank/schema-chain integration tests were added and
+syntax-checked; they require the coordinator's integrated processor test binary.
+
+SubtreeDesc gains the approved optional alsoSupersedes tail. Valid V3 explicitly
+supersedes both V2 and V1; invalid V3 falls back. Only the active schema serializes.
+The descriptor count is17. History's input cap grows1KiB→2KiB to admit the
+existing16-entry input bound with new optional recipe extras; writer capacity8
+and Lock's1KiB/v1 remain unchanged. Invalid extras are independently fail-soft
+in the recipe owner's adapter; this does not reinterpret the base recipe.

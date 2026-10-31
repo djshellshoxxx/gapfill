@@ -47,6 +47,7 @@ struct SubtreeDesc
     juce::ValueTree (*serialise) (const GapFillAudioProcessor&);     ///< invalid tree = write nothing
     void (*reset) (GapFillAudioProcessor&);                          ///< back to the default
     const char* supersedes = nullptr;   ///< a valid newer schema wins; invalid newer data falls back
+    const char* alsoSupersedes = nullptr; ///< optional second legacy schema in an explicit migration chain
 };
 
 /** The reserved table (docs/dev/12 section 2.3 caps): Macros Lock History Perf

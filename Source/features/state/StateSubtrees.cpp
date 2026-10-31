@@ -49,7 +49,14 @@ namespace
         const auto& m = p.getLiveControl().macroMappings();
         macros::MacroModel factory;
         const auto tree = m.toValueTree();
-        return tree.isEquivalentTo (factory.toValueTree()) ? juce::ValueTree() : tree;     // defaults write nothing
+        return ! tree.hasType (macros::MacroModel::subtreeName) || tree.isEquivalentTo (factory.toValueTree())
+            ? juce::ValueTree() : tree;     // defaults and inactive schemas write nothing
+    }
+
+    juce::ValueTree extendedMacrosSerialise (const GapFillAudioProcessor& p)
+    {
+        const auto tree = p.getLiveControl().macroMappings().toValueTree();
+        return tree.hasType (modulation::kSubtreeName) ? tree : juce::ValueTree {};
     }
 
     void macrosApply (GapFillAudioProcessor& p, const juce::ValueTree& t)  { p.getLiveControl().macroMappings().restore (t); }
@@ -158,8 +165,9 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
     {
         { "Macros",  2 * Ki,  &macros::MacroModel::validateTree, &macrosApply, &legacyMacrosSerialise, &macrosReset },   // released v1: read only
         { "MacrosV2", 2 * Ki, &macros::MacroModel::validateTree, &macrosApply, &macrosSerialise, &macrosReset, "Macros" },
+        { "MacrosV3", modulation::kMaxStateBytes, &macros::MacroModel::validateTree, &macrosApply, &extendedMacrosSerialise, &macrosReset, "MacrosV2", "Macros" },
         { "Lock",    1 * Ki,  lock::validate, lock::apply, lock::serialise, lock::reset },   // C-5
-        { "History", 1 * Ki,  history::validate, history::apply, history::serialise, history::reset },   // U-1
+        { "History", 2 * Ki,  history::validate, history::apply, history::serialise, history::reset },   // U-1
         { "Perf",    4 * Ki,  &perfValidateAll, &perfApplyAll, &perfSerialiseAll, &perfResetAll },   // U prefs + panic options (WP6)
         { "Scenes",  24 * Ki, &scenes::SceneBank::validateTree, &scenesApply, &legacyScenesSerialise, &scenesReset },   // released v1: read only
         { "ScenesV2", scenes::kMaxSceneStateBytes, &scenes::SceneBank::validateTree, &scenesApply, &scenesSerialise, &scenesReset, "Scenes" },
@@ -206,7 +214,7 @@ SubtreePlan planSubtrees (const juce::ValueTree& root, const std::vector<Subtree
 
     for (const auto& desc : table)
     {
-        if (desc.supersedes == nullptr)
+        if (desc.supersedes == nullptr && desc.alsoSupersedes == nullptr)
             continue;
 
         const auto newer = root.getChildWithName (juce::Identifier (desc.name));
@@ -214,7 +222,10 @@ SubtreePlan planSubtrees (const juce::ValueTree& root, const std::vector<Subtree
 
         if (newer.isValid() && bytes <= desc.maxBytes && bytes <= budget
             && (desc.validate == nullptr || desc.validate (newer)))
-            superseded.emplace_back (desc.supersedes);
+        {
+            if (desc.supersedes != nullptr) superseded.emplace_back (desc.supersedes);
+            if (desc.alsoSupersedes != nullptr) superseded.emplace_back (desc.alsoSupersedes);
+        }
     }
 
     for (const auto& desc : table)
@@ -292,6 +303,8 @@ WriteResult writeSubtrees (const GapFillAudioProcessor& proc, juce::ValueTree& r
         budget -= size;
         if (desc.supersedes != nullptr)
             candidate.removeChild (candidate.getChildWithName (juce::Identifier (desc.supersedes)), nullptr);
+        if (desc.alsoSupersedes != nullptr)
+            candidate.removeChild (candidate.getChildWithName (juce::Identifier (desc.alsoSupersedes)), nullptr);
         candidate.appendChild (tree, nullptr);
     }
 

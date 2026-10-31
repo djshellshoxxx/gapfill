@@ -1,4 +1,5 @@
 #include "MacroModel.h"
+#include "../modulation/ExtendedState.h"
 
 #include <algorithm>
 #include <cmath>
@@ -128,6 +129,7 @@ namespace
 MacroModel::MacroModel()
 {
     cfg = defaultConfig();
+    extended = modulation::extendedFromLegacy (cfg);
 
     for (auto& a : available)
         a = true;
@@ -141,9 +143,41 @@ void MacroModel::setTargetAvailability (const bool* a) noexcept
         available[i] = a[i];
 }
 
+void MacroModel::setExtendedTargetAvailability (const bool* a) noexcept
+{
+    for (int target = 0; target < modulation::kTargetCount; ++target) available[target] = a[target];
+}
+
 bool MacroModel::isTargetAvailable (int target) const noexcept
 {
-    return target >= 0 && target < kNumTargets && available[target];
+    return target >= 0 && target < (extendedEnabled ? modulation::kTargetCount : kNumTargets) && available[target];
+}
+
+void MacroModel::publish() noexcept
+{
+    pub.publish (cfg);
+    modulation::ConfigSnapshot snapshot;
+    snapshot.enabled = extendedEnabled ? 1 : 0;
+    snapshot.config = extendedEnabled ? extended : modulation::extendedFromLegacy (cfg);
+    extendedPub.publish (snapshot);
+}
+
+bool MacroModel::enableExtended()
+{
+    if (extendedEnabled) return false;
+    extended = modulation::extendedFromLegacy (cfg);
+    extendedEnabled = true;
+    publish();
+    return true;
+}
+
+bool MacroModel::returnToLegacy()
+{
+    if (! extendedEnabled) return false;
+    cfg = extended.retainedLegacy;
+    extendedEnabled = false;
+    publish();
+    return true;
 }
 
 juce::String MacroModel::sanitiseName (const juce::String& raw, const juce::String& fallback)
@@ -174,11 +208,25 @@ Mapping MacroModel::normalised (Mapping m) noexcept
     return m;
 }
 
+Mapping MacroModel::normaliseActive (Mapping mapping) const noexcept
+{
+    if (! extendedEnabled) return normalised (mapping);
+    mapping.curve = (std::uint8_t) std::min<int> (mapping.curve, 3);
+    mapping.bipolar = mapping.bipolar != 0 ? 1 : 0;
+    mapping.pad = 0;
+    const auto bounded = [] (float value, float high)
+    { return std::clamp (std::isfinite (value) ? value : 0.0f, 0.0f, high); };
+    mapping.min01 = bounded (mapping.min01, 1);
+    mapping.max01 = bounded (mapping.max01, 1);
+    mapping.smoothMs = bounded (mapping.smoothMs, 500);
+    return mapping;
+}
+
 int MacroModel::ownerOf (int target) const noexcept
 {
-    for (int m = 0; m < kNumMacros; ++m)
-        for (int j = 0; j < cfg.count[m]; ++j)
-            if (cfg.map[m][j].target == target)
+    for (int m = 0; m < activeMacroCount(); ++m)
+        for (int j = 0; j < activeCounts()[m]; ++j)
+            if (activeMaps()[m][j].target == target)
                 return m;
 
     return -1;
@@ -186,13 +234,13 @@ int MacroModel::ownerOf (int target) const noexcept
 
 MacroModel::AddResult MacroModel::addMapping (int macro, Mapping m, int* owner)
 {
-    if (macro < 0 || macro >= kNumMacros || m.target >= kNumTargets)
+    if (macro < 0 || macro >= activeMacroCount() || m.target >= (extendedEnabled ? modulation::kTargetCount : kNumTargets))
         return AddResult::Invalid;
 
     if (! isTargetAvailable (m.target))
         return AddResult::Unavailable;
 
-    if (cfg.count[macro] >= kMaxMappings)
+    if (activeCounts()[macro] >= kMaxMappings)
         return AddResult::Full;
 
     if (const auto o = ownerOf (m.target); o >= 0)
@@ -203,73 +251,73 @@ MacroModel::AddResult MacroModel::addMapping (int macro, Mapping m, int* owner)
         return AddResult::Claimed;
     }
 
-    cfg.map[macro][cfg.count[macro]++] = normalised (m);
+    activeMaps()[macro][activeCounts()[macro]++] = normaliseActive (m);
     publish();
     return AddResult::Ok;
 }
 
 bool MacroModel::removeMapping (int macro, int index)
 {
-    if (macro < 0 || macro >= kNumMacros || index < 0 || index >= cfg.count[macro])
+    if (macro < 0 || macro >= activeMacroCount() || index < 0 || index >= activeCounts()[macro])
         return false;
 
-    for (int j = index; j < cfg.count[macro] - 1; ++j)
-        cfg.map[macro][j] = cfg.map[macro][j + 1];
+    for (int j = index; j < activeCounts()[macro] - 1; ++j)
+        activeMaps()[macro][j] = activeMaps()[macro][j + 1];
 
-    cfg.map[macro][--cfg.count[macro]] = Mapping {};
+    activeMaps()[macro][--activeCounts()[macro]] = Mapping {};
     publish();
     return true;
 }
 
 bool MacroModel::editMapping (int macro, int index, Mapping m)
 {
-    if (macro < 0 || macro >= kNumMacros || index < 0 || index >= cfg.count[macro])
+    if (macro < 0 || macro >= activeMacroCount() || index < 0 || index >= activeCounts()[macro])
         return false;
 
-    m.target = cfg.map[macro][index].target;
-    cfg.map[macro][index] = normalised (m);
+    m.target = activeMaps()[macro][index].target;
+    activeMaps()[macro][index] = normaliseActive (m);
     publish();
     return true;
 }
 
 bool MacroModel::rename (int macro, const juce::String& name)
 {
-    if (macro < 0 || macro >= kNumMacros)
+    if (macro < 0 || macro >= activeMacroCount())
         return false;
 
-    const auto defaults = defaultConfig();
+    const auto defaults = modulation::extendedFromLegacy (defaultConfig());
     const auto clean = sanitiseName (name, juce::String (defaults.names[macro]));
-    std::memset (cfg.names[macro], 0, sizeof (cfg.names[macro]));
-    std::memcpy (cfg.names[macro], clean.toRawUTF8(), std::min<size_t> (kNameBytes, clean.getNumBytesAsUTF8()));
+    std::memset (activeNames()[macro], 0, sizeof (activeNames()[macro]));
+    std::memcpy (activeNames()[macro], clean.toRawUTF8(), std::min<size_t> (kNameBytes, clean.getNumBytesAsUTF8()));
     publish();
     return true;
 }
 
 void MacroModel::resetMacro (int macro)
 {
-    if (macro < 0 || macro >= kNumMacros)
+    if (macro < 0 || macro >= activeMacroCount())
         return;
 
-    const auto d = defaultConfig();
-    std::memcpy (cfg.names[macro], d.names[macro], sizeof (cfg.names[macro]));
-    cfg.lfo[macro] = d.lfo[macro];
-    cfg.count[macro] = 0;
-    cfg.map[macro][0] = Mapping {};
+    const auto d = modulation::extendedFromLegacy (defaultConfig());
+    std::memcpy (activeNames()[macro], d.names[macro], sizeof (activeNames()[macro]));
+    if (! extendedEnabled) cfg.lfo[macro] = d.retainedLegacy.lfo[macro];
+    activeCounts()[macro] = 0;
+    activeMaps()[macro][0] = Mapping {};
 
     for (int j = 0; j < kMaxMappings; ++j)
-        cfg.map[macro][j] = Mapping {};
+        activeMaps()[macro][j] = Mapping {};
 
     // Re-add the factory mappings the other macros do not already own.
     for (int j = 0; j < d.count[macro]; ++j)
         if (ownerOf (d.map[macro][j].target) < 0)
-            cfg.map[macro][cfg.count[macro]++] = d.map[macro][j];
+            activeMaps()[macro][activeCounts()[macro]++] = d.map[macro][j];
 
     publish();
 }
 
 bool MacroModel::setLfo (int macro, LfoSettings l)
 {
-    if (macro < 0 || macro >= kNumMacros)
+    if (extendedEnabled || macro < 0 || macro >= kNumMacros)
         return false;
 
     l.enabled = l.enabled != 0 ? 1 : 0;
@@ -287,13 +335,15 @@ bool MacroModel::setLfo (int macro, LfoSettings l)
 
 void MacroModel::resetAll()
 {
+    extendedEnabled = false;
     cfg = defaultConfig();
+    extended = modulation::extendedFromLegacy (cfg);
     publish();
 }
 
 bool MacroModel::upgradeTargetSchema()
 {
-    if (cfg.targetSchemaVersion == 2) return false;
+    if (extendedEnabled || cfg.targetSchemaVersion == 2) return false;
     cfg.targetSchemaVersion = 2;
     publish();
     return true;
@@ -302,21 +352,43 @@ bool MacroModel::upgradeTargetSchema()
 //==============================================================================
 juce::ValueTree MacroModel::toValueTree() const
 {
+    if (extendedEnabled) return modulation::toExtendedTree (extended);
+    return legacyConfigToTree (cfg);
+}
+
+juce::ValueTree MacroModel::legacyConfigToTree (const MacroConfig& config)
+{
+    // The public snapshot codec must bound raw POD input before names/array access
+    // and before integer conversion; normal model edits already satisfy these rules.
+    for (int macro = 0; macro < kNumMacros; ++macro)
+    {
+        if (config.count[macro] > kMaxMappings || config.names[macro][kNameBytes] != 0) return {};
+        const auto& lfo = config.lfo[macro];
+        if (! std::isfinite (lfo.rateHz) || lfo.rateHz < .01f || lfo.rateHz > 20
+            || ! std::isfinite (lfo.depth01) || lfo.depth01 < 0 || lfo.depth01 > 1
+            || ! std::isfinite (lfo.phaseDeg) || lfo.phaseDeg < 0 || lfo.phaseDeg > 360) return {};
+        for (int index = 0; index < config.count[macro]; ++index)
+        {
+            const auto smooth = config.map[macro][index].smoothMs;
+            if (! std::isfinite (smooth) || smooth < 0 || smooth > 500) return {};
+        }
+    }
+
     juce::ValueTree t (subtreeName);
     t.setProperty ("v", 2, nullptr);
-    t.setProperty ("targets", (int) cfg.targetSchemaVersion, nullptr);
+    t.setProperty ("targets", (int) config.targetSchemaVersion, nullptr);
 
     for (int m = 0; m < kNumMacros; ++m)
     {
         juce::ValueTree n ("M");
         n.setProperty ("i", m, nullptr);
-        n.setProperty ("n", juce::String::fromUTF8 (cfg.names[m]), nullptr);
+        n.setProperty ("n", juce::String::fromUTF8 (config.names[m]), nullptr);
 
         juce::StringArray maps;
 
-        for (int j = 0; j < cfg.count[m]; ++j)
+        for (int j = 0; j < config.count[m]; ++j)
         {
-            const auto& mp = cfg.map[m][j];
+            const auto& mp = config.map[m][j];
             maps.add (juce::String (mp.target) + "," + juce::String (toPermille (mp.min01)) + "," + juce::String (toPermille (mp.max01))
                       + "," + juce::String ((int) mp.curve) + "," + juce::String ((int) std::lround (mp.smoothMs))
                       + "," + juce::String ((int) mp.bipolar));
@@ -324,7 +396,7 @@ juce::ValueTree MacroModel::toValueTree() const
 
         n.setProperty ("m", maps.joinIntoString (";"), nullptr);
 
-        const auto& l = cfg.lfo[m];
+        const auto& l = config.lfo[m];
         n.setProperty ("l", juce::String ((int) l.enabled) + "," + juce::String ((int) l.shape) + "," + juce::String ((int) l.tempoSync)
                             + "," + juce::String ((int) l.division) + "," + juce::String ((int) std::lround (l.rateHz * 100.0f))
                             + "," + juce::String (toPermille (l.depth01)) + "," + juce::String ((int) std::lround (l.phaseDeg)), nullptr);
@@ -336,6 +408,7 @@ juce::ValueTree MacroModel::toValueTree() const
 
 bool MacroModel::validateTree (const juce::ValueTree& t)
 {
+    if (t.hasType (modulation::kSubtreeName)) return modulation::validateExtendedTree (t);
     const bool legacy = t.hasType (legacySubtreeName);
     const auto version = t.getProperty ("v", legacy ? 1 : 0);
     const auto targets = t.getProperty ("targets", 0);
@@ -365,6 +438,31 @@ bool MacroModel::validateTree (const juce::ValueTree& t)
 void MacroModel::restore (const juce::ValueTree& t)
 {
     if (t.isValid() && ! validateTree (t)) return;  // no partial direct restore
+    if (t.hasType (modulation::kSubtreeName))
+    {
+        modulation::ExtendedConfig next;
+        if (! modulation::fromExtendedTree (t, next)) return;
+        bool claimed[modulation::kTargetCount] {};
+        for (int macro = 0; macro < modulation::kMacroCount; ++macro)
+        {
+            int kept = 0;
+            for (int index = 0; index < next.count[macro]; ++index)
+            {
+                const auto mapping = next.map[macro][index];
+                if (claimed[mapping.target]) continue;
+                claimed[mapping.target] = true;
+                next.map[macro][kept++] = mapping;
+            }
+            for (int index = kept; index < kMaxMappings; ++index) next.map[macro][index] = {};
+            next.count[macro] = (std::uint8_t) kept;
+        }
+        extended = next;
+        cfg = next.retainedLegacy;
+        extendedEnabled = true;
+        publish();
+        return;
+    }
+    extendedEnabled = false;
     cfg = defaultConfig();
 
     if (t.isValid())
