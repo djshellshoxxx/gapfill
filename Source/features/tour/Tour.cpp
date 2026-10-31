@@ -175,6 +175,7 @@ void TourOverlay::setExampleStatus (const juce::String& text)
 {
     exampleStatus = text;
     status.setText (i18n::text (text), juce::dontSendNotification);
+    resized();
 }
 
 void TourOverlay::updateText()
@@ -243,7 +244,37 @@ std::vector<juce::Rectangle<int>> TourOverlay::getHighlights() const
 void TourOverlay::resized()
 {
     const auto cardW = juce::jmax (200, juce::jmin (360, getWidth() - 48));
-    const auto cardH = 170;
+    constexpr int padding = 12, gap = 6, buttonHeight = 26;
+    const auto innerWidth = cardW - 2 * padding;
+    const auto textHeight = [innerWidth] (const TextLabel& label, int minimum)
+    {
+        return juce::jmax (minimum, label.heightForWidth (innerWidth));
+    };
+    const auto buttonWidth = [innerWidth] (juce::TextButton& button)
+    {
+        const auto font = button.getLookAndFeel().getTextButtonFont (button, buttonHeight);
+        return juce::jmin (innerWidth, juce::jmax (52, (int) std::ceil (
+            juce::GlyphArrangement::getStringWidth (font, button.getButtonText())) + 24));
+    };
+    const auto layoutActions = [&] (int top, bool place)
+    {
+        int x = 0, y = 0;
+        for (auto* button : { &skipButton, &dontShowButton, &exampleButton })
+        {
+            if (! button->isVisible()) continue;
+            const auto width = buttonWidth (*button);
+            if (x != 0 && x + width > innerWidth) { x = 0; y += buttonHeight + gap; }
+            if (place) button->setBounds (padding + x, top + y, width, buttonHeight);
+            x += width + gap;
+        }
+        return y + buttonHeight;
+    };
+    const auto titleHeight = textHeight (title, 20);
+    const auto bodyHeight = textHeight (body, 40);
+    const auto statusHeight = status.getText().isEmpty() ? 0 : textHeight (status, 16);
+    const auto actionHeight = layoutActions (0, false);
+    const auto cardH = 2 * padding + titleHeight + gap + bodyHeight
+                     + (statusHeight == 0 ? 0 : gap + statusHeight) + 2 * gap + actionHeight + buttonHeight;
     const auto highlights = getHighlights();
 
     juce::Rectangle<int> cardBounds (cardW, cardH);
@@ -281,19 +312,18 @@ void TourOverlay::resized()
 
     card.setBounds (cardBounds);
 
-    auto b = card.getLocalBounds().reduced (12);
-    title.setBounds (b.removeFromTop (20));
-    auto buttons = b.removeFromBottom (26);
-    status.setBounds (b.removeFromBottom (16));
-    body.setBounds (b);
-
-    skipButton.setBounds (buttons.removeFromLeft (52));
-    buttons.removeFromLeft (4);
-    dontShowButton.setBounds (buttons.removeFromLeft (juce::jmin (130, buttons.getWidth() / 2)));
-    nextButton.setBounds (buttons.removeFromRight (56));
-    buttons.removeFromRight (4);
-    backButton.setBounds (buttons.removeFromRight (52));
-    exampleButton.setBounds (buttons.removeFromRight (juce::jmin (104, buttons.getWidth())));
+    auto b = card.getLocalBounds().reduced (padding);
+    title.setBounds (b.removeFromTop (titleHeight));
+    b.removeFromTop (gap);
+    body.setBounds (b.removeFromTop (bodyHeight));
+    if (statusHeight != 0) b.removeFromTop (gap);
+    status.setBounds (b.removeFromTop (statusHeight));
+    b.removeFromTop (gap);
+    layoutActions (b.getY(), true);
+    b.removeFromTop (actionHeight + gap);
+    nextButton.setBounds (b.removeFromRight (buttonWidth (nextButton)));
+    b.removeFromRight (gap);
+    backButton.setBounds (b.removeFromRight (buttonWidth (backButton)));
 }
 
 void TourOverlay::paint (juce::Graphics& g)

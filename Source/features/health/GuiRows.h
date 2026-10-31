@@ -2,6 +2,7 @@
 
 // Status-detail row layout and ownership, separated from health presentation.
 #include "Gui.h"
+#include "../../gui/TextLabel.h"
 #include "../i18n/Strings.h"
 #include <cmath>
 
@@ -15,7 +16,7 @@ public:
 
     void addHeader (const juce::String& text)
     {
-        auto l = std::make_unique<juce::Label> ("", i18n::text (text));
+        auto l = std::make_unique<TextLabel> ("", i18n::text (text));
         l->setFont (fonts::sectionHeader (11.0f));
         l->setColour (juce::Label::textColourId, colours::accent);
         l->setInterceptsMouseClicks (false, false);
@@ -25,13 +26,13 @@ public:
 
     void addText (const juce::String& text, juce::Colour colour = colours::text, float size = 11.5f)
     {
-        auto l = std::make_unique<juce::Label> ("", i18n::text (text));
+        auto l = std::make_unique<TextLabel> ("", i18n::text (text));
         l->setFont (fonts::ui (size));
         l->setColour (juce::Label::textColourId, colour);
         l->setMinimumHorizontalScale (1.0f);
         l->setJustificationType (juce::Justification::topLeft);
         l->setInterceptsMouseClicks (false, false);
-        wrapped.push_back ({ l.get(), size });
+        wrapped.push_back (l.get());
         plain << l->getText() << "\n";
         add (std::move (l), 16);
     }
@@ -76,32 +77,29 @@ public:
         {
             int h = e.height;
 
-            for (auto& w : wrapped)
-                if (w.label == e.comp.get())
-                {
-                    juce::AttributedString as;
-                    as.append (w.label->getText(), fonts::ui (w.size));
-                    juce::TextLayout tl;
-                    tl.createLayout (as, (float) width);
-                    h = juce::jmax (e.height, (int) std::ceil (tl.getHeight()) + 2);
-                }
-
-            e.comp->setBounds (0, y, width, h);
+            for (const auto* label : wrapped)
+                if (label == e.comp.get())
+                    h = juce::jmax (e.height, label->heightForWidth (width));
 
             for (auto& br : buttonRows)
                 if (br.row == e.comp.get())
                 {
-                    int x = 0;
+                    int x = 0, buttonY = 0;
 
                     for (int i = 0; i < br.count; ++i)
                     {
                         auto* btn = buttonsOwned[(size_t) (br.first + i)].get();
-                        const auto bw = juce::jmax (60, btn->getButtonText().length() * 8 + 24);
-                        btn->setBounds (x, 0, bw, h);
-                        x += bw + 8;
+                        const auto font = btn->getLookAndFeel().getTextButtonFont (*btn, e.height);
+                        const auto bw = juce::jmin (width, juce::jmax (60, (int) std::ceil (
+                            juce::GlyphArrangement::getStringWidth (font, btn->getButtonText())) + 24));
+                        if (x != 0 && x + bw > width) { x = 0; buttonY += e.height + kGap; }
+                        btn->setBounds (x, buttonY, bw, e.height);
+                        x += bw + kGap;
                     }
+                    h = juce::jmax (h, buttonY + e.height);
                 }
 
+            e.comp->setBounds (0, y, width, h);
             y += h + kGap;
         }
 
@@ -113,7 +111,6 @@ public:
 private:
     static constexpr int kGap = 6;
     struct Entry { std::unique_ptr<juce::Component> comp; int height; };
-    struct Wrapped { juce::Label* label; float size; };
     struct ButtonRow { juce::Component* row; int count; int first; };
 
     void add (std::unique_ptr<juce::Component> c, int height)
@@ -124,7 +121,7 @@ private:
 
     juce::Component& panel;
     std::vector<Entry> entries;
-    std::vector<Wrapped> wrapped;
+    std::vector<TextLabel*> wrapped;
     std::vector<std::unique_ptr<juce::TextButton>> buttonsOwned;
     std::vector<ButtonRow> buttonRows;
 };

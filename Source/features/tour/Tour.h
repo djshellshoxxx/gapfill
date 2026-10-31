@@ -11,6 +11,7 @@
 // Nothing is stored in the plug-in state: a project must never carry the flag.
 
 #include "../presetbrowser/GlobalSettings.h"
+#include "../../gui/TextLabel.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -114,7 +115,7 @@ private:
     std::vector<TourStep> steps;
     TourModel& model;
     Card card;
-    juce::Label title, body, status;
+    TextLabel title, body, status;
     juce::TextButton backButton { "BACK" }, nextButton { "NEXT" }, skipButton { "SKIP" },
                      dontShowButton { "DON'T SHOW AGAIN" }, exampleButton { "LOAD EXAMPLE" };
     bool closing = false;
