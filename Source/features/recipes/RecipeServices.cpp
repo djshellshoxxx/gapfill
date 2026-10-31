@@ -57,7 +57,7 @@ bool RecipeServices::onFillEvent (const FillEvent& e) noexcept
     switch (e.type)
     {
         case FillEventType::LockSet:
-            lockMirror = { true, e.recipe };
+            lockMirror = { true, e.recipe, e.extras };
             return true;
 
         case FillEventType::LockCleared:
@@ -67,6 +67,7 @@ bool RecipeServices::onFillEvent (const FillEvent& e) noexcept
         case FillEventType::Preview:
             lastPreviewSpan = { e.pos, e.lengthSamples };
             lastPreviewRecipe = e.recipe;
+            lastPreviewExtras = e.extras;
             return true;                      // consumed: never listed in history or the outcome log
 
         default:

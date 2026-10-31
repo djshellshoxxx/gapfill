@@ -30,11 +30,14 @@ void apply (GapFillAudioProcessor& proc, const juce::ValueTree& tree)
     if (tree.getProperty ("valid", 0).toString().trim() == "1"
          && recipecodec::decode (tree.getProperty ("recipe").toString(), r))
     {
-        mirror = { true, r };
+        RecipeExtras extras;
+        recipecodec::decodeExtras (tree.getProperty ("extras").toString(), extras);
+        mirror = { true, r, extras };
 
         Command c;
         c.type = CommandType::LockRecipe;
         c.recipe = r;
+        c.extras = extras;
         proc.postCommand (c);
     }
     else
@@ -54,6 +57,9 @@ juce::ValueTree serialise (const GapFillAudioProcessor& proc)
     tree.setProperty ("v", 1, nullptr);
     tree.setProperty ("valid", 1, nullptr);
     tree.setProperty ("recipe", recipecodec::encode (mirror.recipe), nullptr);
+    const auto extra = recipecodec::encodeExtras (mirror.extras);
+    if (extra.isNotEmpty())
+        tree.setProperty ("extras", extra, nullptr);
     return tree;
 }
 

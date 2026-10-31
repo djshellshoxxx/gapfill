@@ -38,6 +38,7 @@ public:
     exporting::ExportService exportService;   // U-2
     FillSpan lastPreviewSpan;           // U-2: where the latest audition sits (message thread)
     FillRecipe lastPreviewRecipe;
+    RecipeExtras lastPreviewExtras;
     abcompare::MatchLevels match;       // F-S06: header A/B level matching (audio + message thread)
     abcompare::RecipeAB recipeAB;       // F-S06: History recipe A/B (message thread)
 

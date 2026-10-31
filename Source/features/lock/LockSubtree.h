@@ -11,6 +11,7 @@
 // one posts Unlock, which leaves the lock ARMED when fl01_lock is on.
 
 #include "../../dsp/FillRecipe.h"
+#include "../../dsp/RecipeExtras.h"
 
 #include <juce_data_structures/juce_data_structures.h>
 
@@ -26,6 +27,7 @@ struct LockMirror
 {
     bool valid = false;
     FillRecipe recipe;
+    RecipeExtras extras {};
 };
 
 bool validate (const juce::ValueTree&);

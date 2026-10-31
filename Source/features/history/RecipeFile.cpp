@@ -37,19 +37,23 @@ juce::File defaultRecipeDirectory()
                .getChildFile ("GapFill").getChildFile ("Recipes");
 }
 
-juce::String recipeFileText (const FillRecipe& recipe, const juce::String& name)
+juce::String recipeFileText (const FillRecipe& recipe, const juce::String& name, const RecipeExtras& extras)
 {
     juce::XmlElement root ("GFRECIPE");
     root.setAttribute ("name", sanitiseRecipeName (name));
     root.setAttribute ("recipe", recipecodec::encode (recipe));
     root.setAttribute ("appVersion", juce::String (GAPFILL_VERSION));
     root.setAttribute ("stateVersion", state::kStateVersion);
+    const auto extra = recipecodec::encodeExtras (extras);
+    if (extra.isNotEmpty())
+        root.setAttribute ("extras", extra);
     return root.toString (juce::XmlElement::TextFormat().singleLine());
 }
 
-bool writeRecipeFile (const juce::File& file, const FillRecipe& recipe, const juce::String& name, juce::String& error)
+bool writeRecipeFile (const juce::File& file, const FillRecipe& recipe, const juce::String& name, juce::String& error,
+                       const RecipeExtras& extras)
 {
-    if (! isValid (recipe))
+    if (! isValid (recipe) || ! isValid (extras))
     {
         error = "That recipe is not valid and was not saved.";
         return false;
@@ -61,7 +65,7 @@ bool writeRecipeFile (const juce::File& file, const FillRecipe& recipe, const ju
         return false;
     }
 
-    if (! file.replaceWithText (recipeFileText (recipe, name)))
+    if (! file.replaceWithText (recipeFileText (recipe, name, extras)))
     {
         error = "Couldn't write " + file.getFullPathName();
         return false;
@@ -95,6 +99,7 @@ RecipeFile parseRecipeText (const juce::String& text)
     }
 
     result.name = sanitiseRecipeName (xml->getStringAttribute ("name"));
+    recipecodec::decodeExtras (xml->getStringAttribute ("extras"), result.extras);
     result.ok = true;
     return result;
 }

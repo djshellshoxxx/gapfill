@@ -3,14 +3,15 @@
 namespace gapfill::abcompare
 {
 
-void RecipeAB::setSlot (int slot, const FillRecipe& recipe) noexcept
+void RecipeAB::setSlot (int slot, const FillRecipe& recipe, const RecipeExtras& extra) noexcept
 {
-    if (! isValid (recipe))
+    if (! isValid (recipe) || ! isValid (extra))
         return;
 
     const auto i = slot != 0 ? 1 : 0;
     recipes[i] = recipe;
-    recipes[i].flags = 0;
+    extras[i] = extra;
+    recipes[i].flags = (std::uint8_t) (recipes[i].flags & ~(FillRecipe::flagFromLock | FillRecipe::flagPreview));
     has[i] = true;
     rawRms[i] = 0.0f;                       // a new recipe has not been heard yet
 
@@ -21,6 +22,7 @@ void RecipeAB::setSlot (int slot, const FillRecipe& recipe) noexcept
 void RecipeAB::clear() noexcept
 {
     has[0] = has[1] = false;
+    extras[0] = extras[1] = {};
     rawRms[0] = rawRms[1] = 0.0f;
     nextSlot = 0;
     awaiting = -1;
@@ -51,6 +53,7 @@ bool RecipeAB::next (Command& out, std::uint32_t stampMs) noexcept
     out.type = CommandType::PreviewRecipe;
     out.velocity = 100;
     out.recipe = recipes[slot];
+    out.extras = extras[slot];
     out.index = (std::int16_t) std::lround (trim * 100.0f);
     out.issuedMs = stampMs;
 

@@ -415,6 +415,12 @@ namespace
             return i >= 0 ? proc.getRecipeHistory().get (i) : FillRecipe {};
         }
 
+        RecipeExtras selectedExtras() const
+        {
+            const auto index = selectedIndex();
+            return index >= 0 ? proc.getRecipeHistory().getExtras (index) : RecipeExtras {};
+        }
+
         void timerCallback() override
         {
             heartbeat.poll (proc.getMeterState());
@@ -530,7 +536,7 @@ namespace
         //======================================================================
         // Actions
 
-        void stampedCommand (CommandType type, const FillRecipe* recipe)
+        void stampedCommand (CommandType type, const FillRecipe* recipe, const RecipeExtras& extras = {})
         {
             Command c;
             c.type = type;
@@ -538,7 +544,10 @@ namespace
             c.issuedMs = juce::jmax<std::uint32_t> (1u, juce::Time::getMillisecondCounter());
 
             if (recipe != nullptr)
+            {
                 c.recipe = *recipe;
+                c.extras = extras;
+            }
 
             proc.postCommand (c);
         }
@@ -556,7 +565,7 @@ namespace
             if (hasSelection())
             {
                 const auto r = selectedRecipe();
-                stampedCommand (CommandType::PreviewRecipe, &r);
+                stampedCommand (CommandType::PreviewRecipe, &r, selectedExtras());
             }
             else
             {
@@ -570,7 +579,7 @@ namespace
                 return;
 
             const auto r = selectedRecipe();
-            stampedCommand (CommandType::LockRecipe, &r);
+            stampedCommand (CommandType::LockRecipe, &r, selectedExtras());
 
             // The command is drained before the next block reads fl01_lock, so the explicit
             // recipe is in place when the parameter engages.
@@ -585,7 +594,7 @@ namespace
             if (hasSelection())
             {
                 const auto r = selectedRecipe();
-                stampedCommand (CommandType::LikeRecipe, &r);
+                stampedCommand (CommandType::LikeRecipe, &r, selectedExtras());
             }
             else
             {
@@ -607,7 +616,7 @@ namespace
             if (hasSelection())
             {
                 const auto r = selectedRecipe();
-                stampedCommand (CommandType::SkipRecipe, &r);
+                stampedCommand (CommandType::SkipRecipe, &r, selectedExtras());
             }
             else
             {
@@ -623,6 +632,7 @@ namespace
                 return;
 
             const auto r = selectedRecipe();
+            const auto extras = selectedExtras();
             auto dir = history::defaultRecipeDirectory();
             dir.createDirectory();
             const auto name = history::sanitiseRecipeName (history::describeRecipe (r, 0.0));
@@ -630,7 +640,7 @@ namespace
             chooser = std::make_unique<juce::FileChooser> (i18n::text ("Save recipe"), dir.getChildFile (name + ".gfrecipe"), "*.gfrecipe");
             chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
                                     | juce::FileBrowserComponent::warnAboutOverwriting,
-                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this), r, name] (const juce::FileChooser& fc)
+                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this), r, extras, name] (const juce::FileChooser& fc)
             {
                 auto file = fc.getResult();
 
@@ -640,7 +650,7 @@ namespace
                 file = file.withFileExtension ("gfrecipe");
                 juce::String error;
 
-                if (history::writeRecipeFile (file, r, name, error))
+                if (history::writeRecipeFile (file, r, name, error, extras))
                     safe->proc.getRecipes().postMessage (i18n::format ("Saved {0}", { file.getFileName() }), 3000);
                 else
                     juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", i18n::errorText (error));
@@ -673,7 +683,7 @@ namespace
                 if (auto* p = safe->proc.getValueTreeState().getParameter ("fl01_lock"))
                     p->setValueNotifyingHost (0.0f);
 
-                safe->stampedCommand (CommandType::LockRecipe, &loaded.recipe);
+                safe->stampedCommand (CommandType::LockRecipe, &loaded.recipe, loaded.extras);
                 safe->proc.getRecipes().postMessage ("Recipe loaded - switch LOCK on to use it", 3500);
             });
         }
@@ -684,7 +694,7 @@ namespace
                 return;
 
             const auto r = selectedRecipe();
-            proc.getRecipes().recipeAB.setSlot (slot, r);
+            proc.getRecipes().recipeAB.setSlot (slot, r, selectedExtras());
             proc.getRecipes().postMessage (i18n::format (slot == 0 ? "A: {0}" : "B: {0}", { i18n::describeRecipe (r) }), 2500);
             refresh (true);
         }

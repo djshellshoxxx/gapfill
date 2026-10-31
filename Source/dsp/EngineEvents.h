@@ -42,6 +42,7 @@ struct Command
     std::int16_t index = 0;        ///< history slot or similar, meaning depends on `type`
     FillRecipe recipe;             ///< payload of the *Recipe commands
     std::uint32_t issuedMs = 0;    ///< juce::Time::getMillisecondCounter() at push; 0 = unstamped (never stale)
+    RecipeExtras extras {};
 };
 
 //==============================================================================
@@ -83,6 +84,7 @@ struct FillEvent
     std::uint32_t generation = 0;  ///< engine gap index (ties the events of one gap together)
     std::uint16_t protHoldMs = 0;  ///< Onset: protection hold that follows the event
     std::uint16_t lookaheadMs = 0; ///< Onset: lookahead window that precedes it
+    RecipeExtras extras {};
     std::uint32_t timelineEpoch = 0; ///< coherent timeline generation; zero is unmanaged legacy/test data
     std::uint32_t sampleRateHz = 0;  ///< sample rate belonging to that epoch
 };

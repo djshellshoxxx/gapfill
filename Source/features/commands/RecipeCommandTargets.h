@@ -19,6 +19,7 @@ struct RecipeTargetSnapshot
     std::uint32_t generation = 0;
     int count = 0;
     std::array<FillRecipe, capacity> recipes {};
+    std::array<RecipeExtras, capacity> extras {};
 };
 
 constexpr bool needsRecipeTarget (CommandType type) noexcept
@@ -40,11 +41,13 @@ public:
     {
         if (! needsRecipeTarget (type) || generation != active.generation || active.count < 0
             || active.count > RecipeTargetSnapshot::capacity || index < 0 || index >= active.count
-            || ! gapfill::isValid (active.recipes[(size_t) index]))
+            || ! gapfill::isValid (active.recipes[(size_t) index])
+            || ! gapfill::isValid (active.extras[(size_t) index]))
             return false;
 
         out.type = type;
         out.recipe = active.recipes[(size_t) index];
+        out.extras = active.extras[(size_t) index];
         out.index = 0;                 // PreviewRecipe's index is gain trim, not the MIDI history-slot index.
         return true;
     }
