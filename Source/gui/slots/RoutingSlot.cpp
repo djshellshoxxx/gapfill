@@ -117,7 +117,8 @@ namespace
             if (! wetbus::isDeclared (juce::PluginHostType::getPluginLoadedAs()))
                 wet = "Wet bus: not available in this plug-in format";
             else if (proc.getBusCount (false) > wetbus::kWetBusIndex && proc.getBus (false, wetbus::kWetBusIndex)->isEnabled())
-                wet = "Wet bus: enabled by the host (stereo)";
+                wet = proc.getBus (false, wetbus::kWetBusIndex)->getNumberOfChannels() == 1
+                          ? "Wet bus: enabled by the host (mono)" : "Wet bus: enabled by the host (stereo)";
             else
                 wet = "Wet bus: off - enable it in your DAW's plug-in output routing";
 

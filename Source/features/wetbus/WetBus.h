@@ -2,18 +2,20 @@
 
 // F-L12 Optional "Wet" output bus (docs/dev/12 F-L12).
 //
-// A second, stereo OUTPUT bus named "Wet", disabled by default, that carries the
+// A second mono/stereo OUTPUT bus named "Wet", disabled by default, that carries the
 // same signal as the F-M17 wet-only output: the engine's wet bus after protection,
-// width, mono-wet and wetSafety, at unity, aligned with the main output (no extra
-// latency). It is multiplied only by the Panic ramp and (1 - bypass), exactly like
-// the wet term of the main mix, so `wetSolo` at Output 0 dB and the Wet bus are the
-// same samples. The Dry / Wet / Output knobs do not touch it. Bypass silences it.
+// width, mono-wet and wetSafety, aligned with the main output (no extra latency).
+// At the default 0 dB trim it is multiplied only by the Panic ramp and
+// (1 - bypass), exactly like the wet term of the main mix, so `wetSolo` at Output
+// 0 dB and the stereo Wet bus carry the same samples. The independent level trim
+// uses 20 ms smoothing (OutputRouting.h). Dry / Wet / Output do not touch it.
+// Bypass silences it. Mono writes the half-sum of the stereo wet tap.
 //
 // Compatibility rules (plugin identity is unchanged):
 //  * input buses and their order are untouched: Input, Sidechain;
 //  * outputs are Output (bus 0) and Wet (bus 1, disabled by default);
 //  * isBusesLayoutSupported keeps every previous rule and additionally accepts the
-//    Wet bus as disabled or stereo (never mono, never anything else);
+//    Wet bus as disabled, mono or stereo (never surround);
 //  * the bus is declared at construction time only when the build option
 //    GAPFILL_WET_BUS is on and the wrapper is not Audio Unit (see isDeclared);
 //  * bus enable state belongs to the host; GapFill stores nothing about it.
@@ -50,7 +52,7 @@ inline bool isDeclared (juce::AudioProcessor::WrapperType wrapper = juce::Plugin
    #endif
 }
 
-/** Layout rule for the Wet bus: absent, disabled or stereo. At most one extra output bus. */
+/** Layout rule for the Wet bus: absent, disabled, mono or stereo. At most one extra output bus. */
 inline bool isLayoutSupported (const juce::AudioProcessor::BusesLayout& layouts) noexcept
 {
     if (layouts.outputBuses.size() > 2)
@@ -60,7 +62,7 @@ inline bool isLayoutSupported (const juce::AudioProcessor::BusesLayout& layouts)
     {
         const auto wet = layouts.getChannelSet (false, kWetBusIndex);
 
-        if (! wet.isDisabled() && wet != juce::AudioChannelSet::stereo())
+        if (! wet.isDisabled() && wet != juce::AudioChannelSet::mono() && wet != juce::AudioChannelSet::stereo())
             return false;
     }
 
