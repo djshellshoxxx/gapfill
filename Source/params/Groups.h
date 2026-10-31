@@ -53,3 +53,4 @@
 #include "macroext.h"
 #include "hgext.h"
 #include "fm20.h"
+#include "captureext.h"

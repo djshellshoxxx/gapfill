@@ -236,6 +236,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     addMacroExtParameters (layout);
     addHgextParameters (layout);
     addTapeExtraParameters (layout);
+    addCaptureextParameters (layout);
 
     return layout;
 }
@@ -333,6 +334,7 @@ juce::StringArray performanceParameterIDs()
     addMacroExtPerformanceIds (ids);
     addHgextPerformanceIds (ids);
     addTapeExtraPerformanceIds (ids);
+    addCaptureextPerformanceIds (ids);
     return ids;
 }
 

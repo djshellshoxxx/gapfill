@@ -92,15 +92,18 @@ GF_TEST (ParameterCompatibility, detailed_feature_tail_order_and_neutral_default
 {
     GapFillAudioProcessor proc;
     const auto ids = allParameterIDs();
-    GF_EXPECT (ids.size() == 284);
+    GF_EXPECT (ids.size() == 286);
     GF_EXPECT (ids.indexOf ("fm23_macro5") == 242);
     GF_EXPECT (ids.indexOf ("fx01_mode") == 268);
     GF_EXPECT (ids.indexOf ("fm20_amount") == 275);
     GF_EXPECT (ids.indexOf ("fm20_mix") == 283);
+    GF_EXPECT (ids.indexOf ("fm08_detail") == 284 && ids.indexOf ("fm08_scan") == 285);
     GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fx01_mode")->load(), 0.0f, 0.0f);
     GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fm20_amount")->load(), 0.0f, 0.0f);
     GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fm20_mix")->load(), 100.0f, 0.0f);
-    for (const auto* id : { "fm23_macro5", "fm23_src1", "fm23_depth8", "fm23_lfoAHz", "fx01_mode" })
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fm08_detail")->load(), 0.0f, 0.0f);
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fm08_scan")->load(), 0.0f, 0.0f);
+    for (const auto* id : { "fm23_macro5", "fm23_src1", "fm23_depth8", "fm23_lfoAHz", "fx01_mode", "fm08_detail", "fm08_scan" })
         GF_EXPECT (performanceParameterIDs().contains (id));
     for (const auto* id : { "fx01_motion", "fx01_scatter", "fx01_tone", "fm20_amount", "fm20_wow", "fm20_mix" })
     {
