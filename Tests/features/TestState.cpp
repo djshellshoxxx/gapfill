@@ -114,11 +114,15 @@ GF_TEST (State, total_budget_drops_later_subtrees)
     table[0].maxBytes = table[2].maxBytes = state::kTotalSubtreeBudget;
 
     juce::ValueTree root ("GAPFILL_STATE");
-    root.appendChild (makeTree ("Good", true, 40000), nullptr);
-    root.appendChild (makeTree ("Wide", true, 40000), nullptr);       // would exceed 64 KiB in total
+    const auto each = (int) (state::kTotalSubtreeBudget * 3 / 4);
+    root.appendChild (makeTree ("Good", true, each), nullptr);
+    root.appendChild (makeTree ("Wide", true, each), nullptr);
+    GF_EXPECT (state::serialisedSize (root.getChild (0)) <= state::kTotalSubtreeBudget);
+    GF_EXPECT (state::serialisedSize (root.getChild (0)) + state::serialisedSize (root.getChild (1)) > state::kTotalSubtreeBudget);
 
     const auto plan = state::planSubtrees (root, table);
     GF_EXPECT (plan.toApply.size() == 1 && plan.dropped.size() == 1);
+    GF_EXPECT (juce::String (plan.toApply[0].first->name) == "Good" && juce::String (plan.dropped[0]->name) == "Wide");
 }
 
 GF_TEST (State, corrupt_optional_subtree_never_blocks_the_parameters)

@@ -168,11 +168,15 @@ GF_TEST (SceneBank, more_than_128_parameters_or_64_scenes_are_refused)
 
 GF_TEST (SceneBank, digest_mismatch_is_reported_as_a_warning_but_the_bank_is_usable)
 {
-    auto text = exportToString (sampleBank(), {}, "0.0.1 beta", kCreated);
-    text = text.replace ("v=\"0.550000\"", "v=\"0.560000\"");
-    const auto r = parseString (text);
+    auto xml = juce::XmlDocument::parse (exportToString (sampleBank(), {}, "0.0.1 beta", kCreated));
+    GF_EXPECT (xml != nullptr && xml->getChildByName ("Scene") != nullptr);
+    auto* value = xml->getChildByName ("Scene")->getChildByName ("P");
+    GF_EXPECT (value != nullptr);
+    value->setAttribute ("v", "0.56");  // semantic corruption; independent of float text encoding
+    const auto r = parseString (xml->toString (juce::XmlElement::TextFormat().withoutHeader()));
     GF_EXPECT (r.status == ParseStatus::Ok && r.digestMismatch);
     GF_EXPECT (r.message.contains ("integrity"));
+    GF_EXPECT_NEAR (r.accepted[0].params[0].value01, .56, 1e-6);
 }
 
 GF_TEST (SceneBank, replace_append_and_merge_are_atomic_and_undoable)
@@ -373,3 +377,4 @@ GF_TEST (SceneBank, command_bindings_drive_next_prev_and_cancel_through_the_proc
     GF_EXPECT (live.scenes().getPendingIndex() == -1);
     proc.setPlayHead (nullptr);
 }
+

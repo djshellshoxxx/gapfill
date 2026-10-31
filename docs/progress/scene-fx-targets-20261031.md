@@ -41,3 +41,11 @@ and apply only appropriate FX values at an actual segment boundary.
 Discovered separate F-M23 work: old advanced target indices were present but
 disconnected; enabling them requires legacy/new macro state schemas, explicit
 upgrade, sufficient ownership bits and the documented target reconciliation.
+
+Preflight is now the request-adoption point for its selected segment:
+beginChunk does not adopt another publication after preflight has selected the
+split. New/replacement requests wait until the next preflight; a fixed request
+whose deadline has passed is then rejected. Direct audio cancelPending (Panic
+and group guard) still cancels immediately. Deterministic tests cover both idle
+and existing-request races plus direct cancellation. An executed native probe
+passes the idle race, missed deadline and direct cancellation.

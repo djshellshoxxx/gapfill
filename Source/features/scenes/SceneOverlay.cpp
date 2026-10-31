@@ -317,7 +317,11 @@ int SceneEngine::samplesUntilBoundary (const TransportSnap& t) const noexcept
 
 SceneEngine::Result SceneEngine::beginChunk (TripleBuffer<Overlay>& pub, const TransportSnap& t) noexcept
 {
-    auto r = adoptPublished (pub, t);
+    // Preflight is the request-adoption point for a split segment. A newer
+    // publication must wait for the next preflight, otherwise its boundary
+    // could appear after the processor has already chosen this segment size.
+    Result r;
+    if (! boundaryPreflight) r = adoptPublished (pub, t);
 
     if (phase == Phase::Pending)
     {

@@ -122,3 +122,56 @@ GF_TEST (SceneSplit, effect_projection_preserves_all_unrelated_effective_setting
     GF_EXPECT_NEAR (s.fx.formant.amount01, .75, 1e-6);
     GF_EXPECT_NEAR (s.voiceFormant.shiftSt, -7, 1e-6);
 }
+
+GF_TEST (SceneSplit, a_request_published_after_preflight_waits_until_the_next_preflight)
+{
+    TripleBuffer<Overlay> pub;
+    SceneEngine engine;
+    TransportSnap t;
+    t.valid = true; t.ppq = 7.99; t.samplesPerBeat = 24000; t.numSamples = 512;
+    engine.stagePublished (pub, t);
+    GF_EXPECT (engine.samplesUntilBoundary (t) == 512);
+    Overlay arrived;
+    arrived.id = 71; arrived.fixedBoundary = 1; arrived.targetPpq = 8;
+    pub.publish (arrived);  // the processor has already chosen the unsplit segment
+    GF_EXPECT (engine.beginChunk (pub, t).appliedId == 0 && ! engine.hasPending());
+    t.ppq += 512.0 / 24000.0;
+    const auto next = engine.stagePublished (pub, t);
+    GF_EXPECT (next.missedDeadlineId == 71 && ! engine.hasPending());
+}
+
+GF_TEST (SceneSplit, direct_panic_cancellation_still_wins_after_preflight)
+{
+    TripleBuffer<Overlay> pub;
+    SceneEngine engine;
+    Overlay pending;
+    pending.id = 72; pending.fixedBoundary = 1; pending.targetPpq = 8;
+    pub.publish (pending);
+    TransportSnap t;
+    t.valid = true; t.ppq = 7.99; t.samplesPerBeat = 24000; t.numSamples = 512;
+    engine.stagePublished (pub, t);
+    GF_EXPECT (engine.hasPending() && engine.samplesUntilBoundary (t) == 240);
+    engine.cancelPending();
+    t.ppq = 8;
+    GF_EXPECT (engine.beginChunk (pub, t).appliedId == 0 && ! engine.hasPending());
+}
+
+GF_TEST (SceneSplit, a_replacement_published_after_preflight_cannot_change_the_staged_boundary)
+{
+    TripleBuffer<Overlay> pub;
+    SceneEngine engine;
+    Overlay old;
+    old.id = 73; old.fixedBoundary = 1; old.targetPpq = 12;
+    pub.publish (old);
+    TransportSnap t;
+    t.valid = true; t.ppq = 7.99; t.samplesPerBeat = 24000; t.numSamples = 512;
+    engine.stagePublished (pub, t);
+    GF_EXPECT (engine.samplesUntilBoundary (t) == 512);
+    auto newer = old;
+    newer.id = 74; newer.targetPpq = 8;
+    pub.publish (newer);
+    GF_EXPECT (engine.beginChunk (pub, t).appliedId == 0 && engine.activeId() == 73);
+    t.ppq += 512.0 / 24000.0;
+    GF_EXPECT (engine.stagePublished (pub, t).missedDeadlineId == 74);
+    GF_EXPECT (! engine.hasPending());
+}
