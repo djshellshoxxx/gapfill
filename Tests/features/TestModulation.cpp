@@ -370,3 +370,32 @@ GF_TEST (Modulation, full_runtime_evaluation_is_bounded_and_has_no_audio_thread_
     }
     GF_EXPECT (guard.count() == 0);
 }
+
+GF_TEST (Modulation, typed_pitch_sync_scene_fields_and_send_preserve_mode_and_event_chance)
+{
+    gapfill::EngineSettings settings;
+    const auto project = [&] (const char* id, float real)
+    {
+        const auto reference = gapfill::targets::sceneRefForId (id);
+        GF_EXPECT ((bool) reference);
+        gapfill::targets::apply (settings, reference, real);
+    };
+    project ("fx01_mode", 1);
+    project ("fx01_intervals", 5);
+    project ("fx01_voices", 4);
+    project ("fx01_motion", 75);
+    project ("fx01_scatter", 25);
+    project ("fx01_tone", -50);
+    project ("fx01_snap", 100);
+    settings.fx.tapeExtra.amount01 = .75f;
+    applyCombinedEffectSend (settings, .25f);
+    GF_EXPECT (settings.perf.pitchSync.enabled && settings.perf.pitchSync.intervals == gapfill::harmonic::psola::IntervalSet::Scale);
+    GF_EXPECT (settings.perf.pitchSync.voices == 4);
+    GF_EXPECT_NEAR (settings.perf.pitchSync.motion01, .75f, 1e-6f);
+    GF_EXPECT_NEAR (settings.perf.pitchSync.scatter01, .25f, 1e-6f);
+    GF_EXPECT_NEAR (settings.perf.pitchSync.tone, -.5f, 1e-6f);
+    GF_EXPECT_NEAR (settings.perf.pitchSync.snap01, 1, 1e-6f);
+    GF_EXPECT_NEAR (settings.perf.pitchSync.mix01, .25f, 1e-6f);
+    GF_EXPECT_NEAR (settings.fx.tapeExtra.amount01, .75f, 1e-6f);
+    GF_EXPECT_NEAR (settings.fx.tapeExtra.mix01, .25f, 1e-6f);
+}

@@ -35,7 +35,7 @@ settings copy; decision copies apply the combined Tension and macro send once to
 voice FX. Schemas1/2 retain their existing block-level mutation. New Tape send
 scales its independent mix rather than event probability; target42 selects the
 effective detailed path when target47 enables it, otherwise its legacy wet
-fallback. Root's new PSOLA mix is a separate typed integration hook.
+fallback. The new PSOLA mix is scaled independently of its mode and pitch-choice metadata.
 
 Evaluation has fixed loops, no allocation, locks, publication, framework/host
 access or mutable oscillator/RNG clock. Startup resolves field references before

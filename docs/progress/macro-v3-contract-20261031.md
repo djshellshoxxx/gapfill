@@ -159,3 +159,15 @@ modulation can be accepted; the derived physical field alone is not audio
 completion. New PSOLA mix send awaits the shared typed field/bundle. The live
 preflight snapshot/grid, exact Energy frame wiring, full runtime integration,
 8-macro UI and integrated regressions remain explicit pending work.
+
+
+### Detailed HG typed scene/send extension
+
+After the shared pitchSync Settings/Voice contracts landed, all seven fx01_*
+controls gained actual typed FX references and ScopeFx membership. New-mode send
+now multiplies pitchSync.mix01 while preserving mode, intervals, voices and
+choice metadata; detailed Tape chance likewise remains unchanged while its mix
+scales. The focused native Modulation suite now passes18tests, including the
+new seven-field projection and both independent mix/chance assertions. Four
+changed units passed syntax. Real processor preflight/voice/capture routing is
+owned by the coordinator and remains separate acceptance evidence.

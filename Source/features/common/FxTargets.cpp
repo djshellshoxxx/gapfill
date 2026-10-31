@@ -79,7 +79,13 @@ namespace
         PCT ("fm20_flutter", fx.tapeExtra.flutter01, true), PCT ("fm20_sat", fx.tapeExtra.sat01, true),
         PCT ("fm20_dropDensity", fx.tapeExtra.dropDensity01, true), PCT ("fm20_dropDepth", fx.tapeExtra.dropDepth01, true),
         PCT ("fm20_splice", fx.tapeExtra.splice01, true), PCT ("fm20_instab", fx.tapeExtra.instab01, true),
-        PCT ("fm20_mix", fx.tapeExtra.mix01, true)
+        PCT ("fm20_mix", fx.tapeExtra.mix01, true),
+        FLAG ("fx01_mode", perf.pitchSync.enabled, false),
+        { "fx01_intervals", +[] (EngineSettings& s, float value) noexcept
+            { s.perf.pitchSync.intervals = (harmonic::psola::IntervalSet) integer (value, 0, 5); }, false },
+        INT ("fx01_voices", perf.pitchSync.voices, 1, 4, false),
+        PCT ("fx01_motion", perf.pitchSync.motion01, false), PCT ("fx01_scatter", perf.pitchSync.scatter01, false),
+        PCT ("fx01_tone", perf.pitchSync.tone, false), PCT ("fx01_snap", perf.pitchSync.snap01, false)
     };
 
    #undef PCT

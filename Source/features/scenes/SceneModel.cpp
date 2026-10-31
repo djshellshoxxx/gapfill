@@ -53,6 +53,8 @@ namespace
         GAPFILL_PARAMS_SCRUB (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_HGRAN (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_FL20 (GAPFILL_SCENE_ADD)
+        for (const auto* id : { "fx01_mode", "fx01_intervals", "fx01_voices", "fx01_motion", "fx01_scatter", "fx01_tone", "fx01_snap" })
+            out.emplace_back (id);
         GAPFILL_PARAMS_BANDFX (GAPFILL_SCENE_ADD)
         // Optional append-only detailed Tape controls become visible when registered.
         for (const auto* id : { "fm20_amount", "fm20_wow", "fm20_flutter", "fm20_sat", "fm20_dropDensity",

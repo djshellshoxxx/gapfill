@@ -170,6 +170,7 @@ void applyCombinedEffectSend (EngineSettings& settings, float send) noexcept
         settings.fx.tape.mixOverride01 *= send;
     }
     settings.fx.tapeExtra.mix01 *= send;
+    settings.perf.pitchSync.mix01 *= send;
     settings.voiceFormant.amount01 *= send;
     settings.voiceFormant.enabled = settings.voiceFormant.enabled && settings.voiceFormant.amount01 > 0;
     settings.perf.harmonic.amount01 *= send;
