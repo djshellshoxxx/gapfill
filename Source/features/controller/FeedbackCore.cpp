@@ -30,6 +30,7 @@ bool FeedbackCore::configure (std::span<const OutEvent> values) noexcept
         entries[i].value = values[i];
     }
     sentTimes.fill (-1.0e9);
+    lastCcSent.fill (-1.0e9);
     tokens = 17.0; refillMs = -1.0;
     return true;
 }
@@ -41,7 +42,7 @@ void FeedbackCore::noteInput (std::uint8_t channel, std::uint8_t cc, double now)
 {
     if (channel < 1 || channel > 16 || cc > 127 || ! std::isfinite (now)) return;
     for (std::size_t i = 0; i < count; ++i)
-        if (entries[i].value.status == (0xb0 | (channel - 1)) && entries[i].value.data1 == cc)
+        if ((entries[i].value.status & 0xf0) == 0xb0 && entries[i].value.data1 == cc)
             entries[i].receivedMs = now;
 }
 void FeedbackCore::resync (double now) noexcept
@@ -66,10 +67,13 @@ int FeedbackCore::tick (double now, bool (*send) (void*, OutEvent) noexcept, voi
         auto& entry = entries[index];
         if (entry.lastSent == entry.value.data2 || now - entry.lastSentMs < 1000.0 / 30.0
             || now - entry.receivedMs < 250.0) continue;
+        const bool cc = (entry.value.status & 0xf0) == 0xb0;
+        if (cc && now - lastCcSent[entry.value.data1] < 1000.0 / 30.0) continue;
         if (tokens < 1.0 || now - sentTimes[sentCursor] < 1000.0) break;
         if (! send (context, entry.value)) break;
         entry.lastSent = entry.value.data2;
         entry.lastSentMs = now;
+        if (cc) lastCcSent[entry.value.data1] = now;
         sentTimes[sentCursor] = now;
         sentCursor = (sentCursor + 1) % sentTimes.size();
         tokens -= 1.0;

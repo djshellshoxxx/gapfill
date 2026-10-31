@@ -24,7 +24,11 @@
 #include <juce_audio_devices/juce_audio_devices.h>
 
 #include <memory>
+#include <functional>
 #include <vector>
+
+namespace juce { class AudioProcessorValueTreeState; }
+namespace gapfill { class MidiLearnManager; namespace controller { class FeedbackAdapter; } }
 
 namespace gapfill::commands
 {
@@ -32,7 +36,7 @@ namespace gapfill::commands
 inline constexpr int kMaxProfileBytes = 8 * 1024;
 inline constexpr int kMaxFeedbackRules = 64;
 
-enum class FeedbackSource : std::uint8_t { Panic = 0, SceneCurrent, ScenePending };
+enum class FeedbackSource : std::uint8_t { Panic = 0, SceneCurrent, ScenePending, Bypass, Capture, Hold, Safe };
 
 struct FeedbackRule
 {
@@ -115,6 +119,7 @@ struct FeedbackState
     bool panicked = false;
     int currentScene = -1;
     int pendingScene = -1;
+    bool bypassed = false, captured = false, holding = false, safe = false;
 };
 
 /** Turns application state into LED messages. Sends only changes (plus a full
@@ -122,6 +127,8 @@ struct FeedbackState
 class FeedbackEngine
 {
 public:
+    FeedbackEngine();
+    ~FeedbackEngine();
     void setRules (std::vector<FeedbackRule>);
     void setSink (std::unique_ptr<MidiSink>);
     bool hasSink() const noexcept                       { return sink != nullptr; }
@@ -133,6 +140,19 @@ public:
     /** Called ~every second: reconnects a vanished device and refreshes the LEDs. */
     int pollConnection (const FeedbackState&);
 
+    /** Schema-3-only adapter; the enabled-only 30Hz timer owns parameter/device
+        access. Legacy update()/pollConnection() retain their old contracts. */
+    bool configureExtended (const Profile&, juce::AudioProcessorValueTreeState&, MidiLearnManager*,
+                            std::function<FeedbackState()> state);
+    void disableExtended();
+    bool isExtended() const noexcept;
+    const Profile& extendedProfile() const noexcept;
+    void requestResync();
+    void setHostOutputEnabled (bool); // Message thread; parent excludes AU and default-off builds.
+    int popOutput (controller::OutEvent*, int maximum) noexcept; // Audio, remaining shared callback budget only.
+    bool takeDeviceLost() noexcept;
+    void tickExtendedForTests (double nowMs);
+
     bool isConnected() const noexcept                   { return connected; }
     int  getTotalSent() const noexcept                  { return totalSent; }
 
@@ -140,6 +160,8 @@ private:
     static bool isOn (const FeedbackRule&, const FeedbackState&) noexcept;
     int sendAll (const FeedbackState&, bool onlyChanged);
 
+    friend class controller::FeedbackAdapter;
+    std::unique_ptr<controller::FeedbackAdapter> extended;
     std::vector<FeedbackRule> rules;
     std::vector<int> lastValue;                         // per rule, -1 = unknown
     std::unique_ptr<MidiSink> sink;

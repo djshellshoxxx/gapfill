@@ -1,4 +1,5 @@
 #include "ControllerProfile.h"
+#include "../controller/FeedbackAdapter.h"
 
 #include <cmath>
 #include <map>
@@ -30,7 +31,17 @@ namespace
 
     const char* sourceKey (FeedbackSource s)
     {
-        return s == FeedbackSource::Panic ? "panic" : s == FeedbackSource::SceneCurrent ? "scene.current" : "scene.pending";
+        switch (s)
+        {
+            case FeedbackSource::Panic: return "panic";
+            case FeedbackSource::SceneCurrent: return "scene.current";
+            case FeedbackSource::ScenePending: return "scene.pending";
+            case FeedbackSource::Bypass: return "bypass";
+            case FeedbackSource::Capture: return "capture";
+            case FeedbackSource::Hold: return "hold";
+            case FeedbackSource::Safe: return "safe";
+        }
+        return "panic";
     }
 
     bool isNumber (const juce::var& v)
@@ -193,9 +204,9 @@ ProfileParse parseProfile (const juce::String& json)
             if (item.getDynamicObject() == nullptr) return fail ("Each parameter mapping must be an object.");
             const auto idValue = item.getProperty ("id", juce::var());
             const auto id = idValue.toString();
-            if (! idValue.isString() || id.isEmpty() || id.length() > 64
+            if (! idValue.isString() || id.isEmpty() || id.length() > 32
                 || ! id.containsOnly ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"))
-                return fail ("Parameter id must be 1 to 64 identifier characters.");
+                return fail ("Parameter id must be 1 to 32 identifier characters.");
             int cc = 0, channel = 0;
             if (! readInt (item, "cc", 0, 127, cc, true) || ! readInt (item, "channel", 0, 16, channel, false))
                 return fail ("Parameter CC must be 0 to 127 and channel 0 to 16.");
@@ -315,7 +326,11 @@ ProfileParse parseProfile (const juce::String& json)
             if (source == "panic")               r.source = FeedbackSource::Panic;
             else if (source == "scene.current")  r.source = FeedbackSource::SceneCurrent;
             else if (source == "scene.pending")  r.source = FeedbackSource::ScenePending;
-            else return fail (where + "\"source\" must be panic, scene.current or scene.pending.");
+            else if (version == 3 && source == "bypass") r.source = FeedbackSource::Bypass;
+            else if (version == 3 && source == "capture") r.source = FeedbackSource::Capture;
+            else if (version == 3 && source == "hold") r.source = FeedbackSource::Hold;
+            else if (version == 3 && source == "safe") r.source = FeedbackSource::Safe;
+            else return fail (where + "unknown feedback source for this profile version.");
 
             int v = 0;
 
@@ -358,6 +373,12 @@ ProfileParse parseProfile (const juce::String& json)
             if (binding.type == MsgType::CC && binding.number == parameter.cc
                 && (binding.channel == 0 || parameter.channel == 0 || binding.channel == parameter.channel))
                 return fail ("A CC cannot control both a parameter and a command on overlapping channels.");
+
+    if (profile.parameterFeedback)
+        for (const auto& parameter : profile.params)
+            for (const auto& indicator : profile.feedback)
+                if (indicator.type == MsgType::CC && indicator.number == parameter.cc && indicator.channel == profile.txChannel)
+                    return fail ("A feedback CC cannot carry both a parameter value and an indicator.");
 
     ProfileParse out;
     out.ok = true;
@@ -583,6 +604,9 @@ std::unique_ptr<MidiSink> makeDeviceSink (const juce::String& deviceName, juce::
 }
 
 //==============================================================================
+FeedbackEngine::FeedbackEngine() : extended (std::make_unique<controller::FeedbackAdapter> (*this)) {}
+FeedbackEngine::~FeedbackEngine() = default;
+
 void FeedbackEngine::setRules (std::vector<FeedbackRule> r)
 {
     rules = std::move (r);
@@ -594,6 +618,7 @@ void FeedbackEngine::setSink (std::unique_ptr<MidiSink> s)
     sink = std::move (s);
     connected = sink == nullptr || sink->isConnected();
     std::fill (lastValue.begin(), lastValue.end(), -1);
+    extended->sinkChanged();
 }
 
 bool FeedbackEngine::isOn (const FeedbackRule& r, const FeedbackState& s) noexcept
@@ -603,6 +628,10 @@ bool FeedbackEngine::isOn (const FeedbackRule& r, const FeedbackState& s) noexce
         case FeedbackSource::Panic:        return s.panicked;
         case FeedbackSource::SceneCurrent: return s.currentScene == r.arg;
         case FeedbackSource::ScenePending: return s.pendingScene == r.arg;
+        case FeedbackSource::Bypass: return s.bypassed;
+        case FeedbackSource::Capture: return s.captured;
+        case FeedbackSource::Hold: return s.holding;
+        case FeedbackSource::Safe: return s.safe;
     }
 
     return false;
@@ -667,6 +696,7 @@ int FeedbackEngine::sendAll (const FeedbackState& state, bool onlyChanged)
 
 int FeedbackEngine::update (const FeedbackState& state)
 {
+    if (isExtended()) return 0;
     if (sink == nullptr)
         return 0;
 
@@ -678,6 +708,7 @@ int FeedbackEngine::update (const FeedbackState& state)
 
 int FeedbackEngine::pollConnection (const FeedbackState& state)
 {
+    if (isExtended()) return 0;
     if (sink == nullptr)
         return 0;
 
@@ -695,5 +726,17 @@ int FeedbackEngine::pollConnection (const FeedbackState& state)
 
     return 0;
 }
+
+bool FeedbackEngine::configureExtended (const Profile& p, juce::AudioProcessorValueTreeState& state,
+                                         MidiLearnManager* learn, std::function<FeedbackState()> source)
+{ return extended->configure (p, state, learn, std::move (source)); }
+void FeedbackEngine::disableExtended() { extended->disable(); }
+bool FeedbackEngine::isExtended() const noexcept { return extended->isConfigured(); }
+const Profile& FeedbackEngine::extendedProfile() const noexcept { return extended->profile(); }
+void FeedbackEngine::requestResync() { extended->resync(); }
+void FeedbackEngine::setHostOutputEnabled (bool enabled) { extended->enableHostOutput (enabled); }
+int FeedbackEngine::popOutput (controller::OutEvent* events, int maximum) noexcept { return extended->pop (events, maximum); }
+bool FeedbackEngine::takeDeviceLost() noexcept { return extended->takeDeviceLost(); }
+void FeedbackEngine::tickExtendedForTests (double nowMs) { extended->tick (nowMs); }
 
 } // namespace gapfill::commands

@@ -32,6 +32,7 @@ private:
     std::size_t count = 0, cursor = 0;
     double tokens = 0.0, refillMs = -1.0;
     std::array<double, 512> sentTimes {};
+    std::array<double, 128> lastCcSent {};
     std::size_t sentCursor = 0;
 };
 }
