@@ -31,7 +31,8 @@ enum class CommandType : std::uint8_t
     MomentaryStutter = 20, MomentaryFreeze = 21, MomentaryReverse = 22, MomentaryTape = 23,
     SpectralCapture = 24, SpectralRelease = 25, GrooveLearn = 26, GrooveReset = 27,
     AbSwap = 28, EventRecordToggle = 29, PreviewRecipe = 30,
-    SkipLatest = 31, SkipRecipe = 32         // F-X05 (WP7): ratings; handled on the message thread
+    SkipLatest = 31, SkipRecipe = 32,        // F-X05 (WP7): ratings; handled on the message thread
+    PresetGoto = 33                         // optional, channel-filtered factory Program Change
 };
 
 struct Command

@@ -14,7 +14,8 @@ namespace
         "ReleaseCapture", "Panic", "Recover", "SceneGoto", "SceneNext", "ScenePrev", "SceneCancel",
         "PresetNext", "PresetPrev", "StutterStorm", "Roulette", "FillNow", "MomentaryStutter",
         "MomentaryFreeze", "MomentaryReverse", "MomentaryTape", "SpectralCapture", "SpectralRelease",
-        "GrooveLearn", "GrooveReset", "AbSwap", "EventRecordToggle", "PreviewRecipe"
+        "GrooveLearn", "GrooveReset", "AbSwap", "EventRecordToggle", "PreviewRecipe",
+        "SkipLatest", "SkipRecipe", "PresetGoto"
     };
 
     const char* typeKey (MsgType t)
@@ -164,8 +165,8 @@ ProfileParse parseProfile (const juce::String& json)
 
     int version = 0;
 
-    if (! readInt (root, "version", 1, 1, version, true))
-        return fail ("\"version\" must be 1.");
+    if (! readInt (root, "version", 1, 2, version, true))
+        return fail ("\"version\" must be 1 or 2.");
 
     const auto bindings = root.getProperty ("bindings", juce::var());
     const auto feedback = root.getProperty ("feedback", juce::var());
@@ -194,7 +195,7 @@ ProfileParse parseProfile (const juce::String& json)
             const auto cmdName = item.getProperty ("command", juce::var()).toString();
             int cmdIndex = -1;
 
-            for (int i = 1; i <= 30; ++i)
+            for (int i = 1; i <= (version == 1 ? 30 : 33); ++i)
                 if (cmdName == kCommandKeys[i])
                     cmdIndex = i;
 
@@ -318,7 +319,10 @@ juce::String profileToJson (const Profile& p)
 {
     auto* root = new juce::DynamicObject();
     root->setProperty ("name", p.name);
-    root->setProperty ("version", 1);
+    bool extended = false;
+    for (const auto& b : p.bindings)
+        extended = extended || (int) b.cmd > 30;
+    root->setProperty ("version", extended ? 2 : 1);
 
     juce::Array<juce::var> bindings, feedback;
 

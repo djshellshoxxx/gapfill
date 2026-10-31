@@ -78,6 +78,21 @@ GF_TEST (Controllers, built_in_profiles_pass_the_same_validator_as_user_files)
     }
 }
 
+GF_TEST (Controllers, schema_two_adds_skip_commands_while_schema_one_keeps_its_contract)
+{
+    const juce::String body = R"json({"name":"Skip","version":2,"bindings":[{"command":"SkipLatest","type":"cc","number":20},{"command":"SkipRecipe","arg":7,"type":"note","number":37}]})json";
+    const auto extended = parseProfile (body);
+    GF_EXPECT_MSG (extended.ok, extended.error);
+    GF_EXPECT (extended.profile.bindings.size() == 2);
+    const auto roundtrip = parseProfile (profileToJson (extended.profile));
+    GF_EXPECT (roundtrip.ok && roundtrip.profile.bindings[1].cmd == CommandType::SkipRecipe);
+    GF_EXPECT (! parseProfile (body.replace ("\"version\":2", "\"version\":1")).ok);
+    const auto legacy = parseProfile (kMinimal);
+    GF_EXPECT (legacy.ok);
+    const auto legacyJson = juce::JSON::parse (profileToJson (legacy.profile));
+    GF_EXPECT ((int) legacyJson.getProperty ("version", 0) == 1);
+}
+
 GF_TEST (Controllers, schema_rejects_bad_profiles_with_a_reason)
 {
     auto rejects = [] (const juce::String& json, const char* needle)
@@ -92,7 +107,7 @@ GF_TEST (Controllers, schema_rejects_bad_profiles_with_a_reason)
     GF_EXPECT (rejects ("{\"name\":\"\",\"version\":1}", "name"));
     GF_EXPECT (rejects ("{\"name\":\"" + juce::String::repeatedString ("x", 49) + "\",\"version\":1}", "name"));
     GF_EXPECT (rejects ("{\"name\":\"a\"}", "version"));
-    GF_EXPECT (rejects ("{\"name\":\"a\",\"version\":2}", "version"));
+    GF_EXPECT (rejects ("{\"name\":\"a\",\"version\":3}", "version"));
     GF_EXPECT (rejects ("{\"name\":\"a\",\"version\":1,\"bindings\":5}", "list"));
     GF_EXPECT (rejects ("{\"name\":\"a\",\"version\":1,\"bindings\":[5]}", "object"));
     GF_EXPECT (rejects ("{\"name\":\"a\",\"version\":1,\"bindings\":[{\"command\":\"Explode\",\"type\":\"cc\",\"number\":1}]}", "unknown command"));

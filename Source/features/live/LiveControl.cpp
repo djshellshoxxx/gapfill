@@ -111,7 +111,8 @@ void LiveControl::onPanicAction (panic::Action action, FillEngine& engine) noexc
     }
 }
 
-void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset, FillEngine& engine, momentary::Source src) noexcept
+void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset, FillEngine& engine,
+                           momentary::Source src, std::uint32_t recipeGeneration) noexcept
 {
     switch ((int) type)
     {
@@ -147,17 +148,32 @@ void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset,
 
         case (int) CommandType::PresetNext:  if (on) post (UiRequest::PresetNext); break;
         case (int) CommandType::PresetPrev:  if (on) post (UiRequest::PresetPrev); break;
+        case (int) CommandType::PresetGoto:  if (on) post (UiRequest::PresetGoto, arg); break;
         case (int) CommandType::Roulette:    if (on) post (UiRequest::Roulette); break;
         case (int) CommandType::AbSwap:      if (on) post (UiRequest::AbSwap); break;
 
         default:
-            break;      // commands owned by other work packages are ignored here
+            if (src == momentary::Source::Midi && on && commands::isKnownCommand (type) && featureCommandSink != nullptr)
+            {
+                Command command;
+                command.type = type;
+                command.index = (std::int16_t) arg;
+                command.velocity = 100;
+                if (commands::needsRecipeTarget (type) && ! recipeTargets.resolve (type, arg, recipeGeneration, command))
+                {
+                    ringDropped.fetch_add (1, std::memory_order_relaxed);
+                    break;
+                }
+                featureCommandSink (featureCommandContext, command);
+            }
+            break;
     }
 }
 
 void LiveControl::beginBlock (const juce::MidiBuffer& midi, FillEngine& engine, std::int64_t outputPos) noexcept
 {
     blockPos = outputPos;
+    recipeTargets.adopt();
     commands::Event events[commands::kMaxCommandEventsPerBlock];
 
     // 1. A new binding table (releases anything that was held).
@@ -177,7 +193,8 @@ void LiveControl::beginBlock (const juce::MidiBuffer& midi, FillEngine& engine, 
     ringCount = 0;
 
     for (int i = 0; i < queued; ++i)
-        execute (ring[i].type, ring[i].arg, ring[i].on, ring[i].sampleOffset, engine);
+        execute (ring[i].type, ring[i].arg, ring[i].on, ring[i].sampleOffset, engine,
+                 momentary::Source::Midi, ring[i].recipeGeneration);
 
     // 4. This block's MIDI. Panic/Recover act immediately, the rest waits one block.
     const auto n = scanner.process (midi, events, commands::kMaxCommandEventsPerBlock);
@@ -192,7 +209,9 @@ void LiveControl::beginBlock (const juce::MidiBuffer& midi, FillEngine& engine, 
         }
         else if (ringCount < commands::kMaxCommandEventsPerBlock)
         {
-            ring[ringCount++] = e;
+            auto queued = e;
+            queued.recipeGeneration = recipeTargets.generation();
+            ring[ringCount++] = queued;
         }
         else
         {
@@ -440,6 +459,10 @@ void LiveControl::handleUi (const UiRequest& r, GapFillAudioProcessor& proc)
         case (int) UiRequest::SceneCancel:   sceneCtl.cancel(); break;
         case (int) UiRequest::SceneLastGood: sceneCtl.gotoLastGood(); break;
         case (int) UiRequest::Roulette:      rouletteState.spin (proc); break;
+        case (int) UiRequest::PresetGoto:
+            if (r.a >= 0 && r.a < proc.getNumPrograms())
+                proc.selectPreset (r.a);
+            break;
 
         case (int) UiRequest::PresetNext:
         case (int) UiRequest::PresetPrev:

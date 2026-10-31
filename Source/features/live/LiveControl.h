@@ -18,6 +18,7 @@
 #include "../battle/Battle.h"
 #include "../commands/CommandMap.h"
 #include "../commands/ControllerProfile.h"
+#include "../commands/RecipeCommandTargets.h"
 #include "../macros/MacroModel.h"
 #include "../momentary/HoldController.h"
 #include "../panic/Panic.h"
@@ -47,7 +48,7 @@ struct UiRequest
     {
         None = 0, PresetNext, PresetPrev, Roulette, AbSwap,
         SceneGoto, SceneNext, ScenePrev, SceneCancel, SceneApplied, SceneLastGood,
-        PanicChanged
+        PanicChanged, PresetGoto
     };
 
     Kind kind = None;
@@ -101,6 +102,16 @@ public:
     /** Called on the audio thread when a panic starts: stops the voices AND fades the FX chain
         (the processor's panicWet). Falls back to FillEngine::panic() when unset. */
     void setPanicHook (void (*fn) (void*) noexcept, void* context) noexcept { panicHook = fn; panicContext = context; }
+
+    /** Prepare/message thread while audio is stopped. Non-live MIDI presses only; GUI commands already use the
+        processor's command drain. The callback executes once on audio, after the established one-block delay. */
+    void setFeatureCommandSink (void (*fn) (void*, const Command&) noexcept, void* context) noexcept
+    {
+        featureCommandSink = fn;
+        featureCommandContext = context;
+    }
+    /** Message thread, after RecipeHistory changes. No GUI/history object is retained by the audio side. */
+    void publishRecipeTargets (const commands::RecipeTargetSnapshot& snapshot) noexcept { recipeTargets.publish (snapshot); }
 
     //--- F-L24 controller profiles and LED feedback ---------------------------
     /** Installs a profile's bindings (Replace clears first, otherwise existing bindings win) and its
@@ -182,7 +193,7 @@ public:
 
 private:
     void execute (CommandType, int arg, bool on, int sampleOffset, FillEngine&,
-                  momentary::Source = momentary::Source::Midi) noexcept;
+                  momentary::Source = momentary::Source::Midi, std::uint32_t recipeGeneration = 0) noexcept;
     void onPanicAction (panic::Action, FillEngine&) noexcept;
     void post (UiRequest::Kind, int a = 0) noexcept;
     void emit (FillEventType, std::int64_t pos) noexcept;
@@ -193,6 +204,9 @@ private:
     FillEventQueue* eventQueue = nullptr;
     void (*panicHook) (void*) noexcept = nullptr;
     void* panicContext = nullptr;
+    void (*featureCommandSink) (void*, const Command&) noexcept = nullptr;
+    void* featureCommandContext = nullptr;
+    commands::RecipeCommandTargets recipeTargets;
     std::int64_t blockPos = 0;
 
     commands::BindingModel bindingModel;

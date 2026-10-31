@@ -4,6 +4,7 @@
 #include "../support/LiveRig.h"
 
 #include "features/commands/CommandMap.h"
+#include "features/commands/RecipeCommandTargets.h"
 #include "features/state/StateSubtrees.h"
 
 using namespace gapfill;
@@ -319,4 +320,158 @@ GF_TEST (CommandMap, midi_command_reaches_the_live_control_one_block_later_and_p
 
     // Panic acts in the same block through the direct path; the scene command is queued.
     GF_EXPECT (live.panic().isPanicked());
+}
+
+GF_TEST (CommandMap, skip_commands_are_bindable_and_unknown_ids_are_rejected)
+{
+    Harness h;
+    GF_EXPECT (h.model.add (cc (CommandType::SkipLatest, 92)) == BindingModel::AddResult::Ok);
+    GF_EXPECT (h.model.add (cc (CommandType::SkipRecipe, 93, BindMode::Trigger, 0, 7)) == BindingModel::AddResult::Ok);
+    GF_EXPECT (h.ccMsg (92, 127) == 1 && h.ev[0].type == CommandType::SkipLatest);
+    GF_EXPECT (h.ccMsg (93, 127) == 1 && h.ev[0].type == CommandType::SkipRecipe && h.ev[0].arg == 7);
+    GF_EXPECT (! isKnownCommand ((CommandType) 255));
+}
+
+GF_TEST (CommandMap, explicit_program_binding_takes_precedence_over_automatic_scene_recall)
+{
+    Harness h;
+    h.model.setProgramChangeScenes (true, 1);
+    auto binding = cc (CommandType::Panic, 4, BindMode::Trigger, 1);
+    binding.type = MsgType::ProgramChange;
+    GF_EXPECT (h.model.add (binding) == BindingModel::AddResult::Ok);
+    GF_EXPECT (h.run (juce::MidiMessage::programChange (1, 4), 17) == 1);
+    GF_EXPECT (h.ev[0].type == CommandType::Panic && h.ev[0].sampleOffset == 17);
+}
+
+GF_TEST (CommandMap, factory_program_change_is_opt_in_channel_filtered_and_mutually_exclusive)
+{
+    Harness h;
+    GF_EXPECT (h.run (juce::MidiMessage::programChange (2, 4)) == 0);
+    h.model.setProgramChangeTarget (ProgramChangeTarget::FactoryPresets, 2);
+    GF_EXPECT (h.model.getTable().pcSceneEnabled == 0 && h.model.getTable().pcPresetEnabled == 1);
+    GF_EXPECT (h.run (juce::MidiMessage::programChange (1, 4)) == 0);
+    GF_EXPECT (h.run (juce::MidiMessage::programChange (2, 4), 9) == 1);
+    GF_EXPECT (h.ev[0].type == CommandType::PresetGoto && h.ev[0].arg == 4 && h.ev[0].sampleOffset == 9);
+    const auto state = h.model.toValueTree();
+    BindingModel restored;
+    restored.restore (state);
+    GF_EXPECT (restored.getProgramChangeTarget() == ProgramChangeTarget::FactoryPresets);
+    restored.setProgramChangeScenes (true, 4);
+    GF_EXPECT (restored.getProgramChangeTarget() == ProgramChangeTarget::Scenes && restored.getTable().pcPresetEnabled == 0);
+    juce::ValueTree legacy ("Cmd");
+    legacy.setProperty ("v", 1, nullptr);
+    legacy.setProperty ("pcScene", 1, nullptr);
+    legacy.setProperty ("pcCh", 3, nullptr);
+    restored.restore (legacy);
+    GF_EXPECT (restored.getProgramChangeTarget() == ProgramChangeTarget::Scenes && restored.getTable().pcSceneChannel == 3);
+}
+
+GF_TEST (CommandMap, recipe_targets_copy_valid_payload_and_reject_missing_or_stale_history)
+{
+    RecipeCommandTargets targets;
+    Command out;
+    out.recipe.seed = 999;
+    GF_EXPECT (! targets.resolve (CommandType::SkipRecipe, 0, 0, out));
+    RecipeTargetSnapshot snapshot;
+    snapshot.generation = 42;
+    snapshot.count = 2;
+    snapshot.recipes[0].seed = 11;
+    snapshot.recipes[1].seed = 22;
+    targets.publish (snapshot);
+    targets.adopt();
+    GF_EXPECT (! targets.resolve (CommandType::SkipRecipe, 1, 41, out));
+    GF_EXPECT (out.recipe.seed == 999);
+    GF_EXPECT (! targets.resolve (CommandType::SkipRecipe, 8, 42, out));
+    GF_EXPECT (targets.resolve (CommandType::PreviewRecipe, 1, 42, out));
+    GF_EXPECT (out.recipe.seed == 22 && out.index == 0);
+    snapshot.generation = 43;
+    snapshot.recipes[1].seed = 33;
+    targets.publish (snapshot);
+    targets.adopt();
+    GF_EXPECT (! targets.resolve (CommandType::PreviewRecipe, 1, 42, out));
+    GF_EXPECT (out.recipe.seed == 22);
+}
+
+GF_TEST (CommandMap, nonlive_midi_sink_runs_once_after_one_block_and_ignores_gui_dispatch)
+{
+    struct Received { int count = 0; Command latest; } received;
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 256, false);
+    auto& live = proc.getLiveControl();
+    live.setFeatureCommandSink ([] (void* context, const Command& command) noexcept
+    {
+        auto& result = *static_cast<Received*> (context);
+        ++result.count;
+        result.latest = command;
+    }, &received);
+    live.bindings().add (cc (CommandType::Preview, 94));
+    juce::AudioBuffer<float> audio (2, 256);
+    juce::MidiBuffer midi;
+    audio.clear();
+    midi.addEvent (juce::MidiMessage::controllerEvent (1, 94, 127), 17);
+    proc.processBlock (audio, midi);
+    GF_EXPECT (received.count == 0);
+    audio.clear(); midi.clear();
+    proc.processBlock (audio, midi);
+    GF_EXPECT (received.count == 1 && received.latest.type == CommandType::Preview);
+    Command gui; gui.type = CommandType::Preview;
+    GF_EXPECT (proc.postCommand (gui));
+    audio.clear(); midi.clear();
+    proc.processBlock (audio, midi);
+    GF_EXPECT (received.count == 1);
+}
+
+GF_TEST (CommandMap, queued_recipe_command_is_rejected_when_history_generation_changes)
+{
+    struct Received { int count = 0; Command latest; } received;
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 256, false);
+    auto& live = proc.getLiveControl();
+    live.setFeatureCommandSink ([] (void* context, const Command& command) noexcept
+    {
+        auto& result = *static_cast<Received*> (context);
+        ++result.count; result.latest = command;
+    }, &received);
+    live.bindings().add (cc (CommandType::SkipRecipe, 95));
+    RecipeTargetSnapshot snapshot;
+    snapshot.count = 1; snapshot.generation = 42; snapshot.recipes[0].seed = 11;
+    live.publishRecipeTargets (snapshot);
+    juce::AudioBuffer<float> audio (2, 256);
+    juce::MidiBuffer midi;
+    auto process = [&] { audio.clear(); proc.processBlock (audio, midi); midi.clear(); };
+    midi.addEvent (juce::MidiMessage::controllerEvent (1, 95, 127), 0);
+    process();
+    snapshot.generation = 43; snapshot.recipes[0].seed = 22;
+    live.publishRecipeTargets (snapshot);
+    process();
+    GF_EXPECT (received.count == 0 && live.getDroppedCommandEvents() > 0);
+    midi.addEvent (juce::MidiMessage::controllerEvent (1, 95, 0), 0);
+    process();
+    midi.addEvent (juce::MidiMessage::controllerEvent (1, 95, 127), 0);
+    process(); process();
+    GF_EXPECT (received.count == 1 && received.latest.recipe.seed == 22);
+}
+
+GF_TEST (CommandMap, factory_program_change_works_with_editor_closed_and_rejects_unknown_program)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 256, false);
+    auto& live = proc.getLiveControl();
+    live.bindings().setProgramChangeTarget (ProgramChangeTarget::FactoryPresets, 2);
+    juce::AudioBuffer<float> audio (2, 256);
+    juce::MidiBuffer midi;
+    auto run = [&] (int program)
+    {
+        audio.clear(); midi.clear();
+        midi.addEvent (juce::MidiMessage::programChange (2, program), 0);
+        proc.processBlock (audio, midi);
+        audio.clear(); midi.clear();
+        proc.processBlock (audio, midi);
+        live.pump (proc);
+    };
+    GF_EXPECT (proc.getActiveEditor() == nullptr);
+    run (3);
+    GF_EXPECT (proc.getCurrentProgram() == 3);
+    run (127);
+    GF_EXPECT (proc.getCurrentProgram() == 3);
 }

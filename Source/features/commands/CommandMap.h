@@ -33,6 +33,7 @@ inline constexpr int kMaxCommandEventsPerBlock = 32;
 
 enum class MsgType : std::uint8_t { CC = 0, Note = 1, ProgramChange = 2 };
 enum class BindMode : std::uint8_t { Trigger = 0, Momentary = 1, Toggle = 2 };
+enum class ProgramChangeTarget : std::uint8_t { Off = 0, Scenes = 1, FactoryPresets = 2 };
 
 struct Binding
 {
@@ -50,7 +51,8 @@ struct BindingTable
     std::int32_t count = 0;
     std::uint8_t pcSceneEnabled = 0;         ///< N-VAL: Program Change 0..63 selects scene n
     std::uint8_t pcSceneChannel = 0;         ///< 0 = any
-    std::uint8_t pad[2] {};
+    std::uint8_t pcPresetEnabled = 0;        ///< mutually exclusive with pcSceneEnabled
+    std::uint8_t pad = 0;
     Binding      bindings[kMaxBindings] {};
 };
 
@@ -62,9 +64,10 @@ struct Event
     std::int16_t arg = 0;
     bool         on = true;
     std::int32_t sampleOffset = 0;
+    std::uint32_t recipeGeneration = 0;      ///< stamped by LiveControl when a recipe-target command is queued
 };
 
-/** True when CommandType value is one of the permanent ids 1..30. */
+/** True when CommandType value is one of the permanent ids 1..33. */
 bool isKnownCommand (CommandType) noexcept;
 
 /** Human-readable command name for lists and status text. */
@@ -101,6 +104,8 @@ public:
     int findCommand (CommandType cmd, int arg) const noexcept;
 
     void setProgramChangeScenes (bool enabled, int channel) noexcept;
+    void setProgramChangeTarget (ProgramChangeTarget, int channel) noexcept;
+    ProgramChangeTarget getProgramChangeTarget() const noexcept;
 
     /** Latest published snapshot for the audio thread. */
     TripleBuffer<BindingTable>& publisher() noexcept { return pub; }
