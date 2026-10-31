@@ -1,4 +1,5 @@
 #include "FillEngine.h"
+#include "VisualisationRate.h"
 #include "../features/effective/Effective.h"
 #include "../features/sync/Sync.h"
 #include "../features/breathing/Breathing.h"
@@ -92,7 +93,8 @@ void FillEngine::prepare (double sampleRate, int /*maxBlockSize*/, int numChanne
     formants.prepare (sr);
 
     // Keep the visualiser feed at a roughly constant rate across sample rates.
-    vizDecim = juce::jmax (1, (int) std::round (sr / (double) AnalysisEngine::hopSize / 700.0));
+    static_assert (AnalysisEngine::hopSize == visualisation::analysisHopSamples);
+    vizDecim = visualisation::decimationForRate (sr);
 
     reset();
 }
