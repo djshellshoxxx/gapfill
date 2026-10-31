@@ -60,3 +60,23 @@ and rejection of both corrupted blobs. Their source was syntax-checked, but
 execution against the integrated new processor remains pending the shared
 native build. Do not conflate the successful **old writer** run with those
 new-reader tests.
+
+### Groove scene model domain (2026-10-31)
+
+The approved independent Groove model domain is preserved by scene project and
+portable codecs as optional `gm`/`grooveModel` 1..2 metadata. Missing fields and
+released scene formats select 1. ScopeMusical captures this domain; FX scope
+continues to capture Cloud. The audio overlay selects the model at the exact
+recall boundary before modulation, including legacy parameter scopes. Message
+commit merges the two independently, preserves Taste/Arrangement, and publishes
+once through the existing callback. Manual upgrades relinquish only their own
+pending domain. The portable digest retains its prior canonical bytes for
+legacy Groove 1, and covers explicit Groove 2 with a tagged field.
+
+Validation: two new behavioral tests were syntax-RED before implementation
+(missing domain/fields), then all five changed source/test units passed syntax.
+A native cached-JUCE APVTS/controller/portable-codec probe passed both-domain
+roundtrip, tamper warning, absent/invalid metadata, independent manual precedence,
+single callback and legacy-scope pre-modulation projection. This component probe
+is not a full processor render; integrated boundary/host coverage remains the
+coordinator's next verification run. No heavy build was started here.

@@ -41,6 +41,7 @@ targets::Ref overlayTargetFor (int paramIndex) noexcept
 void OverlayView::applyTo (EngineSettings& s) const noexcept
 {
     if ((modelDomains & ModelCloud) != 0) s.fx.cloud.modelVersion = cloudModelVersion;
+    if ((modelDomains & ModelGroove) != 0) s.perf.groove.modelVersion = grooveModelVersion;
     for (int i = 0; i < n; ++i)
         if ((targets::macroBit (refs[i]) & s.perf.macroOwnedMask) == 0
             && (refs[i].advancedMacroMask & s.perf.advancedMacroOwnedMask) == 0)
@@ -50,6 +51,7 @@ void OverlayView::applyTo (EngineSettings& s) const noexcept
 void OverlayView::applyFxTo (EngineSettings& s) const noexcept
 {
     if ((modelDomains & ModelCloud) != 0) s.fx.cloud.modelVersion = cloudModelVersion;
+    if ((modelDomains & ModelGroove) != 0) s.perf.groove.modelVersion = grooveModelVersion;
     for (int i = 0; i < n; ++i)
         if (refs[i].kind == targets::Kind::Effect
             && (targets::macroBit (refs[i]) & s.perf.macroOwnedMask) == 0
@@ -59,8 +61,9 @@ void OverlayView::applyFxTo (EngineSettings& s) const noexcept
 
 void OverlayView::applyBaseTo (EngineSettings& s, Effective::ModulationInputs& inputs) const noexcept
 {
-    if (scopeVersion != 2) return;
     if ((modelDomains & ModelCloud) != 0) s.fx.cloud.modelVersion = cloudModelVersion;
+    if ((modelDomains & ModelGroove) != 0) s.perf.groove.modelVersion = grooveModelVersion;
+    if (scopeVersion != 2) return;
     for (int i = 0; i < n; ++i)
     {
         targets::apply (s, refs[i], real[i]);
@@ -153,6 +156,7 @@ void SceneEngine::load (const Overlay& o) noexcept
     currentView.n = n;
     currentView.modelDomains = o.modelDomains;
     currentView.cloudModelVersion = o.cloudModelVersion;
+    currentView.grooveModelVersion = o.grooveModelVersion;
     currentView.scopeVersion = o.scopeVersion;
 
     for (int i = 0; i < n; ++i)

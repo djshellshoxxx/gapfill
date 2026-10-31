@@ -113,6 +113,8 @@ private:
     std::uint8_t pendingModelDomains = 0;
     std::uint8_t pendingCloudModelVersion = 1;
     std::uint8_t baselineCloudModelVersion = 1;
+    std::uint8_t pendingGrooveModelVersion = 1;
+    std::uint8_t baselineGrooveModelVersion = 1;
     std::function<void()> modelVersionsCommitted;
     std::function<void()> importUndoAction;
 

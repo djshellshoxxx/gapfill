@@ -61,22 +61,19 @@ the new scope/dispatch version. The legacy shared macro/battle lookup remains
 unchanged; enabling previously disconnected advanced macro mappings needs its
 own versioned contract and explicit upgrade.
 
-Scenes also carry the Cloud model version as a separate optional `cm` field
-(portable bank `cloudModel` attribute), never as a parameter index. Missing
-metadata, including released scenes, selects model 1. Capture reads the
-canonical APVTS ModelVersions child only when FX scope is selected; that domain
-travels coherently with the overlay and both effect-only/full projections
-apply it at the boundary. Other model domains are untouched: Taste is session
-learning state, and the canonical scene scope lists contain no section-aware
-arrangement controls. A later model scope addition must be explicit.
+Scenes carry independent Cloud and Groove model versions in optional `cm` and
+`gm` fields (portable `cloudModel` and `grooveModel` attributes), never parameter
+indices. Missing metadata selects released model 1. FX scope captures Cloud;
+Musical scope captures Groove. The coherent overlay projects these selectors
+at the boundary before modulation, including scope-v1 raw-parameter dispatch.
+Taste remains session learning state; arrangement has no canonical scene scope.
 
-The controller commits only the Cloud domain back to the canonical child on
-message, then invokes setModelVersionsCommittedCallback so the processor can
-publish its coherent model selection. Root integration must install that
-callback to syncModelVersions(). A manual model upgrade while a recall is
-pending removes that model domain from the overlay and commit. Other pending
-parameters still apply. Model-only overlays are supported even with no raw
-parameter entries. Tests live in TestSceneModels.
+The controller merges only the selected domains into the canonical ModelVersions
+child and invokes setModelVersionsCommittedCallback once. The processor installs
+syncModelVersions() there. A manual model change while recall is pending removes
+only its own domain from the overlay/commit; other domains and parameters still
+apply. Model-only overlays work without raw parameter entries. Tests live in
+TestSceneModels.
 
 Released scope membership is now a separate explicit ID table, frozen from
 the actual e89aecd sources: default128 IDs, all scopes158. New scope2 adds

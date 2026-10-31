@@ -25,7 +25,7 @@ namespace gapfill { struct AnalysisSettings; namespace Effective { struct Modula
 
 namespace gapfill::scenes
 {
-enum ModelDomain : std::uint8_t { ModelCloud = 1 };
+enum ModelDomain : std::uint8_t { ModelCloud = 1, ModelGroove = 2 };
 
 inline constexpr int kMaxOverlayEntries = kMaxSceneParams;
 
@@ -49,6 +49,7 @@ struct Overlay
     std::uint64_t externalCancelEpoch = 0;
     std::uint8_t modelDomains = 0;
     std::uint8_t cloudModelVersion = 1;
+    std::uint8_t grooveModelVersion = 1;
 };
 
 /** What the scheduler sees. Owned by the audio thread (stable address). */
@@ -62,6 +63,7 @@ struct OverlayView
     float real[kMaxOverlayEntries] {};
     std::uint8_t modelDomains = 0;
     std::uint8_t cloudModelVersion = 1;
+    std::uint8_t grooveModelVersion = 1;
     std::uint8_t scopeVersion = 2;
 
     /** True when the overlay governs a decision taken at `ppq`. */
@@ -72,16 +74,17 @@ struct OverlayView
 
     void applyTo (EngineSettings&) const noexcept;
 
-    /** Apply only effect-card and voice-effect settings. Caller first checks
+    /** Apply effect-card/voice-effect settings and coherent model metadata. Caller first checks
         appliesAt() at the segment start, before effect-chain preparation. */
     void applyFxTo (EngineSettings&) const noexcept;
     /** New scenes project raw base/modulation values before Effective::applyBlock.
-        Caller gates appliesAt() for this segment. Legacy views are unchanged. */
+        Caller gates appliesAt() for this segment. Legacy raw targets are unchanged;
+        their model selectors still apply at the boundary. */
     void applyBaseTo (EngineSettings&, Effective::ModulationInputs&) const noexcept;
     /** Opt-in detector/crossover projection before this segment's analysis. */
     void applyAnalysisTo (AnalysisSettings&) const noexcept;
 
-    void clear() noexcept { active = false; immediate = false; boundaryPpq = 0.0; n = 0; modelDomains = 0; cloudModelVersion = 1; }
+    void clear() noexcept { active = false; immediate = false; boundaryPpq = 0.0; n = 0; modelDomains = 0; cloudModelVersion = 1; grooveModelVersion = 1; }
 };
 
 //==============================================================================

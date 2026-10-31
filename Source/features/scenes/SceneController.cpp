@@ -70,11 +70,16 @@ bool SceneController::request (int index, bool fixedBoundary, double targetPpq, 
     o.externalCancelEpoch = cancelEpoch;
     pendingGroup = group;
     pendingCancelEpoch = cancelEpoch;
-    o.modelDomains = (scene.scope & ScopeFx) != 0 ? ModelCloud : 0;
+    o.modelDomains = (std::uint8_t) (((scene.scope & ScopeFx) != 0 ? ModelCloud : 0)
+        | ((scene.scope & ScopeMusical) != 0 ? ModelGroove : 0));
     o.cloudModelVersion = scene.cloudModelVersion;
+    o.grooveModelVersion = scene.grooveModelVersion;
     pendingModelDomains = o.modelDomains;
     pendingCloudModelVersion = o.cloudModelVersion;
-    baselineCloudModelVersion = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType)).cloud;
+    const auto versions = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType));
+    baselineCloudModelVersion = versions.cloud;
+    pendingGrooveModelVersion = o.grooveModelVersion;
+    baselineGrooveModelVersion = versions.groove;
     o.n = (std::uint16_t) resolved.size();
 
     for (size_t i = 0; i < resolved.size(); ++i)
@@ -251,11 +256,20 @@ void SceneController::onApplied (std::uint32_t requestId)
         }
     }
 
-    if ((pendingModelDomains & ModelCloud) != 0
-        && models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType)).cloud == baselineCloudModelVersion)
+    auto versions = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType));
+    bool modelCommitted = false;
+    if ((pendingModelDomains & ModelCloud) != 0 && versions.cloud == baselineCloudModelVersion)
     {
-        auto versions = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType));
         versions.cloud = pendingCloudModelVersion;
+        modelCommitted = true;
+    }
+    if ((pendingModelDomains & ModelGroove) != 0 && versions.groove == baselineGrooveModelVersion)
+    {
+        versions.groove = pendingGrooveModelVersion;
+        modelCommitted = true;
+    }
+    if (modelCommitted)
+    {
         apvts.state.removeChild (apvts.state.getChildWithName (models::kTreeType), nullptr);
         apvts.state.appendChild (models::toModelVersionsTree (versions), nullptr);
         if (modelVersionsCommitted) modelVersionsCommitted();
@@ -285,10 +299,17 @@ void SceneController::poll()
         return;
 
     bool changed = false;
+    const auto versions = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType));
     if ((pendingModelDomains & ModelCloud) != 0
-        && models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType)).cloud != baselineCloudModelVersion)
+        && versions.cloud != baselineCloudModelVersion)
     {
-        pendingModelDomains = 0;
+        pendingModelDomains &= (std::uint8_t) ~ModelCloud;
+        changed = true;
+    }
+
+    if ((pendingModelDomains & ModelGroove) != 0 && versions.groove != baselineGrooveModelVersion)
+    {
+        pendingModelDomains &= (std::uint8_t) ~ModelGroove;
         changed = true;
     }
 
@@ -322,6 +343,7 @@ void SceneController::poll()
         o.externalCancelEpoch = pendingCancelEpoch;
         o.modelDomains = pendingModelDomains;
         o.cloudModelVersion = pendingCloudModelVersion;
+        o.grooveModelVersion = pendingGrooveModelVersion;
         o.n = (std::uint16_t) resolved.size();
 
         for (size_t i = 0; i < resolved.size(); ++i)

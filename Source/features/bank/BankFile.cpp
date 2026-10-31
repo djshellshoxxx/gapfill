@@ -192,7 +192,11 @@ juce::String canonicalPayload (const std::vector<Scene>& selected, const juce::S
         out << s.name << '|' << scopeToString (s.scope) << '|' << quantName (s.quant) << '|';
 
         if (formatVersion >= 2)
+            {
             out << (int) s.scopeVersion << '|' << (int) s.cloudModelVersion << '|';
+            // An absent legacy Groove tag has the original v2 canonical bytes.
+            if (s.grooveModelVersion != 1) out << "g" << (int) s.grooveModelVersion << '|';
+        }
 
         for (const auto& p : s.params)
             out << paramIdAt (p.index) << '=' << valueText (p.value01, formatVersion) << ';';
@@ -243,6 +247,7 @@ juce::String exportToString (const SceneBank& bank, const ExportOptions& options
         e->setAttribute ("scope", scopeToString (s.scope));
         e->setAttribute ("scopeVersion", (int) s.scopeVersion);
         e->setAttribute ("cloudModel", (int) s.cloudModelVersion);
+        e->setAttribute ("grooveModel", (int) s.grooveModelVersion);
 
         for (const auto& p : s.params)
         {
@@ -355,6 +360,13 @@ ImportReport parseString (const juce::String& text)
             continue;
         }
         s.cloudModelVersion = (std::uint8_t) cloudVersion.getIntValue();
+        const auto grooveVersion = version == 1 ? juce::String ("1") : se->getStringAttribute ("grooveModel", "1");
+        if (grooveVersion != "1" && grooveVersion != "2")
+        {
+            fail ("unsupported Groove model version");
+            continue;
+        }
+        s.grooveModelVersion = (std::uint8_t) grooveVersion.getIntValue();
 
         if (se->getStringAttribute ("name").length() > kMaxSceneNameLen)
         {
