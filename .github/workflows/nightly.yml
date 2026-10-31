@@ -74,11 +74,11 @@ jobs:
           binary="$RUNNER_TEMP/build-sanitizer/artefacts/GapFillTests"
           common=(--binary "$binary" --out "$RUNNER_TEMP/sanitizer-evidence" --build-dir "$RUNNER_TEMP/build-sanitizer" --config RelWithDebInfo)
           if [[ "$SANITIZERS" == address,undefined ]]; then
-            xvfb-run -a -s "-screen 0 6000x4000x24" python tools/qa/nightly_run.py "${common[@]}" --label full --min-tests 100
+            xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py python tools/qa/nightly_run.py "${common[@]}" --label full --min-tests 100
           else
             status=0
             for filter in Queues Audition Capture Export EditorLifecycle thread_exits_on_session_destruction concurrent_audio_thread_with_editor_cycles_state_loads_and_fuzz two_coop_instances_on_two_audio_threads_while_the_group_is_reconfigured; do
-              xvfb-run -a -s "-screen 0 6000x4000x24" python tools/qa/nightly_run.py "${common[@]}" --label "$filter" --filter "$filter" || status=1
+              xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py python tools/qa/nightly_run.py "${common[@]}" --label "$filter" --filter "$filter" || status=1
             done
             exit "$status"
           fi
@@ -110,13 +110,13 @@ jobs:
           cmake --build "$RUNNER_TEMP/build-release" --target GapFillTests --parallel 2
       - name: Measure performance (advisory until reference-machine baseline accepted)
         run: |
-          xvfb-run -a python tools/qa/nightly_run.py --binary "$RUNNER_TEMP/build-release/artefacts/GapFillTests" \
+          xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py python tools/qa/nightly_run.py --binary "$RUNNER_TEMP/build-release/artefacts/GapFillTests" \
             --filter Perf --label performance --out "$RUNNER_TEMP/release-evidence" --build-dir "$RUNNER_TEMP/build-release"
       - name: Continuous processor and RSS soak (actual requested duration)
         env:
           REQUESTED_SOAK_SECONDS: ${{ inputs.soak_seconds || '300' }}
         run: |
-          xvfb-run -a python tools/qa/soak_run.py --binary "$RUNNER_TEMP/build-release/artefacts/GapFillTests" \
+          xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py python tools/qa/soak_run.py --binary "$RUNNER_TEMP/build-release/artefacts/GapFillTests" \
             --seconds "$REQUESTED_SOAK_SECONDS" --warmup 30 --out "$RUNNER_TEMP/release-evidence/soak" --build-dir "$RUNNER_TEMP/build-release"
       - uses: actions/upload-artifact@v4
         if: always()
@@ -162,7 +162,7 @@ jobs:
         run: |
           prefix=()
           if [[ "$RUNNER_OS" == Linux ]]; then
-            prefix=(xvfb-run -a -s "-screen 0 6000x4000x24")
+            prefix=(xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py)
             export GF_SCREENSHOT_DIR="$RUNNER_TEMP/native-evidence/screenshots"
           fi
           "${prefix[@]}" python tools/qa/nightly_native.py --build-dir "$RUNNER_TEMP/build-native" \

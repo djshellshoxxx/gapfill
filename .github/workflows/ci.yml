@@ -74,7 +74,7 @@ jobs:
       - name: Repository preflight
         run: python tools/validate_repo.py
       - name: Preflight unit tests
-        run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py
+        run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py tools/test_x11_test_session.py
 
       - name: Release assurance tool regressions
         run: python -m unittest tools.qa.nightly_test tools.test_release_pipeline tools.test_i18n_catalog
@@ -165,7 +165,7 @@ jobs:
           set -o pipefail
           mkdir -p test-results
           set +e
-          xvfb-run -a -s "-screen 0 6000x4000x24" build-ci/artefacts/GapFillTests 2>&1 | tee test-results/GapFillTests-linux-full.log
+          xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py build-ci/artefacts/GapFillTests 2>&1 | tee test-results/GapFillTests-linux-full.log
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -191,7 +191,7 @@ jobs:
       - name: QA matrix, fast tier (Q-01)
         run: |
           mkdir -p test-results
-          xvfb-run -a python3 tools/qa/run_matrix.py --binary build-ci/artefacts/GapFillTests --tier fast \
+          xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py python3 tools/qa/run_matrix.py --binary build-ci/artefacts/GapFillTests --tier fast \
             --out test-results/qa-evidence --skip unit \
             --skip-reason "full suite ran in the previous CI step (GapFillTests-linux-full.log)" \
             2>&1 | tee test-results/qa-matrix-fast.log
@@ -201,7 +201,7 @@ jobs:
         run: |
           lscpu | grep -E 'Model name|Flags' | cut -c1-400 || true
           mkdir -p golden-actual
-          xvfb-run -a build-ci/artefacts/GapFillTests --write-golden Golden > golden-actual/write.log 2>&1 || true
+          xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py build-ci/artefacts/GapFillTests --write-golden Golden > golden-actual/write.log 2>&1 || true
           cp -r Tests/golden/linux golden-actual/ || true
 
       - name: Upload golden diagnostics
@@ -300,7 +300,7 @@ jobs:
           chmod +x "$PLUGINVAL"
           VST3=$(find build-ci -type d -name 'GapFill.vst3' | head -n 1)
           test -n "$VST3"
-          xvfb-run -a "$PLUGINVAL" --strictness-level 10 --validate "$VST3"
+          xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py "$PLUGINVAL" --strictness-level 10 --validate "$VST3"
 
       - name: Validate CLAP with clap-validator
         run: |
@@ -317,7 +317,7 @@ jobs:
           STANDALONE=$(find build-ci/artefacts -type f -name 'GapFill' -perm -111 | head -n 1)
           test -n "$STANDALONE"
           set +e
-          timeout 5s xvfb-run -a "$STANDALONE"
+          timeout 5s xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py "$STANDALONE"
           code=$?
           set -e
           if [ "$code" -ne 124 ]; then
