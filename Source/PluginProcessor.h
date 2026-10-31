@@ -134,6 +134,7 @@ public:
     /** Message-thread version selection; the getter is an atomic audio-safe snapshot. */
     models::ModelVersions getModelVersions() const noexcept;
     void setModelVersions (models::ModelVersions, bool notifyHost);
+    void syncModelVersions();
     void upgradeModels();
 
     /** WP11 UI shell state: status board, Simple/Advanced view mode (message thread). */
