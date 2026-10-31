@@ -46,14 +46,19 @@ public:
     void reset() noexcept
     {
         expectedPpq = 0.0;
+        previousPpq = 0.0;
+        previousBpm = 120.0;
+        previousCallbackSeconds = 0.0;
         wasPlaying = false;
         hadPosition = false;
     }
 
     /** Exactly once per host callback, including bypassed/stopped callbacks.
-        This preserves the released previous-tempo/end-position prediction and
-        inclusive 0.25-beat tolerance. Tempo averaging/tolerance changes are
-        separate behavior changes, not part of this extraction. */
+        A changed tempo permits two explicit endpoints: average(previous,current
+        BPM), exact for a linear ramp, or the previous-BPM endpoint for an
+        instantaneous step at this boundary. Each has the same inclusive
+        0.25-beat tolerance; positions between them are not implicitly accepted.
+        Constant tempo retains the released operation order exactly. */
     JumpKind update (const TransportSample& s) noexcept
     {
         auto kind = JumpKind::None;
@@ -62,11 +67,32 @@ public:
         {
             if (! wasPlaying)
                 kind = JumpKind::Start;
-            else if (s.ppqValid ? (! hadPosition || std::abs (s.ppq - expectedPpq) > 0.25) : hadPosition)
+            else if (s.ppqValid)
+            {
+                if (! hadPosition)
+                    kind = JumpKind::Discontinuity;
+                else
+                {
+                    const bool tempoChanged = s.bpm > previousBpm || s.bpm < previousBpm;
+                    const auto averagedEnd = tempoChanged
+                        ? previousPpq + previousCallbackSeconds * (previousBpm + s.bpm) / 120.0
+                        : expectedPpq;
+                    const bool matchesRamp = std::abs (s.ppq - averagedEnd) <= kToleranceBeats;
+                    const bool matchesBoundaryStep = std::abs (s.ppq - expectedPpq) <= kToleranceBeats;
+                    if (! matchesRamp && ! matchesBoundaryStep)
+                        kind = JumpKind::Discontinuity;
+                }
+            }
+            else if (hadPosition)
                 kind = JumpKind::Discontinuity;
 
             const auto samplesPerBeat = 60.0 / s.bpm * sampleRate;
             expectedPpq = s.ppqValid ? s.ppq + (double) s.blockSamples / samplesPerBeat : 0.0;
+            previousPpq = s.ppqValid ? s.ppq : 0.0;
+            previousBpm = s.bpm;
+            // Preparation can change the rate before the following callback.
+            // Retain this interval at the rate that actually produced it.
+            previousCallbackSeconds = (double) s.blockSamples / sampleRate;
             hadPosition = s.ppqValid;
         }
         else if (wasPlaying)
@@ -79,8 +105,10 @@ public:
     }
 
 private:
+    static constexpr double kToleranceBeats = 0.25; // real-host measurement required before retuning
     double sampleRate = 48000.0;
     double expectedPpq = 0.0;
+    double previousPpq = 0.0, previousBpm = 120.0, previousCallbackSeconds = 0.0;
     bool wasPlaying = false;
     bool hadPosition = false;
 };
