@@ -75,6 +75,31 @@ GF_TEST (HarmonicMetadata, optional_decisions_never_apply_to_a_different_base_al
     value.version = 99;
     GF_EXPECT (! applicableToAlgorithm (value, 3));
 }
+GF_TEST (HarmonicMetadata, zero_send_bypass_preserves_detailed_plain_selection_without_fake_pitch)
+{
+    DecisionMetadata value { 1, Outcome::Bypassed, 5, 4, 0, 0 };
+    std::array<std::uint8_t, 12> bytes {};
+    GF_EXPECT (valid (value) && applicableToAlgorithm (value, 3) && ! applicableToAlgorithm (value, 8));
+    GF_EXPECT (encode (value, bytes));
+    constexpr std::array<std::uint8_t, 12> expected { 1, 4, 5, 4, 0, 0, 0, 0, 0, 0, 0, 0 };
+    GF_EXPECT (bytes == expected);
+    DecisionMetadata restored;
+    GF_EXPECT (decode (bytes, restored) && restored == value);
+    GF_EXPECT (restored.version == 1 && restored.outcome != Outcome::UnvoicedFallback);
+    for (float invalid : { -0.0f, 0.5f, std::numeric_limits<float>::quiet_NaN() })
+    {
+        value.f0Hz = invalid;
+        GF_EXPECT (! valid (value) && ! encode (value, bytes) && bytes == expected);
+        value.f0Hz = 0; value.clarity = invalid;
+        GF_EXPECT (! valid (value) && ! encode (value, bytes) && bytes == expected);
+        value.clarity = 0;
+    }
+    value.voices = 0;
+    GF_EXPECT (! valid (value));
+    bytes[1] = 5; // unknown future outcome still drops only the optional sidecar
+    restored = { 1, Outcome::Used, 0, 1, 220, 1 };
+    GF_EXPECT (! decode (bytes, restored) && restored == DecisionMetadata {});
+}
 #if defined (GF_CONTEXT_STANDALONE)
 int main()
 {

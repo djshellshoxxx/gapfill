@@ -6,11 +6,17 @@
 
 namespace gapfill::harmonic::psola
 {
-enum class Outcome : std::uint8_t { None = 0, Used = 1, UnvoicedFallback = 2, EpochFallback = 3 };
+enum class Outcome : std::uint8_t
+{
+    None = 0, Used = 1, UnvoicedFallback = 2, EpochFallback = 3,
+    Bypassed = 4 // detailed path selected, zero FX send skipped pitch/epoch work
+};
 
 /** Optional recipe sidecar, never a FillRecipe flag. Missing/all-zero v0 means
     preserve legacy replay. V1 stores the actual final voice decision. f0Hz is
-    the tracked source pitch (zero for UnvoicedFallback); clarity is0..1. */
+    the tracked source pitch (zero for UnvoicedFallback). Bypassed records the
+    detailed plain-Granular selection with exactly+0 f0/clarity; it is distinct
+    from absent legacy metadata and does not claim an unvoiced analysis. */
 struct DecisionMetadata
 {
     std::uint8_t version = 0;

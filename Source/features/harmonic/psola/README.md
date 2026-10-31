@@ -59,3 +59,11 @@ returns unweighted PSOLA; `mixWeight` lets the adapter blend ordinary Granular b
 1-mix and PSOLA bymix. Existing incoming recipe choice metadata is retained at
 zero send. Missing/invalid epoch data falls back before playback; a runtime source
 fault stays silent in the selected engine until the original deadline.
+
+Natural detailed selection at zero send records `Outcome::Bypassed` with exact
+zero F0/clarity, valid requested intervals/voices and idle telemetry. It does not
+query pitch or find epochs and never falsely calls the source unvoiced. Unlike
+absent legacy metadata, Bypassed selects the detailed plain-Granular path on
+Lock/portable replay and suppresses old Harmonic/Cloud dispatch. An incoming Used
+decision at zero current send retains its recorded Used metadata. All outcomes
+retain the same12-byte schema1 codec and apply only to Granular recipes.

@@ -12,6 +12,8 @@ bool valid (const DecisionMetadata& m) noexcept
     if (m.version != 1 || m.intervals > 5 || m.voices < 1 || m.voices > 4
         || ! std::isfinite (m.f0Hz) || ! std::isfinite (m.clarity) || m.clarity < 0 || m.clarity > 1)
         return false;
+    if (m.outcome == Outcome::Bypassed)
+        return std::bit_cast<std::uint32_t> (m.f0Hz) == 0 && std::bit_cast<std::uint32_t> (m.clarity) == 0;
     if (m.outcome == Outcome::UnvoicedFallback) return m.f0Hz == 0;
     if (m.outcome == Outcome::Used || m.outcome == Outcome::EpochFallback)
         return m.f0Hz >= 50 && m.f0Hz <= 1000 && m.clarity >= 0.8f;
