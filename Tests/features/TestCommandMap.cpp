@@ -475,3 +475,23 @@ GF_TEST (CommandMap, factory_program_change_works_with_editor_closed_and_rejects
     run (127);
     GF_EXPECT (proc.getCurrentProgram() == 3);
 }
+
+GF_TEST (LiveScene, preflight_splits_at_fixed_boundary_and_cancels_a_changed_group_epoch)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 256, false);
+    auto& live = proc.getLiveControl();
+    GF_EXPECT (live.scenes().saveCurrent (0, "Group target"));
+    std::uint64_t epoch = 5;
+    live.setGroupSceneCancelReader ([] (void* context, std::uint8_t) noexcept
+    { return *static_cast<std::uint64_t*> (context); }, &epoch);
+    GF_EXPECT (live.scenes().gotoSceneAt (0, 10.0, 1, epoch));
+    gapfill::scenes::TransportSnap transport;
+    transport.valid = true; transport.ppq = 9.0; transport.samplesPerBeat = 100.0;
+    transport.sampleRate = 48000.0; transport.numSamples = 256;
+    GF_EXPECT (live.stageSceneChunk (transport) == 100);
+    ++epoch;
+    GF_EXPECT (live.stageSceneChunk (transport) == 256);
+    live.pump (proc);
+    GF_EXPECT (live.scenes().getPendingIndex() == -1);
+}

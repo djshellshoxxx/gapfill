@@ -48,7 +48,7 @@ struct UiRequest
     {
         None = 0, PresetNext, PresetPrev, Roulette, AbSwap,
         SceneGoto, SceneNext, ScenePrev, SceneCancel, SceneApplied, SceneLastGood,
-        PanicChanged, PresetGoto
+        PanicChanged, PresetGoto, SceneMissedDeadline
     };
 
     Kind kind = None;
@@ -112,6 +112,11 @@ public:
     }
     /** Message thread, after RecipeHistory changes. No GUI/history object is retained by the audio side. */
     void publishRecipeTargets (const commands::RecipeTargetSnapshot& snapshot) noexcept { recipeTargets.publish (snapshot); }
+    /** Install while audio is stopped. Null fails closed for external-group requests. Reader must be bounded/lock-free. */
+    void setGroupSceneCancelReader (std::uint64_t (*reader) (void*, std::uint8_t) noexcept, void* context) noexcept
+    {
+        groupCancelReader = reader; groupCancelContext = context;
+    }
 
     //--- F-L24 controller profiles and LED feedback ---------------------------
     /** Installs a profile's bindings (Replace clears first, otherwise existing bindings win) and its
@@ -176,6 +181,8 @@ public:
 
     /** Per processed chunk, after the transport fields of `s` are filled. */
     void prepareChunk (EngineSettings& s, int numSamples, std::int64_t outputPos) noexcept;
+    /** Pre-analysis preflight, once per segment. Consumes the coherent request and returns samples before its boundary. */
+    int stageSceneChunk (const scenes::TransportSnap&) noexcept;
 
     /** Wet-bus gains for the next `n` samples (sequential chunks of one block). */
     const float* wetGains (int n) noexcept               { return panicCtl.nextGains (n); }
@@ -198,6 +205,7 @@ private:
     void post (UiRequest::Kind, int a = 0) noexcept;
     void emit (FillEventType, std::int64_t pos) noexcept;
     void handleUi (const UiRequest&, GapFillAudioProcessor&);
+    void guardGroupScene() noexcept;
 
     juce::AudioProcessorValueTreeState& apvts;
     MidiLearnManager* midiLearn = nullptr;
@@ -207,6 +215,8 @@ private:
     void (*featureCommandSink) (void*, const Command&) noexcept = nullptr;
     void* featureCommandContext = nullptr;
     commands::RecipeCommandTargets recipeTargets;
+    std::uint64_t (*groupCancelReader) (void*, std::uint8_t) noexcept = nullptr;
+    void* groupCancelContext = nullptr;
     std::int64_t blockPos = 0;
 
     commands::BindingModel bindingModel;

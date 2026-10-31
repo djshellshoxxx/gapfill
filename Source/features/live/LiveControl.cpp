@@ -37,7 +37,7 @@ LiveControl::LiveControl (juce::AudioProcessorValueTreeState& state)
     bool available[macros::kNumTargets] {};
 
     for (int i = 0; i < macros::kNumTargets; ++i)
-        available[i] = state.getParameter (macros::targetInfo (i).id) != nullptr;
+        available[i] = state.getParameter (macros::targetParameterId (i)) != nullptr;
 
     macroModel.setTargetAvailability (available);
     macroRuntime.cfg = macros::defaultConfig();
@@ -243,6 +243,28 @@ void LiveControl::fillModulationInputs (Effective::ModulationInputs& in, int see
     in.macros.runtime = &macroRuntime;
 }
 
+void LiveControl::guardGroupScene() noexcept
+{
+    const auto group = sceneEngine.pendingGroup();
+    if (group == 0) return;
+    if (panicCtl.isPanicked() || groupCancelReader == nullptr
+        || groupCancelReader (groupCancelContext, group) != sceneEngine.pendingCancelEpoch())
+    {
+        const auto id = sceneEngine.activeId();
+        sceneEngine.cancelPending();
+        post (UiRequest::SceneMissedDeadline, (int) id);
+    }
+}
+
+int LiveControl::stageSceneChunk (const scenes::TransportSnap& transport) noexcept
+{
+    const auto result = sceneEngine.stagePublished (sceneCtl.publisher(), transport);
+    if (result.missedDeadlineId != 0)
+        post (UiRequest::SceneMissedDeadline, (int) result.missedDeadlineId);
+    guardGroupScene();
+    return sceneEngine.samplesUntilBoundary (transport);
+}
+
 void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t outputPos) noexcept
 {
     // F-M10: automation / CC-learn path (Source::Param) and the mode / timeout / level options.
@@ -305,7 +327,13 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t 
     if (phraseOffsetParam != nullptr)
         t.phraseOffset = (int) std::lround (phraseOffsetParam->load (std::memory_order_relaxed));
 
+    guardGroupScene();
     const auto r = sceneEngine.beginChunk (sceneCtl.publisher(), t);
+
+    if (r.missedDeadlineId != 0)
+        post (UiRequest::SceneMissedDeadline, (int) r.missedDeadlineId);
+    if (sceneEngine.view().appliesAt (s.ppqAtBlockStart, s.transportValid))
+        sceneEngine.view().applyFxTo (s);
 
     if (r.appliedId != 0)
     {
@@ -453,6 +481,9 @@ void LiveControl::handleUi (const UiRequest& r, GapFillAudioProcessor& proc)
     switch ((int) r.kind)
     {
         case (int) UiRequest::SceneApplied:  sceneCtl.onApplied ((std::uint32_t) r.a); break;
+        case (int) UiRequest::SceneMissedDeadline:
+            sceneCtl.rejectPending ((std::uint32_t) r.a, "Group scene cancelled: missed boundary or transport changed");
+            break;
         case (int) UiRequest::SceneGoto:     sceneCtl.gotoScene (r.a); break;
         case (int) UiRequest::SceneNext:     sceneCtl.next(); break;
         case (int) UiRequest::ScenePrev:     sceneCtl.prev(); break;
