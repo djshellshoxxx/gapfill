@@ -150,9 +150,7 @@ CoopSettings CoopMember::beginChunk (int group, int mode, double sampleRate, dou
 
     if (group == GroupOff)
     {
-        if (slotIndex >= 0)
-            release();
-
+        release();
         return {};
     }
 
@@ -288,6 +286,11 @@ void CoopMember::releaseDeterministic() noexcept
     detStatus.store (DetOff);
     view.deterministicView = {};
     view.deterministicTransport = false;
+    if (slotIndex < 0)
+    {
+        activeGroup.store (0, std::memory_order_relaxed);
+        peerCount.store (0, std::memory_order_relaxed);
+    }
 }
 
 void CoopMember::configureDeterministic (const DeterministicConfig& settings) noexcept
@@ -295,8 +298,7 @@ void CoopMember::configureDeterministic (const DeterministicConfig& settings) no
     const int group = std::clamp (settings.group, 0, 8);
     if (group == 0)
     {
-        releaseDeterministic();
-        activeGroup.store (0);
+        release();
         return;
     }
     if (slotIndex >= 0)

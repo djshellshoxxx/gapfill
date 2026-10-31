@@ -282,6 +282,38 @@ GF_TEST (Coop, released_choice_normalization_is_unchanged_by_deterministic_exten
     GF_EXPECT (group->convertFrom0to1 (1.0f) == 4.0f);
 }
 
+GF_TEST (Coop, deterministic_to_off_clears_visible_membership_without_a_legacy_slot)
+{
+    CoopMember a, b;
+    DeterministicConfig config;
+    config.group = GroupA;
+    config.slot = 1;
+    a.configureDeterministic (config);
+    config.slot = 2;
+    b.configureDeterministic (config);
+    config.slot = 1;
+    a.beginDeterministicChunk (config, { true, 0.0, 24000.0, 4.0, 512 });
+    GF_EXPECT (a.getGroup() == GroupA && a.getPeerCount() == 1);
+    const auto disabled = a.beginChunk (GroupOff, AvoidOverlap, kSr, 0.0, 1000);
+    GF_EXPECT (disabled.view == nullptr && a.getGroup() == GroupOff && a.getPeerCount() == 0);
+    GF_EXPECT (a.describe().isEmpty());
+
+    a.configureDeterministic (config);
+    config.group = GroupOff;
+    a.configureDeterministic (config);
+    GF_EXPECT (a.getGroup() == GroupOff && a.getPeerCount() == 0);
+}
+
+GF_TEST (Coop, deterministic_group_off_also_releases_an_existing_legacy_membership)
+{
+    CoopMember member;
+    const auto before = liveSlots();
+    member.beginChunk (GroupA, AvoidOverlap, kSr, 0.0, 1000);
+    GF_EXPECT (liveSlots() == before + 1);
+    member.configureDeterministic ({});
+    GF_EXPECT (liveSlots() == before && member.getGroup() == GroupOff && member.getPeerCount() == 0);
+}
+
 GF_TEST (Coop, deterministic_preparation_reserves_unique_slots_without_an_editor)
 {
     CoopMember a, b, c;
