@@ -472,6 +472,28 @@ GF_TEST (CommandMap, queued_recipe_command_is_rejected_when_history_generation_c
     GF_EXPECT (received.count == 1 && received.latest.recipe.seed == 22);
 }
 
+GF_TEST (CommandMap, queued_lock_midi_keeps_the_epoch_seen_at_receipt)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 256, false);
+    auto& live = proc.getLiveControl();
+    std::uint64_t epoch = 1, received = 0;
+    live.setLockEpochReader ([] (void* context) noexcept { return *static_cast<std::uint64_t*> (context); }, &epoch);
+    live.setFeatureCommandSink ([] (void* context, const Command& command) noexcept
+    { *static_cast<std::uint64_t*> (context) = command.lockEpoch; }, &received);
+    GF_EXPECT (live.bindings().add (cc (CommandType::LockLatest, 96)) == BindingModel::AddResult::Ok);
+    juce::AudioBuffer<float> audio (2, 256);
+    juce::MidiBuffer midi;
+    audio.clear();
+    midi.addEvent (juce::MidiMessage::controllerEvent (1, 96, 127), 0);
+    proc.processBlock (audio, midi);
+    GF_EXPECT (received == 0);
+    epoch = 2;
+    audio.clear(); midi.clear();
+    proc.processBlock (audio, midi);
+    GF_EXPECT (received == 1); // the stale generation is retained for the processor's filter
+}
+
 GF_TEST (CommandMap, factory_program_change_works_with_editor_closed_and_rejects_unknown_program)
 {
     GapFillAudioProcessor proc;

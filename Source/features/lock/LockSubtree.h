@@ -12,6 +12,7 @@
 
 #include "../../dsp/FillRecipe.h"
 #include "../../dsp/RecipeExtras.h"
+#include "LockPublication.h"
 
 #include <juce_data_structures/juce_data_structures.h>
 
@@ -23,12 +24,7 @@ class GapFillAudioProcessor;
 namespace lock
 {
 
-struct LockMirror
-{
-    bool valid = false;
-    FillRecipe recipe;
-    RecipeExtras extras {};
-};
+using LockMirror = LockSnapshot; // message-thread presentation cache, never the serialization authority
 
 bool validate (const juce::ValueTree&);
 void apply (GapFillAudioProcessor&, const juce::ValueTree&);

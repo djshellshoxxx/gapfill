@@ -119,6 +119,10 @@ public:
     {
         groupCancelReader = reader; groupCancelContext = context;
     }
+    /** Install before audio starts. MIDI lock commands retain the epoch seen
+        when received, so a restore invalidates already queued old commands. */
+    void setLockEpochReader (std::uint64_t (*reader) (void*) noexcept, void* context) noexcept
+    { lockEpochReader = reader; lockEpochContext = context; }
 
     //--- F-L24 controller profiles and LED feedback ---------------------------
     /** Installs a profile's bindings (Replace clears first, otherwise existing bindings win) and its
@@ -208,7 +212,8 @@ public:
 
 private:
     void execute (CommandType, int arg, bool on, int sampleOffset, FillEngine&,
-                  momentary::Source = momentary::Source::Midi, std::uint32_t recipeGeneration = 0) noexcept;
+                  momentary::Source = momentary::Source::Midi, std::uint32_t recipeGeneration = 0,
+                  std::uint64_t lockEpoch = 0) noexcept;
     void onPanicAction (panic::Action, FillEngine&) noexcept;
     void post (UiRequest::Kind, int a = 0) noexcept;
     void emit (FillEventType, std::int64_t pos) noexcept;
@@ -226,6 +231,8 @@ private:
     commands::RecipeCommandTargets recipeTargets;
     std::uint64_t (*groupCancelReader) (void*, std::uint8_t) noexcept = nullptr;
     void* groupCancelContext = nullptr;
+    std::uint64_t (*lockEpochReader) (void*) noexcept = nullptr;
+    void* lockEpochContext = nullptr;
     std::int64_t blockPos = 0;
 
     commands::BindingModel bindingModel;

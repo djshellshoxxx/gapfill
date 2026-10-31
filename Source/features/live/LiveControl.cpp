@@ -131,7 +131,7 @@ void LiveControl::onPanicAction (panic::Action action, FillEngine& engine) noexc
 }
 
 void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset, FillEngine& engine,
-                           momentary::Source src, std::uint32_t recipeGeneration) noexcept
+                           momentary::Source src, std::uint32_t recipeGeneration, std::uint64_t lockEpoch) noexcept
 {
     switch ((int) type)
     {
@@ -178,6 +178,7 @@ void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset,
                 command.type = type;
                 command.index = (std::int16_t) arg;
                 command.velocity = 100;
+                command.lockEpoch = lockEpoch;
                 if (commands::needsRecipeTarget (type) && ! recipeTargets.resolve (type, arg, recipeGeneration, command))
                 {
                     ringDropped.fetch_add (1, std::memory_order_relaxed);
@@ -213,10 +214,11 @@ void LiveControl::beginBlock (const juce::MidiBuffer& midi, FillEngine& engine, 
 
     for (int i = 0; i < queued; ++i)
         execute (ring[i].type, ring[i].arg, ring[i].on, ring[i].sampleOffset, engine,
-                 momentary::Source::Midi, ring[i].recipeGeneration);
+                 momentary::Source::Midi, ring[i].recipeGeneration, ring[i].lockEpoch);
 
     // 4. This block's MIDI. Panic/Recover act immediately, the rest waits one block.
     const auto n = scanner.process (midi, events, commands::kMaxCommandEventsPerBlock);
+    const auto receivedLockEpoch = lockEpochReader != nullptr ? lockEpochReader (lockEpochContext) : 0;
 
     for (int i = 0; i < n; ++i)
     {
@@ -230,6 +232,7 @@ void LiveControl::beginBlock (const juce::MidiBuffer& midi, FillEngine& engine, 
         {
             auto queued = e;
             queued.recipeGeneration = recipeTargets.generation();
+            queued.lockEpoch = receivedLockEpoch;
             ring[ringCount++] = queued;
         }
         else

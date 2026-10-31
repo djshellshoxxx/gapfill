@@ -24,7 +24,6 @@ bool validate (const juce::ValueTree& tree)
 
 void apply (GapFillAudioProcessor& proc, const juce::ValueTree& tree)
 {
-    auto& mirror = proc.getRecipes().lockMirror;
     FillRecipe r;
 
     if (tree.getProperty ("valid", 0).toString().trim() == "1"
@@ -32,23 +31,25 @@ void apply (GapFillAudioProcessor& proc, const juce::ValueTree& tree)
     {
         RecipeExtras extras;
         recipecodec::decodeExtras (tree.getProperty ("extras").toString(), extras);
-        mirror = { true, r, extras };
-
-        Command c;
-        c.type = CommandType::LockRecipe;
-        c.recipe = r;
-        c.extras = extras;
-        proc.postCommand (c);
+        proc.getRecipes().lockPublication.beginRestore ({ true, r, extras });
     }
     else
     {
         reset (proc);
     }
+    if (auto* messages = juce::MessageManager::getInstanceWithoutCreating(); messages != nullptr && messages->isThisTheMessageThread())
+        proc.getRecipes().pollLockPublication();
 }
 
 juce::ValueTree serialise (const GapFillAudioProcessor& proc)
 {
-    const auto& mirror = proc.getRecipes().lockMirror;
+    LockSnapshot mirror;
+    if (! proc.getRecipes().lockPublication.tryLatest (mirror))
+    {
+        juce::ValueTree error ("Lock");
+        error.setProperty ("__serialiseError", "The Fill Lock state changed while it was being captured. Try saving again.", nullptr);
+        return error;
+    }
 
     if (! mirror.valid)
         return {};
@@ -65,11 +66,9 @@ juce::ValueTree serialise (const GapFillAudioProcessor& proc)
 
 void reset (GapFillAudioProcessor& proc)
 {
-    proc.getRecipes().lockMirror = {};
-
-    Command c;
-    c.type = CommandType::Unlock;
-    proc.postCommand (c);
+    proc.getRecipes().lockPublication.beginRestore ({});
+    if (auto* messages = juce::MessageManager::getInstanceWithoutCreating(); messages != nullptr && messages->isThisTheMessageThread())
+        proc.getRecipes().pollLockPublication();
 }
 
 } // namespace gapfill::lock

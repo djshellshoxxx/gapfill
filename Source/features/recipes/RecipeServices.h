@@ -35,6 +35,7 @@ class RecipeServices
 public:
     audition::MidiTrigger trigger;      // E-1 / U-3
     lock::LockMirror lockMirror;        // C-5: message-thread copy of the engine's lock recipe
+    lock::LockPublication lockPublication; // canonical state; safe host serialization while audio runs
     exporting::ExportService exportService;   // U-2
     FillSpan lastPreviewSpan;           // U-2: where the latest audition sits (message thread)
     FillRecipe lastPreviewRecipe;
@@ -83,6 +84,7 @@ public:
         (message thread) before the history / outcome log see it. Returns true when the
         event belongs to a feature (preview, lock) and must not enter the outcome log. */
     bool onFillEvent (const FillEvent&) noexcept;
+    bool pollLockPublication() noexcept; // message thread only; queue hints may be stale or absent
 
     /** A one-line status message shown in the footer for `durationMs` (the
         editor's AUDITION button and the recipe strip post here). Message thread only. */

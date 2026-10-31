@@ -65,6 +65,7 @@ struct Event
     bool         on = true;
     std::int32_t sampleOffset = 0;
     std::uint32_t recipeGeneration = 0;      ///< stamped by LiveControl when a recipe-target command is queued
+    std::uint64_t lockEpoch = 0;             ///< restore generation at MIDI receipt
 };
 
 /** True when CommandType value is one of the permanent ids 1..33. */

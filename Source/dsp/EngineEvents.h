@@ -43,6 +43,7 @@ struct Command
     FillRecipe recipe;             ///< payload of the *Recipe commands
     std::uint32_t issuedMs = 0;    ///< juce::Time::getMillisecondCounter() at push; 0 = unstamped (never stale)
     RecipeExtras extras {};
+    std::uint64_t lockEpoch = 0;   ///< transient restore generation; never persisted in recipe/event files
 };
 
 //==============================================================================

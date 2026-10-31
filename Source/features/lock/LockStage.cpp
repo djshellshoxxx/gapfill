@@ -71,6 +71,7 @@ RejectReason apply (const LockState& lock, FillPlan& plan, const GapContext& ctx
 
     // ---- the plan ---------------------------------------------------------
     plan.recipe = locked;
+    plan.extras = lock.extras;
     plan.recipe.band = (std::int8_t) band;
     plan.recipe.lengthMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (lengthMs));
     plan.recipe.lengthClass = lengthClassFor (lengthMs, s.maxFillMs);

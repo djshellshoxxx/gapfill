@@ -13,6 +13,16 @@ class FillEngine;
 namespace lock
 {
 
+constexpr bool isStateCommand (CommandType type) noexcept
+{
+    return type == CommandType::LockLatest || type == CommandType::LockRecipe || type == CommandType::Unlock;
+}
+
+constexpr bool acceptsCommandEpoch (const Command& command, std::uint64_t currentEpoch) noexcept
+{
+    return ! isStateCommand (command.type) || command.lockEpoch == 0 || command.lockEpoch == currentEpoch;
+}
+
 /** Returns true when `command` was one of the five. */
 bool handleCommand (FillEngine&, const Command&) noexcept;
 
