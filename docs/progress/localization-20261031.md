@@ -75,7 +75,9 @@ feature strings initially grew pseudo JSON to 269,773 bytes. The 256 KiB cap
 remains enforced. Permanent parameter-ID CSV scope lists are excluded, and
 pseudo accents one eligible letter per entry while retaining every complete UI
 sentence, stable key, placeholder and at least 40 percent codepoint expansion.
-The integration catalogs are English 190,382 bytes / pseudo 247,915 bytes.
+At commit `1402861`, the integration catalogs were English 190,382 bytes /
+pseudo 247,915 bytes. Numeric infinity/NaN display tokens are additionally
+protected rather than cataloged as prose.
 A fresh native probe parsed these catalogs through the real C++ loader and
 verified localized legacy/deterministic co-op status without changing instance
 identity, group or assigned slot. Only `CoopMember::describe` presentation calls

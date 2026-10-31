@@ -21,7 +21,8 @@ LANG = REPO / "Resources/lang"
 ROOT = Path(__file__).resolve().parent
 TOKEN = re.compile(r'//[^\n]*|/\*[\s\S]*?\*/|R"(?P<delimiter>[^ ()\\\t\r\n]{0,16})\((?P<raw>[\s\S]*?)\)(?P=delimiter)"|(?:u8|u|U|L)?"(?:\\.|[^"\\])*"')
 PROTECTED = {"GapFill", "Circuit Drift Labs", "VST3", "CLAP", "AU", "AAX", "MIDI", "PPQ", "BPM",
-             "Hz", "kHz", "ms", "dB", "UTF-8", "ASCII", "JSON", "XML", "true", "false", "yes", "no", "en", "pseudo"}
+             "Hz", "kHz", "ms", "dB", "-inf", "+inf", "inf", "NaN", "nan",
+             "UTF-8", "ASCII", "JSON", "XML", "true", "false", "yes", "no", "en", "pseudo"}
 ACCENTS = str.maketrans("AaEeIiOoUuCcNn", "ÁáËëÏïÖöÜüÇçÑñ")
 
 

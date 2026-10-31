@@ -46930,9 +46930,9 @@
   {
     "english": "-inf",
     "file": "Source/gui/WaveformGapView.h",
-    "key": "s.a079ce0bee23",
+    "key": null,
     "line": 144,
-    "wiring": "pending-custom-drawing"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "GAP CONFIDENCE  {0}%",
