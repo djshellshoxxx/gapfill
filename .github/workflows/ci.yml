@@ -153,11 +153,13 @@ jobs:
           ccache -s
 
       - name: Run full unit, golden and combinatorial suite
+        env:
+          GF_SCREENSHOT_DIR: ${{ runner.temp }}/gui-screenshots
         run: |
           set -o pipefail
           mkdir -p test-results
           set +e
-          xvfb-run -a build-ci/artefacts/GapFillTests 2>&1 | tee test-results/GapFillTests-linux-full.log
+          xvfb-run -a -s "-screen 0 6000x4000x24" build-ci/artefacts/GapFillTests 2>&1 | tee test-results/GapFillTests-linux-full.log
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -167,6 +169,14 @@ jobs:
             grep -h -B6 -A3 '\[FAIL\]' test-results/GapFillTests-linux-full.log | head -40 | while IFS= read -r l; do echo "::error::$l"; done
           fi
           exit "$status"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gui-screenshots-linux-${{ github.sha }}
+          path: ${{ runner.temp }}/gui-screenshots/
+          if-no-files-found: warn
+          retention-days: 30
 
       # Q-01: fast tier of the QA matrix harness (docs/dev/features/Q-01-release-qa-matrix-harness.md). The full suite
       # just ran above, so its step is recorded as unverified-by-skip rather than executed twice; every other fast step

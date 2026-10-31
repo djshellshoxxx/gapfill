@@ -38,6 +38,10 @@ This work does not publish, tag, close issues or modify existing public assets.
 The existing PR pipeline retains its full Linux suite and validators. Added
 tool regressions in preflight, plus an explicitly counted native Soak smoke
 selection on Windows and both macOS architectures. No release gate was removed.
+Linux full-suite/display jobs use a 6000x4000 virtual display so the requested
+UI scale is not silently clamped by Xvfb's default 1280x1024 screen. Native
+Linux screenshots are retained separately; automated capture does not establish
+the owner's required visual approval.
 
 All new nightly build/evidence/tool paths are under `RUNNER_TEMP`, outside the
 source checkout; otherwise strict clean-source provenance would be invalidated.
