@@ -213,3 +213,35 @@ GF_TEST (CoopRegistry, cached_elections_change_at_each_musical_slot_and_reapply_
         GF_EXPECT (full.scale.density == (expected == 1 ? 1.0f : 0.0f));
     }
 }
+
+GF_TEST (CoopRegistry, a_fresh_project_cohort_does_not_inherit_the_departed_projects_ppq_frontier)
+{
+    for (const bool reverse : { false, true })
+    {
+        Registry registry;
+        std::array<Handle, 2> old { registry.claim (1, 1, 50, Grid::Bar), registry.claim (1, 2, 50, Grid::Bar) };
+        GF_EXPECT (registry.maintain (1, 4));
+        for (auto& h : old)
+        {
+            View view;
+            GF_EXPECT (registry.admit (h, 100, 101, view));
+        }
+        for (auto& h : old) registry.release (h);
+        std::array<Handle, 2> fresh { registry.claim (1, 1, 50, Grid::Bar), registry.claim (1, 2, 50, Grid::Bar) };
+        int owners = 0;
+        for (int ordinal = 0; ordinal < 2; ++ordinal)
+        {
+            const int i = reverse ? 1 - ordinal : ordinal;
+            // Each host's first Start is delivered immediately before its own
+            // first callback, not globally to all instances before rendering.
+            registry.noteTransportJump (fresh[(std::size_t) i]);
+            registry.maintain (1, 4);
+            View view;
+            GF_EXPECT (registry.admit (fresh[(std::size_t) i], 0, 1, view));
+            const auto decision = decisionAt (view, 0.5, true, 100);
+            GF_EXPECT (decision.ready);
+            owners += decision.owner ? 1 : 0;
+        }
+        GF_EXPECT (owners == 1);
+    }
+}

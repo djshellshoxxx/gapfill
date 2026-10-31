@@ -302,8 +302,18 @@ public:
                             && cells[(std::size_t) i].start.load (std::memory_order_relaxed) < current.activationTick)
                             return false;
 
-        const auto admitted = allForced ? actualEnd : tickOf (clock);
-        if (admitted != kMinTick)
+        bool continuingMember = false;
+        for (int i = 0; i < next.snapshot.count; ++i)
+            for (int j = 0; j < current.snapshot.count; ++j)
+                continuingMember = continuingMember || next.snapshot.members[(std::size_t) i].token
+                    == current.snapshot.members[(std::size_t) j].token;
+        // A completely departed cohort cannot retain a previous owner or an
+        // old project's PPQ frontier. New lifetime tokens register before their
+        // first render, so this roster is the new cohort's initial plan. This
+        // also avoids requiring all hosts' first Start callbacks to run first.
+        const bool freshCohort = generation == 0 || ! continuingMember;
+        const auto admitted = freshCohort || allForced ? actualEnd : tickOf (clock);
+        if (! freshCohort && admitted != kMinTick)
         {
             const auto boundary = (std::floor (((double) admitted / kTicksPerBeat) / next.beats) + 2.0) * next.beats;
             if (! toTick (boundary, true, next.activationTick))
