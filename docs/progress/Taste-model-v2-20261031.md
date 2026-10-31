@@ -15,3 +15,11 @@ Native Linux x86_64 GCC Release component tests against pinned JUCE8.0.15:4 pass
 - Legacy formula equality, new-model readiness/neutral strength, and preservation of loaded profile on version change pass.
 
 Whole-plugin future-fill selection, project/preset/Undo routing, full existing Taste regressions, native UI interaction, M3 explanation population and cross-platform results remain integration validation. Local scratch binaries/logs are under `/workspace/work/runtime-probes`; source tests are committed, not scratch-only proof.
+
+## Follow-up: explanation, publication and controls
+
+A separate 1,000-user population at150ratings (the existing engaged-user M3 scenario) measures the unchanged canonical supported-item truth criterion: at least two reported toward items and every reported item in the hidden liked set. Model2 achieves951/1000; the original canonical first100seeds achieve97/100. Forcing exactly three reported/correct items is a different, stricter metric:867/1000 (88/100). That limitation remains visible; the UI does not invent a third claim when evidence is weak. The initial new test accidentally asserted this stronger all-three requirement; the final assertion follows the existing TestTaste criterion without changing any existing test.
+
+Full-band-only ratings now leave unrated spectral-band multipliers exactly1 in model2, avoiding an unrelated band bias. A service regression confirms unrated/invalid fills change neither counts nor publication revision, while explicit Skip adds one dislike. The publication serial lets the processor mark queued rating changes as non-parameter state changes on the message thread.
+
+PROFILE opens a480×352callout with all15 algorithm multipliers labelled with names and numeric values, counts, the same model's explanation, Rebuild from local history, and separate Reset Profile / Clear Library actions with confirmation. These actions notify the host of non-parameter changes. Updates are immediate at2Hz with no animation. The compact strip retains Like/Skip/Undo and gains accessible action titles. Options' Sound models row shows each selected version and offers the explicit undoable upgrade. Native JUCE syntax checks pass; interaction/visual accessibility verification on the integrated candidate remains pending.
