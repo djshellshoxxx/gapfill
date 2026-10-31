@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import platform
 import re
@@ -83,7 +84,7 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", args.label):
         parser.error("label must be a filename without directory components")
-    if args.timeout <= 0 or args.min_tests <= 0:
+    if not math.isfinite(args.timeout) or args.timeout <= 0 or args.min_tests <= 0:
         parser.error("timeout and min-tests must be positive")
     row = run(args.binary.resolve(), args.filter, out=args.out, label=args.label, timeout=args.timeout,
               min_tests=args.min_tests, build_dir=args.build_dir, config=args.config)

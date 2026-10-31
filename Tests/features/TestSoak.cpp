@@ -55,6 +55,8 @@ GF_TEST (Soak, continuous_processor_with_automation_transport_and_state_churn)
     juce::AudioBuffer<float> exported (2, (int) (sampleRate * 3.2));
     juce::MidiBuffer midi;
     midi.ensureSize (2048);
+    juce::MidiBuffer partnerMidi;
+    partnerMidi.ensureSize (2048);
     std::mt19937 random (seed);
     std::vector<juce::AudioProcessorParameter*> automated;
     for (auto* parameter : proc.getParameters())
@@ -69,6 +71,17 @@ GF_TEST (Soak, continuous_processor_with_automation_transport_and_state_churn)
     std::uint64_t exportRequests = 0, exportCancels = 0, exportResults = 0;
     long allocations = 0;
     float peak = 0.0f;
+    const auto observe = [&peak] (const juce::AudioBuffer<float>& buffer)
+    {
+        for (int ch = 0; ch < 2; ++ch)
+            for (int i = 0; i < buffer.getNumSamples(); ++i)
+            {
+                const auto value = buffer.getSample (ch, i);
+                GF_EXPECT_MSG (std::isfinite (value), "non-finite soak output");
+                peak = juce::jmax (peak, std::abs (value));
+            }
+        GF_EXPECT_MSG (peak <= 2.0001f, "soak output exceeded the safe-gain +6 dBFS bound");
+    };
     double worstBlockRatio = 0.0;
     int cursor = 0;
     bool measured = false;
@@ -170,6 +183,8 @@ GF_TEST (Soak, continuous_processor_with_automation_transport_and_state_churn)
             midi.addEvent (juce::MidiMessage::noteOn (1, 60, (juce::uint8) 100), 0);
             midi.addEvent (juce::MidiMessage::noteOff (1, 60), size - 1);
         }
+        partnerMidi.clear();
+        partnerMidi.addEvents (midi, 0, size, 0);
         const auto before = Clock::now();
         {
             AllocGuard guard;
@@ -178,22 +193,14 @@ GF_TEST (Soak, continuous_processor_with_automation_transport_and_state_churn)
             partnerPlayHead.ppq = playHead.ppq;
             partnerPlayHead.playing = playHead.playing;
             partnerPlayHead.timeInSamples = playHead.timeInSamples;
-            partner->processBlock (partnerWork, midi);
+            partner->processBlock (partnerWork, partnerMidi);
             if (measured)
                 allocations += guard.count();
         }
         const auto blockSeconds = std::chrono::duration<double> (Clock::now() - before).count();
         worstBlockRatio = juce::jmax (worstBlockRatio, blockSeconds * sampleRate / (double) size);
-        for (int ch = 0; ch < 2; ++ch)
-            for (int i = 0; i < size; ++i)
-            {
-                const auto value = work.getSample (ch, i);
-                GF_EXPECT_MSG (std::isfinite (value), "non-finite soak output");
-                const auto other = partnerWork.getSample (ch, i);
-                GF_EXPECT_MSG (std::isfinite (other), "non-finite cooperative partner output");
-                peak = juce::jmax (peak, juce::jmax (std::abs (value), std::abs (other)));
-            }
-        GF_EXPECT_MSG (peak <= 2.0001f, "soak output exceeded the safe-gain +6 dBFS bound");
+        observe (work);
+        observe (partnerWork);
         playHead.advance (size, sampleRate);
         ++blocks;
         samples += (std::uint64_t) size;
@@ -209,12 +216,21 @@ GF_TEST (Soak, continuous_processor_with_automation_transport_and_state_churn)
     playHead.playing = false;
     partnerPlayHead.playing = false;
     work.setSize (4, maxBlock, false, false, true);
+    partnerWork.setSize (4, maxBlock, false, false, true);
     for (int i = 0; i < (int) (sampleRate * 30.0) / maxBlock; ++i)
     {
         work.clear();
+        partnerWork.clear();
         midi.clear();
-        proc.processBlock (work, midi);
-        partner->processBlock (work, midi);
+        partnerMidi.clear();
+        {
+            AllocGuard guard;
+            proc.processBlock (work, midi);
+            partner->processBlock (partnerWork, partnerMidi);
+            allocations += guard.count();
+        }
+        observe (work);
+        observe (partnerWork);
         playHead.advance (maxBlock, sampleRate);
         partnerPlayHead.advance (maxBlock, sampleRate);
     }

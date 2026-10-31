@@ -154,6 +154,50 @@ class NightlyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertEqual((self.root / "unpacked/GapFill/LICENSE.txt").read_text(), "AGPL-3.0-or-later")
 
+    def test_package_symlink_cannot_escape_extraction(self):
+        archive = self.root / "symlink.zip"
+        with zipfile.ZipFile(archive, "w") as zipped:
+            entry = zipfile.ZipInfo("GapFill.clap")
+            entry.create_system = 3
+            entry.external_attr = 0o120777 << 16
+            zipped.writestr(entry, "../escaped")
+        result = subprocess.run([sys.executable, str(REPO / "packaging/verify_release.py"), "extract",
+                                 "--archive", str(archive), "--out", str(self.root / "unpacked")], capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "fixture models a Linux ELF package")
+    def test_missing_packaged_validator_stays_unverified(self):
+        archive = self.root / "candidate.zip"
+        header = bytearray(64)
+        header[:6] = b"\x7fELF\x02\x01"
+        header[18:20] = b"\x3e\0"
+        with zipfile.ZipFile(archive, "w") as zipped:
+            zipped.writestr("GapFill.clap", header)
+            zipped.writestr("LICENSE.txt", "SPDX-License-Identifier: AGPL-3.0-or-later")
+        manifest = self.root / "SHA256SUMS.txt"
+        manifest.write_text(hashlib.sha256(archive.read_bytes()).hexdigest() + "  candidate.zip\n")
+        out = self.root / "validation"
+        result = subprocess.run([sys.executable, str(REPO / "packaging/verify_release.py"), "validate",
+                                 "--archive", str(archive), "--manifest", str(manifest), "--platform", "linux",
+                                 "--formats", "clap", "--out", str(out)], capture_output=True)
+        self.assertEqual(result.returncode, 2)
+        evidence = json.loads((out / "package-validation.json").read_text())
+        self.assertEqual(evidence["checks"]["downloaded-checksums"]["status"], "pass")
+        self.assertEqual(evidence["checks"]["clap"]["status"], "unverified")
+
+    def test_unsigned_checksum_preparation_remains_unverified(self):
+        assets = self.root / "assets"
+        assets.mkdir()
+        (assets / "candidate.zip").write_bytes(b"candidate")
+        env = dict(os.environ)
+        env.pop("GAPFILL_RELEASE_GPG_KEY", None)
+        result = subprocess.run([sys.executable, str(REPO / "packaging/sign_release.py"), "checksums",
+                                 "--directory", str(assets), "--out", str(self.root / "unsigned.json")],
+                                capture_output=True, env=env)
+        self.assertEqual(result.returncode, 2)
+        self.assertTrue((assets / "SHA256SUMS.txt").is_file())
+        self.assertFalse((assets / "SHA256SUMS.txt.asc").exists())
+
     def test_missing_signing_identity_is_unverified_and_never_success(self):
         env = dict(os.environ)
         env.pop("GAPFILL_WINDOWS_CERT_SHA1", None)

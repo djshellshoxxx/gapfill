@@ -106,7 +106,7 @@ def run(binary: Path, *, seconds: float, warmup: float, seed: int, out: Path,
                 # time is never treated as measured processor-soak duration.
                 if "GF_SOAK_BEGIN\n" in log.read_text(encoding="utf-8", errors="replace"):
                     memory = resident_bytes(process.pid)
-                    if memory is not None:
+                    if memory is not None and memory > 0:
                         samples.append({"seconds_from_launch": now - started, "resident_bytes": memory})
                 time.sleep(max(0.01, min(5.0, seconds / 10.0)))
             else:

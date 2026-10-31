@@ -27,6 +27,8 @@ def digest(path: Path) -> str:
 
 
 def checksums(manifest: Path) -> dict[str, str]:
+    if manifest.stat().st_size > 1024 * 1024:
+        raise ValueError("checksum manifest exceeds 1 MiB")
     root = manifest.resolve().parent
     entries = {}
     for line in manifest.read_text(encoding="utf-8").splitlines():
@@ -56,7 +58,9 @@ def extract(archive: Path, out: Path) -> None:
             name = PurePosixPath(member.filename)
             destination = (root / member.filename).resolve()
             mode = member.external_attr >> 16
+            reserved = re.compile(r"(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?", re.IGNORECASE)
             if (name.is_absolute() or ".." in name.parts or "\\" in member.filename or ":" in member.filename
+                    or any(part.endswith((".", " ")) or reserved.fullmatch(part) or re.search(r'[<>"|?*]', part) for part in name.parts)
                     or not destination.is_relative_to(root) or stat.S_ISLNK(mode)
                     or member.filename.casefold() in seen):
                 raise ValueError("package contains unsafe paths, symlinks or duplicate names")

@@ -47,6 +47,8 @@ def require_identity(row: dict, variable: str, system: str | None, tools: tuple[
     elif any(shutil.which(tool) is None for tool in tools):
         row.update(status="unverified", detail="required native signing tools are unavailable")
     else:
+        if variable in ("GAPFILL_WINDOWS_CERT_SHA1", "GAPFILL_RELEASE_GPG_KEY") and not re.fullmatch(r"[A-Fa-f0-9]{40}|[A-Fa-f0-9]{64}", identity):
+            raise ValueError("signing selector must be a full public certificate/key fingerprint")
         return identity
     return None
 
@@ -81,7 +83,7 @@ def execute(args, row: dict) -> dict:
         "windows": ("GAPFILL_WINDOWS_CERT_SHA1", "Windows", ("signtool",)),
         "macos": ("GAPFILL_APPLE_SIGN_IDENTITY", "Darwin", ("codesign",)),
         "notarize": ("GAPFILL_NOTARY_PROFILE", "Darwin", ("xcrun",)),
-        "macos-installer": ("GAPFILL_APPLE_INSTALLER_IDENTITY", "Darwin", ("pkgbuild", "pkgutil", "codesign")),
+        "macos-installer": ("GAPFILL_APPLE_INSTALLER_IDENTITY", "Darwin", ("pkgbuild", "productbuild", "pkgutil", "codesign", "lipo")),
     }[args.action]
     identity = require_identity(row, variable, system, tools)
     if identity is None:
@@ -110,8 +112,33 @@ def execute(args, row: dict) -> dict:
                     shutil.copytree(bundle, destination, symlinks=True)
                 else:
                     shutil.copy2(bundle, destination)
+                binary = bundle / "Contents/MacOS/GapFill" if bundle.is_dir() else bundle
+                command(["lipo", str(binary), "-verify_arch", args.arch], row)
+            resources = Path(temp) / "resources"
+            resources.mkdir()
+            license_file = Path(__file__).resolve().parents[1] / "LICENSE"
+            shutil.copy2(license_file, resources / "LICENSE.txt")
+            notice = payload / "Library/Application Support/Circuit Drift Labs/GapFill/LICENSE.txt"
+            notice.parent.mkdir(parents=True)
+            shutil.copy2(license_file, notice)
+            component = Path(temp) / "component.pkg"
             command(["pkgbuild", "--root", str(payload), "--identifier", "com.gapfillaudio.gapfill.installer",
-                     "--version", args.version, "--install-location", "/", "--sign", identity, str(args.package)], row)
+                     "--version", args.version, "--install-location", "/", str(component)], row)
+            distribution = Path(temp) / "distribution.xml"
+            distribution.write_text(f'''<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+  <title>GapFill</title>
+  <license file="LICENSE.txt" mime-type="text/plain"/>
+  <options customize="never" require-scripts="false" hostArchitectures="{args.arch}"/>
+  <domains enable_anywhere="false" enable_currentUserHome="false" enable_localSystem="true"/>
+  <choices-outline><line choice="default"><line choice="gapfill"/></line></choices-outline>
+  <choice id="default"/>
+  <choice id="gapfill" visible="false"><pkg-ref id="com.gapfillaudio.gapfill.installer"/></choice>
+  <pkg-ref id="com.gapfillaudio.gapfill.installer" version="{args.version}">component.pkg</pkg-ref>
+</installer-gui-script>
+''', encoding="utf-8")
+            command(["productbuild", "--distribution", str(distribution), "--resources", str(resources),
+                     "--package-path", temp, "--sign", identity, str(args.package)], row)
         signature = command(["pkgutil", "--check-signature", str(args.package)], row)
         if "Developer ID Installer:" not in signature:
             raise ValueError("installer lacks a Developer ID Installer signature")
@@ -145,6 +172,9 @@ def execute(args, row: dict) -> dict:
                 raise ValueError("staple only an existing app/pkg/dmg from the submitted signed archive")
             command(["xcrun", "stapler", "staple", str(path)], row)
             command(["xcrun", "stapler", "validate", str(path)], row)
+            if path.suffix in (".app", ".pkg"):
+                command(["spctl", "--assess", "--type", "execute" if path.suffix == ".app" else "install",
+                         "--verbose=4", str(path)], row)
     row.update(status="pass", detail="requested candidate signing operation verified; publication and host acceptance separate")
     return row
 
@@ -166,6 +196,7 @@ def main(argv=None) -> int:
         if name == "macos-installer":
             child.add_argument("--package", required=True, type=Path)
             child.add_argument("--version", required=True)
+            child.add_argument("--arch", required=True, choices=("arm64", "x86_64"))
     args = parser.parse_args(argv)
     row = {"schema": 1, "kind": "candidate-signing", "action": args.action, "status": "unverified", "commands": []}
     try:
