@@ -11,7 +11,7 @@
 //  - Model 2: stratified +-5 % onsets, Tukey windows and bounded window-energy
 //    normalisation reduce amplitude holes at the SAME Density/Size values.
 //    Model2 also matches bounded windowed source energy per grain; silent
-//    material is skipped. Both use equal-power pan scaled by spread.
+//    estimates fall back to unity source gain. Both use equal-power pan.
 //  - Position jitter: back = span * (0.5 + jitter * (u - 0.5)); 0 = every grain
 //    from the middle of the span, 100 = uniform over the span.
 //  - Pitch spread: triangular within +-cents; N-MUS Scale Lock quantises it via
@@ -19,7 +19,7 @@
 //  - Bounds: 48 grains per voice (preallocated); estimated overlap
 //    density * size is limited to 40 by lowering the effective density; a grain
 //    that cannot be allocated is dropped and counted. Output is scaled by
-//    1/sqrt(max(1, overlap)) in legacy model 1. Model 2 gain is bounded at 2.
+//    1/sqrt(max(1, overlap)) in legacy model 1. Model 2 window gain is bounded\n//    at 2 and source gain at 4 (combined per-grain multiplier at most 8).
 
 #include "../../dsp/DspUtils.h"
 #include "../fx/FxSettings.h"

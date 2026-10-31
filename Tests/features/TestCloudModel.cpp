@@ -92,7 +92,7 @@ GF_TEST (CloudModel, both_versions_are_bounded_deterministic_and_allocation_free
     }
 }
 
-GF_TEST (CloudModel, levelling_rejects_silent_material_and_preserves_periodic_source_energy)
+GF_TEST (CloudModel, levelling_keeps_silence_quiet_and_preserves_periodic_source_energy)
 {
     for (const auto sampleRate : { 44100.0, 48000.0, 96000.0, 192000.0 })
     {
@@ -147,8 +147,42 @@ GF_TEST (CloudModel, levelling_rejects_silent_material_and_preserves_periodic_so
             {
                 float l = 0.0f, r = 0.0f;
                 mode.generate (l, r, history, 2);
-                GF_EXPECT (l == 0.0f && r == 0.0f);
+                GF_EXPECT (std::abs (l) <= level * 1.01f && std::abs (r) <= level * 1.01f);
             }
         }
+    }
+}
+
+GF_TEST (CloudModel, sparse_impulses_are_not_discarded_by_uncertain_energy_estimates)
+{
+    SourceHistory history;
+    history.prepare (2, 48000 * 6);
+    juce::AudioBuffer<float> input (2, 48000 * 3);
+    fx::CloudSettings settings;
+    settings.modelVersion = 2;
+    settings.pitchCents = 0.0f;
+    settings.jitter01 = 0.0f;
+    settings.spread01 = 0.0f;
+    constexpr int anchor = 48000 * 3 - 1;
+    constexpr int sourceStart = anchor - 14400; // zero jitter: centre of600ms span
+    for (const int offset : { 2, 17, 91, 300, 701, 1403, 2201 })
+    {
+        history.clear();
+        input.clear();
+        input.setSample (0, sourceStart + offset, 1.0f);
+        input.setSample (1, sourceStart + offset, 1.0f);
+        history.write (input, 0, input.getNumSamples());
+        fx::CloudMode mode;
+        mode.configure (true, settings, 0.0f, anchor, 5, 48000.0);
+        float peak = 0.0f;
+        for (int i = 0; i < 3500; ++i)
+        {
+            float l = 0.0f, r = 0.0f;
+            mode.generate (l, r, history, 2);
+            GF_EXPECT (std::isfinite (l) && std::isfinite (r));
+            peak = std::max (peak, std::max (std::abs (l), std::abs (r)));
+        }
+        GF_EXPECT (peak > 1.0e-5f); // an estimator miss cannot mute the whole grain
+        GF_EXPECT (peak <= 2.0f);  // uncertain source is never given source boost
     }
 }

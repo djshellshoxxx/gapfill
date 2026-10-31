@@ -169,9 +169,10 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
                 weight += (double) w * w;
             }
             const auto grainRms = (float) std::sqrt (energy / std::max (1.0, weight));
-            if (! std::isfinite (grainRms) || ! std::isfinite (sourceRms)
-                || grainRms < std::max (1.0e-5f, sourceRms * 0.01f))
-                g.active = false; // silent material is never amplified
+            if (! std::isfinite (grainRms) || ! std::isfinite (sourceRms))
+                g.active = false;
+            else if (sourceRms < 1.0e-5f || grainRms < std::max (1.0e-5f, sourceRms * 0.01f))
+                g.sourceGain = 1.0f; // uncertain estimate: preserve narrow material without boosting it
             else
                 g.sourceGain = std::clamp (sourceRms / grainRms, 0.25f, 4.0f);
         }
