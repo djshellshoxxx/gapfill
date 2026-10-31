@@ -18,6 +18,7 @@
 // never deletes bindings.
 
 #include "CommandMap.h"
+#include "../controller/ControllerTypes.h"
 
 #include <juce_core/juce_core.h>
 #include <juce_audio_devices/juce_audio_devices.h>
@@ -49,6 +50,11 @@ struct Profile
     juce::String name;
     std::vector<Binding> bindings;
     std::vector<FeedbackRule> feedback;
+    // Schema 3 only. Legacy profiles retain the original schema and behavior.
+    std::vector<controller::ParameterBinding> params;
+    bool extended = false;
+    bool parameterFeedback = false;
+    std::uint8_t txChannel = 1;
 };
 
 struct ProfileParse
