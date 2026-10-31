@@ -1,0 +1,8 @@
+{
+  "common.ok": "OK",
+  "locale.nativeName": "English",
+  "options.language": "Language",
+  "options.languageHint": "Choose the language for this interface. Saved projects and audio stay the same.",
+  "options.pseudo": "Pseudo (+40%)",
+  "example.template": "Saved {0}."
+}
