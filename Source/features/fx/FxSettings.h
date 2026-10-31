@@ -55,6 +55,7 @@ struct TapeSettings
 {
     float amount01 = 0.0f;      ///< master depth
     float wow01 = 0.3f, flutter01 = 0.3f, sat01 = 0.2f, dropout01 = 0.2f, splice01 = 0.0f;
+    float mixOverride01 = -1.0f; ///< MacroV3 only; negative retains released amount-as-wet behavior.
 };
 
 struct ScrubSettings
@@ -81,6 +82,7 @@ struct ResonatorSettings
     int   note = 60;            ///< MIDI note 24-96
     int   mode = 0;             ///< 0 Manual, 1 Scale degrees
     float decay01 = 0.5f, damp01 = 0.4f, spread01 = 0.3f;
+    float decaySeconds = -1.0f; ///< MacroV3 physical decay; negative retains released percent formula.
 };
 
 struct FsDelaySettings

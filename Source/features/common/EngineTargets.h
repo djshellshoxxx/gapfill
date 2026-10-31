@@ -27,7 +27,7 @@ struct Ref
 {
     Kind kind = Kind::None;
     std::uint8_t sub = 0;        ///< algorithm (Weight) or band (Band*)
-    std::uint16_t advancedMacroMask = 0; ///< resolved once, MacroV2 targets 21..35
+    std::uint32_t advancedMacroMask = 0; ///< resolved once, versioned targets 21..46
     std::uint8_t performanceIndex = 0; ///< optional staged projection index + 1
 
     explicit operator bool() const noexcept { return kind != Kind::None; }
