@@ -33,10 +33,13 @@
 //    ownership with a fixed slot number, group-wide scene recall, shared tempo estimate.
 
 #include "CoopFwd.h"
+#include "DetRegistry.h"
+#include "GroupScenes.h"
 #include "../../dsp/EngineTransitions.h"
 #include "../../dsp/SchedulerTypes.h"
 
 #include <juce_events/juce_events.h>
+#include <juce_data_structures/juce_data_structures.h>
 
 #include <atomic>
 #include <cstdint>
@@ -44,8 +47,10 @@
 namespace gapfill::coop
 {
 
-enum Group { GroupOff = 0, GroupA, GroupB, GroupC, GroupD, NumGroups };
-enum Mode  { AvoidOverlap = 0, Alternate, Follow, NumModes };
+enum Group { GroupOff = 0, GroupA, GroupB, GroupC, GroupD, GroupE, GroupF, GroupG, GroupH, NumGroups };
+// Deterministic is INTERNAL. Released coopMode stays a three-choice parameter;
+// COOPEXT's toggle selects this fourth engine path without renormalizing it.
+enum Mode  { AvoidOverlap = 0, Alternate, Follow, NumModes, Deterministic = NumModes };
 
 inline constexpr int kMaxSlots = 32;
 inline constexpr std::uint32_t kStaleMs = 2000;
@@ -89,7 +94,36 @@ struct CoopView
     Peer peers[kMaxSlots];
     double wallAtChunkStart = 0.0;         ///< ms, for the wall-clock domain
     double sampleRate = 48000.0;
-    bool active() const noexcept   { return selfId != 0 && numPeers > 0; }
+    deterministic::View deterministicView;
+    float yieldPercent = 70.0f;
+    bool deterministicTransport = false;
+    bool active() const noexcept   { return mode == Deterministic ? deterministicTransport : selfId != 0 && numPeers > 0; }
+};
+
+struct DeterministicConfig
+{
+    int group = 0, slot = 1, priority = 50;
+    float yieldPercent = 70.0f;
+    deterministic::Grid grid = deterministic::Grid::Bar;
+};
+
+struct DeterministicTiming
+{
+    bool valid = false;
+    double ppq = 0.0, samplesPerBeat = 0.0, beatsPerBar = 4.0;
+    int numSamples = 0;
+};
+
+/** Apply before the natural-fill probability roll, after computing decision PPQ.
+    A pending membership has zero scales; unavailable transport stays neutral. */
+deterministic::Scale yieldScale (const CoopView&, bool havePpq, double decisionPpq) noexcept;
+
+using GroupSceneEvent = deterministic::GroupSceneEvent;
+
+struct DeterministicServices
+{
+    deterministic::Registry membership;
+    deterministic::GroupScenes scenes;
 };
 
 /** The decision: CoopYield or None. `havePpq` selects the time domain; `decisionOffsetSamples` is
@@ -120,6 +154,30 @@ public:
     CoopSettings beginChunk (int group, int mode, double sampleRate, double nowWallMs,
                              std::uint32_t nowMs) noexcept;
 
+    /** Preparation/audio owner: register every enabled instance during prepare,
+        BEFORE any instance processes. All old configurations stay off. */
+    void configureDeterministic (const DeterministicConfig&) noexcept;
+    CoopSettings beginDeterministicChunk (const DeterministicConfig&, const DeterministicTiming&) noexcept;
+    void noteTransportJump() noexcept;
+
+    /** Message thread; returned slot must be synchronized to coopSlot through
+        the normal host notification path, including when the editor is closed. */
+    int repairDuplicateSlot() noexcept;
+    int pendingSlotForHost() const noexcept { return pendingSlot.load (std::memory_order_relaxed); }
+    int pendingSlotForHost (int currentRequested) const noexcept
+    {
+        return currentRequested == lastRequestedSlot.load() ? pendingSlotForHost() : 0;
+    }
+    int assignedSlot() const noexcept { const int p = pendingSlotForHost(); return p > 0 ? p : detAssigned.load(); }
+    /** Host/preset serializer edits its PRIVATE copy, never the live APVTS. */
+    void applyAssignedSlotToState (juce::ValueTree&) const;
+
+    bool requestGroupScene (int sceneIndex) noexcept;
+    bool requestGroupScene (int sceneIndex, double absolutePpq) noexcept;
+    bool pollGroupSceneEvent (GroupSceneEvent&) noexcept;           // message thread
+    void cancelGroupScenes() noexcept;                            // any thread, atomics only
+    std::uint64_t groupCancelGeneration (int group) const noexcept;
+
     /** After the engine ran: publishes this chunk's fill starts / ends. `chunkOutputStart` is the
         output position of the chunk's first sample. */
     void publish (const TransitionLog&, std::int64_t chunkOutputStart, int chunkSamples, bool havePpq,
@@ -135,6 +193,7 @@ public:
 
 private:
     bool claim (int group) noexcept;
+    void releaseDeterministic() noexcept;
 
     juce::SharedResourcePointer<CoopRegistry> shared;
     int slotIndex = -1;
@@ -143,6 +202,15 @@ private:
     std::atomic<int> peerCount { 0 };
     CoopView view;
     int fillsActive = 0;
+
+    juce::SharedResourcePointer<DeterministicServices> deterministicShared;
+    deterministic::Handle deterministicHandle;                    // preparation/audio owner only
+    std::atomic<std::uint64_t> deterministicIdentity { 0 };        // token << 4 | group
+    std::atomic<std::uint64_t> detBoundaryBits { 0 };
+    std::atomic<int> pendingSlot { 0 }, detAssigned { 0 }, detStatus { 0 }, detOwner { 0 };
+    std::atomic<int> lastRequestedSlot { 1 };
+    int sceneCursorGroup = 0;                                     // message thread only
+    deterministic::SceneCursor sceneCursor;
 };
 
 } // namespace gapfill::coop

@@ -10,20 +10,7 @@
 
 #if defined (GF_COOP_STANDALONE)
  #include <iostream>
- #include <stdexcept>
- #include <utility>
- #include <vector>
-namespace cooptest
-{
-    using Case = std::pair<const char*, void (*)()>;
-    inline std::vector<Case>& cases() { static std::vector<Case> list; return list; }
-    struct Register { Register (const char* n, void (*f)()) { cases().emplace_back (n, f); } };
-}
- #define GF_TEST(group, name) \
-    static void test_##name(); \
-    static cooptest::Register register_##name (#group "." #name, test_##name); \
-    static void test_##name()
- #define GF_EXPECT(c) do { if (! (c)) throw std::runtime_error (#c); } while (false)
+ #include "CoopStandalone.h"
 #else
  #include "../TestFramework.h"
 #endif
@@ -163,6 +150,17 @@ GF_TEST (CoopDeterministic, yield_only_reduces_non_owner_values_and_never_draws_
     }
     GF_EXPECT (yieldFor (false, 50.0f).density == 0.5f);
     GF_EXPECT (yieldFor (false, 50.0f).fill == 0.75f);
+}
+
+GF_TEST (CoopDeterministic, last_ulp_host_rounding_does_not_change_bar_ownership)
+{
+    std::int64_t before = 0, exact = 0, after = 0;
+    GF_EXPECT (slotIndex (std::nextafter (8.0, 0.0), Grid::Bar, 4, 4, before));
+    GF_EXPECT (slotIndex (8.0, Grid::Bar, 4, 4, exact));
+    GF_EXPECT (slotIndex (std::nextafter (8.0, 16.0), Grid::Bar, 4, 4, after));
+    GF_EXPECT (before == exact && after == exact);
+    // The rounding allowance must stay below a sample, not swallow real early positions.
+    GF_EXPECT (slotIndex (8.0 - 1.0e-6, Grid::Bar, 4, 4, before) && before == 1);
 }
 
 #if defined (GF_COOP_STANDALONE)

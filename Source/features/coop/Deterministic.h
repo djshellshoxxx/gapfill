@@ -13,6 +13,9 @@ namespace gapfill::coop::deterministic
 {
 
 inline constexpr int kCapacity = 32;
+// Smaller than one sample even at 192 kHz and the minimum accepted host BPM.
+// Host block arithmetic can place the same decision an ulp below a grid line.
+inline constexpr double kPpqRoundingBeats = 1.0e-9;
 enum class Grid : std::uint8_t { Beat, TwoBeats, Bar, TwoBars, FourBars };
 
 struct Member
@@ -98,13 +101,20 @@ inline double gridBeats (Grid grid, int numerator, int denominator) noexcept
     return bar;
 }
 
-inline bool slotIndex (double ppq, Grid grid, int numerator, int denominator, std::int64_t& out) noexcept
+inline bool slotIndexForBeats (double ppq, double beats, std::int64_t& out) noexcept
 {
-    const auto value = std::floor (ppq / gridBeats (grid, numerator, denominator));
+    if (! std::isfinite (beats) || beats <= 0.0)
+        return false;
+    const auto value = std::floor ((ppq + kPpqRoundingBeats) / beats);
     if (! std::isfinite (value) || value < -0x1p52 || value > 0x1p52)
         return false;
     out = (std::int64_t) value;
     return true;
+}
+
+inline bool slotIndex (double ppq, Grid grid, int numerator, int denominator, std::int64_t& out) noexcept
+{
+    return slotIndexForBeats (ppq, gridBeats (grid, numerator, denominator), out);
 }
 
 struct Scale { float density = 1.0f, fill = 1.0f; };
