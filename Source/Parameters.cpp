@@ -231,6 +231,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     addFm10Parameters (layout);
     addFl20Parameters (layout);
     addMidiextParameters (layout);
+    addWetbusextParameters (layout);
+    addCoopextParameters (layout);
 
     return layout;
 }
@@ -272,7 +274,7 @@ juce::StringArray randomisableParameterIDs()
 
 juce::StringArray routingParameterIDs()
 {
-    return { "wetSolo" };
+    return { "wetSolo", "wetBusMainMode", "wetBusLevel" };
 }
 
 juce::StringArray performanceParameterIDs()
@@ -323,6 +325,8 @@ juce::StringArray performanceParameterIDs()
     addFm10PerformanceIds (ids);
     addFl20PerformanceIds (ids);
     addMidiextPerformanceIds (ids);
+    addWetbusextPerformanceIds (ids);
+    addCoopextPerformanceIds (ids);
     return ids;
 }
 

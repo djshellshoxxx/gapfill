@@ -48,3 +48,5 @@
 #include "fm10.h"
 #include "fl20.h"
 #include "midiext.h"
+#include "wetbusext.h"
+#include "coopext.h"
