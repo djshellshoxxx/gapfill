@@ -1,4 +1,5 @@
 #include "../../PluginProcessor.h"
+#include "../FeatureHooks.h"
 
 namespace gapfill
 {
@@ -20,7 +21,12 @@ scenes::TransportSnap GapFillAudioProcessor::sceneTransportAt (int startSample, 
 
 int GapFillAudioProcessor::sceneSegmentLength (int startSample, int n) noexcept
 {
-    const auto prefix = liveControl.stageSceneChunk (sceneTransportAt (startSample, n));
-    return prefix > 0 && prefix < n ? prefix : n;
+    const auto transport = sceneTransportAt (startSample, n);
+    segmentLatencySamples = juce::jlimit (0, maxLookaheadSamples,
+        (int) std::round (pv (params.lookahead) * 0.001 * currentSampleRate));
+    const auto prefix = liveControl.stageSceneChunk (transport);
+    liveControl.preflightModulationInputs (hooks::gatherModulationInputs (params), pi (params.seed), transport);
+    const auto sceneLength = prefix > 0 && prefix < n ? prefix : n;
+    return liveControl.modulationSegmentLength (samplesProcessed - (std::int64_t) segmentLatencySamples, sceneLength);
 }
 } // namespace gapfill

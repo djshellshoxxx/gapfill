@@ -26,6 +26,26 @@ Effective::ModulationInputs gatherModulationInputs (const ParamCache& params) no
     in.macros.chaos = pv (params.macroChaos);
     in.macros.space = pv (params.macroSpace);
     in.macros.destruction = pv (params.macroDestruction);
+    auto& extended = in.macros.extendedInputs;
+    const std::atomic<float>* knobs[] { params.macroExt5, params.macroExt6, params.macroExt7, params.macroExt8 };
+    const std::atomic<float>* sources[] { params.macroSource1, params.macroSource2, params.macroSource3, params.macroSource4,
+                                         params.macroSource5, params.macroSource6, params.macroSource7, params.macroSource8 };
+    const std::atomic<float>* depths[] { params.macroDepth1, params.macroDepth2, params.macroDepth3, params.macroDepth4,
+                                        params.macroDepth5, params.macroDepth6, params.macroDepth7, params.macroDepth8 };
+    extended.knob01[0] = in.macros.activity * 0.01f;
+    extended.knob01[1] = in.macros.chaos * 0.01f;
+    extended.knob01[2] = in.macros.space * 0.01f;
+    extended.knob01[3] = in.macros.destruction * 0.01f;
+    for (int i = 0; i < 4; ++i) extended.knob01[i + 4] = pv (knobs[i]) * 0.01f;
+    for (int i = 0; i < modulation::kMacroCount; ++i)
+    {
+        extended.source[i] = (modulation::MacroSource) juce::jlimit (0, 3, pi (sources[i]));
+        extended.depth[i] = pv (depths[i]) * 0.01f;
+    }
+    extended.lfo[0] = { (modulation::LfoShape) juce::jlimit (0, 5, pi (params.macroLfoAShape)),
+                        (std::uint8_t) juce::jlimit (0, 15, pi (params.macroLfoADiv)), pv (params.macroLfoAHz) };
+    extended.lfo[1] = { (modulation::LfoShape) juce::jlimit (0, 5, pi (params.macroLfoBShape)),
+                        (std::uint8_t) juce::jlimit (0, 15, pi (params.macroLfoBDiv)), pv (params.macroLfoBHz) };
     return in;
 }
 

@@ -41,6 +41,13 @@ LiveControl::LiveControl (juce::AudioProcessorValueTreeState& state)
 
     macroModel.setTargetAvailability (available);
     macroRuntime.cfg = macros::defaultConfig();
+    modulation::initTargets();
+    for (int i = 0; i < modulation::kTargetCount; ++i)
+    {
+        const auto* id = modulation::targetParameterId (i);
+        extendedMacroRuntime.available[i] = id == nullptr || state.getParameter (id) != nullptr;
+    }
+    macroModel.setExtendedTargetAvailability (extendedMacroRuntime.available);
 }
 
 //==============================================================================
@@ -62,6 +69,8 @@ void LiveControl::reset() noexcept
     ringCount = 0;
     sceneEngine.reset();
     panicCtl.reset();
+    extendedMacroRuntime.resetReadout();
+    for (auto& value : uiEffective) value.store (0.0f, std::memory_order_relaxed);
 }
 
 void LiveControl::post (UiRequest::Kind kind, int a) noexcept
@@ -238,18 +247,8 @@ void LiveControl::handleCommand (const Command& c, FillEngine& engine) noexcept
 
 void LiveControl::fillModulationInputs (Effective::ModulationInputs& in, int seed) noexcept
 {
-    macros::MacroConfig fresh;
-
-    if (macroModel.publisher().consume (fresh))
-    {
-        macroRuntime.cfg = fresh;
-
-        for (auto& h : macroRuntime.hasSmoothed)
-            h = false;
-    }
-
     macroRuntime.seed = seed;
-    in.macros.runtime = &macroRuntime;
+    in = pinnedModulation;
 }
 
 void LiveControl::guardGroupScene() noexcept
@@ -315,8 +314,9 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t 
 
     macroRuntime.chunkSeconds = (float) ((double) std::max (1, numSamples) / sampleRate);
 
-    for (int t = 0; t < macros::kNumTargets; ++t)
-        uiEffective[t].store (macroRuntime.effective01[t], std::memory_order_relaxed);
+    for (int target = 0; target < modulation::kTargetCount; ++target)
+        uiEffective[target].store (extendedMacros ? extendedMacroRuntime.effective01[target]
+            : (target < macros::kNumTargets ? macroRuntime.effective01[target] : 0.0f), std::memory_order_relaxed);
 
     scenes::TransportSnap t;
     t.valid = s.transportValid && s.samplesPerBeat > 1.0;

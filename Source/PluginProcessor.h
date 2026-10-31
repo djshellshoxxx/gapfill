@@ -330,6 +330,7 @@ private:
     int   delayWrite = 0;
     int   currentLatency = 0;
     int   targetLatency = 0;
+    int   segmentLatencySamples = 0; // pinned before the modulation grid split
     int   latencyCrossfade = 0;
     int   latencyCrossfadeLength = 0;
     int   pendingLatencyFrom = 0;

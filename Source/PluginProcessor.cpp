@@ -711,8 +711,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     uiState.profile.accumulate (analysis, analysisPosBefore, analysis.getAnalysisPosition());   // F-M22 (idle: one atomic load)
 
     // ---- latency / lookahead --------------------------------------------
-    const auto wantedLatency = juce::jlimit (0, maxLookaheadSamples,
-                                             (int) std::round (pv (params.lookahead) * 0.001 * currentSampleRate));
+    const auto wantedLatency = segmentLatencySamples;
 
     if (wantedLatency != targetLatency)
     {

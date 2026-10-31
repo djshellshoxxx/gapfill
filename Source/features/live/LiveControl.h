@@ -20,6 +20,7 @@
 #include "../commands/ControllerProfile.h"
 #include "../commands/RecipeCommandTargets.h"
 #include "../macros/MacroModel.h"
+#include "../modulation/Runtime.h"
 #include "../momentary/HoldController.h"
 #include "../panic/Panic.h"
 #include "../scenes/SceneController.h"
@@ -171,13 +172,18 @@ public:
     /** One command drained from the processor's message-thread queue. */
     void handleCommand (const Command&, FillEngine&) noexcept;
 
-    /** Block stage inputs: adopts a newly published macro table and attaches the runtime. */
+    /** Pre-analysis: pin one coherent mode/config and input snapshot, including
+        an applicable scene, before choosing this segment's control grid. */
+    void preflightModulationInputs (const Effective::ModulationInputs&, int seed,
+                                    const scenes::TransportSnap&) noexcept;
+    int modulationSegmentLength (std::int64_t outputPos, int maxSamples) const noexcept;
+    /** Copies the already pinned inputs. Never consumes another publication. */
     void fillModulationInputs (Effective::ModulationInputs&, int seed) noexcept;
 
     /** Latest effective NORMALISED value of a macro target (any thread, for the UI). */
     float getMacroEffective01 (int target) const noexcept
     {
-        return target >= 0 && target < macros::kNumTargets ? uiEffective[target].load (std::memory_order_relaxed) : 0.0f;
+        return target >= 0 && target < modulation::kTargetCount ? uiEffective[target].load (std::memory_order_relaxed) : 0.0f;
     }
 
     /** Per processed chunk, after the transport fields of `s` are filled. */
@@ -233,7 +239,10 @@ private:
     battle::BattleRuntime battleRuntime;
     std::atomic<int> uiBattle { 0 };
     macros::MacroRuntime macroRuntime;
-    std::atomic<float> uiEffective[macros::kNumTargets] {};
+    modulation::Runtime extendedMacroRuntime;
+    Effective::ModulationInputs pinnedModulation;
+    bool extendedMacros = false;
+    std::atomic<float> uiEffective[modulation::kTargetCount] {};
     GlitchRoulette rouletteState { juce::Random::getSystemRandom() };
 
     // audio-thread-local ring of MIDI-originated commands (drained next block)
