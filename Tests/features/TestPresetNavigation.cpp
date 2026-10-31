@@ -135,15 +135,34 @@ GF_TEST (PresetNavigation, panic_then_recover_before_the_timer_cancels_an_inflig
     navigation.requestStep (1);
     navigation.pump (proc);
     GF_EXPECT (gate->entered.try_acquire_for (std::chrono::seconds (2)));
+    auto& live = proc.getLiveControl();
+    Command ignored;
+    ignored.type = CommandType::PresetGoto;
+    ignored.index = 127;
     juce::AudioBuffer<float> audio (2, 512);
     juce::MidiBuffer midi;
+    for (int batch = 0; batch < 2; ++batch)
+    {
+        for (int i = 0; i < CommandQueue::capacity; ++i)
+            GF_EXPECT (proc.postCommand (ignored));
+        audio.clear(); midi.clear();
+        proc.processBlock (audio, midi);
+    }
+    GF_EXPECT (live.scenes().saveCurrent (0, "Pending before Panic"));
+    GF_EXPECT (live.scenes().gotoSceneAt (0, 100.0));
+    scenes::TransportSnap transport;
+    transport.valid = true; transport.ppq = 0.0; transport.samplesPerBeat = 24000.0;
+    transport.sampleRate = 48000.0; transport.numSamples = 512;
+    live.stageSceneChunk (transport);
     audio.clear();
     proc.getLiveControl().panic().requestPanic();
     proc.processBlock (audio, midi);
     proc.getLiveControl().panic().requestRecover();
     proc.processBlock (audio, midi);
     GF_EXPECT (! proc.getLiveControl().panic().isPanicked());
+    GF_EXPECT (live.getDroppedUiRequests() >= 2 && live.scenes().getPendingId() != 0);
     proc.flushLatencyReportForTests(); // consumes the retained PanicChanged1 acknowledgement
+    GF_EXPECT (live.scenes().getPendingId() == 0 && live.scenes().getCommitCount() == 0);
     gate->unblock();
     drainScans (navigation, proc);
     GF_EXPECT (proc.getCurrentProgram() == 3 && gate->calls.load() == 1);

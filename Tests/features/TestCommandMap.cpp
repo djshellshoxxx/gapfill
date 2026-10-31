@@ -64,6 +64,22 @@ namespace
             return run (juce::MidiMessage::controllerEvent (channel, number, value));
         }
     };
+
+    void fillUiQueue (GapFillAudioProcessor& proc)
+    {
+        Command ignored;
+        ignored.type = CommandType::PresetGoto;
+        ignored.index = 127;
+        juce::AudioBuffer<float> audio (2, 256);
+        juce::MidiBuffer midi;
+        for (int batch = 0; batch < 2; ++batch)
+        {
+            for (int i = 0; i < CommandQueue::capacity; ++i)
+                GF_EXPECT (proc.postCommand (ignored));
+            audio.clear(); midi.clear();
+            proc.processBlock (audio, midi);
+        }
+    }
 }
 
 GF_TEST (CommandMap, trigger_fires_on_rising_edge_and_rearms_below_threshold_minus_8)
@@ -498,4 +514,42 @@ GF_TEST (LiveScene, preflight_splits_at_fixed_boundary_and_cancels_a_changed_gro
     GF_EXPECT (live.stageSceneChunk (transport) == 256);
     live.pump (proc);
     GF_EXPECT (live.scenes().getPendingIndex() == -1);
+}
+
+GF_TEST (LiveScene, missed_deadline_acknowledgement_survives_a_full_ui_queue)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 256, false);
+    auto& live = proc.getLiveControl();
+    fillUiQueue (proc);
+    GF_EXPECT (live.scenes().saveCurrent (0, "Pressure target"));
+    GF_EXPECT (live.scenes().gotoSceneAt (0, 10.0));
+    scenes::TransportSnap transport;
+    transport.valid = true; transport.ppq = 11.0; transport.samplesPerBeat = 24000.0;
+    transport.sampleRate = 48000.0; transport.numSamples = 256;
+    live.stageSceneChunk (transport);
+    GF_EXPECT (live.getDroppedUiRequests() > 0 && live.scenes().getPendingId() != 0);
+    live.pump (proc);
+    GF_EXPECT (live.scenes().getPendingId() == 0);
+    GF_EXPECT (live.scenes().getStatus().contains ("missed boundary"));
+}
+
+GF_TEST (LiveScene, applied_acknowledgement_survives_a_full_ui_queue)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 256, false);
+    auto& live = proc.getLiveControl();
+    fillUiQueue (proc);
+    setParams (proc, { { "fill", 27.0f } });
+    GF_EXPECT (live.scenes().saveCurrent (0, "Pressure target"));
+    setParams (proc, { { "fill", 83.0f } });
+    GF_EXPECT (live.scenes().gotoSceneAt (0, 10.0));
+    EngineSettings settings;
+    settings.transportValid = true; settings.ppqAtBlockStart = 10.0;
+    settings.samplesPerBeat = 24000.0;
+    live.prepareChunk (settings, 256, 0);
+    GF_EXPECT (live.getDroppedUiRequests() > 0);
+    live.pump (proc);
+    GF_EXPECT (live.scenes().getPendingId() == 0 && live.scenes().getCommitCount() == 1);
+    GF_EXPECT (proc.getValueTreeState().getRawParameterValue ("fill")->load() == 27.0f);
 }

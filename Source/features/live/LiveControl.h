@@ -243,6 +243,8 @@ private:
 
     SpscQueue<UiRequest, 32> uiQueue;
     std::atomic<std::uint32_t> uiDropped { 0 };
+    std::atomic<std::uint32_t> missedSceneFallback { 0 }, appliedSceneFallback { 0 };
+    std::atomic<bool> panicCancelFallback { false };
 
     commands::BindingTable tableScratch;
 

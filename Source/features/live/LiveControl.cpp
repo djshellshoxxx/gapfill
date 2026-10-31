@@ -71,7 +71,15 @@ void LiveControl::post (UiRequest::Kind kind, int a) noexcept
     r.a = a;
 
     if (! uiQueue.push (r))
+    {
         uiDropped.fetch_add (1, std::memory_order_relaxed);
+        // Intermediate requests may be superseded, but the currently pending
+        // scene must always receive its final acknowledgement after pressure.
+        if (kind == UiRequest::SceneMissedDeadline)
+            missedSceneFallback.store ((std::uint32_t) a, std::memory_order_release);
+        else if (kind == UiRequest::SceneApplied)
+            appliedSceneFallback.store ((std::uint32_t) a, std::memory_order_release);
+    }
 }
 
 void LiveControl::emit (FillEventType type, std::int64_t pos) noexcept
@@ -96,6 +104,7 @@ void LiveControl::onPanicAction (panic::Action action, FillEngine& engine) noexc
             engine.panic();
 
         sceneEngine.cancelPending();
+        panicCancelFallback.store (true, std::memory_order_release);
         fillNowRequested = fillNowPending = false;      // panic cancels queued actions
         hold.panic();                                   // and releases every hold
         engine.panicHolds();
@@ -595,6 +604,19 @@ void LiveControl::pump (GapFillAudioProcessor& proc)
             handleUi (batch[i], proc);
     }
 
+    if (const auto applied = appliedSceneFallback.exchange (0, std::memory_order_acq_rel))
+        handleUi ({ UiRequest::SceneApplied, (std::int32_t) applied }, proc);
+    if (const auto missed = missedSceneFallback.exchange (0, std::memory_order_acq_rel))
+        handleUi ({ UiRequest::SceneMissedDeadline, (std::int32_t) missed }, proc);
+    // A full queue may drop both SceneCancel and PanicChanged. This sticky
+    // acknowledgement survives a Recover before the next message-thread tick.
+    if (panicCancelFallback.exchange (false, std::memory_order_acq_rel))
+    {
+        sceneCtl.cancel();
+        groupSceneRequestId = 0;
+        groupSceneRequestGroup = 0;
+        proc.getUiState().presetNavigation.cancelPending();
+    }
     pumpGroupScenes (proc);
     sceneCtl.poll();
     const auto pendingPresetSteps = proc.getUiState().takePresetStep();
