@@ -12,6 +12,7 @@
 #include "../features/scale/ScaleLock.h"
 #include "../features/coop/CoopFwd.h"
 #include "../features/scdrive/ScSettings.h"
+#include "../features/formant/FormantSetup.h"
 
 #include <cstdint>
 
@@ -89,6 +90,7 @@ struct PerformanceSettings
     and the host playhead. */
 struct EngineSettings
 {
+    formant::FormantSetup voiceFormant;   // F-L20: amount zero never claims a processor or changes RNG.
     DetMode mode = DetMode::Transient;
 
     float fill01       = 0.35f;
