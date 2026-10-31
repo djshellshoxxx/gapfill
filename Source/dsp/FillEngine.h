@@ -27,6 +27,8 @@
 namespace gapfill
 {
 
+namespace lock { class LockPublication; }
+
 /** Gap confidence at which a region becomes an eligible gap. Exported so the
     visualiser (E-3 threshold line) draws the engine's own number. */
 inline constexpr float kEnterGapConf = 0.55f;
@@ -115,6 +117,8 @@ public:
     void lockLatest() noexcept;
     void lockRecipe (const FillRecipe&, const RecipeExtras& extras = {}) noexcept;
     void unlockRecipe() noexcept;
+    void setLockPublication (lock::LockPublication*) noexcept;
+    bool adoptLockRestore (Command& acceptedRestore) noexcept;
     void likeLatest() noexcept;
     void likeRecipe (const FillRecipe&) noexcept;
 
@@ -263,6 +267,8 @@ private:
     FillVoice voices[numVoices];
     PreviewChannel preview;        // E-1: dedicated voice outside the pool of numVoices
     LockState lockState;           // C-5
+    lock::LockPublication* lockPublication = nullptr; // non-owning, RecipeServices outlives audio use
+    std::uint64_t lockRestoreEpoch = 1;              // audio-owned accepted restore generation
     LikeState like;                // C-11
     callresponse::Responder responder;   // F-L10
     bool decisionPpqValid = false;
