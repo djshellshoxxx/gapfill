@@ -83,6 +83,10 @@ def unique(paths, description: str) -> Path:
 def execute(command: list[str], out: Path, name: str, timeout: float = 900) -> dict:
     log = out / (name + ".log")
     started = time.monotonic()
+    if not Path(command[0]).is_file() and shutil.which(command[0]) is None:
+        log.write_text("Native tool is unavailable: " + command[0] + "\n", encoding="utf-8")
+        return {"command": command, "status": "unverified", "exit_code": None,
+                "detail": "native validation tool is unavailable", "log": str(log), "log_sha256": digest(log)}
     with log.open("w", encoding="utf-8") as stream:
         try:
             result = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT, timeout=timeout)
@@ -139,6 +143,9 @@ def validate(args) -> dict:
     native = {"linux": "Linux", "windows": "Windows", "macos": "Darwin"}[args.platform]
     if platform.system() != native:
         row.update(status="unverified", detail="native validation requires " + native)
+        return row
+    if args.platform == "macos" and shutil.which("lipo") is None:
+        row.update(status="unverified", detail="native architecture tool lipo is unavailable")
         return row
     unpacked = args.out / "unpacked"
     extract(args.archive, unpacked)

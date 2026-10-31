@@ -101,6 +101,7 @@ class NightlyTests(unittest.TestCase):
     def test_soak_keeps_one_process_and_measures_requested_duration(self):
         self.program("import json, os, time\nprint('GF_SOAK_BEGIN', flush=True)\n"
                      "seconds=float(os.environ['GF_SOAK_SECONDS'])\ntime.sleep(seconds)\n"
+                     "print('GF_SOAK_END', flush=True)\n"
                      "print('GF_SOAK_SUMMARY ' + json.dumps({'measured_seconds': seconds, 'blocks': 1, "
                      "'processed_samples': 512, 'peak': 0.5, 'allocations': 0, 'engine_idle': True}))\n"
                      "print('1 passed, 0 failed')\n")

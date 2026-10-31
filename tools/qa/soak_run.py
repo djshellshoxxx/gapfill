@@ -104,7 +104,8 @@ def run(binary: Path, *, seconds: float, warmup: float, seed: int, out: Path,
                     break
                 # The processor emits this only AFTER its own warmup. Launch/setup
                 # time is never treated as measured processor-soak duration.
-                if "GF_SOAK_BEGIN\n" in log.read_text(encoding="utf-8", errors="replace"):
+                progress = log.read_text(encoding="utf-8", errors="replace")
+                if "GF_SOAK_BEGIN\n" in progress and "GF_SOAK_END\n" not in progress:
                     memory = resident_bytes(process.pid)
                     if memory is not None and memory > 0:
                         samples.append({"seconds_from_launch": now - started, "resident_bytes": memory})
@@ -123,8 +124,10 @@ def run(binary: Path, *, seconds: float, warmup: float, seed: int, out: Path,
                 summary = None
     counts = COUNTS.findall(text)
     passed, failed = map(int, counts[-1]) if counts else (0, 0)
-    valid = isinstance(summary, dict) and all(key in summary for key in
-        ("measured_seconds", "blocks", "processed_samples", "peak", "allocations", "engine_idle"))
+    begin = text.find("GF_SOAK_BEGIN\n")
+    end = text.find("GF_SOAK_END\n")
+    valid = (0 <= begin < end < text.find("GF_SOAK_SUMMARY ") and isinstance(summary, dict) and all(key in summary for key in
+        ("measured_seconds", "blocks", "processed_samples", "peak", "allocations", "engine_idle")))
     if valid:
         valid = (all(type(summary[key]) in (int, float) for key in
                      ("measured_seconds", "blocks", "processed_samples", "peak", "allocations"))
@@ -136,6 +139,7 @@ def run(binary: Path, *, seconds: float, warmup: float, seed: int, out: Path,
     processor_ok = code == 0 and valid and passed >= 1 and failed == 0
     row.update(seconds_from_launch=time.monotonic() - started, exit_code=code, processor=summary,
                processor_status="pass" if processor_ok else "fail",
+               rss_measurement_window="GF_SOAK_BEGIN..GF_SOAK_END (excludes drain/destruction)",
                passed=passed, failed=failed, executed=passed + failed, rss=memory, rss_samples=samples)
     if not processor_ok:
         row.update(status="fail", detail="missing/invalid processor summary, failed tests, short duration or process failure")

@@ -206,6 +206,9 @@ GF_TEST (Soak, continuous_processor_with_automation_transport_and_state_churn)
         samples += (std::uint64_t) size;
     }
 
+    // Stop RSS measurement BEFORE draining or destroying instances: releasing
+    // their buffers must never hide growth during the measured workload.
+    std::cout << "GF_SOAK_END\n" << std::flush;
     // Stop scheduling and drain existing voices without destroying/restarting
     // the instance. A stuck voice fails the same process that ran the soak.
     proc.getLiveControl().panic().requestPanic();

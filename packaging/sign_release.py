@@ -82,7 +82,7 @@ def execute(args, row: dict) -> dict:
     variable, system, tools = {
         "windows": ("GAPFILL_WINDOWS_CERT_SHA1", "Windows", ("signtool",)),
         "macos": ("GAPFILL_APPLE_SIGN_IDENTITY", "Darwin", ("codesign",)),
-        "notarize": ("GAPFILL_NOTARY_PROFILE", "Darwin", ("xcrun",)),
+        "notarize": ("GAPFILL_NOTARY_PROFILE", "Darwin", ("xcrun", "spctl")),
         "macos-installer": ("GAPFILL_APPLE_INSTALLER_IDENTITY", "Darwin", ("pkgbuild", "productbuild", "pkgutil", "codesign", "lipo")),
     }[args.action]
     identity = require_identity(row, variable, system, tools)

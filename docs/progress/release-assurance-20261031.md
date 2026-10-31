@@ -25,6 +25,8 @@ This work does not publish, tag, close issues or modify existing public assets.
   process's RSS, and retains raw samples. Compares median initial/final samples
   against 1 percent growth; reports the peak separately. Missing measurements
   are unverified, never pass. Process restarts cannot accumulate soak duration.
+  An explicit end marker stops RSS sampling before drain/destruction, so freeing
+  processor buffers cannot hide growth during the measured workload.
 - `nightly.yml`: separate ASan+UBSan full-suite, targeted TSan, Release
   performance/short continuous soak and four-platform native full-QA jobs.
   TSan has no broad JUCE/plugin suppression. A known external-library report
