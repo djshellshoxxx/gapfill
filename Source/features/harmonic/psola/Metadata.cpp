@@ -18,6 +18,11 @@ bool valid (const DecisionMetadata& m) noexcept
     return false;
 }
 
+bool applicableToAlgorithm (const DecisionMetadata& value, std::uint8_t algorithm) noexcept
+{
+    return valid (value) && (value.version == 0 || algorithm == 3);
+}
+
 bool encode (const DecisionMetadata& m, std::span<std::uint8_t> bytes) noexcept
 {
     if (bytes.size() != kMetadataBytes || ! valid (m)) return false;

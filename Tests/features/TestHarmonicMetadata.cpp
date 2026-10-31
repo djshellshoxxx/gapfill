@@ -60,6 +60,21 @@ GF_TEST (HarmonicMetadata, invalid_encode_is_atomic_and_never_reinterprets_legac
     value = {}; value.intervals = 1;
     GF_EXPECT (! encode (value, bytes) && bytes == before);
 }
+GF_TEST (HarmonicMetadata, optional_decisions_never_apply_to_a_different_base_algorithm)
+{
+    DecisionMetadata value { 1, Outcome::Used, 0, 1, 220, 1 };
+    GF_EXPECT (applicableToAlgorithm (value, 3));
+    for (int algorithm = 0; algorithm < 256; ++algorithm)
+    {
+        if (algorithm != 3)
+            GF_EXPECT (! applicableToAlgorithm (value, (std::uint8_t) algorithm));
+        GF_EXPECT (applicableToAlgorithm ({}, (std::uint8_t) algorithm));
+    }
+    value.outcome = Outcome::UnvoicedFallback; value.f0Hz = 0;
+    GF_EXPECT (applicableToAlgorithm (value, 3) && ! applicableToAlgorithm (value, 8));
+    value.version = 99;
+    GF_EXPECT (! applicableToAlgorithm (value, 3));
+}
 #if defined (GF_CONTEXT_STANDALONE)
 int main()
 {

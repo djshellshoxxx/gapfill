@@ -24,6 +24,10 @@ struct DecisionMetadata
 static_assert (sizeof (DecisionMetadata) == 12 && std::is_trivially_copyable_v<DecisionMetadata>);
 inline constexpr int kMetadataBytes = 12;
 bool valid (const DecisionMetadata&) noexcept;
+/** The stable FillRecipe algorithm ordinal3 is Granular. Optional harmonic
+    decisions are meaningful only for it; absent metadata applies everywhere.
+    A loader can drop this sidecar without discarding the base recipe. */
+bool applicableToAlgorithm (const DecisionMetadata&, std::uint8_t recipeAlgorithm) noexcept;
 /** Writes exactly12 bytes, explicit little endian. Invalid input leaves the
     output untouched. The enclosing carrier decides whether absence is emitted. */
 bool encode (const DecisionMetadata&, std::span<std::uint8_t>) noexcept;
