@@ -255,6 +255,7 @@ GF_TEST (MidiExtended, juce_adapter_clears_input_and_appends_to_legacy_handoff_w
         gftest::AllocGuard guard;
         GF_EXPECT (legacy.finish (midi) == 1);
         GF_EXPECT (scheduler.finish (midi, false) == 1);
+        GF_EXPECT (scheduler.getSentCount() == 1);
         GF_EXPECT (guard.count() == 0);
     }
     GF_EXPECT (midi.getNumEvents() == 2);
@@ -264,4 +265,26 @@ GF_TEST (MidiExtended, juce_adapter_clears_input_and_appends_to_legacy_handoff_w
     GF_EXPECT ((*iterator).getMessage().isNoteOn() && (*iterator).getMessage().getNoteNumber() == 40);
     MidiScheduler disabled; disabled.prepare (48000.0); disabled.beginBlock ({}, 0, 512, 0);
     GF_EXPECT (disabled.finish (midi) == 0 && midi.isEmpty());
+}
+
+GF_TEST (MidiExtended, confidence_pressure_cannot_starve_hit_notes_in_source_or_host_queues)
+{
+    EngineEventBuffer source;
+    for (int i = 0; i < EngineEventBuffer::capacity; ++i)
+        source.push ({ OutEvent::Confidence, i, 0.5f, 0 });
+    GF_EXPECT (source.push ({ OutEvent::Hit, 100, 1.0f, 0 }));
+    MidiScheduler scheduler; scheduler.prepare (48000.0);
+    MidiOutSettings settings; settings.on = true; settings.cc = 74;
+    scheduler.beginBlock (settings, 0, 512, 0);
+    EngineEventBuffer confidence;
+    for (int i = 0; i < EngineEventBuffer::capacity; ++i)
+        confidence.push ({ OutEvent::Confidence, i, 0.5f, 0 });
+    scheduler.consume (confidence);
+    EngineEventBuffer hits; hits.push ({ OutEvent::Hit, 100, 1.0f, 0 });
+    scheduler.consume (hits);
+    std::array<MidiPacket, kSchedulerMaxEvents> packets {};
+    const auto count = scheduler.render (packets);
+    bool hit = false;
+    for (int i = 0; i < count; ++i) hit = hit || on (packets[(size_t) i]);
+    GF_EXPECT (hit);
 }

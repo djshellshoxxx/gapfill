@@ -6,6 +6,10 @@ list(APPEND GAPFILL_SOURCES
     Source/features/midiout/MidiOut.cpp
     Source/features/midiout/MidiOutState.cpp
     Source/features/midiout/OptionsRow.cpp
+    Source/features/midiout/Info.cpp
+    Source/features/midiout/MidiScheduler.cpp
+    Source/features/midiout/MidiSchedulerJuce.cpp
+    Source/features/midiout/ExtendedOptions.cpp
     Source/features/quality/Quality.cpp
     Source/features/coop/Coop.cpp
     Source/gui/slots/RoutingSlot.cpp

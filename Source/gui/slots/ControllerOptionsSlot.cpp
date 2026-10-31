@@ -8,6 +8,7 @@
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -20,6 +21,8 @@ namespace
         explicit ControllerOptions (GapFillAudioProcessor& p) : proc (p)
         {
             setTitle ("Controllers and live options");
+            i18n::markUserContent (profileBox);
+            i18n::markUserContent (deviceBox);
 
             profileLabel.setText ("Controller", juce::dontSendNotification);
             deviceLabel.setText ("LED output", juce::dontSendNotification);

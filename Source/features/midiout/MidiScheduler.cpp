@@ -69,13 +69,15 @@ void MidiScheduler::queue (const OutEvent& event, bool early) noexcept
     else
     {
         ++dropped;
-        if (event.type == OutEvent::GapClose)
-            for (int i = queuedCount - 1; i >= 0; --i)
-                if (queued[(size_t) i].event.type != OutEvent::GapClose)
-                {
-                    queued[(size_t) i] = value;
-                    break;
-                }
+        int victim = -1, lowest = EngineEventBuffer::priority (event.type);
+        for (int i = queuedCount - 1; i >= 0; --i)
+            if (EngineEventBuffer::priority (queued[(size_t) i].event.type) < lowest)
+            { victim = i; lowest = EngineEventBuffer::priority (queued[(size_t) i].event.type); }
+        if (victim >= 0)
+        {
+            for (int i = victim; i + 1 < queuedCount; ++i) queued[(size_t) i] = queued[(size_t) i + 1];
+            queued[(size_t) queuedCount - 1] = value;
+        }
     }
 }
 
@@ -221,6 +223,7 @@ int MidiScheduler::render (std::array<MidiPacket, kSchedulerMaxEvents>& result) 
     }
     const int count = pendingCount;
     for (int i = 0; i < count; ++i) result[(size_t) i] = pending[(size_t) i];
+    if (count > 0) sentCount.fetch_add ((std::uint32_t) count, std::memory_order_relaxed);
     pendingCount = queuedCount = 0;
     return count;
 }

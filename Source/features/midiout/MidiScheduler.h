@@ -1,7 +1,7 @@
 #pragma once
 
 // F-L11 additive event scheduler. Pure bounded state/packet model; the JUCE MidiBuffer adapter is a separate TU.
-// One audio-thread owner, except requestFlush(). No allocation, locks, wall clock, or RNG.
+// One audio-thread owner, except flush/activity atomics. No allocation, locks, wall clock, or RNG.
 //
 // beginBlock -> consume/consumeEarlyHits (any chunk order) -> render/finish once. Events are merged by wire time
 // before updating note ownership, so early Hits and output-aligned Gap/Fill events cannot invalidate future notes.
@@ -45,6 +45,7 @@ struct MidiPacket
 class MidiScheduler
 {
     static_assert (std::atomic<bool>::is_always_lock_free, "MIDI flush requests must never lock the audio thread");
+    static_assert (std::atomic<std::uint32_t>::is_always_lock_free, "MIDI activity must never lock the audio thread");
 public:
     /** Audio stopped: retain old note identities for a safe flush after a rate change. */
     void prepare (double sampleRate) noexcept;
@@ -58,7 +59,10 @@ public:
     int render (std::array<MidiPacket, kSchedulerMaxEvents>&) noexcept;
     int finish (juce::MidiBuffer&, bool clearInput = true) noexcept;
 
+    /** Audio owner only; GUI activity uses the atomic sent count below. */
     std::uint64_t getDroppedCount() const noexcept { return dropped; }
+    /** Any thread. */
+    std::uint32_t getSentCount() const noexcept { return sentCount.load (std::memory_order_relaxed); }
     bool hasSoundingNotes() const noexcept;
 
 private:
@@ -101,6 +105,7 @@ private:
     std::int64_t lastCcTime = 0;
     std::uint64_t dropped = 0;
     std::atomic<bool> flushRequested { false };
+    std::atomic<std::uint32_t> sentCount { 0 }; // audio -> GUI activity; unrelated to serialized state
 };
 
 }

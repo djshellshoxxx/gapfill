@@ -24,6 +24,10 @@ struct EngineEventBuffer
     int count = 0, dropped = 0;
 
     void clear() noexcept { count = dropped = 0; }
+    static int priority (OutEvent::Type type) noexcept
+    {
+        return type == OutEvent::GapClose ? 3 : type == OutEvent::Confidence ? 0 : type == OutEvent::FillEnd ? 1 : 2;
+    }
     bool push (const OutEvent& event) noexcept
     {
         if ((int) event.type > (int) OutEvent::Confidence)
@@ -34,13 +38,15 @@ struct EngineEventBuffer
             return true;
         }
         ++dropped;
-        if (event.type == OutEvent::GapClose)
-            for (int i = count - 1; i >= 0; --i)
-                if (ev[i].type != OutEvent::GapClose)
-                {
-                    ev[i] = event;
-                    return true;
-                }
+        int victim = -1, lowest = priority (event.type);
+        for (int i = count - 1; i >= 0; --i)
+            if (priority (ev[i].type) < lowest) { victim = i; lowest = priority (ev[i].type); }
+        if (victim >= 0)
+        {
+            for (int i = victim; i + 1 < count; ++i) ev[i] = ev[i + 1];
+            ev[count - 1] = event;
+            return true;
+        }
         return false;
     }
 };
