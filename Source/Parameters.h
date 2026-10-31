@@ -172,7 +172,8 @@ juce::StringArray divisionNames();
     GAPFILL_PARAMS_LEARN(X) \
     GAPFILL_PARAMS_COOP(X) \
     GAPFILL_PARAMS_QUALITY(X) \
-    GAPFILL_PARAMS_FM10(X)
+    GAPFILL_PARAMS_FM10(X) \
+    GAPFILL_PARAMS_FL20(X)
 
 //==============================================================================
 /** Cached raw-value pointers so the audio thread never touches the ValueTree. */

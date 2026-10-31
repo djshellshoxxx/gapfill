@@ -229,6 +229,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     addCoopParameters (layout);
     addQualityParameters (layout);
     addFm10Parameters (layout);
+    addFl20Parameters (layout);
 
     return layout;
 }
@@ -319,6 +320,7 @@ juce::StringArray performanceParameterIDs()
     addCoopPerformanceIds (ids);
     addQualityPerformanceIds (ids);
     addFm10PerformanceIds (ids);
+    addFl20PerformanceIds (ids);
     return ids;
 }
 

@@ -343,6 +343,16 @@ AnalysisSettings GapFillAudioProcessor::gatherAnalysisSettings (bool sidechainAc
 EngineSettings GapFillAudioProcessor::gatherEngineSettings()
 {
     EngineSettings s;
+    s.voiceFormant.amount01 = pv (params.fl20Amount) * 0.01f;
+    if (s.voiceFormant.amount01 > 0.0f)
+    {
+        s.voiceFormant.enabled = true;
+        s.voiceFormant.shiftSt = pv (params.fl20Shift);
+        s.voiceFormant.tiltDbPerOct = pv (params.fl20Tilt);
+        s.voiceFormant.vowel = pi (params.fl20Vowel);
+        s.voiceFormant.preserve01 = pv (params.fl20Preserve) * 0.01f;
+        s.voiceFormant.detail = pi (params.fl20Detail);
+    }
     s.mode         = (DetMode) juce::jlimit (0, 2, pi (params.detMode));
     s.fill01       = pv (params.fill) * 0.01f;
     s.intensity01  = pv (params.intensity) * 0.01f;
