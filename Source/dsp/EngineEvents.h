@@ -83,6 +83,8 @@ struct FillEvent
     std::uint32_t generation = 0;  ///< engine gap index (ties the events of one gap together)
     std::uint16_t protHoldMs = 0;  ///< Onset: protection hold that follows the event
     std::uint16_t lookaheadMs = 0; ///< Onset: lookahead window that precedes it
+    std::uint32_t timelineEpoch = 0; ///< coherent timeline generation; zero is unmanaged legacy/test data
+    std::uint32_t sampleRateHz = 0;  ///< sample rate belonging to that epoch
 };
 
 //==============================================================================
@@ -125,10 +127,11 @@ public:
     /** Audio thread. */
     void push (const FillEvent& e) noexcept
     {
+        const auto stamped = stamp (e);
         if (auto* t = tap.load (std::memory_order_acquire))
-            t->onFillEvent (e);
+            t->onFillEvent (stamped);
 
-        if (! queue.push (e))
+        if (! queue.push (stamped))
             dropped.fetch_add (1, std::memory_order_relaxed);
     }
 
@@ -137,10 +140,11 @@ public:
         gap outcome or a started recipe out. Dropped ones are counted like any other. */
     void pushOptional (const FillEvent& e) noexcept
     {
+        const auto stamped = stamp (e);
         if (auto* t = tap.load (std::memory_order_acquire))
-            t->onFillEvent (e);
+            t->onFillEvent (stamped);
 
-        if (queue.getNumReady() >= capacity - reservedForOutcomes || ! queue.push (e))
+        if (queue.getNumReady() >= capacity - reservedForOutcomes || ! queue.push (stamped))
             droppedOptional.fetch_add (1, std::memory_order_relaxed);
     }
 
@@ -156,6 +160,16 @@ public:
     std::uint32_t getDroppedOptionalCount() const noexcept { return droppedOptional.load (std::memory_order_relaxed); }
     int getNumReady() const noexcept                   { return queue.getNumReady(); }
 
+    /** Audio thread, or prepare while audio is stopped. Old queued payloads
+        retain their original pair, so independent consumers cannot mix rates. */
+    void setTimelineEpoch (std::uint32_t epoch, std::uint32_t rate) noexcept
+    {
+        timelineEpoch = epoch;
+        timelineSampleRate = rate;
+    }
+    std::uint32_t getTimelineEpoch() const noexcept { return timelineEpoch; }
+    std::uint32_t getTimelineSampleRate() const noexcept { return timelineSampleRate; }
+
     void reset() noexcept
     {
         queue.reset();
@@ -164,6 +178,14 @@ public:
     }
 
 private:
+    FillEvent stamp (FillEvent value) const noexcept
+    {
+        value.timelineEpoch = timelineEpoch;
+        value.sampleRateHz = timelineSampleRate;
+        return value;
+    }
+
+    std::uint32_t timelineEpoch = 0, timelineSampleRate = 0;
     SpscQueue<FillEvent, capacity> queue;
     std::atomic<std::uint32_t> dropped { 0 };
     std::atomic<std::uint32_t> droppedOptional { 0 };

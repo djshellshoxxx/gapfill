@@ -242,6 +242,7 @@ private:
     void drainCommands() noexcept;
     void dispatchFeatureCommand (const gapfill::Command&) noexcept;
     void publishRecipeTargets() noexcept;
+    void startTimelineEpoch() noexcept;
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
     EngineSettings gatherEngineSettings();
@@ -282,6 +283,7 @@ private:
 
     MeterState meters;
     VisualisationFifo viz;
+    std::uint32_t timelineEpoch = 0; // one audio/prepare owner; stamped into both timeline streams
     ShapingRuntime shaping;
 
     CommandQueue    commands;        // message -> audio, drained once per block

@@ -188,6 +188,7 @@ void GapFillAudioProcessor::releaseResources()
 
 void GapFillAudioProcessor::reset()
 {
+    startTimelineEpoch();
     // Hosts call this on transport jumps and when re-arming a track: every
     // piece of running DSP state has to go, without reallocating anything.
     engine.reset();
@@ -346,6 +347,13 @@ void GapFillAudioProcessor::publishRecipeTargets() noexcept
     liveControl.publishRecipeTargets (snapshot);
 }
 
+void GapFillAudioProcessor::startTimelineEpoch() noexcept
+{
+    if (++timelineEpoch == 0)
+        ++timelineEpoch;
+    fillEvents.setTimelineEpoch (timelineEpoch, (std::uint32_t) std::lround (currentSampleRate));
+}
+
 //==============================================================================
 AnalysisSettings GapFillAudioProcessor::gatherAnalysisSettings (bool sidechainActive) const
 {
@@ -481,6 +489,7 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
 
         if (kind == transport::JumpKind::Start || kind == transport::JumpKind::Discontinuity)
         {
+            startTimelineEpoch();
             engine.noteTransportJump();
             contextState.onTransportJump();
             panicWet();
