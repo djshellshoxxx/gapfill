@@ -277,6 +277,7 @@ private:
     std::atomic<double> midiOutOffsetMs { 0.0 };
     quality::QualityController qualityCtl;           // F-D03
     std::atomic<int> appliedQuality { 0 };
+    std::atomic<bool> stateSaveFailed { false };
     coop::CoopMember coopMember;                     // F-X06: claims a registry slot only while coopGroup != Off
 
     MeterState meters;

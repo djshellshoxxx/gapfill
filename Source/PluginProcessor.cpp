@@ -238,6 +238,8 @@ void GapFillAudioProcessor::reset()
 //==============================================================================
 void GapFillAudioProcessor::timerCallback()
 {
+    if (stateSaveFailed.exchange (false, std::memory_order_relaxed))
+        recipeServices.postMessage ("Project state could not be saved within its validation or size limits. The previous saved state was retained.", 6000);
     drainFillEvents();
     explainState.timerTick (juce::Time::getMillisecondCounter());
     contextState.timerTick (juce::Time::getMillisecondCounter(), pb (params.fx05_on), pv (params.fx05_strength) * 0.01f);
@@ -1237,10 +1239,26 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     uiState.writeState (root);
     root.appendChild (apvts.copyState(), nullptr);
     root.appendChild (midiLearn.toValueTree(), nullptr);
-    state::writeSubtrees (*this, root, state::reservedSubtrees());
+    const auto written = state::writeSubtrees (*this, root, state::reservedSubtrees());
+    if (! written.ok)
+    {
+        stateSaveFailed.store (true, std::memory_order_relaxed);
+        return;
+    }
 
     if (auto xml = root.createXml())
-        copyXmlToBinary (*xml, destData);
+    {
+        juce::MemoryBlock candidate;
+        copyXmlToBinary (*xml, candidate);
+        if (candidate.getSize() > (size_t) maxPresetFileBytes)
+        {
+            stateSaveFailed.store (true, std::memory_order_relaxed);
+            return;
+        }
+        destData.swapWith (candidate);
+    }
+    else
+        stateSaveFailed.store (true, std::memory_order_relaxed);
 }
 
 bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state) const
@@ -1505,6 +1523,8 @@ bool GapFillAudioProcessor::loadParameterStateFromFile (const juce::File& file, 
 //==============================================================================
 void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
+    if (data == nullptr || sizeInBytes <= 0 || sizeInBytes > maxPresetFileBytes)
+        return;
     auto xml = getXmlFromBinary (data, sizeInBytes);
 
     if (xml == nullptr)
