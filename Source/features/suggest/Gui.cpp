@@ -4,9 +4,36 @@
 #include "../../gui/HelpRegistry.h"
 #include "../../gui/LookAndFeel.h"
 #include "../presetbrowser/PresetCatalog.h"
+#include "../i18n/Strings.h"
+#include "../i18n/ComponentTranslator.h"
 
 namespace gapfill::suggest
 {
+namespace
+{
+    juce::String displayReason (const InputProfile& profile, Reason reason)
+    {
+        using i18n::format;
+        switch (reason)
+        {
+            case Reason::DenseHits:   return format ("dense hits, {0} per second", { juce::String (profile.eventsPerSec, 1) });
+            case Reason::SparseHits:  return format ("sparse hits, {0} per second", { juce::String (profile.eventsPerSec, 1) });
+            case Reason::ShortGaps:   return format ("short gaps, {0} % of the time", { juce::String (juce::roundToInt (profile.gapFraction * 100.0f)) });
+            case Reason::LongGaps:    return format ("long gaps, {0} % of the time", { juce::String (juce::roundToInt (profile.gapFraction * 100.0f)) });
+            case Reason::Loud:        return format ("loud material, {0} dB", { juce::String (juce::roundToInt (profile.levelDb)) });
+            case Reason::Quiet:       return format ("quiet material, {0} dB", { juce::String (juce::roundToInt (profile.levelDb)) });
+            case Reason::BassHeavy:   return format ("bass-heavy, {0} % low band", { juce::String (juce::roundToInt (profile.lowShare * 100.0f)) });
+            case Reason::TrebleHeavy: return format ("bright, {0} % high band", { juce::String (juce::roundToInt (profile.highShare * 100.0f)) });
+        }
+        return {};
+    }
+
+    juce::String displayMeasured (const InputProfile& profile)
+    {
+        return i18n::format ("{0} hits/s, gaps {1} % of the time, {2} dB", { juce::String (profile.eventsPerSec, 1),
+            juce::String (juce::roundToInt (profile.gapFraction * 100.0f)), juce::String (juce::roundToInt (profile.levelDb)) });
+    }
+}
 
 SuggestSession::SuggestSession (GapFillAudioProcessor& p, std::shared_ptr<settings::GlobalSettings> s)
     : proc (p), settingsFile (std::move (s)) {}
@@ -207,16 +234,16 @@ void SuggestView::refresh()
     const auto phase = session.getPhase();
 
     if (phase == P::Listening)
-        summaryText = "Listening " + juce::String (juce::roundToInt (session.getSecondsListened())) + " of "
-                    + juce::String (juce::roundToInt (session.getSecondsTotal())) + " s";
+        summaryText = i18n::format ("Listening {0} of {1} s", { juce::String (juce::roundToInt (session.getSecondsListened())),
+                                                              juce::String (juce::roundToInt (session.getSecondsTotal())) });
     else if (phase == P::Result)
-        summaryText = "Measured: " + session.getMessage() + " (with your current detector settings)";
+        summaryText = i18n::format ("Measured: {0} (with your current detector settings)", { displayMeasured (session.getProfile()) });
     else if (phase == P::NoSignal)
-        summaryText = session.getMessage();
+        summaryText = i18n::text (session.getMessage());
     else if (! session.hasConsent())
-        summaryText = "GapFill will listen to your input for about 10 seconds on this computer. Nothing is recorded or sent anywhere.";
+        summaryText = i18n::text ("GapFill will listen to your input for about 10 seconds on this computer. Nothing is recorded or sent anywhere.");
     else
-        summaryText = session.getMessage().isNotEmpty() ? session.getMessage() : juce::String ("Press LISTEN while your track plays.");
+        summaryText = i18n::text (session.getMessage().isNotEmpty() ? session.getMessage() : juce::String ("Press LISTEN while your track plays."));
 
     for (int i = 0; i < 3; ++i)
     {
@@ -226,10 +253,11 @@ void SuggestView::refresh()
         if (show)
         {
             const auto& s = session.getSuggestion (i);
-            rowText[i] = juce::String (proc.getProgramName (s.presetIndex)) + "  -  " + confidenceWord (s.confidence)
-                       + "  -  " + describeReason (session.getProfile(), s.reason);
-            loadButtons[i].setTitle ("Load " + juce::String (proc.getProgramName (s.presetIndex)) + ", "
-                                     + confidenceWord (s.confidence) + ", " + describeReason (session.getProfile(), s.reason));
+            const auto name = proc.getProgramName (s.presetIndex); // permanent factory identity
+            const auto confidence = i18n::text (confidenceWord (s.confidence));
+            const auto reason = displayReason (session.getProfile(), s.reason);
+            rowText[i] = i18n::format ("{0}  -  {1}  -  {2}", { name, confidence, reason });
+            loadButtons[i].setTitle (i18n::format ("Load {0}, {1}, {2}", { name, confidence, reason }));
         }
         else
         {
@@ -296,7 +324,7 @@ void SuggestView::paint (juce::Graphics& g)
     g.fillRoundedRectangle (getLocalBounds().toFloat(), 3.0f);
 
     g.setColour (colours::text);
-    g.setFont (fonts::ui (11.5f));
+    g.setFont (i18n::fontForText (fonts::ui (11.5f), summaryText));
     g.drawFittedText (summaryText, summaryBounds, juce::Justification::centredLeft, 2, 1.0f);
 
     if (session.getPhase() == SuggestSession::Phase::Listening)
@@ -309,12 +337,11 @@ void SuggestView::paint (juce::Graphics& g)
         g.fillRect (bar.withWidth (bar.getWidth() * session.getProgress()));
     }
 
-    g.setFont (fonts::ui (11.5f));
-
     for (int i = 0; i < 3; ++i)
         if (rowText[i].isNotEmpty())
         {
             g.setColour (colours::text);
+            g.setFont (i18n::fontForText (fonts::ui (11.5f), rowText[i]));
             g.drawText (rowText[i], rowBounds[i].withTrimmedRight (60), juce::Justification::centredLeft, true);
         }
 }

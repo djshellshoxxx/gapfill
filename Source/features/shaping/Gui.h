@@ -13,6 +13,7 @@
 
 #include "../../PluginProcessor.h"
 #include "../../gui/Knob.h"
+#include "../i18n/ComponentTranslator.h"
 
 #include <memory>
 #include <vector>
@@ -98,6 +99,7 @@ private:
     juce::TextButton recapture { "RECAPTURE" }, release { "RELEASE" };
     bool advanced = true;
     std::vector<int> titleY;
+    std::unique_ptr<i18n::ComponentTranslator> translator;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ShapePanel)
 };

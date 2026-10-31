@@ -56,3 +56,16 @@ default and large layouts at all supported scales. Native full-suite runs,
 screen-reader behavior, real host displays and multilingual glyph coverage on
 Windows/macOS remain separate evidence. No human acceptance is inferred from
 these synthetic/native probes.
+
+The subsequent readout slice wires calibration/suggestion summaries, shaping
+and capture, performance pad painting, groove, scale, energy, battles,
+call/response, tension editor/status and hover/effective-value accessibility.
+The calibration UI reads two original scalar settings for its complete result
+sentence; analysis results, storage and audio execution remain unchanged.
+Known uppercase aliases fix labels whose constructors uppercase the canonical
+display name. The current native alias probe passes while retaining canonical
+metadata and path arguments. All 17 affected translation units/tests passed
+native syntax checks across this slice. The final source inventory additionally
+prunes factory identities, serialized state/reason/command keys and compiler
+diagnostics; English is 165,056 bytes and pseudo is 232,204 bytes on this branch,
+before the coordinator incorporates other feature owners' new text.

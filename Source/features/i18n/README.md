@@ -26,6 +26,9 @@ nothing. Mark user/factory identities and device/profile names with
 catalog entry. It preserves text/item IDs and skips editable user text; static
 field metadata may translate. Call `translateMenu(menu, preserveItemPredicate)`
 before showing dynamic menus, preserving user-data item IDs explicitly.
+Known English uppercase presentation aliases cover parameter labels produced by
+`toUpperCase()` without changing host names. A language change repaints the root
+so custom renderers update even while their audio/model state is unchanged.
 
 Options, Help writer sinks and reason/legend presentation use the service.
 Separate preset-browser and Mutation Lab call-outs own adapters because desktop
@@ -37,6 +40,10 @@ serialized recipe descriptions keep the existing canonical English function.
 `errorText` recognizes documented legacy file-error templates at presentation
 sinks and preserves path/name arguments. Registered ParamInfo tooltips use an
 exact alias table plus complete templates, retaining canonical metadata APIs.
+Calibration/suggestion, shaping/capture, performance pads, groove, scale,
+energy, battles, call/response, tension and hover/effective-value readouts also
+format presentation sentences explicitly; their analysis and protocol helpers
+keep canonical data. Separate shaping/curve-editor call-outs own adapters.
 `fontForText` checks nominal glyph coverage and falls back to JUCE default sans
 when the chosen face is missing a character. Renderer owners must use it where
 they select fonts for custom drawing. English reason enum labels/advice remain

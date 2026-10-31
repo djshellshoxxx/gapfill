@@ -50,6 +50,14 @@ def classify(value: str, source: str, start: int, end: int, path: Path, ids: set
     suffix = source[end:end + 80]
     if re.search(r"(?:i18n::)?(?:text|format)\s*\(\s*$", prefix) and re.search(r"[A-Za-z]", value):
         return "explicit-translation"
+    if (path.name in ("StateSubtrees.cpp", "SchedulerTypes.cpp")
+            or path.name in ("Presets.cpp", "Suggest.cpp") and re.search(r"\{\s*$", prefix)
+            or re.search(r"\bstatic_assert\s*\([^;]*,\s*$", prefix)):
+        return "protected-or-nonprose"  # state/reason codes, factory identities and compiler diagnostics
+    if path.name == "ControllerProfile.cpp":
+        command_keys = source.find("kCommandKeys")
+        if command_keys >= 0 and command_keys < start < source.find("};", command_keys):
+            return "protected-or-nonprose"
     if (not re.search(r"[A-Za-z]", value) or value in PROTECTED or value in ids or len(value) > 8192
             or re.fullmatch(r"[A-Z]", value) or re.fullmatch(r"[0-9eE .,+/\-]+", value)
             or "\0" in value or re.search(r"#[ \t]*include[^\n]*$", prefix)

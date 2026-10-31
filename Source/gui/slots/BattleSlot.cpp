@@ -8,6 +8,7 @@
 #include "../LookAndFeel.h"
 #include "../SlotHost.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -93,9 +94,11 @@ namespace
         void refresh()
         {
             auto& live = proc.getLiveControl();
-            const auto base = juce::String (battle::statusText (live.getBattleStatus()));
-            const auto text = base + "   [A " + (live.battles().hasStyle (0) ? "stored" : "empty")
-                                + ", B " + (live.battles().hasStyle (1) ? "stored" : "empty") + "]" + notice;
+            const auto base = i18n::text (battle::statusText (live.getBattleStatus()));
+            auto text = i18n::format ("{0}   [A {1}, B {2}]", { base, live.battles().hasStyle (0) ? i18n::text ("stored") : i18n::text ("empty"),
+                                                                           live.battles().hasStyle (1) ? i18n::text ("stored") : i18n::text ("empty") });
+            if (notice.isNotEmpty())
+                text = i18n::format ("{0}  (header A/B is not available)", { text });
 
             if (status.getText() != text)
             {

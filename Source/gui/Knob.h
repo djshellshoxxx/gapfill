@@ -2,6 +2,8 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <optional>
+#include <cstdint>
+#include <limits>
 #include "LookAndFeel.h"
 
 namespace gapfill
@@ -134,6 +136,7 @@ private:
     bool large = false;
     bool readoutVisible = false;
     std::optional<double> effective01;
+    std::uint64_t effectiveLanguageGeneration = std::numeric_limits<std::uint64_t>::max();
     int effectiveIndex = -1;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GapKnob)

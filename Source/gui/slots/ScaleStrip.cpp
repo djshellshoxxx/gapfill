@@ -9,6 +9,7 @@
 #include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
 #include "../../features/scale/ScaleLock.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -91,16 +92,16 @@ namespace
         void refreshChip()
         {
             const auto set = scale::makeScaleSet (rawChoice ("scaleRoot"), rawChoice ("scaleType"));
-            char label[64] {}, classes[64] {};
-            scale::describeShort (set, label, (int) sizeof (label));
+            char classes[64] {};
             scale::describePitchClasses (set, classes, (int) sizeof (classes));
 
-            const auto text = set.active() ? juce::String ("Key: ") + juce::String (label) : juce::String ("Key: not set");
+            const auto text = set.active() ? i18n::format ("Key: {0} {1}", { scale::rootName (set.root), i18n::text (scale::scaleName (set.type)) })
+                                           : i18n::text ("Key: not set");
 
             if (chip.getText() != text)
                 chip.setText (text, juce::dontSendNotification);
 
-            chip.setTooltip (set.active() ? juce::String ("Notes in key: ") + juce::String (classes) : juce::String ("Scale Lock is off."));
+            chip.setTooltip (set.active() ? i18n::format ("Notes in key: {0}", { juce::String (classes) }) : i18n::text ("Scale Lock is off."));
         }
 
         int rawChoice (const char* id) const

@@ -431,18 +431,26 @@ void GapKnob::setEffectiveValue (std::optional<double> v01)
     if (v01.has_value())
         v01 = juce::jlimit (0.0, 1.0, *v01);
 
-    if (v01 == effective01)
+    const auto generation = i18n::languageGeneration();
+    if (v01 == effective01 && generation == effectiveLanguageGeneration)
         return;
 
+    effectiveLanguageGeneration = generation;
     effective01 = v01;
     slider.getProperties().set (effectiveProperty, effective01.has_value() ? *effective01 : -1.0);
 
     if (parameter != nullptr)
     {
-        slider.setDescription (effective01.has_value()
-                                   ? baseDescription + " Effective value " + parameter->getText ((float) *effective01, 0)
-                                       .replace ("%", " percent") + "."
-                                   : baseDescription);
+        const auto base = i18n::text (baseDescription);
+        if (! effective01.has_value())
+            slider.setDescription (base);
+        else
+        {
+            const auto value = parameter->getText ((float) *effective01, 0);
+            slider.setDescription (value.endsWithChar ('%')
+                ? i18n::format ("{0} Effective value {1} percent.", { base, value.dropLastCharacters (1).trimEnd() })
+                : i18n::format ("{0} Effective value {1}.", { base, value }));
+        }
     }
 
     refreshValueText();

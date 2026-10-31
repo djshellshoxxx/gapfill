@@ -20,7 +20,10 @@ namespace
                     english.load (locale.bytes, locale.size, error);
             for (const auto& entry : english.entries())
                 if (! entry.first.startsWith ("locale."))
+                {
                     byEnglish.emplace (entry.second, entry.first);
+                    uppercaseEnglish.emplace (entry.second.toUpperCase(), entry.first);
+                }
             // Exact registered presentation aliases only. Arbitrary unknown or
             // user text is never interpreted as a sentence to be translated.
             for (const auto& metadata : info::ParamInfoRegistry::get().all())
@@ -43,6 +46,9 @@ namespace
             const auto key = byEnglish.find (source);
             if (key != byEnglish.end())
                 return lookup (key->second);
+            const auto uppercase = uppercaseEnglish.find (source);
+            if (uppercase != uppercaseEnglish.end())
+                return lookup (uppercase->second).toUpperCase();
             const auto tooltip = parameterTooltips.find (source);
             if (tooltip == parameterTooltips.end())
                 return source;
@@ -83,6 +89,7 @@ namespace
 
         Catalog english, selected;
         std::map<juce::String, juce::String> byEnglish;
+        std::map<juce::String, juce::String> uppercaseEnglish;
         std::map<juce::String, info::ParamInfo> parameterTooltips;
         juce::String language = "en";
         std::uint64_t generation = 0;

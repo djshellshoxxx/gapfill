@@ -4,6 +4,8 @@
 #include "../../gui/HelpRegistry.h"
 #include "../../gui/LookAndFeel.h"
 #include "../presetbrowser/GlobalSettings.h"
+#include "../i18n/Strings.h"
+#include "../i18n/ComponentTranslator.h"
 
 namespace gapfill::calibrate
 {
@@ -75,16 +77,30 @@ void CalibrateCard::refresh()
     const bool showIdleMessage = phase == Phase::Idle && idleMessageTicks > 0 && session.getMessage().isNotEmpty();
     const bool show = phase != Phase::Idle || showIdleMessage;
 
-    juce::String t = session.getMessage();
+    juce::String t = i18n::text (session.getMessage());
 
     if (phase == Phase::Recording)
-        t = "Listening... " + juce::String (juce::roundToInt (session.getSecondsLeft())) + " s left. Play representative audio through GapFill.";
+        t = i18n::format ("Listening... {0} s left. Play representative audio through GapFill.", { juce::String (juce::roundToInt (session.getSecondsLeft())) });
     else if (phase == Phase::Analysing)
-        t = "Analysing... " + juce::String (juce::roundToInt (session.getProgress() * 100.0f)) + " %";
+        t = i18n::format ("Analysing... {0} %", { juce::String (juce::roundToInt (session.getProgress() * 100.0f)) });
+
+    if (phase == Phase::Result || phase == Phase::Applied)
+    {
+        const auto& result = session.getResult();
+        const auto pattern = result.limited
+            ? "Sensitivity {0} -> {1}, Gap Threshold {2} -> {3}, Min Gap {4} ms. Found {5} hits/s, gaps {6} % of the time. (Best achievable for this material - limited.)"
+            : "Sensitivity {0} -> {1}, Gap Threshold {2} -> {3}, Min Gap {4} ms. Found {5} hits/s, gaps {6} % of the time.";
+        t = result.ok ? i18n::format (pattern, { juce::String (session.getInitialSensitivity()), juce::String (result.sensitivity),
+                  juce::String (session.getInitialGapThreshold()), juce::String (result.gapThresh), juce::String (result.minGapMs),
+                  juce::String (result.chosen.eventsPerSec, 1), juce::String ((int) std::lround (result.chosen.gapFraction * 100.0f)) })
+                      : i18n::text (result.reason);
+        if (phase == Phase::Applied)
+            t = i18n::format ("Applied. {0}", { t });
+    }
 
     if (phase == Phase::Result || phase == Phase::Applied)
         if (const auto warning = session.getSourceWarning(); warning.isNotEmpty())
-            t << "  " << warning << ".";
+            t = i18n::format ("{0}  {1}.", { t, i18n::text (warning) });
 
     text = t;
 
@@ -93,8 +109,8 @@ void CalibrateCard::refresh()
     discardButton.setVisible (phase == Phase::Result);
     revertButton.setVisible (phase == Phase::Applied);
     revertButton.setEnabled (session.canRevert());
-    revertButton.setTooltip (session.canRevert() ? "Restore the settings from before Auto-Calibrate"
-                                                  : "Undo history moved on");
+    revertButton.setTooltip (i18n::text (session.canRevert() ? "Restore the settings from before Auto-Calibrate"
+                                                  : "Undo history moved on"));
     closeButton.setVisible (phase == Phase::Applied || showIdleMessage);
 
     if (show != isVisible() || phase != shownPhase)
@@ -135,7 +151,7 @@ void CalibrateCard::paint (juce::Graphics& g)
     area.removeFromBottom (24);
 
     g.setColour (colours::text);
-    g.setFont (fonts::ui (12.5f));
+    g.setFont (i18n::fontForText (fonts::ui (12.5f), text));
     g.drawFittedText (text, area, juce::Justification::topLeft, 3, 1.0f);
 
     const auto phase = session.getPhase();

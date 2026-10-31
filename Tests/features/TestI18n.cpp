@@ -7,6 +7,7 @@
 #include "features/history/Describe.h"
 #include "features/presetbrowser/PresetBrowser.h"
 #include "features/info/ParamInfo.h"
+#include "features/info/StatusBoard.h"
 #include "gui/HelpView.h"
 #include "../support/AllocGuard.h"
 #include <array>
@@ -229,6 +230,7 @@ GF_TEST (I18n, registered_parameter_tooltips_translate_as_presentation_only)
     GF_EXPECT (displayed != canonical);
     GF_EXPECT (displayed.contains (metadata->typicalRange));
     GF_EXPECT (gapfill::info::tooltipFor (*metadata) == canonical);
+    GF_EXPECT (text ("GAP CONFIRM") == text ("Gap Confirm").toUpperCase());
 }
 
 GF_TEST (I18n, layout_no_clip_longest_string)
@@ -246,5 +248,22 @@ GF_TEST (I18n, layout_no_clip_longest_string)
             content.setSize (width, content.idealHeight());
             GF_EXPECT (! content.hasHorizontalOverflow());
         }
+    }
+}
+
+GF_TEST (I18n, hover_parameter_readout_localizes_only_presentation)
+{
+    gapfill::GapFillAudioProcessor processor;
+    auto& state = processor.getValueTreeState();
+    const auto value = state.getParameter ("density")->getValue();
+    juce::String english;
+    {
+        ScopedLanguage language ("en");
+        english = gapfill::info::describeParameter (state, "density");
+    }
+    {
+        ScopedLanguage language ("pseudo");
+        GF_EXPECT (gapfill::info::describeParameter (state, "density") != english);
+        GF_EXPECT (state.getParameter ("density")->getValue() == value);
     }
 }

@@ -1010,9 +1010,9 @@
   {
     "english": "weight table must cover every algorithm",
     "file": "Source/Parameters.cpp",
-    "key": "s.a5d0525764b9",
+    "key": null,
     "line": 143,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "protTrans",
@@ -3341,9 +3341,9 @@
   {
     "english": "MeterState::reasonCount must cover every RejectReason",
     "file": "Source/PluginProcessor.cpp",
-    "key": "s.cd1b152b0aa5",
+    "key": null,
     "line": 20,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Input",
@@ -3817,9 +3817,9 @@
   {
     "english": "Init",
     "file": "Source/Presets.cpp",
-    "key": "s.34b291c67838",
+    "key": null,
     "line": 18,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Plain defaults - a good neutral starting point.",
@@ -3838,9 +3838,9 @@
   {
     "english": "Subtle Ear Candy",
     "file": "Source/Presets.cpp",
-    "key": "s.d599279fe5b5",
+    "key": null,
     "line": 20,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Occasional short reverses and filtered echoes that never fight the groove.",
@@ -3985,9 +3985,9 @@
   {
     "english": "Drum Gap Glitch",
     "file": "Source/Presets.cpp",
-    "key": "s.fbf34604f293",
+    "key": null,
     "line": 30,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Classic between-the-hits glitching for loops and drum buses.",
@@ -4132,9 +4132,9 @@
   {
     "english": "DnB Micro Fills",
     "file": "Source/Presets.cpp",
-    "key": "s.997f82024e01",
+    "key": null,
     "line": 41,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Fast micro-edits between breakbeat hits with the attacks left intact.",
@@ -4321,9 +4321,9 @@
   {
     "english": "Breakcore Destroyer",
     "file": "Source/Presets.cpp",
-    "key": "s.2e938526c2c0",
+    "key": null,
     "line": 54,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Everything on, everywhere - still keeps the original hits punching through.",
@@ -4496,9 +4496,9 @@
   {
     "english": "Ghost Reverses",
     "file": "Source/Presets.cpp",
-    "key": "s.ecdf7410bbac",
+    "key": null,
     "line": 66,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Reverse swells rising into each hit.",
@@ -4601,9 +4601,9 @@
   {
     "english": "Industrial Debris",
     "file": "Source/Presets.cpp",
-    "key": "s.8ab810fbc3ef",
+    "key": null,
     "line": 74,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Metallic comb resonances and crushed shrapnel in the spaces.",
@@ -4741,9 +4741,9 @@
   {
     "english": "Vocal Ghosts",
     "file": "Source/Presets.cpp",
-    "key": "s.a1726809a120",
+    "key": null,
     "line": 84,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phrase-aware granular and reverse tails after vocal lines.",
@@ -4937,9 +4937,9 @@
   {
     "english": "Vocal Delay Fills",
     "file": "Source/Presets.cpp",
-    "key": "s.bbe385222b14",
+    "key": null,
     "line": 97,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Rhythmic ping-pong echoes that appear only where the singer breathes.",
@@ -5077,9 +5077,9 @@
   {
     "english": "Bass Between Kicks",
     "file": "Source/Presets.cpp",
-    "key": "s.25c88f26dfa6",
+    "key": null,
     "line": 108,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sidechain the drums in: fills appear only where the kick is not.",
@@ -5217,9 +5217,9 @@
   {
     "english": "Granular Spaces",
     "file": "Source/Presets.cpp",
-    "key": "s.dc4e44d11de8",
+    "key": null,
     "line": 118,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Wide granular clouds filling the longer gaps.",
@@ -5329,9 +5329,9 @@
   {
     "english": "Trance Transitions",
     "file": "Source/Presets.cpp",
-    "key": "s.e41789ab28ab",
+    "key": null,
     "line": 127,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Long filtered and pitched risers between phrases.",
@@ -5504,9 +5504,9 @@
   {
     "english": "Trip Hop Dust",
     "file": "Source/Presets.cpp",
-    "key": "s.d31c5577d59d",
+    "key": null,
     "line": 139,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Quiet, dusty debris in the spaces of a slow beat.",
@@ -5651,9 +5651,9 @@
   {
     "english": "Spectral High Fill",
     "file": "Source/Presets.cpp",
-    "key": "s.eb476fe7d508",
+    "key": null,
     "line": 149,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Leaves the kick alone and drops glitches into the empty top end.",
@@ -5791,9 +5791,9 @@
   {
     "english": "Spectral Mid Mutation",
     "file": "Source/Presets.cpp",
-    "key": "s.0aa2f9dd0eee",
+    "key": null,
     "line": 159,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Mutates the midrange while lows and highs carry on untouched.",
@@ -5945,9 +5945,9 @@
   {
     "english": "Sparse Texture",
     "file": "Source/Presets.cpp",
-    "key": "s.54c6cfe6e8dc",
+    "key": null,
     "line": 171,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Rare, synthesised textures shaped by the track's own spectrum.",
@@ -6050,9 +6050,9 @@
   {
     "english": "Extreme Chaos",
     "file": "Source/Presets.cpp",
-    "key": "s.69933bb7b90a",
+    "key": null,
     "line": 179,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Maximum variation. Bounded, but only just.",
@@ -6183,9 +6183,9 @@
   {
     "english": "Breaks Chop Shop",
     "file": "Source/Presets.cpp",
-    "key": "s.aeba86f6ea96",
+    "key": null,
     "line": 190,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Snare-roll and stutter edits between break hits.",
@@ -6337,9 +6337,9 @@
   {
     "english": "Dub Echo Throwbacks",
     "file": "Source/Presets.cpp",
-    "key": "s.c60893c8555d",
+    "key": null,
     "line": 200,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Tempo-synced echoes thrown from the last hit.",
@@ -6498,9 +6498,9 @@
   {
     "english": "Trance Riser Fills",
     "file": "Source/Presets.cpp",
-    "key": "s.630869c9cb46",
+    "key": null,
     "line": 210,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Pitch risers and reverse swells into the downbeat.",
@@ -6631,9 +6631,9 @@
   {
     "english": "Ambient Drift Fills",
     "file": "Source/Presets.cpp",
-    "key": "s.eb1072ef4d86",
+    "key": null,
     "line": 218,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Slow grains and spectral haze in the spaces.",
@@ -6792,9 +6792,9 @@
   {
     "english": "Liquid DnB Rollers",
     "file": "Source/Presets.cpp",
-    "key": "s.92c4217bad06",
+    "key": null,
     "line": 227,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Smooth micro-rolls that keep the amen groove intact.",
@@ -6974,9 +6974,9 @@
   {
     "english": "House Groove Edits",
     "file": "Source/Presets.cpp",
-    "key": "s.d03a86d6d6f4",
+    "key": null,
     "line": 238,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Light filter sweeps and short reverses that do not move the groove.",
@@ -7128,9 +7128,9 @@
   {
     "english": "Hip-Hop Dust Chops",
     "file": "Source/Presets.cpp",
-    "key": "s.9f735d27ddca",
+    "key": null,
     "line": 247,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Dusty vinyl-style stutters and tape stops after the snare.",
@@ -7275,9 +7275,9 @@
   {
     "english": "Techno Rumble Gaps",
     "file": "Source/Presets.cpp",
-    "key": "s.03c201a2c5bd",
+    "key": null,
     "line": 256,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Dark comb rings and distortion rumbling between kicks.",
@@ -7415,9 +7415,9 @@
   {
     "english": "Dub Siren Throws",
     "file": "Source/Presets.cpp",
-    "key": "s.57b18f08e7a5",
+    "key": null,
     "line": 266,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Long triplet echoes with filtered tails; sparse and deep.",
@@ -7597,9 +7597,9 @@
   {
     "english": "Dub Tape Spin Outs",
     "file": "Source/Presets.cpp",
-    "key": "s.02e9d811f592",
+    "key": null,
     "line": 276,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Tape stops and slow-motion echoes that drag the groove into space.",
@@ -7758,9 +7758,9 @@
   {
     "english": "Sidechain Kick Gaps",
     "file": "Source/Presets.cpp",
-    "key": "s.95afd6196e78",
+    "key": null,
     "line": 286,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Detects the kick on the sidechain input; fills only where it is not.",
@@ -7870,9 +7870,9 @@
   {
     "english": "Hybrid Safe Bus",
     "file": "Source/Presets.cpp",
-    "key": "s.d8eac69b782a",
+    "key": null,
     "line": 294,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sidechain finds the space, the bus keeps its own hits protected. Conservative.",
@@ -7975,9 +7975,9 @@
   {
     "english": "Whisper Reverses",
     "file": "Source/Presets.cpp",
-    "key": "s.9edbc265719e",
+    "key": null,
     "line": 303,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Quiet reverse swells that melt into the next hit.",
@@ -8080,9 +8080,9 @@
   {
     "english": "Soft Filter Breaths",
     "file": "Source/Presets.cpp",
-    "key": "s.0880d58543cf",
+    "key": null,
     "line": 311,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Slow filter movements in the pauses. Barely there, always musical.",
@@ -8178,9 +8178,9 @@
   {
     "english": "Start Here - Drum Bus",
     "file": "Source/Presets.cpp",
-    "key": "s.23eeb190d752",
+    "key": null,
     "line": 319,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "A balanced first setting for a drum bus: audible, musical and safe.",
@@ -8269,9 +8269,9 @@
   {
     "english": "Start Here - Full Mix",
     "file": "Source/Presets.cpp",
-    "key": "s.b0abb9d076c0",
+    "key": null,
     "line": 326,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Gentle fills for a full mix: long gaps only, hits and low end protected.",
@@ -8374,9 +8374,9 @@
   {
     "english": "Start Here - Vocals",
     "file": "Source/Presets.cpp",
-    "key": "s.e956c41b0c37",
+    "key": null,
     "line": 333,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phrase detection for a vocal track: fills only in the real pauses.",
@@ -8493,9 +8493,9 @@
   {
     "english": "Try One Algorithm - Reverse",
     "file": "Source/Presets.cpp",
-    "key": "s.8e500e60a679",
+    "key": null,
     "line": 341,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Only reverse fills, so you can hear what one algorithm does.",
@@ -8584,9 +8584,9 @@
   {
     "english": "Try One Algorithm - Stutter",
     "file": "Source/Presets.cpp",
-    "key": "s.b0a2be9ac9d5",
+    "key": null,
     "line": 348,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Only stutter fills, so you can hear what one algorithm does.",
@@ -8682,9 +8682,9 @@
   {
     "english": "Try Spectral Lanes - Highs",
     "file": "Source/Presets.cpp",
-    "key": "s.c5811da4758c",
+    "key": null,
     "line": 356,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Spectral detection with fills only in the top lane; lows and mids carry on.",
@@ -8794,9 +8794,9 @@
   {
     "english": "Stutter Gate Chops",
     "file": "Source/Presets.cpp",
-    "key": "s.99da553a5019",
+    "key": null,
     "line": 365,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Tight 1/32 stutter gates with a few reverses; keeps the beat's pulse.",
@@ -8934,9 +8934,9 @@
   {
     "english": "Half-Time Gap Rolls",
     "file": "Source/Presets.cpp",
-    "key": "s.d5a92e2a20dd",
+    "key": null,
     "line": 374,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Slower 1/8 rolls and delays that give a straight beat a half-time feel.",
@@ -9081,9 +9081,9 @@
   {
     "english": "Crushed Gap Debris",
     "file": "Source/Presets.cpp",
-    "key": "s.9c316222059c",
+    "key": null,
     "line": 384,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Bit-crushed and distorted shards in every gap; hits stay punchy.",
@@ -9207,9 +9207,9 @@
   {
     "english": "Shimmer Tail Wash",
     "file": "Source/Presets.cpp",
-    "key": "s.6b86c3ca23b5",
+    "key": null,
     "line": 393,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Rising shimmer and grain washes that bloom in long gaps.",
@@ -9487,58 +9487,58 @@
   {
     "english": "Subtle Sparkle",
     "file": "Source/Presets.cpp",
-    "key": "s.06b1749e8c87",
+    "key": null,
     "line": 536,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Drum Edits",
     "file": "Source/Presets.cpp",
-    "key": "s.1ce2530656cb",
+    "key": null,
     "line": 539,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch Storm",
     "file": "Source/Presets.cpp",
-    "key": "s.84bd416cb123",
+    "key": null,
     "line": 542,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Dub Echoes",
     "file": "Source/Presets.cpp",
-    "key": "s.1b46d0271145",
+    "key": null,
     "line": 545,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Ambient Haze",
     "file": "Source/Presets.cpp",
-    "key": "s.3cb151b24a5c",
+    "key": null,
     "line": 548,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Pitch Bender",
     "file": "Source/Presets.cpp",
-    "key": "s.c6eb0cd19ba0",
+    "key": null,
     "line": 551,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Industrial Grit",
     "file": "Source/Presets.cpp",
-    "key": "s.537274579812",
+    "key": null,
     "line": 554,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Tape Breakdown",
     "file": "Source/Presets.cpp",
-    "key": "s.9fe223159dd2",
+    "key": null,
     "line": 557,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "fill",
@@ -9879,16 +9879,16 @@
   {
     "english": "FillRecipe isValid() algo range must track Algo",
     "file": "Source/dsp/FillEngine.cpp",
-    "key": "s.f5be7afd22cd",
+    "key": null,
     "line": 23,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "FillRecipe isValid() division range must track Division",
     "file": "Source/dsp/FillEngine.cpp",
-    "key": "s.34e809dcaff4",
+    "key": null,
     "line": 24,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "EngineEvents.h",
@@ -10012,16 +10012,16 @@
   {
     "english": "FillRecipe is serialised as 16 bytes",
     "file": "Source/dsp/FillRecipe.h",
-    "key": "s.90a3ef4d44ca",
+    "key": null,
     "line": 46,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "FillRecipe must be POD-like",
     "file": "Source/dsp/FillRecipe.h",
-    "key": "s.cac577f2ead4",
+    "key": null,
     "line": 47,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "FillVoice.h",
@@ -10131,128 +10131,128 @@
   {
     "english": "None",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.dc937b598926",
+    "key": null,
     "line": 10,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "FillOff",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.08e39cb846c4",
+    "key": null,
     "line": 11,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "NoSource",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.c781cef5bd59",
+    "key": null,
     "line": 12,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "TooSoon",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.88b37b37631e",
+    "key": null,
     "line": 13,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "NoVoice",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.65913cba4ce3",
+    "key": null,
     "line": 14,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "TooShort",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.6f009cd96dfa",
+    "key": null,
     "line": 15,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "GuardEaten",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.eb245aae8016",
+    "key": null,
     "line": 16,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "NoBand",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.ec2d57e023ad",
+    "key": null,
     "line": 17,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "DensityRoll",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.62231d47ef25",
+    "key": null,
     "line": 18,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "NoAlgoFits",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.5f38b14a3c30",
+    "key": null,
     "line": 19,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "SourceUnavailable",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.0ee57f3e325e",
+    "key": null,
     "line": 20,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "LockSkipped",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.2057f4f96996",
+    "key": null,
     "line": 21,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "BudgetFull",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.a13d61bf2072",
+    "key": null,
     "line": 22,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "QuietZone",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.1f61600e84fc",
+    "key": null,
     "line": 23,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "ScGated",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.f19d2ddf83f9",
+    "key": null,
     "line": 24,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Panicked",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.4b8198c2087e",
+    "key": null,
     "line": 25,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "CoopYield",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.191ddc4bd164",
+    "key": null,
     "line": 26,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "ForcedUnsafe",
     "file": "Source/dsp/SchedulerTypes.cpp",
-    "key": "s.48ffd325a98a",
+    "key": null,
     "line": 27,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "-",
@@ -10285,23 +10285,23 @@
   {
     "english": "queue payloads are copied byte-wise across threads",
     "file": "Source/dsp/SpscQueue.h",
-    "key": "s.3857f2680ab8",
+    "key": null,
     "line": 20,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "queue needs capacity",
     "file": "Source/dsp/SpscQueue.h",
-    "key": "s.2fd4db512499",
+    "key": null,
     "line": 21,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "VizFrame travels through a lock-free FIFO",
     "file": "Source/dsp/VisualisationState.h",
-    "key": "s.df402884a4b0",
+    "key": null,
     "line": 41,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stft.h",
@@ -12360,136 +12360,150 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../i18n/Strings.h",
+    "file": "Source/features/calibrate/Gui.cpp",
+    "key": null,
+    "line": 7,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "../i18n/ComponentTranslator.h",
+    "file": "Source/features/calibrate/Gui.cpp",
+    "key": null,
+    "line": 8,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "Auto-Calibrate",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.7fb67768ca97",
-    "line": 13,
+    "line": 15,
     "wiring": "component-adapter"
   },
   {
     "english": "Cancel calibration",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.412d106bc946",
-    "line": 23,
+    "line": 25,
     "wiring": "component-adapter"
   },
   {
     "english": "Apply the suggested settings",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.e2e974995a76",
-    "line": 24,
+    "line": 26,
     "wiring": "component-adapter"
   },
   {
     "english": "Discard the suggestion",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.3c72809fd8ba",
-    "line": 25,
+    "line": 27,
     "wiring": "component-adapter"
   },
   {
     "english": "Revert to the previous settings",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.f37bc10ffa6e",
-    "line": 26,
+    "line": 28,
     "wiring": "component-adapter"
   },
   {
     "english": "Close",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.7d9eb7acb13e",
-    "line": 27,
+    "line": 29,
     "wiring": "component-adapter"
   },
   {
     "english": "calibDurationSec",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": null,
-    "line": 52,
+    "line": 54,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "calibAutoApply",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": null,
-    "line": 63,
+    "line": 65,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "Listening... ",
+    "english": "Listening... {0} s left. Play representative audio through GapFill.",
     "file": "Source/features/calibrate/Gui.cpp",
-    "key": null,
-    "line": 81,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " s left. Play representative audio through GapFill.",
-    "file": "Source/features/calibrate/Gui.cpp",
-    "key": null,
-    "line": 81,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": "Analysing... ",
-    "file": "Source/features/calibrate/Gui.cpp",
-    "key": null,
+    "key": "s.25212bbb23c9",
     "line": 83,
-    "wiring": "pending-dynamic-template"
+    "wiring": "explicit-translation"
   },
   {
-    "english": " %",
+    "english": "Analysing... {0} %",
     "file": "Source/features/calibrate/Gui.cpp",
-    "key": null,
-    "line": 83,
-    "wiring": "protected-or-nonprose"
+    "key": "s.0800695db6ac",
+    "line": 85,
+    "wiring": "explicit-translation"
   },
   {
-    "english": "  ",
+    "english": "Sensitivity {0} -> {1}, Gap Threshold {2} -> {3}, Min Gap {4} ms. Found {5} hits/s, gaps {6} % of the time. (Best achievable for this material - limited.)",
     "file": "Source/features/calibrate/Gui.cpp",
-    "key": null,
-    "line": 87,
-    "wiring": "protected-or-nonprose"
+    "key": "s.dcb433bafbb0",
+    "line": 91,
+    "wiring": "pending-sink-review"
   },
   {
-    "english": ".",
+    "english": "Sensitivity {0} -> {1}, Gap Threshold {2} -> {3}, Min Gap {4} ms. Found {5} hits/s, gaps {6} % of the time.",
+    "file": "Source/features/calibrate/Gui.cpp",
+    "key": "s.a548cb10126d",
+    "line": 92,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "Applied. {0}",
+    "file": "Source/features/calibrate/Gui.cpp",
+    "key": "s.ba59b4af4454",
+    "line": 98,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "{0}  {1}.",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": null,
-    "line": 87,
+    "line": 103,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Restore the settings from before Auto-Calibrate",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.3f3a502367d2",
-    "line": 96,
+    "line": 112,
     "wiring": "component-adapter"
   },
   {
     "english": "Undo history moved on",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.3bd562bc6980",
-    "line": 97,
+    "line": 113,
     "wiring": "component-adapter"
   },
   {
     "english": "Auto-Calibrate",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.7fb67768ca97",
-    "line": 194,
+    "line": 210,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "LEARN (in the Detection panel header) listens to your track for about 8 seconds and suggests Sensitivity, Gap Threshold and Min Gap that suit it. Play representative, rhythmic material through GapFill while it listens. You always see the suggestion first: Apply sets the three values (one Undo step), Discard changes nothing, and Revert restores the old values.",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.b5d4054eb614",
-    "line": 196,
+    "line": 212,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "It needs real playback (not an offline render) and a signal above -60 dBFS for a quarter of the time. Pads and other material without clear hits are reported as such and left alone. With a Sidechain or Hybrid detector source it calibrates from the main input only. Only the three detector values are touched: protection, fill, creative and mix settings stay exactly as they are.",
     "file": "Source/features/calibrate/Gui.cpp",
     "key": "s.8ea04f324c82",
-    "line": 199,
+    "line": 215,
     "wiring": "help-writer-adapter"
   },
   {
@@ -13461,219 +13475,219 @@
   {
     "english": "None",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.dc937b598926",
+    "key": null,
     "line": 13,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Preview",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.324b134f57c7",
+    "key": null,
     "line": 13,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "LikeLatest",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.eec47608ac98",
+    "key": null,
     "line": 13,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "LikeRecipe",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.93ba598cdb4e",
+    "key": null,
     "line": 13,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "LockLatest",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.8551ba550c22",
+    "key": null,
     "line": 13,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "LockRecipe",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.0dcde5f5815c",
+    "key": null,
     "line": 13,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Unlock",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.4ac709aa58bc",
+    "key": null,
     "line": 13,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Recapture",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.ac0d69045f3d",
+    "key": null,
     "line": 13,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "ReleaseCapture",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.3c277fdac7ce",
+    "key": null,
     "line": 14,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Panic",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.9bac926196b6",
+    "key": null,
     "line": 14,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Recover",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.0c5327fd45c7",
+    "key": null,
     "line": 14,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "SceneGoto",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.269750b856a1",
+    "key": null,
     "line": 14,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "SceneNext",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.1671d8baf15f",
+    "key": null,
     "line": 14,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "ScenePrev",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.7ca7591f1b3f",
+    "key": null,
     "line": 14,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "SceneCancel",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.721d69ccdbfa",
+    "key": null,
     "line": 14,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "PresetNext",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.9cd22a46865c",
+    "key": null,
     "line": 15,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "PresetPrev",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.ad381073b1b5",
+    "key": null,
     "line": 15,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "StutterStorm",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.88a576fa630c",
+    "key": null,
     "line": 15,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Roulette",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.b11c49572603",
+    "key": null,
     "line": 15,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "FillNow",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.21adb462463d",
+    "key": null,
     "line": 15,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "MomentaryStutter",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.04720000718d",
+    "key": null,
     "line": 15,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "MomentaryFreeze",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.39e4d08659c0",
+    "key": null,
     "line": 16,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "MomentaryReverse",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.a0ade24ad836",
+    "key": null,
     "line": 16,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "MomentaryTape",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.ec624176831f",
+    "key": null,
     "line": 16,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "SpectralCapture",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.8c3faef2e581",
+    "key": null,
     "line": 16,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "SpectralRelease",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.ad3377f67d7a",
+    "key": null,
     "line": 16,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "GrooveLearn",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.928043aeb0f5",
+    "key": null,
     "line": 17,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "GrooveReset",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.55545abc78c8",
+    "key": null,
     "line": 17,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "AbSwap",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.6f62a52ecbd5",
+    "key": null,
     "line": 17,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "EventRecordToggle",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.73357cd996f5",
+    "key": null,
     "line": 17,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "PreviewRecipe",
     "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": "s.ea409b79085b",
+    "key": null,
     "line": 17,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "cc",
@@ -14602,9 +14616,9 @@
   {
     "english": "published payloads are copied byte-wise",
     "file": "Source/features/common/TripleBuffer.h",
-    "key": "s.d2bb9141d89a",
+    "key": null,
     "line": 20,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "ContextHooks.h",
@@ -14798,16 +14812,16 @@
   {
     "english": "the co-op registry must stay lock-free",
     "file": "Source/features/coop/Coop.h",
-    "key": "s.004a0ed111ef",
+    "key": null,
     "line": 66,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "the co-op registry must stay lock-free",
     "file": "Source/features/coop/Coop.h",
-    "key": "s.004a0ed111ef",
+    "key": null,
     "line": 67,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Effective.h",
@@ -19433,189 +19447,189 @@
     "english": "en",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 28,
+    "line": 31,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "en",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 41,
+    "line": 44,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "{0} - {1}",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 54,
+    "line": 60,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "{0} - {1} Typical: {2}",
     "file": "Source/features/i18n/Strings.cpp",
     "key": "s.01f45b2d18d9",
-    "line": 56,
+    "line": 62,
     "wiring": "pending-sink-review"
   },
   {
     "english": "{0} - {1} Typical: {2} {3}",
     "file": "Source/features/i18n/Strings.cpp",
     "key": "s.1cbeda9c324a",
-    "line": 56,
+    "line": 62,
     "wiring": "pending-sink-review"
   },
   {
     "english": "{0} - {1}. Typical: {2}",
     "file": "Source/features/i18n/Strings.cpp",
     "key": "s.377569808eb2",
-    "line": 57,
+    "line": 63,
     "wiring": "pending-sink-review"
   },
   {
     "english": "{0} - {1}. Typical: {2} {3}",
     "file": "Source/features/i18n/Strings.cpp",
     "key": "s.a3c3a0561a59",
-    "line": 57,
+    "line": 63,
     "wiring": "pending-sink-review"
   },
   {
     "english": "en",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 87,
+    "line": 94,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Couldn't create the folder ",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 113,
+    "line": 120,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 113,
+    "line": 120,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Couldn't create the folder {0}",
     "file": "Source/features/i18n/Strings.cpp",
     "key": "s.3c7fb9da4a1c",
-    "line": 113,
+    "line": 120,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Couldn't write ",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 114,
+    "line": 121,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 114,
+    "line": 121,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Couldn't write {0}",
     "file": "Source/features/i18n/Strings.cpp",
     "key": "s.5ad3571ebc60",
-    "line": 114,
+    "line": 121,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Couldn't open ",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 115,
+    "line": 122,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": " for writing.",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 115,
+    "line": 122,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "Couldn't open {0} for writing.",
     "file": "Source/features/i18n/Strings.cpp",
     "key": "s.258c69667453",
-    "line": 115,
+    "line": 122,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Couldn't create a WAV writer for ",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 116,
+    "line": 123,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 116,
+    "line": 123,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Couldn't create a WAV writer for {0}",
     "file": "Source/features/i18n/Strings.cpp",
     "key": "s.1e374ae18868",
-    "line": 116,
+    "line": 123,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Writing ",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 117,
+    "line": 124,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": " failed (is the disk full?).",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 117,
+    "line": 124,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "Writing {0} failed (is the disk full?).",
     "file": "Source/features/i18n/Strings.cpp",
     "key": "s.7f3b4fd5ed3a",
-    "line": 117,
+    "line": 124,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The file ",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 118,
+    "line": 125,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": " was not written completely.",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 118,
+    "line": 125,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "The file {0} was not written completely.",
     "file": "Source/features/i18n/Strings.cpp",
     "key": "s.b13597098a7c",
-    "line": 118,
+    "line": 125,
     "wiring": "pending-sink-review"
   },
   {
     "english": "locale.nativeName",
     "file": "Source/features/i18n/Strings.cpp",
     "key": null,
-    "line": 139,
+    "line": 146,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -25667,38 +25681,31 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../i18n/Strings.h",
+    "file": "Source/features/info/StatusBoard.cpp",
+    "key": null,
+    "line": 2,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "ParamInfo.h",
     "file": "Source/features/info/StatusBoard.cpp",
     "key": null,
-    "line": 3,
+    "line": 4,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": " ",
+    "english": "{0} {1}",
     "file": "Source/features/info/StatusBoard.cpp",
     "key": null,
-    "line": 88,
+    "line": 89,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": " (",
+    "english": "{0} {1} ({1} -> {2})",
     "file": "Source/features/info/StatusBoard.cpp",
     "key": null,
-    "line": 95,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": " -> ",
-    "file": "Source/features/info/StatusBoard.cpp",
-    "key": null,
-    "line": 95,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": ")",
-    "file": "Source/features/info/StatusBoard.cpp",
-    "key": null,
-    "line": 95,
+    "line": 96,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -30842,9 +30849,9 @@
   {
     "english": "reason table must follow the RejectReason enum",
     "file": "Source/features/reasons/Reasons.cpp",
-    "key": "s.4c98570edccc",
+    "key": null,
     "line": 46,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "{0} ({1} ms free, need {2} ms)",
@@ -33495,654 +33502,647 @@
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "Capture: held (",
+    "english": "../i18n/Strings.h",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 36,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " s)",
-    "file": "Source/features/shaping/Gui.cpp",
-    "key": null,
-    "line": 36,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": "Capture: pending ",
-    "file": "Source/features/shaping/Gui.cpp",
-    "key": null,
-    "line": 37,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " %",
-    "file": "Source/features/shaping/Gui.cpp",
-    "key": null,
-    "line": 37,
+    "line": 7,
     "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "Capture: held ({0} s)",
+    "file": "Source/features/shaping/Gui.cpp",
+    "key": "s.8a692a3925c0",
+    "line": 37,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "Capture: pending {0} %",
+    "file": "Source/features/shaping/Gui.cpp",
+    "key": "s.bacbbcecf7ac",
+    "line": 38,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Capture: off",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.100ffd81040a",
-    "line": 38,
-    "wiring": "pending-sink-review"
+    "line": 39,
+    "wiring": "explicit-translation"
   },
   {
     "english": "CHARACTER",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.19cd78f5eaf2",
-    "line": 49,
+    "line": 50,
     "wiring": "pending-sink-review"
   },
   {
     "english": "personality",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 50,
+    "line": 51,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Personality",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.95a295627e54",
-    "line": 50,
+    "line": 51,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Tilts which fills are chosen and nudges Density, Complexity, Chaos and Intensity.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.2a2068a9550e",
-    "line": 50,
+    "line": 51,
     "wiring": "pending-sink-review"
   },
   {
     "english": "evolve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 51,
+    "line": 52,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Evolve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.ebeb9bde8b6e",
-    "line": 51,
+    "line": 52,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Slowly drifts the fill character towards Surprise styles.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.3a5784a43b7a",
-    "line": 51,
+    "line": 52,
     "wiring": "pending-sink-review"
   },
   {
     "english": "FILL SHAPE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.a1b83df77c39",
-    "line": 53,
+    "line": 54,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fillShape",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 54,
+    "line": 55,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Shape",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.e0e492707f85",
-    "line": 54,
+    "line": 55,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How a fill develops over its own length.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.e2aa57b5f70d",
-    "line": 54,
+    "line": 55,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fillShapeAmount",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 55,
+    "line": 56,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Amount",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.49e96d7cdf58",
-    "line": 55,
+    "line": 56,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How strongly the shape is applied; 0 = off.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.d33b7a7d2055",
-    "line": 55,
+    "line": 56,
     "wiring": "pending-sink-review"
   },
   {
     "english": "mistakes",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 56,
+    "line": 57,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Mistakes",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.0079708aa0a9",
-    "line": 56,
+    "line": 57,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Chance of one small human flaw per fill.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.78f3b33f7122",
-    "line": 56,
+    "line": 57,
     "wiring": "pending-sink-review"
   },
   {
     "english": "DENSITY AND PHRASE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.d26ee95fd4d3",
-    "line": 58,
+    "line": 59,
     "wiring": "pending-sink-review"
   },
   {
     "english": "densityBreath",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 59,
+    "line": 60,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Breathing",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.762c550a6e42",
-    "line": 59,
+    "line": 60,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Swells Density up and down over a cycle of bars.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.747c625b93d1",
-    "line": 59,
+    "line": 60,
     "wiring": "pending-sink-review"
   },
   {
     "english": "densityBreathBars",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 60,
+    "line": 61,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Cycle",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.518653530449",
-    "line": 60,
+    "line": 61,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Length of one breathing cycle in bars.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.8973cdd07840",
-    "line": 60,
+    "line": 61,
     "wiring": "pending-sink-review"
   },
   {
     "english": "densityBreathDepth",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 61,
+    "line": 62,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Depth",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.f1dbc33978a9",
-    "line": 61,
+    "line": 62,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Size of the Density swing.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.9a57ca6cc7ce",
-    "line": 61,
+    "line": 62,
     "wiring": "pending-sink-review"
   },
   {
     "english": "densityBreathCurve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 62,
+    "line": 63,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Curve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.2a45c07314b2",
-    "line": 62,
+    "line": 63,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Shape of the swing.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.de7f5d00bc3b",
-    "line": 62,
+    "line": 63,
     "wiring": "pending-sink-review"
   },
   {
     "english": "phraseBars",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 63,
+    "line": 64,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phrase",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.159410b8c9be",
-    "line": 63,
+    "line": 64,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Length of your musical phrase; the last bar gets more fills.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.53a2a3c43016",
-    "line": 63,
+    "line": 64,
     "wiring": "pending-sink-review"
   },
   {
     "english": "phraseBias",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 64,
+    "line": 65,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Bias",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.5c2470002888",
-    "line": 64,
+    "line": 65,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How much more likely a fill is in the last bar of the phrase.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.1e33800852a2",
-    "line": 64,
+    "line": 65,
     "wiring": "pending-sink-review"
   },
   {
     "english": "phraseOffset",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 65,
+    "line": 66,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Offset",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.b1a1e8e3cf7c",
-    "line": 65,
+    "line": 66,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Shifts where the phrase starts, in bars.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.b4f16ab6b4c6",
-    "line": 65,
+    "line": 66,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fillBudget",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 66,
+    "line": 67,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Fills / bar",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.f4cbc9cc6dd0",
-    "line": 66,
+    "line": 67,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Most fills allowed to start in one bar.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.8668adcda170",
-    "line": 66,
+    "line": 67,
     "wiring": "pending-sink-review"
   },
   {
     "english": "quietZone",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 67,
+    "line": 68,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Quiet zone",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.14e9fd069e16",
-    "line": 67,
+    "line": 68,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Part of the bar where no fill may start.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.f3f856eddad3",
-    "line": 67,
+    "line": 68,
     "wiring": "pending-sink-review"
   },
   {
     "english": "TIMING",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.2b43838b89d0",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fillQuant",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 70,
+    "line": 71,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Quantise length",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.ea234098a7aa",
-    "line": 70,
+    "line": 71,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Rounds fill length down to whole note values while tempo is known.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.bcd7e1c48178",
-    "line": 70,
+    "line": 71,
     "wiring": "pending-sink-review"
   },
   {
     "english": "modSync",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 71,
+    "line": 72,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sync mods",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.1cbacdb8e1c7",
-    "line": 71,
+    "line": 72,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Locks tremolo, pan motion and scramble slices to the tempo.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.dd47046ce5e6",
-    "line": 71,
+    "line": 72,
     "wiring": "pending-sink-review"
   },
   {
     "english": "CAPTURE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.095cabdd9e60",
-    "line": 73,
+    "line": 74,
     "wiring": "pending-sink-review"
   },
   {
     "english": "captureLength",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 74,
+    "line": 75,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Length",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.adc95605a1b3",
-    "line": 74,
+    "line": 75,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How much audio before the freeze point a latched Capture may use.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.a675dba8b909",
-    "line": 74,
+    "line": 75,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Fill shape preview",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.2477a0c36455",
-    "line": 83,
+    "line": 84,
     "wiring": "component-adapter"
   },
   {
     "english": "Curve of level over the length of a fill for the selected Fill Shape.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.b4ae9b338dad",
-    "line": 84,
+    "line": 85,
     "wiring": "component-adapter"
   },
   {
     "english": "fillShape",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 93,
+    "line": 94,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "fillShapeAmount",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 94,
+    "line": 95,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Shaping controls",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.3db7bd9a83fb",
-    "line": 137,
+    "line": 138,
     "wiring": "component-adapter"
   },
   {
     "english": "Personality, evolve, fill shape, mistakes, breathing, phrase, fill budget, timing and capture controls.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.b152ca775c14",
-    "line": 138,
+    "line": 139,
     "wiring": "component-adapter"
   },
   {
     "english": "Evolve waypoint",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.aaa1877032a8",
-    "line": 169,
+    "line": 170,
     "wiring": "component-adapter"
   },
   {
     "english": "Capture status",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.c6f448a169c3",
-    "line": 174,
+    "line": 175,
     "wiring": "component-adapter"
   },
   {
     "english": "Recapture",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.ac0d69045f3d",
-    "line": 177,
+    "line": 178,
     "wiring": "component-adapter"
   },
   {
     "english": "Refreshes the frozen Capture material with the latest live audio while Capture stays on.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.9f6bb7f408ed",
-    "line": 178,
+    "line": 179,
     "wiring": "component-adapter"
   },
   {
     "english": "Release capture",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.c2af035a9489",
-    "line": 182,
+    "line": 183,
     "wiring": "component-adapter"
   },
   {
     "english": "Switches Capture off and returns to live audio; cancels a pending recapture.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.e473a16b02e7",
-    "line": 183,
+    "line": 184,
     "wiring": "component-adapter"
   },
   {
     "english": "capture",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 188,
+    "line": 189,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "evolve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 216,
+    "line": 218,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "-> ",
+    "english": "-> {0}",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 217,
+    "line": 219,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "needs a playing transport",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.245ee114071e",
-    "line": 218,
-    "wiring": "pending-sink-review"
+    "line": 220,
+    "wiring": "explicit-translation"
   },
   {
     "english": "evolve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 238,
+    "line": 240,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "evolve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 278,
+    "line": 280,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "CHARACTER",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.19cd78f5eaf2",
-    "line": 289,
+    "line": 291,
     "wiring": "pending-sink-review"
   },
   {
     "english": "FILL SHAPE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.a1b83df77c39",
-    "line": 291,
+    "line": 293,
     "wiring": "pending-sink-review"
   },
   {
     "english": "CAPTURE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.095cabdd9e60",
-    "line": 293,
+    "line": 295,
     "wiring": "pending-sink-review"
   },
   {
     "english": "SHAPE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.cfb25fc2ee2f",
-    "line": 368,
+    "line": 374,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Shaping controls",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.3db7bd9a83fb",
-    "line": 370,
+    "line": 376,
     "wiring": "component-adapter"
   },
   {
     "english": "Personality, evolve, fill shape, mistakes, breathing, phrase, fill budget, timing and capture length.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.9fb1e5de3ca5",
-    "line": 371,
+    "line": 377,
     "wiring": "component-adapter"
   },
   {
     "english": "Tempo when host provides none",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.108e1e09ac33",
-    "line": 403,
+    "line": 409,
     "wiring": "component-adapter"
   },
   {
     "english": "Tempo when host provides none",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.108e1e09ac33",
-    "line": 405,
+    "line": 411,
     "wiring": "component-adapter"
   },
   {
     "english": "Fallback tempo",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.6bbf138904ae",
-    "line": 413,
+    "line": 419,
     "wiring": "component-adapter"
   },
   {
     "english": "Tempo used for synced lengths when the host reports none (always in Standalone). A tempo the host reported earlier is used first.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.bab811ceba39",
-    "line": 414,
+    "line": 420,
     "wiring": "component-adapter"
   },
   {
     "english": " BPM",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 416,
+    "line": 422,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "Standalone has no host tempo, so synced lengths use this.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.85e58d4cd083",
-    "line": 447,
+    "line": 453,
     "wiring": "component-adapter"
   },
   {
     "english": "Your host provides the tempo; this is only a fallback.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.bd93ec2c7279",
-    "line": 448,
+    "line": 454,
     "wiring": "component-adapter"
   },
   {
     "english": "No host tempo seen recently: synced lengths use this.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.2128a5c30a2c",
-    "line": 449,
+    "line": 455,
     "wiring": "pending-sink-review"
   },
   {
@@ -34160,17 +34160,24 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../i18n/ComponentTranslator.h",
+    "file": "Source/features/shaping/Gui.h",
+    "key": null,
+    "line": 16,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "RECAPTURE",
     "file": "Source/features/shaping/Gui.h",
     "key": "s.7f6738dfae08",
-    "line": 98,
+    "line": 99,
     "wiring": "component-adapter"
   },
   {
     "english": "RELEASE",
     "file": "Source/features/shaping/Gui.h",
     "key": "s.cdb88be95868",
-    "line": 98,
+    "line": 99,
     "wiring": "pending-sink-review"
   },
   {
@@ -35051,100 +35058,100 @@
   {
     "english": "Macros",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.866dcd98eca7",
+    "key": null,
     "line": 141,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Lock",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.db44b8db4f05",
+    "key": null,
     "line": 142,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "History",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.0e7696009337",
+    "key": null,
     "line": 143,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Perf",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.10eda87ca497",
+    "key": null,
     "line": 144,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Scenes",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.160c0535e5c3",
+    "key": null,
     "line": 145,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Cmd",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.1695b48bccfe",
+    "key": null,
     "line": 146,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Tension",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.b53069a83804",
+    "key": null,
     "line": 147,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Groove",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.e1701d4fff2e",
+    "key": null,
     "line": 148,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Fx",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.dcff537943d9",
+    "key": null,
     "line": 149,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Health",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.55898449eb74",
+    "key": null,
     "line": 150,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Learn",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.ce78afd0e6a2",
+    "key": null,
     "line": 151,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Key",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.99a52df3ff3d",
+    "key": null,
     "line": 152,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Taste",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.2cf1883867d6",
+    "key": null,
     "line": 153,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Mutation",
     "file": "Source/features/state/StateSubtrees.cpp",
-    "key": "s.c26ee0e4b915",
+    "key": null,
     "line": 154,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "stateVersion",
@@ -35189,44 +35196,93 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../i18n/Strings.h",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": null,
+    "line": 7,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "../i18n/ComponentTranslator.h",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": null,
+    "line": 8,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "dense hits, {0} per second",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.ca65446525b0",
+    "line": 19,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "sparse hits, {0} per second",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.81c0177f6ab6",
+    "line": 20,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "short gaps, {0} % of the time",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.4788e8fb0936",
+    "line": 21,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "long gaps, {0} % of the time",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.59108901a30f",
+    "line": 22,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "loud material, {0} dB",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.5d82d025ff62",
+    "line": 23,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "quiet material, {0} dB",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.f6dbc4c9d2db",
+    "line": 24,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "bass-heavy, {0} % low band",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.99f8254e34f9",
+    "line": 25,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "bright, {0} % high band",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.1add77d92dc6",
+    "line": 26,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "{0} hits/s, gaps {1} % of the time, {2} dB",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.fd940c70811c",
+    "line": 33,
+    "wiring": "explicit-translation"
+  },
+  {
     "english": "Please allow GapFill to listen first.",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.9833fc2815a5",
-    "line": 33,
+    "line": 60,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Suggesting presets needs playback - start your host's transport and try again.",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.0e42aba79057",
-    "line": 39,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "bypass",
-    "file": "Source/features/suggest/Gui.cpp",
-    "key": null,
-    "line": 43,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "GapFill is bypassed - switch bypass off to listen.",
-    "file": "Source/features/suggest/Gui.cpp",
-    "key": "s.a09e78065862",
-    "line": 45,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "Listening...",
-    "file": "Source/features/suggest/Gui.cpp",
-    "key": "s.2efa9bd92658",
-    "line": 56,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "Cancelled",
-    "file": "Source/features/suggest/Gui.cpp",
-    "key": "s.d353a99eb455",
     "line": 66,
     "wiring": "pending-sink-review"
   },
@@ -35234,203 +35290,189 @@
     "english": "bypass",
     "file": "Source/features/suggest/Gui.cpp",
     "key": null,
-    "line": 88,
+    "line": 70,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "GapFill is bypassed - switch bypass off to listen.",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.a09e78065862",
+    "line": 72,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "Listening...",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.2efa9bd92658",
+    "line": 83,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "Cancelled",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": "s.d353a99eb455",
+    "line": 93,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "bypass",
+    "file": "Source/features/suggest/Gui.cpp",
+    "key": null,
+    "line": 115,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "The run was abandoned (bypass or a sample-rate change).",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.a8c7433607fb",
-    "line": 91,
+    "line": 118,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Not enough signal - play something and try again.",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.5242c13ec26b",
-    "line": 110,
+    "line": 137,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Suggest presets",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.65206d506e06",
-    "line": 144,
+    "line": 171,
     "wiring": "component-adapter"
   },
   {
     "english": "Listen to your input for a few seconds and recommend presets that suit it. Nothing is recorded or sent.",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.299f677c1cd7",
-    "line": 146,
+    "line": 173,
     "wiring": "component-adapter"
   },
   {
     "english": "Listen",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.225d29f6201e",
-    "line": 147,
+    "line": 174,
     "wiring": "component-adapter"
   },
   {
     "english": "Cancel listening",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.2cb365e1f969",
-    "line": 155,
+    "line": 182,
     "wiring": "component-adapter"
   },
   {
     "english": "Close suggestions",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.45c7f10e0fac",
-    "line": 157,
+    "line": 184,
     "wiring": "component-adapter"
   },
   {
     "english": "Load this preset (you can undo).",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.afdc15ac791b",
-    "line": 162,
+    "line": 189,
     "wiring": "component-adapter"
   },
   {
     "english": "4",
     "file": "Source/features/suggest/Gui.cpp",
     "key": null,
-    "line": 171,
+    "line": 198,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "10",
     "file": "Source/features/suggest/Gui.cpp",
     "key": null,
-    "line": 171,
+    "line": 198,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "20",
     "file": "Source/features/suggest/Gui.cpp",
     "key": null,
-    "line": 171,
+    "line": 198,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "30",
     "file": "Source/features/suggest/Gui.cpp",
     "key": null,
-    "line": 171,
+    "line": 198,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Listening time in seconds",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.ec964c44245e",
-    "line": 173,
+    "line": 200,
     "wiring": "component-adapter"
   },
   {
-    "english": "Listening ",
+    "english": "Listening {0} of {1} s",
     "file": "Source/features/suggest/Gui.cpp",
-    "key": null,
-    "line": 210,
-    "wiring": "pending-dynamic-template"
+    "key": "s.e93835f7db7b",
+    "line": 237,
+    "wiring": "explicit-translation"
   },
   {
-    "english": " of ",
+    "english": "Measured: {0} (with your current detector settings)",
     "file": "Source/features/suggest/Gui.cpp",
-    "key": null,
-    "line": 210,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " s",
-    "file": "Source/features/suggest/Gui.cpp",
-    "key": null,
-    "line": 211,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": "Measured: ",
-    "file": "Source/features/suggest/Gui.cpp",
-    "key": null,
-    "line": 213,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " (with your current detector settings)",
-    "file": "Source/features/suggest/Gui.cpp",
-    "key": null,
-    "line": 213,
-    "wiring": "pending-dynamic-template"
+    "key": "s.e81f5662f64d",
+    "line": 240,
+    "wiring": "explicit-translation"
   },
   {
     "english": "GapFill will listen to your input for about 10 seconds on this computer. Nothing is recorded or sent anywhere.",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.28a9310bc468",
-    "line": 217,
-    "wiring": "pending-sink-review"
+    "line": 244,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Press LISTEN while your track plays.",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.728f2bf1296a",
-    "line": 219,
+    "line": 246,
     "wiring": "pending-sink-review"
   },
   {
-    "english": "  -  ",
+    "english": "{0}  -  {1}  -  {2}",
     "file": "Source/features/suggest/Gui.cpp",
     "key": null,
-    "line": 229,
+    "line": 259,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "  -  ",
+    "english": "Load {0}, {1}, {2}",
     "file": "Source/features/suggest/Gui.cpp",
-    "key": null,
-    "line": 230,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "Load ",
-    "file": "Source/features/suggest/Gui.cpp",
-    "key": null,
-    "line": 231,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": ", ",
-    "file": "Source/features/suggest/Gui.cpp",
-    "key": null,
-    "line": 231,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": ", ",
-    "file": "Source/features/suggest/Gui.cpp",
-    "key": null,
-    "line": 232,
-    "wiring": "protected-or-nonprose"
+    "key": "s.86b7f7419586",
+    "line": 260,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Smart preset suggestions",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.4642fd051c52",
-    "line": 324,
+    "line": 351,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "In the preset browser, SUGGEST... listens to your input for 4 to 30 seconds and recommends up to three factory presets that suit it. It measures only a few simple things with GapFill's own detector: hits per second, how much of the time is gap, the level, and the bass and treble share. It never changes your settings, never loads anything by itself, and does not record, store or send any audio: everything stays on this computer and is discarded when you close the browser.",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.e3fbfa89f831",
-    "line": 326,
+    "line": 353,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "Suggestions use your current detector settings; they are more meaningful after Auto-Calibrate. A Weak match means the material is unlike any preset's typical input.",
     "file": "Source/features/suggest/Gui.cpp",
     "key": "s.bd39912afe96",
-    "line": 330,
+    "line": 357,
     "wiring": "help-writer-adapter"
   },
   {
@@ -35527,9 +35569,9 @@
   {
     "english": "Subtle Ear Candy",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.d599279fe5b5",
+    "key": null,
     "line": 17,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Subtle",
@@ -35541,9 +35583,9 @@
   {
     "english": "Drum Gap Glitch",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.fbf34604f293",
+    "key": null,
     "line": 18,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch",
@@ -35555,9 +35597,9 @@
   {
     "english": "DnB Micro Fills",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.997f82024e01",
+    "key": null,
     "line": 19,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Rhythmic",
@@ -35569,9 +35611,9 @@
   {
     "english": "Breakcore Destroyer",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.2e938526c2c0",
+    "key": null,
     "line": 20,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Destructive",
@@ -35583,9 +35625,9 @@
   {
     "english": "Ghost Reverses",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.ecdf7410bbac",
+    "key": null,
     "line": 21,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Ambient",
@@ -35597,9 +35639,9 @@
   {
     "english": "Industrial Debris",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.8ab810fbc3ef",
+    "key": null,
     "line": 22,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Destructive",
@@ -35611,9 +35653,9 @@
   {
     "english": "Vocal Ghosts",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.a1726809a120",
+    "key": null,
     "line": 23,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Ambient",
@@ -35625,9 +35667,9 @@
   {
     "english": "Vocal Delay Fills",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.bbe385222b14",
+    "key": null,
     "line": 24,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Dub",
@@ -35639,9 +35681,9 @@
   {
     "english": "Bass Between Kicks",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.25c88f26dfa6",
+    "key": null,
     "line": 25,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Utility",
@@ -35653,9 +35695,9 @@
   {
     "english": "Granular Spaces",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.dc4e44d11de8",
+    "key": null,
     "line": 26,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Ambient",
@@ -35667,9 +35709,9 @@
   {
     "english": "Trance Transitions",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.e41789ab28ab",
+    "key": null,
     "line": 27,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Rhythmic",
@@ -35681,9 +35723,9 @@
   {
     "english": "Trip Hop Dust",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.d31c5577d59d",
+    "key": null,
     "line": 28,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Subtle",
@@ -35695,9 +35737,9 @@
   {
     "english": "Spectral High Fill",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.eb476fe7d508",
+    "key": null,
     "line": 29,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch",
@@ -35709,9 +35751,9 @@
   {
     "english": "Spectral Mid Mutation",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.0aa2f9dd0eee",
+    "key": null,
     "line": 30,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch",
@@ -35723,9 +35765,9 @@
   {
     "english": "Sparse Texture",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.54c6cfe6e8dc",
+    "key": null,
     "line": 31,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Ambient",
@@ -35737,9 +35779,9 @@
   {
     "english": "Extreme Chaos",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.69933bb7b90a",
+    "key": null,
     "line": 32,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Destructive",
@@ -35751,9 +35793,9 @@
   {
     "english": "Breaks Chop Shop",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.aeba86f6ea96",
+    "key": null,
     "line": 34,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Rhythmic",
@@ -35765,9 +35807,9 @@
   {
     "english": "Dub Echo Throwbacks",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.c60893c8555d",
+    "key": null,
     "line": 35,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Dub",
@@ -35779,9 +35821,9 @@
   {
     "english": "Trance Riser Fills",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.630869c9cb46",
+    "key": null,
     "line": 36,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Rhythmic",
@@ -35793,9 +35835,9 @@
   {
     "english": "Ambient Drift Fills",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.eb1072ef4d86",
+    "key": null,
     "line": 37,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Ambient",
@@ -35807,9 +35849,9 @@
   {
     "english": "Liquid DnB Rollers",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.92c4217bad06",
+    "key": null,
     "line": 38,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Rhythmic",
@@ -35821,9 +35863,9 @@
   {
     "english": "House Groove Edits",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.d03a86d6d6f4",
+    "key": null,
     "line": 39,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Subtle",
@@ -35835,9 +35877,9 @@
   {
     "english": "Hip-Hop Dust Chops",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.9f735d27ddca",
+    "key": null,
     "line": 40,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch",
@@ -35849,9 +35891,9 @@
   {
     "english": "Techno Rumble Gaps",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.03c201a2c5bd",
+    "key": null,
     "line": 41,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Destructive",
@@ -35863,9 +35905,9 @@
   {
     "english": "Dub Siren Throws",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.57b18f08e7a5",
+    "key": null,
     "line": 42,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Dub",
@@ -35877,9 +35919,9 @@
   {
     "english": "Dub Tape Spin Outs",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.02e9d811f592",
+    "key": null,
     "line": 43,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Dub",
@@ -35891,9 +35933,9 @@
   {
     "english": "Sidechain Kick Gaps",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.95afd6196e78",
+    "key": null,
     "line": 44,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Utility",
@@ -35905,9 +35947,9 @@
   {
     "english": "Hybrid Safe Bus",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.d8eac69b782a",
+    "key": null,
     "line": 45,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Utility",
@@ -35919,9 +35961,9 @@
   {
     "english": "Whisper Reverses",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.9edbc265719e",
+    "key": null,
     "line": 46,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Subtle",
@@ -35933,9 +35975,9 @@
   {
     "english": "Soft Filter Breaths",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.0880d58543cf",
+    "key": null,
     "line": 47,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Subtle",
@@ -35947,9 +35989,9 @@
   {
     "english": "Start Here - Drum Bus",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.23eeb190d752",
+    "key": null,
     "line": 48,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Starting Points",
@@ -35961,9 +36003,9 @@
   {
     "english": "Start Here - Full Mix",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.b0abb9d076c0",
+    "key": null,
     "line": 49,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Starting Points",
@@ -35975,9 +36017,9 @@
   {
     "english": "Start Here - Vocals",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.e956c41b0c37",
+    "key": null,
     "line": 50,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Starting Points",
@@ -35989,9 +36031,9 @@
   {
     "english": "Try One Algorithm - Reverse",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.8e500e60a679",
+    "key": null,
     "line": 51,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Starting Points",
@@ -36003,9 +36045,9 @@
   {
     "english": "Try One Algorithm - Stutter",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.b0a2be9ac9d5",
+    "key": null,
     "line": 52,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Starting Points",
@@ -36017,9 +36059,9 @@
   {
     "english": "Try Spectral Lanes - Highs",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.c5811da4758c",
+    "key": null,
     "line": 53,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Starting Points",
@@ -36031,9 +36073,9 @@
   {
     "english": "Stutter Gate Chops",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.99da553a5019",
+    "key": null,
     "line": 54,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch",
@@ -36045,9 +36087,9 @@
   {
     "english": "Half-Time Gap Rolls",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.d5a92e2a20dd",
+    "key": null,
     "line": 55,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Rhythmic",
@@ -36059,9 +36101,9 @@
   {
     "english": "Crushed Gap Debris",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.9c316222059c",
+    "key": null,
     "line": 56,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Destructive",
@@ -36073,9 +36115,9 @@
   {
     "english": "Shimmer Tail Wash",
     "file": "Source/features/suggest/Suggest.cpp",
-    "key": "s.6b86c3ca23b5",
+    "key": null,
     "line": 57,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "Ambient",
@@ -37473,9 +37515,9 @@
   {
     "english": "TimelineEvent must stay 32 bytes",
     "file": "Source/features/timeline/Model.h",
-    "key": "s.3ce2bf8c0bbb",
+    "key": null,
     "line": 43,
-    "wiring": "pending-sink-review"
+    "wiring": "protected-or-nonprose"
   },
   {
     "english": "../effective/Effective.h",
@@ -39802,66 +39844,52 @@
     "wiring": "pending-menu-adapter"
   },
   {
-    "english": " Effective value ",
+    "english": "{0} Effective value {1} percent.",
     "file": "Source/gui/Knob.cpp",
-    "key": null,
-    "line": 443,
-    "wiring": "pending-dynamic-template"
+    "key": "s.3b292f34f09b",
+    "line": 451,
+    "wiring": "explicit-translation"
   },
   {
-    "english": "%",
+    "english": "{0} Effective value {1}.",
     "file": "Source/gui/Knob.cpp",
-    "key": null,
-    "line": 444,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": " percent",
-    "file": "Source/gui/Knob.cpp",
-    "key": null,
-    "line": 444,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": ".",
-    "file": "Source/gui/Knob.cpp",
-    "key": null,
-    "line": 444,
-    "wiring": "protected-or-nonprose"
+    "key": "s.a674f9cde0fe",
+    "line": 452,
+    "wiring": "explicit-translation"
   },
   {
     "english": " -> ",
     "file": "Source/gui/Knob.cpp",
     "key": null,
-    "line": 488,
+    "line": 496,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "LookAndFeel.h",
     "file": "Source/gui/Knob.h",
     "key": null,
-    "line": 5,
+    "line": 7,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "gapfillParamId",
     "file": "Source/gui/Knob.h",
     "key": null,
-    "line": 29,
+    "line": 31,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "gapfillEffective01",
     "file": "Source/gui/Knob.h",
     "key": null,
-    "line": 117,
+    "line": 119,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "gapfillFlash",
     "file": "Source/gui/Knob.h",
     "key": null,
-    "line": 162,
+    "line": 165,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -41923,192 +41951,192 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../../features/i18n/Strings.h",
+    "file": "Source/gui/slots/BattleSlot.cpp",
+    "key": null,
+    "line": 11,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "battleEvery",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": null,
-    "line": 22,
+    "line": 23,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "BEAT BATTLE",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.7ab1341b5e97",
-    "line": 22,
+    "line": 23,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Alternates two stored fill styles, A and B, every 1, 2, 4 or 8 bars. Needs host transport and a time signature. Host automation and your own settings are never changed: the styles are applied on top.",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.388021dcb606",
-    "line": 23,
+    "line": 24,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Beat Battle",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.a2135b739c0f",
-    "line": 26,
+    "line": 27,
     "wiring": "component-adapter"
   },
   {
     "english": "STORE A",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.6dde0a5a8962",
-    "line": 28,
+    "line": 29,
     "wiring": "component-adapter"
   },
   {
     "english": "STORE B",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.8d3e0f777a3b",
-    "line": 29,
+    "line": 30,
     "wiring": "component-adapter"
   },
   {
     "english": "Store the current sound (creative, weights, effects and musical settings) as style A.",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.3bd977346bb8",
-    "line": 30,
+    "line": 31,
     "wiring": "component-adapter"
   },
   {
     "english": "Store the current sound (creative, weights, effects and musical settings) as style B.",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.dbfa0a121c84",
-    "line": 31,
+    "line": 32,
     "wiring": "component-adapter"
   },
   {
     "english": "Store style A",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.0acb1acd45a6",
-    "line": 32,
+    "line": 33,
     "wiring": "component-adapter"
   },
   {
     "english": "Store style B",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.dc8857dbbd95",
-    "line": 33,
+    "line": 34,
     "wiring": "component-adapter"
   },
   {
     "english": "FROM A/B",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.51bf48a27c1a",
-    "line": 34,
+    "line": 35,
     "wiring": "component-adapter"
   },
   {
     "english": "Take styles from the header A and B",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.702828441cb2",
-    "line": 35,
+    "line": 36,
     "wiring": "component-adapter"
   },
   {
     "english": "Use the header A snapshot as style A and the header B snapshot as style B. Copy a sound into B first (COPY), change it, then press this.",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.3607e3322e81",
-    "line": 36,
+    "line": 37,
     "wiring": "component-adapter"
   },
   {
     "english": "  (header A/B is not available)",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": null,
-    "line": 41,
+    "line": 42,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "CLEAR",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.9cc3a043b6a9",
-    "line": 44,
+    "line": 45,
     "wiring": "component-adapter"
   },
   {
     "english": "Clear both battle styles",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.2a00fc75635b",
-    "line": 45,
+    "line": 46,
     "wiring": "component-adapter"
   },
   {
     "english": "Forget both stored styles. The Beat Battle switch stays where it is but does nothing until two styles are stored.",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.7b2fd0a8016d",
-    "line": 46,
+    "line": 47,
     "wiring": "component-adapter"
   },
   {
-    "english": "   [A ",
+    "english": "{0}   [A {1}, B {2}]",
     "file": "Source/gui/slots/BattleSlot.cpp",
-    "key": null,
-    "line": 97,
-    "wiring": "pending-dynamic-template"
+    "key": "s.b8d3e734212a",
+    "line": 98,
+    "wiring": "explicit-translation"
   },
   {
     "english": "stored",
     "file": "Source/gui/slots/BattleSlot.cpp",
-    "key": null,
-    "line": 97,
-    "wiring": "protected-or-nonprose"
+    "key": "s.87b04e58961f",
+    "line": 98,
+    "wiring": "explicit-translation"
   },
   {
     "english": "empty",
     "file": "Source/gui/slots/BattleSlot.cpp",
-    "key": null,
-    "line": 97,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": ", B ",
-    "file": "Source/gui/slots/BattleSlot.cpp",
-    "key": null,
+    "key": "s.2e1cfa82b035",
     "line": 98,
-    "wiring": "pending-dynamic-template"
+    "wiring": "explicit-translation"
   },
   {
     "english": "stored",
     "file": "Source/gui/slots/BattleSlot.cpp",
-    "key": null,
-    "line": 98,
-    "wiring": "protected-or-nonprose"
+    "key": "s.87b04e58961f",
+    "line": 99,
+    "wiring": "explicit-translation"
   },
   {
     "english": "empty",
     "file": "Source/gui/slots/BattleSlot.cpp",
-    "key": null,
-    "line": 98,
-    "wiring": "protected-or-nonprose"
+    "key": "s.2e1cfa82b035",
+    "line": 99,
+    "wiring": "explicit-translation"
   },
   {
-    "english": "]",
+    "english": "{0}  (header A/B is not available)",
     "file": "Source/gui/slots/BattleSlot.cpp",
-    "key": null,
-    "line": 98,
-    "wiring": "protected-or-nonprose"
+    "key": "s.a7322d032fab",
+    "line": 101,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Beat Battles",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.96748c928e24",
-    "line": 122,
+    "line": 125,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "Beat Battle alternates two fill styles, A and B, in time with the music. Set up a sound you like and press STORE A, change it, press STORE B (or press FROM A/B to take the header A and B snapshots), then choose how often to switch: every 1, 2, 4 or 8 bars. Even windows play A, odd windows play B, counted from the start of the song, so looping and seeking give the same pattern.",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.f02018a2dc3a",
-    "line": 124,
+    "line": 127,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "It needs host transport and a time signature, and two different styles; the line under the controls says what is missing. A style holds the creative, weight, effect and musical settings. Your own settings and host automation are never changed: the styles are applied on top while a battle runs. The styles are not saved with the project.",
     "file": "Source/gui/slots/BattleSlot.cpp",
     "key": "s.5c5d6a928576",
-    "line": 127,
+    "line": 130,
     "wiring": "help-writer-adapter"
   },
   {
@@ -42147,178 +42175,164 @@
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "../../features/callresponse/Responder.h",
+    "english": "../../features/i18n/Strings.h",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": null,
     "line": 10,
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../../features/callresponse/Responder.h",
+    "file": "Source/gui/slots/CallStrip.cpp",
+    "key": null,
+    "line": 11,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "Call and response: off",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.07072972ed25",
-    "line": 22,
-    "wiring": "pending-sink-review"
+    "line": 23,
+    "wiring": "explicit-translation"
   },
   {
-    "english": "CALL ",
+    "english": "CALL {0}/{1}",
     "file": "Source/gui/slots/CallStrip.cpp",
-    "key": null,
-    "line": 26,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": "/",
-    "file": "Source/gui/slots/CallStrip.cpp",
-    "key": null,
-    "line": 26,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "RESPONSE ",
-    "file": "Source/gui/slots/CallStrip.cpp",
-    "key": null,
+    "key": "s.e96631df9c1f",
     "line": 27,
-    "wiring": "pending-dynamic-template"
+    "wiring": "explicit-translation"
   },
   {
-    "english": "/",
+    "english": "RESPONSE {0}/{1}",
     "file": "Source/gui/slots/CallStrip.cpp",
-    "key": null,
-    "line": 27,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "No response: motif unclear (",
-    "file": "Source/gui/slots/CallStrip.cpp",
-    "key": null,
+    "key": "s.5185bd7fc5bb",
     "line": 28,
-    "wiring": "pending-dynamic-template"
+    "wiring": "explicit-translation"
   },
   {
-    "english": " %)",
+    "english": "No response: motif unclear ({0} %)",
     "file": "Source/gui/slots/CallStrip.cpp",
-    "key": null,
-    "line": 28,
-    "wiring": "protected-or-nonprose"
+    "key": "s.2074fdeb645b",
+    "line": 29,
+    "wiring": "explicit-translation"
   },
   {
     "english": "fl10_mode",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": null,
-    "line": 40,
+    "line": 41,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Call mode",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.f187cabbab3f",
-    "line": 40,
+    "line": 41,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GapFill listens to its last few fills and answers with a complementary (or similar) character. It only nudges choices.",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.de761d05c169",
-    "line": 41,
+    "line": 42,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fl10_strength",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": null,
-    "line": 42,
+    "line": 43,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Strength",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.63ee3a1b965a",
-    "line": 42,
+    "line": 43,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How strongly the response is steered.",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.5cc924c22823",
-    "line": 43,
+    "line": 44,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fl10_calls",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": null,
-    "line": 44,
+    "line": 45,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Calls",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.b73a5e2ca645",
-    "line": 44,
+    "line": 45,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How many fills to listen to before answering.",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.7a15ad135477",
-    "line": 44,
+    "line": 45,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fl10_replies",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": null,
-    "line": 45,
+    "line": 46,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Replies",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.31ecb5e00f95",
-    "line": 45,
+    "line": 46,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How many fills answer.",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.4ef851854b50",
-    "line": 45,
+    "line": 46,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Call and response",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.46320c2c0f1e",
-    "line": 47,
+    "line": 48,
     "wiring": "component-adapter"
   },
   {
-    "english": "Call and response status: ",
+    "english": "Call and response status: {0}",
     "file": "Source/gui/slots/CallStrip.cpp",
-    "key": null,
-    "line": 90,
-    "wiring": "pending-dynamic-template"
+    "key": "s.f1a1f9d16ba9",
+    "line": 91,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Call and response",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.46320c2c0f1e",
-    "line": 106,
+    "line": 107,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "Call and response watches GapFill's own last few fills (the call), summarises them as a motif, and shapes the next few fills (the response). Complement answers with a different kind of fill, Echo with a similar one. It only nudges the odds and lengths: it never creates or removes fills, and it never changes what counts as a gap.",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.5f799827fdd2",
-    "line": 108,
+    "line": 109,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "A forced Fill Type, Fill Lock and More Like That take precedence and pause it. Response fills are marked \"Response\" in History, so you can lock one. When the last fills do not form a clear motif, the chip says \"No response\" and fills stay ordinary.",
     "file": "Source/gui/slots/CallStrip.cpp",
     "key": "s.9ac1d8136961",
-    "line": 111,
+    "line": 112,
     "wiring": "help-writer-adapter"
   },
   {
@@ -44856,115 +44870,115 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../../features/i18n/Strings.h",
+    "file": "Source/gui/slots/EnergyStrip.cpp",
+    "key": null,
+    "line": 10,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "energyAdapt",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": null,
-    "line": 22,
+    "line": 23,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Energy follow",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": "s.317d1b827aad",
-    "line": 22,
+    "line": 23,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Let the density and intensity of fills follow how busy the music is. Sparse passages get more fills; busy passages fewer but bolder. 0 = off.",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": "s.f9b19cf163e4",
-    "line": 23,
+    "line": 24,
     "wiring": "pending-sink-review"
   },
   {
     "english": "energyTarget",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": null,
-    "line": 25,
+    "line": 26,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Follows",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": "s.7ccfd5f034ad",
-    "line": 25,
+    "line": 26,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Which setting the energy follow steers: Density, Intensity or Both.",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": "s.ca4137aacb55",
-    "line": 26,
+    "line": 27,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Energy follow",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": "s.317d1b827aad",
-    "line": 28,
+    "line": 29,
     "wiring": "component-adapter"
   },
   {
     "english": "energyAdapt",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": null,
-    "line": 60,
+    "line": 61,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "Low",
+    "english": "Energy: Low",
     "file": "Source/gui/slots/EnergyStrip.cpp",
-    "key": "s.f793de205ead",
-    "line": 67,
+    "key": "s.e9dbdb4ed40a",
+    "line": 68,
     "wiring": "pending-sink-review"
   },
   {
-    "english": "Mid",
+    "english": "Energy: Mid",
     "file": "Source/gui/slots/EnergyStrip.cpp",
-    "key": "s.76df0c6db32d",
-    "line": 67,
+    "key": "s.166a45385198",
+    "line": 68,
     "wiring": "pending-sink-review"
   },
   {
-    "english": "High",
+    "english": "Energy: High",
     "file": "Source/gui/slots/EnergyStrip.cpp",
-    "key": "s.c4ebc6d4a583",
-    "line": 67,
+    "key": "s.b2b9caf3763c",
+    "line": 68,
     "wiring": "pending-sink-review"
-  },
-  {
-    "english": "Energy: ",
-    "file": "Source/gui/slots/EnergyStrip.cpp",
-    "key": null,
-    "line": 69,
-    "wiring": "pending-dynamic-template"
   },
   {
     "english": "Energy: learning...",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": "s.a71408580468",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Energy follow",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": "s.317d1b827aad",
-    "line": 87,
+    "line": 88,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "Energy follow listens to how busy the music is compared with the last minute (loudness and how many hits per second) and shows it as Low, Mid or High. With Follow above 0, sparse passages get a higher fill density and softer fills, busy passages a lower density and bolder fills. Follows chooses whether density, intensity or both are steered.",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": "s.b592cb4f0bbb",
-    "line": 89,
+    "line": 90,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "It adapts to what has played: it needs about ten seconds to learn the range after you switch it on, changes class slowly on purpose, and relearns after Follow is set to 0. It is an estimate; a loud but sparse passage can read as busy.",
     "file": "Source/gui/slots/EnergyStrip.cpp",
     "key": "s.20ee008e289a",
-    "line": 92,
+    "line": 93,
     "wiring": "help-writer-adapter"
   },
   {
@@ -45003,206 +45017,185 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../../features/i18n/Strings.h",
+    "file": "Source/gui/slots/GrooveStrip.cpp",
+    "key": null,
+    "line": 10,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "fl09_amount",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": null,
-    "line": 22,
+    "line": 23,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Groove",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.e1701d4fff2e",
-    "line": 22,
+    "line": 23,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Make the repeats of tempo-synced Stutter and Delay fills follow the swing of your music. Needs host tempo and Sync on. 0 = off.",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.02d0c78670f5",
-    "line": 23,
+    "line": 24,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fl09_grid",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": null,
-    "line": 25,
+    "line": 26,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Grid",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.0d7d12ac624c",
-    "line": 25,
+    "line": 26,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The note grid the swing is measured against: 1/8 or 1/16.",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.0470e6a84a97",
-    "line": 25,
+    "line": 26,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fl09_hold",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": null,
-    "line": 26,
+    "line": 27,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "HOLD",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.aacf94b7be62",
-    "line": 26,
+    "line": 27,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Freeze the learned groove so it no longer changes.",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.012c109e8959",
-    "line": 26,
+    "line": 27,
     "wiring": "pending-sink-review"
   },
   {
     "english": "LEARN",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.56b4540331ce",
-    "line": 27,
+    "line": 28,
     "wiring": "pending-sink-review"
   },
   {
     "english": "RESET",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.7ef2fad58d1f",
-    "line": 28,
+    "line": 29,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Groove",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.e1701d4fff2e",
-    "line": 30,
+    "line": 31,
     "wiring": "component-adapter"
   },
   {
     "english": "Clear the groove and measure the next 8 bars. The groove is applied when the measurement ends, then held.",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.acf1c8276854",
-    "line": 31,
+    "line": 32,
     "wiring": "component-adapter"
   },
   {
     "english": "Forget the learned groove and start measuring again.",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.003c7067ed76",
-    "line": 32,
+    "line": 33,
     "wiring": "component-adapter"
   },
   {
     "english": "fl09_amount",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": null,
-    "line": 74,
+    "line": 75,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "Groove: learning, ",
+    "english": "Groove: learning, {0} bars left",
     "file": "Source/gui/slots/GrooveStrip.cpp",
-    "key": null,
-    "line": 82,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " bars left",
-    "file": "Source/gui/slots/GrooveStrip.cpp",
-    "key": null,
-    "line": 82,
-    "wiring": "pending-dynamic-template"
+    "key": "s.43d0b7620337",
+    "line": 83,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Groove: off",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.d81a83a8c754",
-    "line": 84,
-    "wiring": "pending-sink-review"
+    "line": 85,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Groove: waiting for host tempo",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.02532e6a9a64",
-    "line": 86,
-    "wiring": "pending-sink-review"
+    "line": 87,
+    "wiring": "explicit-translation"
   },
   {
-    "english": "Groove: swing ",
+    "english": "Groove: swing {0} %, confidence {1} %",
     "file": "Source/gui/slots/GrooveStrip.cpp",
-    "key": null,
-    "line": 88,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " %, confidence ",
-    "file": "Source/gui/slots/GrooveStrip.cpp",
-    "key": null,
-    "line": 88,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " %",
-    "file": "Source/gui/slots/GrooveStrip.cpp",
-    "key": null,
+    "key": "s.e3984668dfe8",
     "line": 89,
-    "wiring": "protected-or-nonprose"
+    "wiring": "explicit-translation"
   },
   {
     "english": "Groove: unclear (straight)",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.df0284045f60",
-    "line": 91,
-    "wiring": "pending-sink-review"
+    "line": 92,
+    "wiring": "explicit-translation"
   },
   {
-    "english": "Offsets in grid steps (+ = late): ",
+    "english": "Offsets in grid steps (+ = late): {0}",
     "file": "Source/gui/slots/GrooveStrip.cpp",
-    "key": null,
-    "line": 101,
-    "wiring": "pending-dynamic-template"
+    "key": "s.ba60d1a8e510",
+    "line": 107,
+    "wiring": "explicit-translation"
   },
   {
     "english": ", ",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": null,
-    "line": 104,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "",
-    "file": "Source/gui/slots/GrooveStrip.cpp",
-    "key": null,
-    "line": 104,
+    "line": 107,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Groove",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.e1701d4fff2e",
-    "line": 124,
+    "line": 125,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "Groove listens to where your music's hits fall against the host's beat grid and makes the repeats of Stutter fills and the taps of Delay fills follow that feel, so a straight stutter over a swung hi-hat swings too. Only the wet repeats move; the start of a fill, the dry sound and the host timing never change.",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.13826b808be4",
-    "line": 126,
+    "line": 127,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "It needs rhythmic input, host tempo and the Sync switch on. Below 35 % confidence it applies nothing and says the groove is unclear. LEARN measures 8 bars and then holds the result; HOLD freezes whatever has been learned so far; RESET forgets it.",
     "file": "Source/gui/slots/GrooveStrip.cpp",
     "key": "s.266f1f6c0c54",
-    "line": 129,
+    "line": 130,
     "wiring": "help-writer-adapter"
   },
   {
@@ -45409,234 +45402,248 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../../features/i18n/Strings.h",
+    "file": "Source/gui/slots/HoldPadsSlot.cpp",
+    "key": null,
+    "line": 12,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "../../features/i18n/ComponentTranslator.h",
+    "file": "Source/gui/slots/HoldPadsSlot.cpp",
+    "key": null,
+    "line": 13,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "STUTTER",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.1daceed15e2e",
-    "line": 89,
+    "line": 92,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Hold a repeating stutter of the last moment of sound while pressed (Latch mode: toggles).",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.709784ecf17a",
-    "line": 89,
+    "line": 92,
     "wiring": "pending-sink-review"
   },
   {
     "english": "FREEZE",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.ce204cf41f71",
-    "line": 90,
+    "line": 93,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Hold a frozen wash of the last moment of sound.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.0c85316fdc1a",
-    "line": 90,
+    "line": 93,
     "wiring": "pending-sink-review"
   },
   {
     "english": "REVERSE",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.27bed1691706",
-    "line": 91,
+    "line": 94,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Play the last moment of sound backwards while pressed.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.babc1f6498f1",
-    "line": 91,
+    "line": 94,
     "wiring": "pending-sink-review"
   },
   {
     "english": "TAPE STOP",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.f63f194d1a01",
-    "line": 92,
+    "line": 95,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Slow the last moment of sound to a stop.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.9553a5260a5c",
-    "line": 92,
+    "line": 95,
     "wiring": "pending-sink-review"
   },
   {
     "english": "STORM",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.db0464e1cf4e",
-    "line": 93,
+    "line": 96,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Stutter Storm: a rapid accented stutter pattern on the 1/32 grid while pressed.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.d87636dcc55e",
-    "line": 93,
+    "line": 96,
     "wiring": "pending-sink-review"
   },
   {
     "english": "FILL NOW",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.a222520ebd03",
-    "line": 94,
+    "line": 97,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Starts a fill at the next beat or bar even without a gap (Options set when).",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.1780b331bb79",
-    "line": 94,
+    "line": 97,
     "wiring": "pending-sink-review"
   },
   {
     "english": "ROULETTE",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.64d11827b923",
-    "line": 95,
+    "line": 98,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Spins the Glitch Roulette: a random, safe change to the fill settings.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.f3c8b2937862",
-    "line": 95,
+    "line": 98,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm10_mode",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": null,
-    "line": 96,
+    "line": 99,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Mode",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.5e23ec6a300d",
-    "line": 96,
+    "line": 99,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Momentary holds only while pressed; Latch toggles on each press.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.a55db7234d88",
-    "line": 96,
+    "line": 99,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm10_level",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": null,
-    "line": 97,
+    "line": 100,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Level",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.1709305c9fa9",
-    "line": 97,
+    "line": 100,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Loudness of the hold sound.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.2166bae70056",
-    "line": 97,
+    "line": 100,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm10_dryDuck",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": null,
-    "line": 98,
+    "line": 101,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Dry duck",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.9d794fb5adc8",
-    "line": 98,
+    "line": 101,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Lowers the dry signal while a hold is active.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.ad559d73899e",
-    "line": 98,
+    "line": 101,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm10_protect",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": null,
-    "line": 99,
+    "line": 102,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "PROTECT",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.0a5688a8b2cf",
-    "line": 99,
+    "line": 102,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Holds do not cover protected hits.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.e0678ff705fe",
-    "line": 99,
+    "line": 102,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm10_timeout",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": null,
-    "line": 100,
+    "line": 103,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Timeout",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.70594d932950",
-    "line": 100,
+    "line": 103,
     "wiring": "pending-sink-review"
   },
   {
     "english": "A latched hold releases after this many seconds.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.1b16316d189f",
-    "line": 100,
+    "line": 103,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Performance pads",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.fcb72318359f",
-    "line": 102,
+    "line": 105,
     "wiring": "component-adapter"
   },
   {
     "english": "Performance pads",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.fcb72318359f",
-    "line": 154,
+    "line": 157,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "The pads do what a MIDI note bound to the same command does. Stutter, Freeze, Reverse and Tape stop are hold effects: they play while the pad is held (Momentary) or toggle on each press (Latch). Storm is a short accented stutter burst. Fill Now starts a fill on the next beat or bar; Roulette makes a random, safe change to the settings.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.19bb58202581",
-    "line": 156,
+    "line": 159,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "Level sets the hold loudness, Dry duck lowers the dry signal while a hold plays, PROTECT keeps holds off protected hits, and Timeout releases a latched hold by itself. Panic releases every hold.",
     "file": "Source/gui/slots/HoldPadsSlot.cpp",
     "key": "s.4bf9bafe20cc",
-    "line": 159,
+    "line": 162,
     "wiring": "help-writer-adapter"
   },
   {
@@ -47257,136 +47264,143 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../../features/i18n/Strings.h",
+    "file": "Source/gui/slots/ScaleStrip.cpp",
+    "key": null,
+    "line": 12,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "scaleRoot",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": null,
-    "line": 25,
+    "line": 26,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Key",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.99a52df3ff3d",
-    "line": 25,
+    "line": 26,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The song's tonic. Pitched fills are kept to intervals that belong to the chosen scale around this note.",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.703509dd4a56",
-    "line": 26,
+    "line": 27,
     "wiring": "pending-sink-review"
   },
   {
     "english": "scaleType",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": null,
-    "line": 27,
+    "line": 28,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Scale",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.f102986b39ef",
-    "line": 27,
+    "line": 28,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Scale Lock: keep pitched fills (Pitch Rise/Fall, Granular, Comb, Cloud) in key. Off leaves pitch untouched.",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.cf5b51320005",
-    "line": 28,
+    "line": 29,
     "wiring": "pending-sink-review"
   },
   {
     "english": "scaleAmount",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": null,
-    "line": 29,
+    "line": 30,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Snap",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.98df9a59f064",
-    "line": 29,
+    "line": 30,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How often a pitch decision is snapped to the scale. 100% = always.",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.bec24bff0ac9",
-    "line": 30,
+    "line": 31,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Scale Lock",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.00bf923a9bdf",
-    "line": 32,
+    "line": 33,
     "wiring": "component-adapter"
   },
   {
     "english": "scaleRoot",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": null,
-    "line": 93,
+    "line": 94,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "scaleType",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": null,
-    "line": 93,
+    "line": 94,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "Key: ",
+    "english": "Key: {0} {1}",
     "file": "Source/gui/slots/ScaleStrip.cpp",
-    "key": null,
+    "key": "s.dfd23df42a6b",
     "line": 98,
-    "wiring": "pending-dynamic-template"
+    "wiring": "explicit-translation"
   },
   {
     "english": "Key: not set",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.d0153b396d33",
-    "line": 98,
-    "wiring": "pending-sink-review"
+    "line": 99,
+    "wiring": "explicit-translation"
   },
   {
-    "english": "Notes in key: ",
+    "english": "Notes in key: {0}",
     "file": "Source/gui/slots/ScaleStrip.cpp",
-    "key": null,
-    "line": 103,
-    "wiring": "pending-dynamic-template"
+    "key": "s.b9b7b2c6bbdd",
+    "line": 104,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Scale Lock is off.",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.54fbf7aa4dce",
-    "line": 103,
-    "wiring": "component-adapter"
+    "line": 104,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Scale Lock",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.00bf923a9bdf",
-    "line": 128,
+    "line": 129,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "Scale Lock keeps pitched fills in key. Set Key to the song's tonic and Scale to its scale; Pitch Rise and Pitch Fall, Granular grains, Comb tuning and Granular Cloud pitch spread then land on notes that belong to it. Snap sets how often a pitch decision is snapped (100% = always). Off, or Snap 0%, leaves pitch exactly as before.",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.d18df5c98149",
-    "line": 130,
+    "line": 131,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "Limit: GapFill does not know the pitch of each hit. Relative pitch shifts are kept to in-key intervals measured from the tonic you set, which is right when the hit is the tonic or a chord tone. Drums and other unpitched sounds are not retuned; they are only constrained to in-key intervals.",
     "file": "Source/gui/slots/ScaleStrip.cpp",
     "key": "s.d4223b799c18",
-    "line": 133,
+    "line": 134,
     "wiring": "help-writer-adapter"
   },
   {
@@ -48216,193 +48230,179 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../../features/i18n/Strings.h",
+    "file": "Source/gui/slots/TensionEditor.cpp",
+    "key": null,
+    "line": 7,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "Density",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.77a283d69258",
-    "line": 13,
+    "line": 14,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Intensity",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.a6d01dcff3bf",
-    "line": 13,
+    "line": 14,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Width",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.3019947b6daf",
-    "line": 13,
+    "line": 14,
     "wiring": "pending-sink-review"
   },
   {
     "english": "FX Send",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.052014bdec21",
-    "line": 13,
+    "line": 14,
     "wiring": "pending-sink-review"
   },
   {
     "english": "BUILD",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.3053677e4333",
-    "line": 14,
+    "line": 15,
     "wiring": "pending-sink-review"
   },
   {
     "english": "BUILD+DROP",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.8189518654ea",
-    "line": 14,
+    "line": 15,
     "wiring": "pending-sink-review"
   },
   {
     "english": "BREAKDOWN",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.99b34139ce22",
-    "line": 14,
+    "line": 15,
     "wiring": "pending-sink-review"
   },
   {
     "english": "SWELL",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.0bc0dd763e32",
-    "line": 14,
+    "line": 15,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Tension curve editor",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.472021bea8be",
-    "line": 24,
+    "line": 25,
     "wiring": "component-adapter"
   },
   {
     "english": "Edit the Custom tension curve of one lane. Page Up and Page Down select a point, arrow keys move it (Shift for ten times the step), Insert adds a point, Delete removes it.",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.0224c3519e84",
-    "line": 25,
+    "line": 26,
     "wiring": "component-adapter"
   },
   {
-    "english": " lane",
+    "english": "{0} lane",
     "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
-    "line": 35,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": "Edit the ",
-    "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
+    "key": "s.5612cecad0d1",
     "line": 36,
-    "wiring": "pending-dynamic-template"
+    "wiring": "explicit-translation"
   },
   {
-    "english": " curve",
+    "english": "Edit the {0} curve",
     "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
-    "line": 36,
-    "wiring": "pending-dynamic-template"
+    "key": "s.400daa15a71f",
+    "line": 37,
+    "wiring": "explicit-translation"
   },
   {
-    "english": "Copy the ",
+    "english": "Copy the {0} shape into this lane",
     "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
-    "line": 45,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " shape into this lane",
-    "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
-    "line": 45,
-    "wiring": "pending-dynamic-template"
+    "key": "s.d9ac52e16de8",
+    "line": 46,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Copy this built-in shape into the selected lane; then drag points to adjust it.",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.869431d6521e",
-    "line": 46,
+    "line": 47,
     "wiring": "component-adapter"
   },
   {
     "english": "Back to a flat line (no change) for the selected lane.",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": "s.4b8e2986fe87",
-    "line": 51,
+    "line": 52,
     "wiring": "component-adapter"
   },
   {
     "english": "fm21_bars",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": null,
-    "line": 188,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": " point ",
-    "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
     "line": 191,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " of ",
-    "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
-    "line": 191,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": ", bar ",
-    "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
-    "line": 192,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": ", ",
-    "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
-    "line": 192,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": " percent",
+    "english": "{0} point {1} of {2}, bar {3}, {4} percent",
     "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
-    "line": 192,
-    "wiring": "pending-dynamic-template"
+    "key": "s.650a52decd21",
+    "line": 194,
+    "wiring": "explicit-translation"
   },
   {
     "english": "fm21_shape",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": null,
-    "line": 207,
+    "line": 210,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "  |  editing switches Shape to Custom",
+    "english": "{0}  |  editing switches Shape to Custom",
     "file": "Source/gui/slots/TensionEditor.cpp",
-    "key": null,
-    "line": 209,
-    "wiring": "pending-dynamic-template"
+    "key": "s.41ed8f3df828",
+    "line": 211,
+    "wiring": "explicit-translation"
   },
   {
     "english": "fm21_shape",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": null,
-    "line": 221,
+    "line": 223,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "fm21_shape",
     "file": "Source/gui/slots/TensionEditor.cpp",
     "key": null,
-    "line": 222,
+    "line": 224,
     "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "{0} lane",
+    "file": "Source/gui/slots/TensionEditor.cpp",
+    "key": "s.5612cecad0d1",
+    "line": 392,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "Edit the {0} curve",
+    "file": "Source/gui/slots/TensionEditor.cpp",
+    "key": "s.400daa15a71f",
+    "line": 393,
+    "wiring": "explicit-translation"
+  },
+  {
+    "english": "Copy the {0} shape into this lane",
+    "file": "Source/gui/slots/TensionEditor.cpp",
+    "key": "s.d9ac52e16de8",
+    "line": 396,
+    "wiring": "explicit-translation"
   },
   {
     "english": "../../features/tension/CurveEdit.h",
@@ -48419,10 +48419,17 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../../features/i18n/ComponentTranslator.h",
+    "file": "Source/gui/slots/TensionEditor.h",
+    "key": null,
+    "line": 15,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "RESET LANE",
     "file": "Source/gui/slots/TensionEditor.h",
     "key": "s.94ccb6c76625",
-    "line": 67,
+    "line": 68,
     "wiring": "component-adapter"
   },
   {
@@ -48468,290 +48475,290 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../../features/i18n/Strings.h",
+    "file": "Source/gui/slots/TensionStrip.cpp",
+    "key": null,
+    "line": 12,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "fm21_on",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 24,
+    "line": 25,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "TENSION",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.f933634d5673",
-    "line": 24,
+    "line": 25,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Shape density, intensity, width and effect amount across a multi-bar build and release, following the host's bar position.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.03a02379ccfc",
-    "line": 25,
+    "line": 26,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm21_shape",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 26,
+    "line": 27,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Shape",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.e0e492707f85",
-    "line": 26,
+    "line": 27,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The curve: Build, Build+Drop, Breakdown, Swell or Custom.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.b650d5d23035",
-    "line": 26,
+    "line": 27,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm21_bars",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 27,
+    "line": 28,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Bars",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.f2c3526915d3",
-    "line": 27,
+    "line": 28,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Length of the curve in bars.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.99ec24bf1732",
-    "line": 27,
+    "line": 28,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm21_end",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 28,
+    "line": 29,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "End",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.f4db1e48476f",
-    "line": 28,
+    "line": 29,
     "wiring": "pending-sink-review"
   },
   {
     "english": "What happens after the last bar: repeat, keep the last value, or return to your knobs.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.6c267569b115",
-    "line": 28,
+    "line": 29,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm21_start",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 29,
+    "line": 30,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Start bar",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.aac05a48c007",
-    "line": 29,
+    "line": 30,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The bar (counted from the start of the song) where the curve begins.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.a3dc2811f2e1",
-    "line": 29,
+    "line": 30,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm21_depthDensity",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 30,
+    "line": 31,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Density",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.77a283d69258",
-    "line": 30,
+    "line": 31,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How far density moves from your knob value. 0 = untouched.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.0401c11ba504",
-    "line": 30,
+    "line": 31,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm21_depthIntensity",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 31,
+    "line": 32,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Intensity",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.a6d01dcff3bf",
-    "line": 31,
+    "line": 32,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How far intensity moves from your knob value. 0 = untouched.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.588d80eee110",
-    "line": 31,
+    "line": 32,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm21_depthWidth",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 32,
+    "line": 33,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Width",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.3019947b6daf",
-    "line": 32,
+    "line": 33,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How far stereo width moves from your knob value. 0 = untouched.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.7c86c6dfce81",
-    "line": 32,
+    "line": 33,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm21_depthFx",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 33,
+    "line": 34,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "FX send",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.cf323cd9dc16",
-    "line": 33,
+    "line": 34,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How much the effect amount is pulled down at the low end of the curve. 0 = untouched.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.1525eb1e7a27",
-    "line": 33,
+    "line": 34,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Tension and release",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.3a05793f1564",
-    "line": 35,
+    "line": 36,
     "wiring": "component-adapter"
   },
   {
     "english": "Edit tension curves",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.4a7c2a4a19b0",
-    "line": 40,
+    "line": 41,
     "wiring": "component-adapter"
   },
   {
     "english": "Draw the Custom curve for each lane: drag points, double-click to add, Delete to remove. Editing switches Shape to Custom.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.6d7e8218282c",
-    "line": 41,
+    "line": 42,
     "wiring": "component-adapter"
   },
   {
     "english": "fm21_on",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 96,
+    "line": 97,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Tension: off",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.a47fce4bd817",
-    "line": 100,
-    "wiring": "pending-sink-review"
+    "line": 101,
+    "wiring": "explicit-translation"
   },
   {
     "english": "Tension waiting for transport",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.5d01c9e8ea33",
-    "line": 102,
-    "wiring": "pending-sink-review"
+    "line": 103,
+    "wiring": "explicit-translation"
   },
   {
     "english": "fm21_bars",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": null,
-    "line": 105,
+    "line": 106,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "Bar ",
+    "english": "Bar {0} of {1}",
     "file": "Source/gui/slots/TensionStrip.cpp",
-    "key": null,
-    "line": 109,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " of ",
-    "file": "Source/gui/slots/TensionStrip.cpp",
-    "key": null,
-    "line": 109,
-    "wiring": "pending-dynamic-template"
+    "key": "s.61864c545cf2",
+    "line": 110,
+    "wiring": "explicit-translation"
   },
   {
     "english": "EDIT CURVES...",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.a3f2c8528822",
-    "line": 124,
+    "line": 125,
     "wiring": "component-adapter"
   },
   {
     "english": "Tension and release",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.3a05793f1564",
-    "line": 133,
+    "line": 134,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "TENSION moves density, intensity, width and effect amount along a curve that lasts a number of bars, then repeats, holds or releases. Each lane has a depth; 0 leaves that lane alone. Shapes: Build rises to the end, Build+Drop rises and then snaps back to neutral for the last eighth, Breakdown falls and returns, Swell rises and falls, Custom uses the curves you draw.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.ea3dd2ad0ee1",
-    "line": 135,
+    "line": 136,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "EDIT CURVES... opens the curve editor: pick a lane (Density, Intensity, Width, FX Send), drag a point to move it, double-click to add one (up to 16 per lane), right-click or Delete to remove it, and use BUILD, BUILD+DROP, BREAKDOWN or SWELL to start from a built-in shape. From the keyboard: Page Up and Page Down select a point, the arrow keys move it (Shift for ten times the step), Insert adds, Delete removes. The first edit switches Shape to Custom so you hear what you draw; the cyan line is the playhead.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.26f8c7949938",
-    "line": 138,
+    "line": 139,
     "wiring": "help-writer-adapter"
   },
   {
     "english": "The position comes from the host's bar count, so loops, seeks and offline renders land on the same value. Start bar counts from the start of the song and assumes a constant time signature. Without host tempo and time signature it does nothing. Curves are saved in the project, not in .gapfill parameter files.",
     "file": "Source/gui/slots/TensionStrip.cpp",
     "key": "s.fd01a52ae7ca",
-    "line": 142,
+    "line": 143,
     "wiring": "help-writer-adapter"
   },
   {

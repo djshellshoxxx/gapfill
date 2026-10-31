@@ -227,7 +227,12 @@ void ComponentTranslator::componentBeingDeleted (juce::Component& component)
             node.component = nullptr;
     impl->scanNeeded = true;
 }
-void ComponentTranslator::changeListenerCallback (juce::ChangeBroadcaster*) { refresh(); }
+void ComponentTranslator::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    refresh();
+    if (impl->root != nullptr)
+        impl->root->repaint(); // custom renderers also read the new catalog
+}
 
 void translateMenu (juce::PopupMenu& menu, const std::function<bool(int)>& preserveItem)
 {
