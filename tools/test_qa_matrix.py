@@ -358,6 +358,21 @@ class RunMatrixTests(unittest.TestCase):
             path.write_text(json.dumps(evidence))
             self.assertEqual(sm.main(["--strict", str(path)]), 1)
 
+    def test_cli_preserves_quoted_windows_binary_path_with_spaces(self):
+        windows_path = r"C:\Program Files\GapFill\GapFillTests.exe"
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "evidence"
+            command = [sys.executable, "-I", str(rm.REPO / "tools/qa/run_matrix.py"), "--binary",
+                       '"' + windows_path + '"', "--out", str(out)]
+            for step in rm.default_steps(["unused"], "fast"):
+                command += ["--skip", step.name]
+            result = subprocess.run(command, cwd=rm.REPO, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            evidence = json.loads(next(out.glob("*.json")).read_text())
+            self.assertEqual(evidence["provenance"]["binary_argv"], [windows_path])
+            # This parser check does not execute or claim validation of a native Windows binary.
+            self.assertTrue(all(row["status"] == "unverified" for row in evidence["steps"]))
+
 
 if __name__ == "__main__":
     unittest.main()
