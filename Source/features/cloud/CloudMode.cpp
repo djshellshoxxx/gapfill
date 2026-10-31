@@ -73,7 +73,7 @@ CloudGrain CloudMode::drawGrain (std::int64_t oldest) noexcept
 
     const auto sizeScale = 1.0f + 0.4f * (rng.nextFloat() - 0.5f);                 // +-20 %
     g.dur = std::max (16, (int) std::lround (sr * 0.001 * (double) s.sizeMs * (double) sizeScale));
-    g.tukey = s.sizeMs < 20.0f;
+    g.tukey = s.modelVersion == 2 || s.sizeMs < 20.0f;
 
     // Pitch: triangular within +-cents, optionally snapped to the scale.
     auto cents = (rng.nextFloat() + rng.nextFloat() - 1.0f) * s.pitchCents;
@@ -142,11 +142,12 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
             ++dropped;
 
         const auto mean = sr / (double) dens.effective;
-        const auto jitter = 1.0 + 0.5 * (2.0 * (double) rng.nextFloat() - 1.0);     // +-50 %
+        const auto onsetSpread = s.modelVersion == 2 ? 0.05 : 0.5;
+        const auto jitter = 1.0 + onsetSpread * (2.0 * (double) rng.nextFloat() - 1.0);
         countdown = std::max (1, (int) std::lround (mean * jitter));
     }
 
-    float accL = 0.0f, accR = 0.0f;
+    float accL = 0.0f, accR = 0.0f, windowEnergy = 0.0f;
 
     for (auto& g : grains)
     {
@@ -171,6 +172,9 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
         const auto s0 = history.read (0, g.pos);
         const auto s1 = history.read (channels > 1 ? 1 : 0, g.pos);
 
+        if (s.modelVersion == 2)
+            windowEnergy += w * w * g.amp * g.amp;
+
         accL += s0 * w * g.amp * g.panL;
         accR += s1 * w * g.amp * g.panR;
 
@@ -180,8 +184,12 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
             g.active = false;
     }
 
-    l = accL * norm;
-    r = accR * norm;
+    // Equal-power normalisation follows the actual overlap, including pan's
+    // fixed two-channel energy. The floor limits gain to 2 when a grain edge
+    // fades in/out; it never fills silence or changes source material.
+    const auto gain = s.modelVersion == 2 ? 0.5f / std::sqrt (std::max (0.0625f, windowEnergy)) : norm;
+    l = accL * gain;
+    r = accR * gain;
     return true;
 }
 

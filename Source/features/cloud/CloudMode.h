@@ -6,8 +6,11 @@
 //  - Source: the voice's source anchor (the latched Capture material while
 //    Capture holds the history, else the recent window [anchor - span, anchor]);
 //    never beyond the anchor, never before the start of valid history.
-//  - Scheduler: inter-onset 1/density +-50 % uniform; grain length `size` +-20 %,
-//    Hann window (Tukey below 20 ms); equal-power pan scaled by spread.
+//  - Legacy model 1: inter-onset 1/density +-50 % uniform; grain length
+//    `size` +-20 %, Hann window (Tukey below 20 ms).
+//  - Model 2: stratified +-5 % onsets, Tukey windows and bounded window-energy
+//    normalisation reduce amplitude holes at the SAME Density/Size values.
+//    Both use equal-power pan scaled by spread.
 //  - Position jitter: back = span * (0.5 + jitter * (u - 0.5)); 0 = every grain
 //    from the middle of the span, 100 = uniform over the span.
 //  - Pitch spread: triangular within +-cents; N-MUS Scale Lock quantises it via
@@ -15,7 +18,7 @@
 //  - Bounds: 48 grains per voice (preallocated); estimated overlap
 //    density * size is limited to 40 by lowering the effective density; a grain
 //    that cannot be allocated is dropped and counted. Output is scaled by
-//    1/sqrt(max(1, overlap)).
+//    1/sqrt(max(1, overlap)) in legacy model 1. Model 2 gain is bounded at 2.
 
 #include "../../dsp/DspUtils.h"
 #include "../fx/FxSettings.h"
