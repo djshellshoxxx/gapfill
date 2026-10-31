@@ -166,6 +166,21 @@ class NightlyTests(unittest.TestCase):
                                  "--archive", str(archive), "--out", str(self.root / "unpacked")], capture_output=True)
         self.assertNotEqual(result.returncode, 0)
 
+    def test_package_alias_duplicates_are_rejected_before_any_file_is_written(self):
+        aliases = [("file.bin", "./file.bin"), ("nested/file.bin", "nested//file.bin"),
+                   ("nested/File.bin", "./nested/file.bin"), ("caf\u00e9.bin", "cafe\u0301.bin")]
+        for number, names in enumerate(aliases):
+            with self.subTest(names=names):
+                archive = self.root / f"aliases-{number}.zip"
+                with zipfile.ZipFile(archive, "w") as zipped:
+                    zipped.writestr(names[0], b"first")
+                    zipped.writestr(names[1], b"second")
+                out = self.root / f"aliases-{number}"
+                result = subprocess.run([sys.executable, str(REPO / "packaging/verify_release.py"), "extract",
+                                         "--archive", str(archive), "--out", str(out)], capture_output=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(any(out.iterdir()))
+
     @unittest.skipUnless(sys.platform.startswith("linux"), "fixture models a Linux ELF package")
     def test_missing_packaged_validator_stays_unverified(self):
         archive = self.root / "candidate.zip"

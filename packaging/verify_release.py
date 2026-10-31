@@ -18,6 +18,7 @@ import shutil
 import stat
 import subprocess
 import time
+import unicodedata
 import zipfile
 
 
@@ -57,14 +58,15 @@ def extract(archive: Path, out: Path) -> None:
         for member in zipped.infolist():
             name = PurePosixPath(member.filename)
             destination = (root / member.filename).resolve()
+            canonical = unicodedata.normalize("NFC", destination.relative_to(root).as_posix()).casefold() if destination.is_relative_to(root) else None
             mode = member.external_attr >> 16
             reserved = re.compile(r"(?:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(?:\..*)?", re.IGNORECASE)
             if (name.is_absolute() or ".." in name.parts or "\\" in member.filename or ":" in member.filename
                     or any(part.endswith((".", " ")) or reserved.fullmatch(part) or re.search(r'[<>"|?*]', part) for part in name.parts)
                     or not destination.is_relative_to(root) or stat.S_ISLNK(mode)
-                    or member.filename.casefold() in seen):
+                    or canonical in seen):
                 raise ValueError("package contains unsafe paths, symlinks or duplicate names")
-            seen.add(member.filename.casefold())
+            seen.add(canonical)
         # Validate the WHOLE archive before writing the first entry.
         zipped.extractall(root)
         for member in zipped.infolist():
