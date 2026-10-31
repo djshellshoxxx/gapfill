@@ -344,9 +344,8 @@ bool MacroModel::validateTree (const juce::ValueTree& t)
                    : ! exactInteger (version, 2) || (! exactInteger (targets, 1) && ! exactInteger (targets, 2))))
         return false;
 
-    juce::MemoryOutputStream bytes;
-    t.writeToStream (bytes);
-    if (bytes.getDataSize() > 2 * 1024) return false;
+    // Match the project subtree registry's XML budget, including escaping.
+    if (t.toXmlString().getNumBytesAsUTF8() > 2 * 1024) return false;
 
     bool seen[kNumMacros] {};
 

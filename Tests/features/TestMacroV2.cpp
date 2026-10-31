@@ -235,3 +235,38 @@ GF_TEST (MacroV2, optional_portable_bank_macros_keep_their_engine_schema_and_val
     options.macros.setProperty ("v", 3, nullptr);
     GF_EXPECT (bank::exportToString (scenes, options, "test", "2026-10-31").isEmpty());
 }
+
+GF_TEST (MacroV2, maximum_escaped_names_mappings_and_lfos_survive_project_save_and_reload)
+{
+    GapFillAudioProcessor proc;
+    auto& model = proc.getLiveControl().macroMappings();
+    for (int macro = 0; macro < kNumMacros; ++macro)
+        while (model.get().count[macro] > 0) GF_EXPECT (model.removeMapping (macro, 0));
+    for (int macro = 0; macro < kNumMacros; ++macro)
+    {
+        GF_EXPECT (model.rename (macro, juce::String::repeatedString ("\"", kNameBytes)));
+        GF_EXPECT (model.setLfo (macro, { 1, 4, 1, (std::uint8_t) ((int) Division::NumDivisions - 1), 20, 1, 360 }));
+        for (int mapping = 0; mapping < kMaxMappings; ++mapping)
+        {
+            Mapping target;
+            target.target = (std::uint8_t) (4 + macro * kMaxMappings + mapping);
+            target.min01 = target.max01 = 1;
+            target.curve = 3;
+            target.smoothMs = 500;
+            target.bipolar = 1;
+            GF_EXPECT (model.addMapping (macro, target) == MacroModel::AddResult::Ok);
+        }
+    }
+    const auto expected = model.toValueTree();
+    GF_EXPECT (MacroModel::validateTree (expected));
+    GF_EXPECT_MSG (state::serialisedSize (expected) <= 2 * 1024, "escaped maximum macro XML exceeds its budget");
+    juce::ValueTree tree ("GAPFILL");
+    GF_EXPECT (state::writeSubtrees (proc, tree, state::reservedSubtrees()).ok);
+    GF_EXPECT (tree.getChildWithName (MacroModel::subtreeName).isEquivalentTo (expected));
+    juce::MemoryBlock saved;
+    proc.getStateInformation (saved);
+    GF_EXPECT (saved.getSize() > 0);
+    GapFillAudioProcessor restored;
+    restored.setStateInformation (saved.getData(), (int) saved.getSize());
+    GF_EXPECT (restored.getLiveControl().macroMappings().toValueTree().isEquivalentTo (expected));
+}
