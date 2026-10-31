@@ -384,7 +384,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     const auto saved = proc.getSavedEditorSize();
     setResizable (true, true);
     setResizeLimits (kMinWidth, kMinHeight, 2600, 1800);
-    setSize (juce::jmax (kMinWidth, saved.x), juce::jmax (kMinHeight, saved.y));
+    setSize (juce::jlimit (kMinWidth, 2600, saved.x), juce::jlimit (kMinHeight, 1800, saved.y));
 
     if (proc.getCurrentPresetName() == "Custom")
     {

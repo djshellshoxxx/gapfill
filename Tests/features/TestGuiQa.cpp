@@ -401,3 +401,15 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
         maybeSnapshot (editor, s.name, rasterScale);
     }
 }
+
+GF_TEST (GuiQa, restored_size_is_clamped_before_the_first_layout)
+{
+    ScopedSettings settings;
+    GapFillAudioProcessor proc;
+    proc.setSavedEditorSize ({ 3200, 2200 });
+    GapFillAudioProcessorEditor editor (proc);
+    GF_EXPECT (editor.getWidth() <= 2600);
+    GF_EXPECT (editor.getHeight() <= 1800);
+    GF_EXPECT (proc.getSavedEditorSize().x == editor.getWidth());
+    GF_EXPECT (proc.getSavedEditorSize().y == editor.getHeight());
+}
