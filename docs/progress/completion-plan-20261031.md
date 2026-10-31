@@ -261,6 +261,17 @@ These rows are in scope, not external acceptance and not automatically deferred:
 - Append-only future tail sequence after the current 242 IDs: **MACROEXT 26
   (242–267), HGEXT 7 (268–274), TAPEXTRA 9 (275–283)**. Only root registers it.
   No released ID/index, normalized choice range or immutable fixture changes.
+- Capture residual F-M08 adds **CAPTUREEXT two controls at284–285** after that
+  tail: `fm08_detail` (off) and `fm08_scan` (0–100%, default0). The shipped
+  `captureLength` ID/range/host index stays unchanged and remains Length. Both
+  new controls are performance state, excluded from Random/Undo and scene scope.
+  The explicit Detailed recapture switch preserves shipped always-recording,
+  pending-replacement behavior for old sessions; enabling it selects held-only
+  tap recording, short/busy rejection and complete status handling. Scan zero
+  consumes no random draw or anchor arithmetic. Detailed pending service uses
+  internal segments at most4096 samples plus an overwrite guard; no unbounded
+  copy or larger-than-budget ring is allowed. Current Granular voices retain
+  the existing safe source-change fade because they still borrow history.
 - Keep the released 16-byte `FillRecipe` and every flag bit unchanged. Add an
   optional bounded POD `RecipeExtras` alongside it: 12-byte feature-owned
   harmonic metadata and 28-byte feature-owned Tape metadata inside a 44-byte
