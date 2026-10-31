@@ -4,6 +4,8 @@ list(APPEND GAPFILL_SOURCES
     Source/features/common/EngineTargets.cpp
     Source/features/commands/CommandMap.cpp
     Source/features/commands/ControllerProfile.cpp
+    Source/features/controller/FeedbackCore.cpp
+    Source/features/controller/Takeover.cpp
     Source/features/momentary/HoldController.cpp
     Source/features/momentary/HoldVoices.cpp
     Source/features/panic/Panic.cpp
