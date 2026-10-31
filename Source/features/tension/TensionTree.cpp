@@ -95,12 +95,22 @@ void applyTree (GapFillAudioProcessor& p, const juce::ValueTree& t)
 
 juce::ValueTree serialiseTree (const GapFillAudioProcessor& p)
 {
-    const auto& svc = p.getContextState().tensionService();
+    return serialiseTree (p.getContextState().tensionService());
+}
 
-    if (svc.isDefault())
+juce::ValueTree serialiseTree (const TensionService& svc)
+{
+    TensionCurves c;
+    if (! svc.tryCurves (c))
+    {
+        juce::ValueTree error (kType);
+        error.setProperty ("__serialiseError", "Tension curves changed during state capture.", nullptr);
+        return error;
+    }
+
+    if (isDefault (c))
         return {};                                          // flat curves: write nothing
 
-    const auto c = svc.curves();
     juce::ValueTree t (kType);
     t.setProperty ("version", 1, nullptr);
 

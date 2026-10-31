@@ -2,6 +2,7 @@
 #include "../TestFramework.h"
 #include "../support/AllocGuard.h"
 #include "../../Source/features/tension/Tension.h"
+#include "../../Source/features/tension/TensionTree.h"
 
 #include <array>
 #include <atomic>
@@ -32,6 +33,17 @@ namespace
     {
         return std::memcmp (&a, &b, sizeof a) == 0;
     }
+
+    struct HeldPublisher
+    {
+        std::barrier<> entered { 2 }, finish { 2 };
+        static void hold (void* context)
+        {
+            auto& state = *static_cast<HeldPublisher*> (context);
+            state.entered.arrive_and_wait();
+            state.finish.arrive_and_wait();
+        }
+    };
 }
 
 GF_TEST (TensionPublication, default_and_valid_curves_keep_every_point_exactly)
@@ -133,4 +145,46 @@ GF_TEST (TensionPublication, repeated_reader_is_allocation_free_and_does_not_mut
     GF_EXPECT (unchanged && allocations == 0);
     GF_EXPECT (service.lastActive());
     GF_EXPECT_NEAR (service.lastPhase(), status.phase, 0.0);
+}
+
+GF_TEST (TensionPublication, strict_busy_capture_keeps_output_while_audio_retains_flat_fallback)
+{
+    TensionService service;
+    const auto previous = markedCurves (100), next = markedCurves (800);
+    GF_EXPECT (service.publishCurves (previous));
+    HeldPublisher paused;
+    service.setAfterPublishBeginForTests (&HeldPublisher::hold, &paused);
+    bool published = false;
+    std::thread writer ([&] { published = service.publishCurves (next); });
+    paused.entered.arrive_and_wait();
+    auto output = previous;
+    const bool captured = service.tryCurves (output);
+    const auto audio = service.curves();
+    paused.finish.arrive_and_wait();
+    writer.join();
+    service.setAfterPublishBeginForTests (nullptr, nullptr);
+    GF_EXPECT (! captured && identical (output, previous));
+    GF_EXPECT (identical (audio, TensionCurves {}));
+    GF_EXPECT (published && service.tryCurves (output) && identical (output, next));
+}
+
+GF_TEST (TensionPublication, busy_serialization_is_an_error_and_never_an_omitted_flat_subtree)
+{
+    TensionService service;
+    GF_EXPECT (service.publishCurves (markedCurves (100)));
+    HeldPublisher paused;
+    service.setAfterPublishBeginForTests (&HeldPublisher::hold, &paused);
+    std::thread writer ([&] { service.publishCurves (markedCurves (800)); });
+    paused.entered.arrive_and_wait();
+    const auto busy = serialiseTree (service);
+    paused.finish.arrive_and_wait();
+    writer.join();
+    service.setAfterPublishBeginForTests (nullptr, nullptr);
+    GF_EXPECT (busy.isValid() && busy.hasType ("Tension") && busy.hasProperty ("__serialiseError"));
+    const auto captured = serialiseTree (service);
+    GF_EXPECT (captured.isValid() && ! captured.hasProperty ("__serialiseError") && validateTree (captured));
+    GF_EXPECT (captured.getChild (0).getProperty ("pts").toString().startsWith ("0:800,"));
+    GF_EXPECT (captured.getChild (3).getProperty ("pts").toString().endsWith ("1000:845"));
+    GF_EXPECT (service.publishCurves (TensionCurves {}));
+    GF_EXPECT (! serialiseTree (service).isValid()); // proved flat by a successful capture
 }
