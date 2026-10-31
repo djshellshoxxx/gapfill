@@ -20,7 +20,7 @@ void SceneController::publishOverlay (Overlay::Kind kind)
     pub.publish (o);
 }
 
-bool SceneController::request (int index, bool fixedBoundary, double targetPpq)
+bool SceneController::request (int index, bool fixedBoundary, double targetPpq, std::uint8_t group, std::uint64_t cancelEpoch)
 {
     if (fixedBoundary && ! std::isfinite (targetPpq))
     {
@@ -63,6 +63,12 @@ bool SceneController::request (int index, bool fixedBoundary, double targetPpq)
     o.targetPpq = targetPpq;
     pendingFixedBoundary = fixedBoundary;
     pendingTargetPpq = targetPpq;
+    o.scopeVersion = scene.scopeVersion;
+    pendingScopeVersion = scene.scopeVersion;
+    o.externalGroup = group;
+    o.externalCancelEpoch = cancelEpoch;
+    pendingGroup = group;
+    pendingCancelEpoch = cancelEpoch;
     o.n = (std::uint16_t) resolved.size();
 
     for (size_t i = 0; i < resolved.size(); ++i)
@@ -84,9 +90,9 @@ bool SceneController::gotoScene (int index)
     return request (index);
 }
 
-bool SceneController::gotoSceneAt (int index, double targetPpq)
+bool SceneController::gotoSceneAt (int index, double targetPpq, std::uint8_t group, std::uint64_t cancelEpoch)
 {
-    return request (index, true, targetPpq);
+    return request (index, true, targetPpq, group, cancelEpoch);
 }
 
 void SceneController::rejectPending (std::uint32_t requestId, const juce::String& reason)
@@ -249,6 +255,9 @@ void SceneController::poll()
         o.waitForTransport = pendingWait;
         o.fixedBoundary = pendingFixedBoundary ? 1 : 0;
         o.targetPpq = pendingTargetPpq;
+        o.scopeVersion = pendingScopeVersion;
+        o.externalGroup = pendingGroup;
+        o.externalCancelEpoch = pendingCancelEpoch;
         o.n = (std::uint16_t) resolved.size();
 
         for (size_t i = 0; i < resolved.size(); ++i)

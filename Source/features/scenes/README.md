@@ -44,3 +44,19 @@ wire bytes, complete banks, legacy scopes, harmonic overlays, invalid versions,
 transactional failures, schema precedence and fixed group deadlines. Continuous
 bus-effect scene timing requires separate segmented processor integration; the
 harmonic/decision tests do not establish that broader timing claim.
+
+Scene preflight consumes/arms the published request and queries its first
+boundary sample before history/analysis side effects. When this API is used,
+the engine keeps the generation pending until the first actual boundary sample;
+the end of an old-setting segment is not an early commit. The processor must
+call preflight for every segment, forward rejection results and split at the
+returned sample offset. A zero offset means the scene applies at segment start.
+Group cancellation metadata is part of the same Overlay publication as its
+request ID, and must be compared after staging and before processing.
+
+New scene dispatch resolves every shipped FX parameter and the six opt-in
+per-voice formant controls. Migrated scope-v1 scenes keep their legacy dispatch
+as well as their legacy parameter scope. Recapturing/storing a scene creates
+the new scope/dispatch version. The legacy shared macro/battle lookup remains
+unchanged; enabling previously disconnected advanced macro mappings needs its
+own versioned contract and explicit upgrade.

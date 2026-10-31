@@ -1,4 +1,5 @@
 #include "EngineTargets.h"
+#include "FxTargets.h"
 
 #include <algorithm>
 #include <cmath>
@@ -39,6 +40,15 @@ Ref refForId (const char* id) noexcept
             return { Kind::Weight, (std::uint8_t) a };
 
     return {};
+}
+
+Ref sceneRefForId (const char* id) noexcept
+{
+    const auto legacy = refForId (id);
+    if (legacy)
+        return legacy;
+    const auto effect = fxTargets::indexForId (id);
+    return effect >= 0 ? Ref { Kind::Effect, (std::uint8_t) effect } : Ref {};
 }
 
 std::uint32_t macroBit (Ref ref) noexcept
@@ -89,8 +99,14 @@ void apply (EngineSettings& s, Ref ref, float real) noexcept
         case Kind::HarmonicVoices: s.perf.harmonic.voices = std::clamp ((int) std::lround (real), 1, 6); break;
         case Kind::HarmonicMotion: s.perf.harmonic.motion01 = std::clamp (pct, 0.0f, 1.0f); break;
         case Kind::HarmonicTone:   s.perf.harmonic.tone = std::clamp (pct, -1.0f, 1.0f); break;
+        case Kind::Effect:      fxTargets::apply (s, ref.sub, real); break;
         case Kind::None:        break;
     }
+}
+
+bool isBusEffect (Ref ref) noexcept
+{
+    return ref.kind == Kind::Effect && fxTargets::isBusEffect (ref.sub);
 }
 
 } // namespace gapfill::targets

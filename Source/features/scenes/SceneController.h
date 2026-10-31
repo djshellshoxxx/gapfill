@@ -31,7 +31,7 @@ public:
     bool gotoScene (int index);
     /** Group recall at an explicit future PPQ boundary. A missed deadline or
         transport discontinuity cancels rather than applying at another time. */
-    bool gotoSceneAt (int index, double targetPpq);
+    bool gotoSceneAt (int index, double targetPpq, std::uint8_t group = 0, std::uint64_t cancelEpoch = 0);
     /** Message-thread acknowledgement of a fixed request rejected by audio. */
     void rejectPending (std::uint32_t requestId, const juce::String& reason);
     bool next();
@@ -75,7 +75,8 @@ public:
     void reset();     ///< clears bank and request state
 
 private:
-    bool request (int index, bool fixedBoundary = false, double targetPpq = 0.0);
+    bool request (int index, bool fixedBoundary = false, double targetPpq = 0.0,
+                  std::uint8_t group = 0, std::uint64_t cancelEpoch = 0);
     int  clampStep (int from, int delta) const;
     void publishOverlay (Overlay::Kind kind);
 
@@ -93,6 +94,9 @@ private:
     std::uint8_t pendingWait = 0;
     bool pendingFixedBoundary = false;
     double pendingTargetPpq = 0.0;
+    std::uint8_t pendingScopeVersion = 2;
+    std::uint8_t pendingGroup = 0;
+    std::uint64_t pendingCancelEpoch = 0;
 
     std::vector<ResolvedParam> resolved;       ///< entries still governed by the overlay
     std::vector<float> baseline01;             ///< parameter value when the request was made

@@ -19,7 +19,7 @@ enum class Kind : std::uint8_t
     None = 0, Fill, Intensity, Complexity, Chaos, Density, FillType, Weight,
     ProtTrans, ProtNext, ProtSC, MinGap, MaxFill, ProtectHold,
     BandOn, BandAmt, BandInt, BandProb, XoverLM, XoverMH,
-    HarmonicAmount, HarmonicVoices, HarmonicMotion, HarmonicTone
+    HarmonicAmount, HarmonicVoices, HarmonicMotion, HarmonicTone, Effect
 };
 
 struct Ref
@@ -34,6 +34,10 @@ struct Ref
     has no EngineSettings field (it is then only committed, never overlaid). */
 Ref refForId (const char* id) noexcept;
 
+/** Complete scene target lookup. The legacy lookup deliberately retains its
+    macro/battle behavior; a versioned newer macro contract may opt in here. */
+Ref sceneRefForId (const char* id) noexcept;
+
 /** Bit of the macro target table (C-2 macroTargets(): fill 0, intensity 1,
     complexity 2, chaos 3, density 4, width 5, weights 6..20) this reference
     corresponds to, or 0 when macros cannot own it. */
@@ -42,5 +46,8 @@ std::uint32_t macroBit (Ref ref) noexcept;
 /** Writes `real` (the parameter's own unit: percent, ms, Hz, choice index) into
     the settings field. Audio-thread safe. */
 void apply (EngineSettings& s, Ref ref, float real) noexcept;
+
+/** True for a continuous bus card setting (a subset of effect refs). */
+bool isBusEffect (Ref) noexcept;
 
 } // namespace gapfill::targets

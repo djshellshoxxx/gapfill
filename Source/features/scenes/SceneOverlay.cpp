@@ -12,6 +12,7 @@ namespace
 {
     constexpr int kMaxTargets = 1024;
     std::array<targets::Ref, kMaxTargets> targetTable {};
+    std::array<targets::Ref, kMaxTargets> legacyTargetTable {};
     std::once_flag targetsFlag;
 }
 
@@ -22,7 +23,10 @@ void initOverlayTargets()
         const auto n = std::min (numParams(), kMaxTargets);
 
         for (int i = 0; i < n; ++i)
-            targetTable[(size_t) i] = targets::refForId (paramIdAt (i).toRawUTF8());
+        {
+            targetTable[(size_t) i] = targets::sceneRefForId (paramIdAt (i).toRawUTF8());
+            legacyTargetTable[(size_t) i] = targets::refForId (paramIdAt (i).toRawUTF8());
+        }
     });
 }
 
@@ -90,6 +94,7 @@ void SceneEngine::reset() noexcept
     currentView.clear();
     lastEndPpq = -1.0;
     lastValid = false;
+    boundaryPreflight = false;
     uiBoundary.store (-1.0, std::memory_order_relaxed);
     uiPending.store (0, std::memory_order_relaxed);
 }
@@ -112,7 +117,8 @@ void SceneEngine::load (const Overlay& o) noexcept
 
     for (int i = 0; i < n; ++i)
     {
-        currentView.refs[i] = o.idx[i] < kMaxTargets ? targetTable[o.idx[i]] : targets::Ref {};
+        const auto& table = o.scopeVersion == 1 ? legacyTargetTable : targetTable;
+        currentView.refs[i] = o.idx[i] < kMaxTargets ? table[o.idx[i]] : targets::Ref {};
         currentView.real[i] = o.real[i];
     }
 }
@@ -165,7 +171,13 @@ void SceneEngine::arm (const TransportSnap& t, Result& r) noexcept
                                                        t.phraseBars, t.phraseOffset);
 }
 
-SceneEngine::Result SceneEngine::beginChunk (TripleBuffer<Overlay>& pub, const TransportSnap& t) noexcept
+SceneEngine::Result SceneEngine::stagePublished (TripleBuffer<Overlay>& pub, const TransportSnap& t) noexcept
+{
+    boundaryPreflight = true;
+    return adoptPublished (pub, t);
+}
+
+SceneEngine::Result SceneEngine::adoptPublished (TripleBuffer<Overlay>& pub, const TransportSnap& t) noexcept
 {
     Result r;
 
@@ -232,10 +244,48 @@ SceneEngine::Result SceneEngine::beginChunk (TripleBuffer<Overlay>& pub, const T
 
         if (t.valid && currentView.boundaryPpq >= 1.0e299 && ! currentView.immediate)
             arm (t, r);                        // transport appeared while waiting
+    }
 
+    return r;
+}
+
+int SceneEngine::samplesUntilBoundary (const TransportSnap& t) const noexcept
+{
+    const auto n = std::max (0, t.numSamples);
+    if (phase != Phase::Pending)
+        return n;
+    if (currentView.immediate)
+        return 0;
+    if (! t.valid || ! std::isfinite (t.ppq) || ! std::isfinite (t.samplesPerBeat) || t.samplesPerBeat <= 0.0)
+        return n;
+
+    const auto delta = (currentView.boundaryPpq - t.ppq) * t.samplesPerBeat;
+    if (! std::isfinite (delta) || delta >= (double) n)
+        return n;
+    if (delta <= 0.0)
+        return 0;
+
+    auto offset = std::clamp ((int) std::ceil (delta), 0, n);
+    // Match the PPQ expression the scheduler will evaluate, rather than
+    // introducing a tolerance that could move an effect before its boundary.
+    if (offset > 0 && t.ppq + (double) (offset - 1) / t.samplesPerBeat >= currentView.boundaryPpq)
+        --offset;
+    if (offset < n && t.ppq + (double) offset / t.samplesPerBeat < currentView.boundaryPpq)
+        ++offset;
+    return offset;
+}
+
+SceneEngine::Result SceneEngine::beginChunk (TripleBuffer<Overlay>& pub, const TransportSnap& t) noexcept
+{
+    auto r = adoptPublished (pub, t);
+
+    if (phase == Phase::Pending)
+    {
         const auto endPpq = t.valid ? t.ppq + (double) t.numSamples / std::max (1.0, t.samplesPerBeat) : 0.0;
 
-        if (currentView.immediate || (t.valid && endPpq > currentView.boundaryPpq))
+        const bool reached = boundaryPreflight ? currentView.appliesAt (t.ppq, t.valid)
+                                               : (t.valid && endPpq > currentView.boundaryPpq);
+        if (currentView.immediate || reached)
         {
             phase = Phase::Applied;
             r.appliedId = active.id;
@@ -250,6 +300,7 @@ SceneEngine::Result SceneEngine::beginChunk (TripleBuffer<Overlay>& pub, const T
     }
 
     lastValid = t.valid;
+    boundaryPreflight = false;
     lastEndPpq = t.valid ? t.ppq + (double) t.numSamples / std::max (1.0, t.samplesPerBeat) : -1.0;
     return r;
 }
