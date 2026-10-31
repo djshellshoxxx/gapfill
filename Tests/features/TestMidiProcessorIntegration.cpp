@@ -8,7 +8,8 @@ using namespace gftest;
 
 namespace
 {
-    std::vector<std::int64_t> hitTimes (int blockSize, bool early)
+    struct MidiRun { std::vector<std::int64_t> hits; int frames = 0; };
+    MidiRun hitTimes (int blockSize, bool early)
     {
         constexpr double rate = 48000.0;
         GapFillAudioProcessor proc;
@@ -19,7 +20,7 @@ namespace
         juce::AudioBuffer<float> audio (2, blockSize);
         juce::MidiBuffer midi;
         midi.ensureSize (2048);
-        std::vector<std::int64_t> hits;
+        MidiRun result;
         for (int start = 0; start + blockSize <= input.getNumSamples(); start += blockSize)
         {
             for (int channel = 0; channel < 2; ++channel)
@@ -40,12 +41,13 @@ namespace
                 if (message.isNoteOn())
                 {
                     GF_EXPECT (message.getChannel() == 11 && message.getNoteNumber() == 36);
-                    hits.push_back ((std::int64_t) start + event.samplePosition);
+                    result.hits.push_back ((std::int64_t) start + event.samplePosition);
                 }
             }
+            result.frames += blockSize;
         }
-        GF_EXPECT (! hits.empty());
-        return hits;
+        GF_EXPECT (! result.hits.empty());
+        return result;
     }
 }
 
@@ -56,15 +58,27 @@ GF_TEST (MidiProcessor, detection_early_hits_are_causal_and_independent_of_host_
     {
         const auto actual = hitTimes (block, true);
         // The large-block render ends earlier; compare their common duration.
-        for (size_t i = 0; i < actual.size(); ++i)
-        {
-            GF_EXPECT (i < reference.size());
-            GF_EXPECT (actual[i] == reference[i]);
-        }
+        std::vector<std::int64_t> expected;
+        for (auto time : reference.hits)
+            if (time < actual.frames)
+                expected.push_back (time);
+        GF_EXPECT (actual.hits == expected);
     }
 }
 
 GF_TEST (MidiProcessor, extended_output_uses_engine_events_with_no_input_echo)
 {
-    GF_EXPECT (! hitTimes (512, false).empty());
+    GF_EXPECT (! hitTimes (512, false).hits.empty());
+}
+
+GF_TEST (MidiProcessor, declared_output_never_echoes_input_when_runtime_masters_are_off)
+{
+    GapFillAudioProcessor proc;
+    prepareProcessor (proc, 48000.0, 64, false);
+    juce::AudioBuffer<float> audio (2, 64);
+    audio.clear();
+    juce::MidiBuffer midi;
+    midi.addEvent (juce::MidiMessage::controllerEvent (1, 74, 100), 12);
+    proc.processBlock (audio, midi);
+    GF_EXPECT (midi.getNumEvents() == (midiout::kDeclared ? 0 : 1));
 }

@@ -112,6 +112,7 @@ void FillEngine::reset()
     spectral.release();
 
     inGap = false;
+    midiConfidenceValid = false;
     gapEvaluated = false;
     gapStartPos = 0;
     lastFillStartPos = -1000000;
@@ -509,9 +510,11 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             activeNow += v.isActive() ? 1 : 0;
 
         for (int i = activeNow; i < prevActiveVoices; ++i)
+        {
             transitions.push (Transition::FillEnd, outputPos);          // WP10 (MIDI out, co-op)
             if (midiEventBuffer != nullptr)
                 midiEventBuffer->push ({ midiout::OutEvent::FillEnd, outputPos });
+        }
 
         if (wantTimeline)
             for (int i = activeNow; i < prevActiveVoices; ++i)

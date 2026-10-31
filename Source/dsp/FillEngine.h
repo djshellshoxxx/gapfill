@@ -58,7 +58,7 @@ public:
 
     /** Forgets the deterministic gap counter, used when the transport jumps. A jump
         also ends a More Like That bias (C-11) and the F-D01 bar count. */
-    void noteTransportJump() noexcept { gapIndex = 0; like.cancel(); recentFills.clear(); responder.reset(); }
+    void noteTransportJump() noexcept { gapIndex = 0; like.cancel(); recentFills.clear(); responder.reset(); midiConfidenceValid = false; }
 
     /** Renders into `wet` (which must already be cleared) and returns the
         protection duck that the processor should apply to the wet bus. */
