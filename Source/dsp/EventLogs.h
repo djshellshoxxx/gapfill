@@ -44,7 +44,7 @@ public:
 
         items[0] = r;
         spans[0] = span;
-        extras[0] = extra;
+        extras[0] = normalizeRecipeExtrasForAlgorithm (r.algo, extra);
         count = count < capacity ? count + 1 : capacity;
         touch();
     }
@@ -70,7 +70,7 @@ public:
             items[(size_t) i] = recipes[i];
             spans[(size_t) i] = {};
             if (metadata != nullptr)
-                extras[(size_t) i] = metadata[i];
+                extras[(size_t) i] = normalizeRecipeExtrasForAlgorithm (recipes[i].algo, metadata[i]);
             ++count;
         }
 

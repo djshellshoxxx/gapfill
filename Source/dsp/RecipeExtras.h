@@ -26,6 +26,9 @@ inline constexpr int kRecipeExtrasBytes = 44;
 inline constexpr std::uint8_t kRecipeExtrasSchema = 1;
 
 bool isValid (const RecipeExtras&) noexcept;
+/** Return a copy with inapplicable Harmonic decisions removed. The base recipe
+    and independent Tape decision remain untouched. */
+RecipeExtras normalizeRecipeExtrasForAlgorithm (std::uint8_t algorithm, RecipeExtras) noexcept;
 /** Validate first when accepting untrusted metadata. Empty metadata is omitted
     from legacy files, preserving their exact bytes. */
 inline bool hasRecipeExtras (const RecipeExtras& extras) noexcept

@@ -44,7 +44,7 @@ juce::String recipeFileText (const FillRecipe& recipe, const juce::String& name,
     root.setAttribute ("recipe", recipecodec::encode (recipe));
     root.setAttribute ("appVersion", juce::String (GAPFILL_VERSION));
     root.setAttribute ("stateVersion", state::kStateVersion);
-    const auto extra = recipecodec::encodeExtras (extras);
+    const auto extra = recipecodec::encodeExtras (normalizeRecipeExtrasForAlgorithm (recipe.algo, extras));
     if (extra.isNotEmpty())
         root.setAttribute ("extras", extra);
     return root.toString (juce::XmlElement::TextFormat().singleLine());
@@ -100,6 +100,7 @@ RecipeFile parseRecipeText (const juce::String& text)
 
     result.name = sanitiseRecipeName (xml->getStringAttribute ("name"));
     recipecodec::decodeExtras (xml->getStringAttribute ("extras"), result.extras);
+    result.extras = normalizeRecipeExtrasForAlgorithm (result.recipe.algo, result.extras);
     result.ok = true;
     return result;
 }

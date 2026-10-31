@@ -78,6 +78,7 @@ GF_TEST (RecipeExtras, history_snapshots_and_recipe_commands_keep_metadata_with_
 {
     RecipeHistory history;
     FillRecipe recipe;
+    recipe.algo = 3;
     recipe.seed = 42;
     const auto first = details(), second = details (17);
     history.push (recipe, {}, first);
@@ -105,6 +106,7 @@ GF_TEST (RecipeExtras, lock_and_recipe_ab_preserve_the_selected_sound_decisions)
 {
     LockState lock;
     FillRecipe recipe;
+    recipe.algo = 3;
     const auto extra = details();
     lock.noteStarted (recipe, extra);
     lock.lockLatest();
@@ -127,6 +129,7 @@ GF_TEST (RecipeExtras, lock_and_recipe_ab_preserve_the_selected_sound_decisions)
 GF_TEST (RecipeExtras, optional_portable_metadata_roundtrips_and_invalid_extras_preserve_the_base)
 {
     FillRecipe recipe;
+    recipe.algo = 3;
     recipe.seed = 42;
     const auto extra = details();
     const auto text = history::recipeFileText (recipe, "Portable fixture", extra);
@@ -140,6 +143,12 @@ GF_TEST (RecipeExtras, optional_portable_metadata_roundtrips_and_invalid_extras_
     const auto legacy = history::recipeFileText (recipe, "Portable fixture");
     GF_EXPECT (! juce::parseXML (legacy)->hasAttribute ("extras"));
     GF_EXPECT (history::parseRecipeText (legacy).ok && ! hasRecipeExtras (history::parseRecipeText (legacy).extras));
+    recipe.algo = 0; // inapplicable Harmonic data is optional; independent Tape is retained
+    auto mismatched = juce::parseXML (history::recipeFileText (recipe, "Stutter fixture", extra));
+    mismatched->setAttribute ("extras", recipecodec::encodeExtras (extra)); // simulate an older/external writer
+    const auto unrelated = history::parseRecipeText (mismatched->toString());
+    GF_EXPECT (unrelated.ok && unrelated.recipe.algo == 0 && unrelated.extras.harmonic.version == 0);
+    GF_EXPECT (unrelated.extras.tape == extra.tape);
     RecipeExtras untouched = extra;
     GF_EXPECT (! recipecodec::decodeExtras (juce::String::repeatedString ("A", 6000), untouched) && untouched == extra);
 }

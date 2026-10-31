@@ -10,7 +10,7 @@ void RecipeAB::setSlot (int slot, const FillRecipe& recipe, const RecipeExtras& 
 
     const auto i = slot != 0 ? 1 : 0;
     recipes[i] = recipe;
-    extras[i] = extra;
+    extras[i] = normalizeRecipeExtrasForAlgorithm (recipe.algo, extra);
     recipes[i].flags = (std::uint8_t) (recipes[i].flags & ~(FillRecipe::flagFromLock | FillRecipe::flagPreview));
     has[i] = true;
     rawRms[i] = 0.0f;                       // a new recipe has not been heard yet

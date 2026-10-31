@@ -15,7 +15,7 @@ namespace
     FillRecipe eventRecipe()
     {
         FillRecipe r;
-        r.algo = 8;
+        r.algo = 3; // stable Granular ordinal; detailed Harmonic decisions apply only here
         r.band = 2;
         r.lengthClass = 3;
         r.division = 7;

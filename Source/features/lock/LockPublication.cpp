@@ -24,6 +24,8 @@ namespace
     {
         if (! value.valid)
         { value.recipe = {}; value.extras = {}; }
+        else
+            value.extras = normalizeRecipeExtrasForAlgorithm (value.recipe.algo, value.extras);
         return value;
     }
     bool pack (const LockSnapshot& value, std::array<std::uint8_t, kBytes>& bytes) noexcept

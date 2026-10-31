@@ -37,6 +37,7 @@ void apply (GapFillAudioProcessor& proc, const juce::ValueTree& tree)
         {
             recipes[n] = r;
             recipecodec::decodeExtras (tree.getChild (i).getProperty ("x").toString(), extras[n]);
+            extras[n] = normalizeRecipeExtrasForAlgorithm (r.algo, extras[n]);
             ++n;
         }
     }

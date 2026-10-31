@@ -31,6 +31,7 @@ void apply (GapFillAudioProcessor& proc, const juce::ValueTree& tree)
     {
         RecipeExtras extras;
         recipecodec::decodeExtras (tree.getProperty ("extras").toString(), extras);
+        extras = normalizeRecipeExtrasForAlgorithm (r.algo, extras);
         proc.getRecipes().lockPublication.beginRestore ({ true, r, extras });
     }
     else

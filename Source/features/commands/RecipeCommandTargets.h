@@ -47,7 +47,7 @@ public:
 
         out.type = type;
         out.recipe = active.recipes[(size_t) index];
-        out.extras = active.extras[(size_t) index];
+        out.extras = normalizeRecipeExtrasForAlgorithm (out.recipe.algo, active.extras[(size_t) index]);
         out.index = 0;                 // PreviewRecipe's index is gain trim, not the MIDI history-slot index.
         return true;
     }

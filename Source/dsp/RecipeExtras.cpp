@@ -11,6 +11,13 @@ bool isValid (const RecipeExtras& extras) noexcept
     return harmonic::psola::valid (extras.harmonic) && tapedamage::isValidTapeMeta (extras.tape);
 }
 
+RecipeExtras normalizeRecipeExtrasForAlgorithm (std::uint8_t algorithm, RecipeExtras extras) noexcept
+{
+    if (! harmonic::psola::applicableToAlgorithm (extras.harmonic, algorithm))
+        extras.harmonic = {};
+    return extras;
+}
+
 bool encodeRecipeExtras (const RecipeExtras& extras, std::span<std::uint8_t> destination) noexcept
 {
     if (destination.size() != kRecipeExtrasBytes || ! isValid (extras))

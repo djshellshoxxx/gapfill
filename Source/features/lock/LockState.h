@@ -68,7 +68,7 @@ struct LockState
     void noteStarted (const FillRecipe& r, const RecipeExtras& extra = {}) noexcept
     {
         lastNatural = r;
-        lastNaturalExtras = extra;
+        lastNaturalExtras = normalizeRecipeExtrasForAlgorithm (r.algo, extra);
         lastNatural.flags = (std::uint8_t) (lastNatural.flags & ~(FillRecipe::flagFromLock | FillRecipe::flagPreview));
         haveLast = true;
 
@@ -89,7 +89,7 @@ struct LockState
             return;
 
         recipe = r;
-        extras = extra;
+        extras = normalizeRecipeExtrasForAlgorithm (r.algo, extra);
         recipe.flags = (std::uint8_t) (recipe.flags & ~(FillRecipe::flagFromLock | FillRecipe::flagPreview));
         valid = true;
         explicitSet = true;

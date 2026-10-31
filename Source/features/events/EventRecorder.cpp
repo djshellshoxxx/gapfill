@@ -210,6 +210,7 @@ bool commandAt (const ReplayData& data, std::size_t index, Command& out) noexcep
             return false;
         if (payload.index == 1 && ! readExtras (data, index + 2, r.block, command.extras))
             return false;
+        command.extras = normalizeRecipeExtrasForAlgorithm (command.recipe.algo, command.extras);
     }
     out = command;
     return true;
@@ -231,7 +232,7 @@ bool outcomeDetailsAt (const ReplayData& data, size_t index, FillRecipe& recipe,
         || ! readExtras (data, index + 2, outcome.block, extra))
         return false;
     recipe = decoded;
-    extras = extra;
+    extras = normalizeRecipeExtrasForAlgorithm (decoded.algo, extra);
     return true;
 }
 
@@ -441,7 +442,8 @@ void EventRecorder::onCommand (const Command& cmd) noexcept
     {
         if (! isValid (cmd.recipe) || ! isValid (cmd.extras))
             return;
-        const bool detailed = hasRecipeExtras (cmd.extras);
+        const auto extras = normalizeRecipeExtrasForAlgorithm (cmd.recipe.algo, cmd.extras);
+        const bool detailed = hasRecipeExtras (extras);
         formatVersion.store (juce::jmax (formatVersion.load (std::memory_order_relaxed), detailed ? 3 : 2),
                              std::memory_order_relaxed);
         auto& payload = records[1];
@@ -452,7 +454,7 @@ void EventRecorder::onCommand (const Command& cmd) noexcept
         std::uint8_t bytes[FillRecipe::serialisedBytes];
         gapfill::toBytes (cmd.recipe, bytes);
         payloadBytes (payload, bytes);
-        if (detailed && ! writeExtras (records + 2, r.block, cmd.extras))
+        if (detailed && ! writeExtras (records + 2, r.block, extras))
             return;
         push (records, detailed ? 5 : 2);
     }
@@ -480,7 +482,8 @@ void EventRecorder::onFillEvent (const FillEvent& e) noexcept
     r.pos = e.pos;
     r.p0 = floatBits (e.availMs);
     r.p1 = floatBits (e.needMs);
-    if (e.type == FillEventType::Started && hasRecipeExtras (e.extras) && isValid (e.recipe) && isValid (e.extras))
+    const auto extras = normalizeRecipeExtrasForAlgorithm (e.recipe.algo, e.extras);
+    if (e.type == FillEventType::Started && hasRecipeExtras (extras) && isValid (e.recipe) && isValid (e.extras))
     {
         r.flags |= kOutcomeHasDetails;
         auto& payload = records[1];
@@ -490,7 +493,7 @@ void EventRecorder::onFillEvent (const FillEvent& e) noexcept
         std::uint8_t bytes[FillRecipe::serialisedBytes];
         gapfill::toBytes (e.recipe, bytes);
         payloadBytes (payload, bytes);
-        if (! writeExtras (records + 2, r.block, e.extras))
+        if (! writeExtras (records + 2, r.block, extras))
             return;
         formatVersion.store (3, std::memory_order_relaxed);
         push (records, 5);
