@@ -12,10 +12,10 @@ FeedbackAdapter::~FeedbackAdapter() { stopTimer(); }
 bool FeedbackAdapter::configure (const commands::Profile& profile, juce::AudioProcessorValueTreeState& state,
                                  MidiLearnManager* learn, std::function<commands::FeedbackState()> stateSource)
 {
-    if (! profile.extended || profile.params.size() > kMaxParameterBindings || profile.feedback.size() > kMaxIndicators) return false;
+    if (! profile.extended || profile.params.size() > kMaxParameterBindings || profile.feedback.size() > commands::kMaxFeedbackRules) return false;
     std::array<OutEvent, kMaxFeedbackOutputs> addresses {};
     std::array<juce::RangedAudioParameter*, kMaxParameterBindings> found {};
-    std::array<int, kMaxIndicators> indicatorIndexes {};
+    std::array<int, commands::kMaxFeedbackRules> indicatorIndexes {};
     std::size_t count = 0, numParameters = 0;
     if (profile.parameterFeedback)
         for (const auto& binding : profile.params)
@@ -33,7 +33,11 @@ bool FeedbackAdapter::configure (const commands::Profile& profile, juce::AudioPr
         std::size_t outputIndex = count;
         for (std::size_t i = numParameters; i < count; ++i)
             if (addresses[i].status == address.status && addresses[i].data1 == address.data1) { outputIndex = i; break; }
-        if (outputIndex == count) addresses[count++] = address;
+        if (outputIndex == count)
+        {
+            if (count >= addresses.size() || count - numParameters >= kMaxIndicators) return false;
+            addresses[count++] = address;
+        }
         indicatorIndexes[index++] = (int) outputIndex;
     }
     FeedbackCore candidate;

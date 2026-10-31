@@ -309,9 +309,8 @@ ProfileParse parseProfile (const juce::String& json)
 
     if (auto* arr = feedback.getArray())
     {
-        if (arr->size() > (version == 3 ? controller::kMaxIndicators : kMaxFeedbackRules))
-            return fail (version == 3 ? "A schema 3 profile can hold at most 16 indicators."
-                                      : "A profile can hold at most 64 feedback rules.");
+        if (arr->size() > kMaxFeedbackRules)
+            return fail ("A profile can hold at most 64 feedback rules.");
 
         int index = 0;
 
@@ -376,6 +375,18 @@ ProfileParse parseProfile (const juce::String& json)
                 && (binding.channel == 0 || parameter.channel == 0 || binding.channel == parameter.channel))
                 return fail ("A CC cannot control both a parameter and a command on overlapping channels.");
 
+    if (version == 3)
+    {
+        int unique = 0;
+        for (std::size_t i = 0; i < profile.feedback.size(); ++i)
+        {
+            const auto& rule = profile.feedback[i];
+            bool earlier = false;
+            for (std::size_t j = 0; j < i; ++j)
+            { const auto& prior = profile.feedback[j]; earlier = earlier || (prior.type == rule.type && prior.channel == rule.channel && prior.number == rule.number); }
+            if (! earlier && ++unique > controller::kMaxIndicators) return fail ("A schema 3 profile can drive at most 16 distinct indicators.");
+        }
+    }
     if (profile.parameterFeedback)
         for (const auto& parameter : profile.params)
             for (const auto& indicator : profile.feedback)

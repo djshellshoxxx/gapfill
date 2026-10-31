@@ -33,7 +33,7 @@ private:
     commands::Profile configuration;
     FeedbackCore core;
     std::array<juce::RangedAudioParameter*, kMaxParameterBindings> parameters {};
-    std::array<int, kMaxIndicators> indicatorOutput {};
+    std::array<int, commands::kMaxFeedbackRules> indicatorOutput {};
     std::size_t parameterCount = 0;
     MidiLearnManager* midiLearn = nullptr;
     std::function<commands::FeedbackState()> source;

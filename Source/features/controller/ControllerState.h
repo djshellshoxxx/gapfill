@@ -8,7 +8,6 @@ inline constexpr int kControllerStateBytes = 8 * 1024;
 struct ControllerState
 {
     commands::Profile profile;
-    juce::String device;
 };
 /** No CC/id map or command map is encoded here: MIDIMAP and Cmd remain authoritative. */
 bool decodeControllerState (const juce::ValueTree&, ControllerState&) noexcept;

@@ -11,12 +11,6 @@ namespace
         if (text != juce::String (candidate) || candidate < low || candidate > high) return false;
         value = (int) candidate; return true;
     }
-    bool printable (const juce::String& text, int maximum)
-    {
-        if (text.length() > maximum) return false;
-        for (auto c : text) if (c < 32 || c == 127) return false;
-        return true;
-    }
 }
 bool decodeControllerState (const juce::ValueTree& tree, ControllerState& output) noexcept
 {
@@ -29,9 +23,7 @@ bool decodeControllerState (const juce::ValueTree& tree, ControllerState& output
         || ! integer (tree, "tx", 1, 16, tx, 1) || ! integer (tree, "timeout", 1000, 30000, candidate.profile.momentaryTimeoutMs, 8000)) return false;
     candidate.profile.extended = true; candidate.profile.parameterFeedback = enabled != 0;
     candidate.profile.txChannel = (std::uint8_t) tx;
-    candidate.profile.name = tree.getProperty ("name", "Controller settings").toString();
-    candidate.device = tree.getProperty ("device").toString();
-    if (! printable (candidate.profile.name, 48) || ! printable (candidate.device, 96)) return false;
+    candidate.profile.name = "Controller settings";
     for (const auto& row : tree)
     {
         if (row.hasType ("p"))
@@ -46,7 +38,7 @@ bool decodeControllerState (const juce::ValueTree& tree, ControllerState& output
         }
         else if (row.hasType ("i"))
         {
-            if (candidate.profile.feedback.size() >= kMaxIndicators) return false;
+            if (candidate.profile.feedback.size() >= commands::kMaxFeedbackRules) return false;
             int source = 0, arg = 0, kind = 0, channel = 0, number = 0, on = 0, off = 0;
             if (! integer (row, "s", 0, 6, source, 0) || ! integer (row, "a", 0, 63, arg, 0)
                 || ! integer (row, "k", 0, 1, kind, 1) || ! integer (row, "ch", 1, 16, channel, 1)
@@ -58,6 +50,15 @@ bool decodeControllerState (const juce::ValueTree& tree, ControllerState& output
         }
         else return false;
     }
+    int uniqueIndicators = 0;
+    for (std::size_t i = 0; i < candidate.profile.feedback.size(); ++i)
+    {
+        const auto& indicator = candidate.profile.feedback[i];
+        bool earlier = false;
+        for (std::size_t j = 0; j < i; ++j)
+        { const auto& prior = candidate.profile.feedback[j]; earlier = earlier || (prior.type == indicator.type && prior.channel == indicator.channel && prior.number == indicator.number); }
+        if (! earlier && ++uniqueIndicators > kMaxIndicators) return false;
+    }
     output = std::move (candidate);
     return true;
 }
@@ -65,11 +66,10 @@ juce::ValueTree encodeControllerState (const ControllerState& state)
 {
     if (! state.profile.extended) return {};
     juce::ValueTree tree ("Controllers");
-    tree.setProperty ("v", 1, nullptr); tree.setProperty ("name", state.profile.name, nullptr);
+    tree.setProperty ("v", 1, nullptr);
     tree.setProperty ("feedback", state.profile.parameterFeedback ? 1 : 0, nullptr);
     tree.setProperty ("tx", (int) state.profile.txChannel, nullptr);
     tree.setProperty ("timeout", state.profile.momentaryTimeoutMs, nullptr);
-    if (state.device.isNotEmpty()) tree.setProperty ("device", state.device, nullptr);
     for (const auto& binding : state.profile.params)
     {
         juce::ValueTree row ("p"); row.setProperty ("id", juce::String (binding.id), nullptr);
