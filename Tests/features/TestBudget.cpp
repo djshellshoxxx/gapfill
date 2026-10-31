@@ -13,7 +13,7 @@ using namespace gftest;
 
 namespace
 {
-    Effective::TransportInfo transport (double ppq = 0.0, int num = 4, int den = 4, bool valid = true)
+    Effective::TransportInfo musicalTransport (double ppq = 0.0, int num = 4, int den = 4, bool valid = true)
     {
         return { valid, ppq, num, den, 120.0 };
     }
@@ -30,7 +30,7 @@ namespace
                           const PhraseSettings& ph = {}, int num = 4, int den = 4)
     {
         BudgetSettings b; b.perBar = perBar; b.zone = zone;
-        return budget::evaluate (b, ph, ppq, transport (ppq, num, den), r);
+        return budget::evaluate (b, ph, ppq, musicalTransport (ppq, num, den), r);
     }
 
     struct Run
@@ -83,12 +83,12 @@ GF_TEST (Budget, off_is_identity)
 {
     BudgetSettings off;
     const auto r = fillsAt ({ 0.0, 0.5, 1.0, 1.5, 2.0 });
-    GF_EXPECT (budget::evaluate (off, {}, 1.0, transport (1.0), r) == RejectReason::None);
+    GF_EXPECT (budget::evaluate (off, {}, 1.0, musicalTransport (1.0), r) == RejectReason::None);
 
     EngineSettings s;
     EngineSettings before;
     std::memcpy (&before, &s, sizeof (s));
-    Effective::applyAtDecision (s, 3.0, transport (3.0));
+    Effective::applyAtDecision (s, 3.0, musicalTransport (3.0));
     GF_EXPECT (std::memcmp (&before, &s, sizeof (s)) == 0);
 
     // Whole plugin: explicit Off equals the default render, with a transport that has a time signature.
@@ -197,10 +197,10 @@ GF_TEST (Budget, no_transport_or_time_signature_is_neutral)
     BudgetSettings b; b.perBar = 1; b.zone = budget::Beat1;
     bool needs = false;
 
-    GF_EXPECT (budget::evaluate (b, {}, 8.0, transport (8.0, 4, 4, false), r, &needs) == RejectReason::None && needs);
-    GF_EXPECT (budget::evaluate (b, {}, 8.0, transport (8.0, 0, 0), r, &needs) == RejectReason::None && needs);
-    GF_EXPECT (budget::evaluate (b, {}, 8.0, transport (8.0, 4, 3), r, &needs) == RejectReason::None && needs);
-    GF_EXPECT (budget::evaluate (b, {}, std::nan (""), transport (std::nan ("")), r, &needs) == RejectReason::None && needs);
+    GF_EXPECT (budget::evaluate (b, {}, 8.0, musicalTransport (8.0, 4, 4, false), r, &needs) == RejectReason::None && needs);
+    GF_EXPECT (budget::evaluate (b, {}, 8.0, musicalTransport (8.0, 0, 0), r, &needs) == RejectReason::None && needs);
+    GF_EXPECT (budget::evaluate (b, {}, 8.0, musicalTransport (8.0, 4, 3), r, &needs) == RejectReason::None && needs);
+    GF_EXPECT (budget::evaluate (b, {}, std::nan (""), musicalTransport (std::nan ("")), r, &needs) == RejectReason::None && needs);
 
     // Whole plugin without a host time signature behaves exactly like Off.
     const auto off = render (512, { { "fill", 80.0f } }, false);

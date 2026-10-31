@@ -13,7 +13,7 @@ using namespace gftest;
 
 namespace
 {
-    Effective::TransportInfo transport (double ppq = 0.0, int num = 4, int den = 4, bool valid = true)
+    Effective::TransportInfo musicalTransport (double ppq = 0.0, int num = 4, int den = 4, bool valid = true)
     {
         return { valid, ppq, num, den, 120.0 };
     }
@@ -53,7 +53,7 @@ GF_TEST (Evolve, off_is_identity)
     auto s = evolving (0);
     EngineSettings before;
     std::memcpy (&before, &s, sizeof (s));
-    evolve::apply (s, 17.3, transport (17.3));
+    evolve::apply (s, 17.3, musicalTransport (17.3));
     GF_EXPECT (std::memcmp (&before, &s, sizeof (s)) == 0);
 
     GapFillAudioProcessor a, b;
@@ -106,7 +106,7 @@ GF_TEST (Evolve, random_access_seek_equals_play_through)
     for (auto ppq : ppqs)
     {
         auto s = evolving (8);
-        evolve::apply (s, ppq, transport (ppq));
+        evolve::apply (s, ppq, musicalTransport (ppq));
         forward.push_back (s);
     }
 
@@ -114,10 +114,10 @@ GF_TEST (Evolve, random_access_seek_equals_play_through)
     for (int i = (int) std::size (ppqs) - 1; i >= 0; --i)
     {
         auto junk = evolving (16, 3);
-        evolve::apply (junk, 999.0 + i, transport (999.0 + i));
+        evolve::apply (junk, 999.0 + i, musicalTransport (999.0 + i));
 
         auto s = evolving (8);
-        evolve::apply (s, ppqs[i], transport (ppqs[i]));
+        evolve::apply (s, ppqs[i], musicalTransport (ppqs[i]));
         GF_EXPECT (std::memcmp (&s, &forward[(size_t) i], sizeof (s)) == 0);
     }
 }
@@ -132,7 +132,7 @@ GF_TEST (Evolve, blend_is_bounded_and_the_first_quarter_crossfades_the_waypoints
         {
             auto s = evolving (period);
             evolve::Waypoint w;
-            GF_EXPECT (evolve::waypointAt (s, ppq, transport (ppq), w));
+            GF_EXPECT (evolve::waypointAt (s, ppq, musicalTransport (ppq), w));
             GF_EXPECT (w.blend >= 0.0f && w.blend <= 1.0f);
 
             const auto phase = ppq / bars - std::floor (ppq / bars);
@@ -140,7 +140,7 @@ GF_TEST (Evolve, blend_is_bounded_and_the_first_quarter_crossfades_the_waypoints
             if (phase >= 0.25 + 1.0e-9)
                 GF_EXPECT (w.blend == 1.0f);
 
-            evolve::apply (s, ppq, transport (ppq));
+            evolve::apply (s, ppq, musicalTransport (ppq));
 
             for (float v : { s.fill01, s.intensity01, s.complexity01, s.chaos01, s.density01 })
                 GF_EXPECT (v >= 0.0f && v <= 1.0f);
@@ -153,13 +153,13 @@ GF_TEST (Evolve, blend_is_bounded_and_the_first_quarter_crossfades_the_waypoints
     // At the start of a cycle the target is the PREVIOUS waypoint; after 25 % it is the current one.
     auto start = evolving (8);
     evolve::Waypoint w0;
-    GF_EXPECT (evolve::waypointAt (start, 32.0, transport (32.0), w0));      // beat 32 = cycle 1, phase 0
+    GF_EXPECT (evolve::waypointAt (start, 32.0, musicalTransport (32.0), w0));      // beat 32 = cycle 1, phase 0
     GF_EXPECT_NEAR (w0.blend, 0.0, 1.0e-6);
     GF_EXPECT (w0.previousProfile == evolve::profileForCycle (0, 7, getNumSurpriseProfiles()));
     GF_EXPECT (w0.profile == evolve::profileForCycle (1, 7, getNumSurpriseProfiles()));
 
     auto settled = evolving (8);
-    evolve::apply (settled, 32.0 + 16.0, transport (48.0));                  // phase 0.5
+    evolve::apply (settled, 32.0 + 16.0, musicalTransport (48.0));                  // phase 0.5
     const auto& target = surpriseTargets (evolve::profileForCycle (1, 7, getNumSurpriseProfiles()));
     EngineSettings base = evolving (8);
     GF_EXPECT_NEAR (settled.fill01, base.fill01 + (target.fill - base.fill01) * evolve::kPull, 1.0e-5);
@@ -172,7 +172,7 @@ GF_TEST (Evolve, ignores_everything_it_must_not_touch)
     s.fillTypeIndex = 0;
     s.weights[(int) Algo::Stutter] = 0.0f;          // a user exclusion
     auto before = s;
-    evolve::apply (s, 55.0, transport (55.0));
+    evolve::apply (s, 55.0, musicalTransport (55.0));
 
     GF_EXPECT (s.weights[(int) Algo::Stutter] == 0.0f);
 
@@ -187,7 +187,7 @@ GF_TEST (Evolve, ignores_everything_it_must_not_touch)
     auto forced = evolving (16);
     forced.fillTypeIndex = 4;
     const auto forcedBefore = forced;
-    evolve::apply (forced, 55.0, transport (55.0));
+    evolve::apply (forced, 55.0, musicalTransport (55.0));
     for (int i = 0; i < numAlgos; ++i)
         GF_EXPECT (forced.weights[i] == forcedBefore.weights[i]);
     GF_EXPECT (forced.fillTypeIndex == 4 && forced.seed == forcedBefore.seed);
@@ -195,8 +195,8 @@ GF_TEST (Evolve, ignores_everything_it_must_not_touch)
 
 GF_TEST (Evolve, invalid_transport_or_time_signature_is_neutral)
 {
-    for (auto t : { transport (20.0, 4, 4, false), transport (20.0, 0, 0), transport (20.0, 4, 3),
-                    transport (std::nan (""), 4, 4) })
+    for (auto t : { musicalTransport (20.0, 4, 4, false), musicalTransport (20.0, 0, 0), musicalTransport (20.0, 4, 3),
+                    musicalTransport (std::nan (""), 4, 4) })
     {
         auto s = evolving (8);
         EngineSettings before;

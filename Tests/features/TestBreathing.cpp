@@ -12,7 +12,7 @@ using namespace gftest;
 
 namespace
 {
-    Effective::TransportInfo transport (int num = 4, int den = 4, bool valid = true)
+    Effective::TransportInfo musicalTransport (int num = 4, int den = 4, bool valid = true)
     {
         return { valid, 0.0, num, den, 120.0 };
     }
@@ -61,12 +61,12 @@ GF_TEST (Breathing, neutral_when_disabled_depth0_or_no_transport)
     };
 
     auto off = withBreath(); off.perf.breath.on = false;
-    expectUntouched (off, 1.0, transport(), "disabled");
-    expectUntouched (withBreath (4, 0.0f), 1.0, transport(), "depth 0");
-    expectUntouched (withBreath(), 1.0, transport (4, 4, false), "invalid transport");
-    expectUntouched (withBreath(), 1.0, transport (0, 0), "unknown time signature");
-    expectUntouched (withBreath(), 1.0, transport (4, 3), "denominator not a power of two");
-    expectUntouched (withBreath(), std::nan (""), transport(), "NaN ppq");
+    expectUntouched (off, 1.0, musicalTransport(), "disabled");
+    expectUntouched (withBreath (4, 0.0f), 1.0, musicalTransport(), "depth 0");
+    expectUntouched (withBreath(), 1.0, musicalTransport (4, 4, false), "invalid transport");
+    expectUntouched (withBreath(), 1.0, musicalTransport (0, 0), "unknown time signature");
+    expectUntouched (withBreath(), 1.0, musicalTransport (4, 3), "denominator not a power of two");
+    expectUntouched (withBreath(), std::nan (""), musicalTransport(), "NaN ppq");
 
     // And through the whole plugin: on with depth 0 is the default sound.
     GapFillAudioProcessor a, b;
@@ -99,15 +99,15 @@ GF_TEST (Breathing, density_follows_the_formula_and_is_anchored_at_ppq_zero)
 {
     // 4 bars of 4/4 = 16 beats: ppq 4 is a quarter of the cycle (sine peak).
     auto s = withBreath (4, 1.0f, breathing::Sine, 0.5f);
-    breathing::apply (s, 4.0, transport());
+    breathing::apply (s, 4.0, musicalTransport());
     GF_EXPECT_NEAR (s.density01, 1.0, 1.0e-6);               // 0.5 + 0.5 * 1 * 1 clamps to 1.0
 
     auto t = withBreath (4, 0.5f, breathing::Sine, 0.5f);
-    breathing::apply (t, 4.0, transport());
+    breathing::apply (t, 4.0, musicalTransport());
     GF_EXPECT_NEAR (t.density01, 0.75, 1.0e-6);              // 0.5 + 0.5 * 0.5 * 1
 
     auto u = withBreath (4, 0.5f, breathing::Sine, 0.5f);
-    breathing::apply (u, 12.0, transport());
+    breathing::apply (u, 12.0, musicalTransport());
     GF_EXPECT_NEAR (u.density01, 0.25, 1.0e-6);              // trough
 }
 
@@ -116,8 +116,8 @@ GF_TEST (Breathing, same_ppq_same_density)
     for (double ppq : { 0.0, 1.7, 9.25, 31.5 })
     {
         auto a = withBreath(), b = withBreath();
-        breathing::apply (a, ppq, transport());
-        breathing::apply (b, ppq, transport());
+        breathing::apply (a, ppq, musicalTransport());
+        breathing::apply (b, ppq, musicalTransport());
         GF_EXPECT (a.density01 == b.density01);
     }
 }
@@ -131,8 +131,8 @@ GF_TEST (Breathing, loop_wrap_continuity)
         for (double ppq : { 0.3, 2.9, 7.7 })
         {
             auto a = withBreath (bars, 0.8f, breathing::RiseFall), b = a;
-            breathing::apply (a, ppq, transport());
-            breathing::apply (b, ppq + 3.0 * cycle, transport());
+            breathing::apply (a, ppq, musicalTransport());
+            breathing::apply (b, ppq + 3.0 * cycle, musicalTransport());
             GF_EXPECT_NEAR (a.density01, b.density01, 1.0e-5);
         }
     }
@@ -146,7 +146,7 @@ GF_TEST (Breathing, density_never_leaves_zero_to_one)
                 for (double ppq = -8.0; ppq < 40.0; ppq += 0.37)
                 {
                     auto s = withBreath (2, depth, curve, base);
-                    breathing::apply (s, ppq, transport());
+                    breathing::apply (s, ppq, musicalTransport());
                     GF_EXPECT (s.density01 >= 0.0f && s.density01 <= 1.0f);
                 }
 }
@@ -156,15 +156,15 @@ GF_TEST (Breathing, time_signature_6_8_and_7_4)
     // 6/8 = 3 quarter beats per bar: 2 bars = 6 beats, sine peak at 1.5 beats.
     auto a = withBreath (2, 1.0f, breathing::Sine, 0.5f);
     a.density01 = 0.2f;
-    breathing::apply (a, 1.5, transport (6, 8));
+    breathing::apply (a, 1.5, musicalTransport (6, 8));
     GF_EXPECT_NEAR (a.density01, 0.7, 1.0e-6);
 
     // 7/4 = 7 beats per bar: 1 bar = 7 beats, sine trough at 5.25.
     auto b = withBreath (1, 1.0f, breathing::Sine, 0.5f);
-    breathing::apply (b, 5.25, transport (7, 4));
+    breathing::apply (b, 5.25, musicalTransport (7, 4));
     GF_EXPECT_NEAR (b.density01, 0.0, 1.0e-6);
 
-    GF_EXPECT_NEAR (breathing::phaseAt (b.perf.breath, 7.0, transport (7, 4)), 0.0, 1.0e-9);
+    GF_EXPECT_NEAR (breathing::phaseAt (b.perf.breath, 7.0, musicalTransport (7, 4)), 0.0, 1.0e-9);
 }
 
 GF_TEST (Breathing, block_size_invariant_decisions)
