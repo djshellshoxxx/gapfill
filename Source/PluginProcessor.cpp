@@ -429,6 +429,7 @@ EngineSettings GapFillAudioProcessor::gatherEngineSettings()
     // Feature settings and the block stage of the effective-settings pipeline
     // (docs/dev/02 F0-5). Both are the identity while every feature is neutral.
     hooks::gatherFeatureSettings (s, params);
+    s.fx.cloud.modelVersion = getModelVersions().cloud;
     Effective::MacroOutputs macroOut;
     uiState.mutationOverlay.apply (s);          // F-L17 Mutation Lab preview: first stage, identity while inactive
     auto modulation = hooks::gatherModulationInputs (params);
