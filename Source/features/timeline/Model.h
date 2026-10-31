@@ -8,6 +8,7 @@
 // the engine returned, never one recomputed from UI state.
 
 #include "../../dsp/EngineEvents.h"
+#include "FrameHistory.h"
 
 #include <juce_core/juce_core.h>
 
@@ -58,6 +59,8 @@ class TimelineModel
 {
 public:
     static constexpr int capacity = 512;
+
+    FrameHistory frames; ///< message-thread view of the existing visualisation FIFO
 
     /** Message thread. */
     void push (const TimelineEvent&) noexcept;

@@ -11,6 +11,45 @@ using namespace gapfill::meter;
 
 namespace
 {
+    juce::uint32 meterClockMs = 0;
+    juce::uint32 testMeterClock() { return meterClockMs; }
+
+    struct ScopedMeterClock
+    {
+        ScopedMeterClock() { LevelMeter::setClockForTests (&testMeterClock); }
+        ~ScopedMeterClock() { LevelMeter::setClockForTests (nullptr); }
+    };
+
+    juce::Image meterImage (LevelMeter& meter, int width)
+    {
+        meter.setSize (width, 100);
+        return meter.createComponentSnapshot (meter.getLocalBounds());
+    }
+
+    int readoutPixels (const juce::Image& image)
+    {
+        int count = 0;
+
+        for (int y = 2; y < 10; ++y)
+            for (int x = 3; x < image.getWidth() - 3; ++x)
+                count += image.getPixelAt (x, y) != colours::panelRaised;
+
+        return count;
+    }
+
+    bool samePixels (const juce::Image& a, const juce::Image& b)
+    {
+        if (a.getBounds() != b.getBounds())
+            return false;
+
+        for (int y = 0; y < a.getHeight(); ++y)
+            for (int x = 0; x < a.getWidth(); ++x)
+                if (a.getPixelAt (x, y) != b.getPixelAt (x, y))
+                    return false;
+
+        return true;
+    }
+
     // 8-bit channel equality within one step (interpolation rounding may differ per toolchain).
     bool sameColour (juce::Colour a, juce::Colour b)
     {
@@ -160,4 +199,37 @@ GF_TEST (Meter, level_meter_component_reports_silence_and_clears)
 
     PeakHold q;
     GF_EXPECT (q.peakDb == kFloorDb);
+}
+
+GF_TEST (Meter, readout_hidden_below_26px)
+{
+    ScopedMeterClock clock;
+    meterClockMs = 1000;
+    LevelMeter m;
+    m.setLevel (0.0f);
+    m.resetPeak();
+
+    GF_EXPECT (readoutPixels (meterImage (m, 25)) == 0);
+    GF_EXPECT (readoutPixels (meterImage (m, 26)) > 0);
+}
+
+GF_TEST (Meter, component_clock_controls_hold_and_decay)
+{
+    ScopedMeterClock clock;
+    meterClockMs = 1000;
+    LevelMeter m;
+    m.setSize (30, 100);
+    m.setLevel (juce::Decibels::decibelsToGain (-6.0f));
+    m.setLevel (0.0f);
+    const auto held = meterImage (m, 30);
+
+    meterClockMs = 2499;
+    m.tickForTests();
+    const auto stillHeld = meterImage (m, 30);
+    GF_EXPECT (samePixels (held, stillHeld));
+    GF_EXPECT_NEAR (m.peakDbForTests(), -6.0, 1.0e-4);
+
+    meterClockMs = 2500;
+    m.tickForTests();
+    GF_EXPECT_NEAR (m.peakDbForTests(), -6.0 - 20.0 / 30.0, 1.0e-4);
 }

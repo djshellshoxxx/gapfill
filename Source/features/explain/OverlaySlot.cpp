@@ -28,6 +28,18 @@ VisualiserOverlayComponent::VisualiserOverlayComponent (GapFillAudioProcessor& p
     timeline.onCloseRequested = [this] { setTimelineExpanded (false); };
     timeline.setVisible (false);                       // collapsed by default
     addChildComponent (timeline);
+
+    auto& frames = proc.getExplainState().timelineModel.frames;
+    proc.getVisualisationFifo().setReadObserver (&frames,
+        [] (void* context, const VizFrame* drained, int count)
+        {
+            static_cast<timeline::FrameHistory*> (context)->push (drained, count);
+        });
+}
+
+VisualiserOverlayComponent::~VisualiserOverlayComponent()
+{
+    proc.getVisualisationFifo().clearReadObserver (&proc.getExplainState().timelineModel.frames);
 }
 
 void VisualiserOverlayComponent::setTimelineExpanded (bool shouldExpand)

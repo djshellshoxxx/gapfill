@@ -15,6 +15,7 @@ class VisualiserOverlayComponent : public juce::Component
 {
 public:
     explicit VisualiserOverlayComponent (GapFillAudioProcessor&);
+    ~VisualiserOverlayComponent() override;
 
     void resized() override;
     bool hitTest (int x, int y) override;
