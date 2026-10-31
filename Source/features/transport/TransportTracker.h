@@ -12,7 +12,7 @@ namespace gapfill::transport
 struct HostTiming
 {
     double bpm = 120.0, ppq = 0.0;
-    bool tempoValid = false, ppqValid = false, playing = false;
+    bool tempoValid = false, ppqValid = false, playing = false, havePosition = false;
     int tsNum = 0, tsDen = 0;
 };
 

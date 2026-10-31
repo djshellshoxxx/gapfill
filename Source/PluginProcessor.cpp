@@ -137,6 +137,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     scTracker.prepare (currentSampleRate);               // F-L13
     qualityCtl.reset();                                  // F-D03: starts at Full, applies the setting at the first idle moment
     midiOut.requestFlush();                              // F-L11: nothing may be left sounding from before
+    extendedMidiOut.prepare (currentSampleRate);
     recipeServices.prepare (currentSampleRate);
     fxChain.prepare (currentSampleRate, preparedBlockSize, mainChannels);
     contextState.prepare (currentSampleRate);
@@ -196,6 +197,7 @@ void GapFillAudioProcessor::reset()
     scTracker.reset();                                   // F-L13
     qualityCtl.reset();                                  // F-D03
     midiOut.requestFlush();                              // F-L11
+    extendedMidiOut.requestFlush();
     fxChain.reset();
     contextState.reset();
     analysis.reset();
@@ -464,7 +466,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     const bool bypassed = pb (params.bypass);
 
     if constexpr (midiout::kActive)
-        midiOut.beginBlock (gatherMidiOutSettings(), numSamples);        // F-L11
+        beginMidiOutput (midi, numSamples, bypassed);
 
     int offset = 0;
 
@@ -476,7 +478,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     }
 
     if constexpr (midiout::kActive)
-        midiOut.finish (midi);                                           // F-L11: clears the incoming MIDI when on
+        finishMidiOutput (midi);
 }
 
 void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
@@ -504,7 +506,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     beginHostCallbackTiming();
 
     if constexpr (midiout::kActive)
-        midiOut.beginBlock (gatherMidiOutSettings(), numSamples);
+        beginMidiOutput (midi, numSamples, true);
 
     int offset = 0;
 
@@ -516,7 +518,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     }
 
     if constexpr (midiout::kActive)
-        midiOut.finish (midi);
+        finishMidiOutput (midi);
 }
 
 void GapFillAudioProcessor::clearWetBus (juce::AudioBuffer<float>& buffer) noexcept
@@ -658,6 +660,8 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     const auto analysisPosBefore = analysis.getAnalysisPosition();
     analysis.processBlock (monoMain.data(), sidechainActive ? monoSide.data() : nullptr,
                            numSamples, analysisSettings);
+    if constexpr (midiout::kActive)
+        collectEarlyMidiHits (samplesProcessed, numSamples);
     uiState.profile.accumulate (analysis, analysisPosBefore, analysis.getAnalysisPosition());   // F-M22 (idle: one atomic load)
 
     // ---- latency / lookahead --------------------------------------------
@@ -668,6 +672,8 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     {
         pendingLatencyFrom = currentLatency;
         targetLatency = wantedLatency;
+        extendedMidiOut.requestFlush();
+        midiOut.requestFlush();
         latencyCrossfadeLength = juce::jmin (numSamples, 256);
         latencyCrossfade = 0;
         latencyToReport.store (targetLatency);
@@ -754,6 +760,12 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     auto fxIo = fxChain.beginBlock (engineSettings.fx, numSamples);
 
     engine.clearTransitions();
+    if constexpr (midiout::kActive)
+    {
+        extendedMidiEvents.clear();
+        engine.setMidiEventBuffer (extendedMidiOwner ? &extendedMidiEvents : nullptr,
+                                  pb (params.midiExtHitOn) && pi (params.midiExtTiming) == 0, pi (params.midiExtCC));
+    }
 
     if (skip < numSamples)
     {
@@ -762,7 +774,12 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     }
 
     if constexpr (midiout::kActive)
-        midiOut.consume (engine.getTransitions(), outputStart, startSample, numSamples);          // F-L11
+    {
+        if (extendedMidiOwner)
+            extendedMidiOut.consume (extendedMidiEvents);
+        else
+            midiOut.consume (engine.getTransitions(), outputStart, startSample, numSamples);
+    }
 
     if (coopOn)
         coopMember.publish (engine.getTransitions(), outputStart, numSamples,                    // F-X06
@@ -1051,6 +1068,8 @@ void GapFillAudioProcessor::setCurrentProgram (int index)
 
     programChangeInProgress.store (true, std::memory_order_relaxed);
     applyPreset (apvts, index);
+    midiOut.requestFlush();
+    extendedMidiOut.requestFlush();
     setModelVersions ({}, false);
     currentProgram.store (index, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
@@ -1090,6 +1109,8 @@ void GapFillAudioProcessor::resetAllParameters()
     pushUndoSnapshot();
     programChangeInProgress.store (true, std::memory_order_relaxed);
     resetToDefaults (apvts);
+    midiOut.requestFlush();
+    extendedMidiOut.requestFlush();
     setModelVersions ({}, false);
     currentProgram.store (0, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
@@ -1350,6 +1371,8 @@ bool GapFillAudioProcessor::applyParameterState (const juce::ValueTree& state, b
 
     snapParametersToState();
     syncModelVersions();
+    midiOut.requestFlush();
+    extendedMidiOut.requestFlush();
     liveControl.forceHoldsOff();                    // F-M10: holds are never ON after a restore
     currentProgram.store (-1, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);
@@ -1497,6 +1520,8 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     apvts.replaceState (paramState.createCopy());
     snapParametersToState();
     syncModelVersions();
+    midiOut.requestFlush();
+    extendedMidiOut.requestFlush();
     liveControl.forceHoldsOff();                    // F-M10: holds are never ON after a restore
     currentProgram.store (restoredProgram, std::memory_order_relaxed);
     programChangeInProgress.store (false, std::memory_order_relaxed);

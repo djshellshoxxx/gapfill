@@ -16,6 +16,7 @@ void GapFillAudioProcessor::beginHostCallbackTiming()
     {
         if (const auto pos = ph->getPosition())
         {
+            hostTiming.havePosition = true;
             if (const auto b = pos->getBpm())
             {
                 if (*b > 1.0 && *b < 1000.0)

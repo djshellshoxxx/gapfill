@@ -307,6 +307,23 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
                                 FillEventQueue* events) noexcept
 {
     const auto& frame = analysis.frameAt (outputPos);
+    if (midiEventBuffer != nullptr)
+    {
+        if (midiConfidenceCC > 0)
+        {
+            const auto value = juce::jlimit (0, 127, (int) std::lround (frame.conf * 127.0f));
+            if (! midiConfidenceValid || (outputPos - lastMidiConfidencePos >= (std::int64_t) std::ceil (sr / 66.0)
+                                           && std::abs (value - lastMidiConfidenceValue) >= 2))
+            {
+                midiEventBuffer->push ({ midiout::OutEvent::Confidence, outputPos, frame.conf });
+                lastMidiConfidenceValue = value;
+                lastMidiConfidencePos = outputPos;
+                midiConfidenceValid = true;
+            }
+        }
+        if (midiHitEnabled && analysis.nextDetectionEvent (outputPos) == outputPos)
+            midiEventBuffer->push ({ midiout::OutEvent::Hit, outputPos, frame.transient });
+    }
 
     // F-D03: the spectral smear changes its FFT order only while no spectral voice holds it.
     {
@@ -438,6 +455,8 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             snapChecked = false;
             ++gapIndex;
             transitions.push (Transition::GapOpen, outputPos, makeEvent (FillEventType::GapOpen).conf8);
+            if (midiEventBuffer != nullptr)
+                midiEventBuffer->push ({ midiout::OutEvent::GapOpen, outputPos, frame.conf });
 
             if (wantTimeline)
                 events->pushOptional (makeEvent (FillEventType::GapOpen));
@@ -447,6 +466,8 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
     {
         inGap = false;
         transitions.push (Transition::GapClose, outputPos);
+        if (midiEventBuffer != nullptr)
+            midiEventBuffer->push ({ midiout::OutEvent::GapClose, outputPos });
     }
 
     bool startedFill = false;
@@ -489,6 +510,8 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
 
         for (int i = activeNow; i < prevActiveVoices; ++i)
             transitions.push (Transition::FillEnd, outputPos);          // WP10 (MIDI out, co-op)
+            if (midiEventBuffer != nullptr)
+                midiEventBuffer->push ({ midiout::OutEvent::FillEnd, outputPos });
 
         if (wantTimeline)
             for (int i = activeNow; i < prevActiveVoices; ++i)
@@ -654,6 +677,10 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
         return reject (RejectReason::SourceUnavailable);
 
     noteFillStarted (plan, outputPos);
+    if (midiEventBuffer != nullptr)
+        midiEventBuffer->push ({ midiout::OutEvent::FillStart, outputPos,
+            (float) juce::jlimit (1, 127, (int) std::lround (1.0f + 126.0f * s.intensity01)) / 127.0f,
+            (std::int32_t) plan.lengthSamples });
 
     if (havePpq)
         recentFills.push (budget::tickFor (ppq));       // F-D01 bar counting (every started fill counts)

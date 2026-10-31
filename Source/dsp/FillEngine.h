@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../features/midiout/EngineEvents.h"
+
 #include "EngineEvents.h"
 #include "EngineTransitions.h"
 #include "EngineSettings.h"
@@ -71,6 +73,15 @@ public:
 
     /** Effect telemetry sink shared with the voices (owned by the processor's FxChain). */
     void setFxMeters (fx::FxMeters* meters) noexcept;
+    /** Audio-thread sink, owned/preallocated by the processor; null is neutral. */
+    void setMidiEventBuffer (midiout::EngineEventBuffer* events, bool hit, int cc) noexcept
+    {
+        if (events != midiEventBuffer || cc != midiConfidenceCC)
+            midiConfidenceValid = false;
+        midiEventBuffer = events;
+        midiHitEnabled = hit;
+        midiConfidenceCC = cc;
+    }
 
     //--------------------------------------------------------------------------
     // E-1 Fill Audition (audio thread; implemented in features/audition/AuditionEngine.cpp).
@@ -292,6 +303,10 @@ private:
     int vizDecim = 2;
     int vizCounter = 0;
     VizFrame vizAccum;
+    midiout::EngineEventBuffer* midiEventBuffer = nullptr;
+    bool midiHitEnabled = false, midiConfidenceValid = false;
+    int midiConfidenceCC = 0, lastMidiConfidenceValue = 0;
+    std::int64_t lastMidiConfidencePos = 0;
 };
 
 } // namespace gapfill
