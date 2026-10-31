@@ -314,16 +314,18 @@ GF_TEST (Timeline, frame_history_trims_window_and_meets_memory_budget_at_all_rat
         GF_EXPECT (history.memoryBytes() + sizeof (TimelineModel) <= 1500000);
 
         VizFrame f;
-        const int frames = (int) std::ceil (rate * 10.0 / 64.0);
+        f.periodSamples = visualisation::periodForRate (rate);
+        const int frames = (int) std::ceil (rate * 10.0 / (double) f.periodSamples);
         for (int i = 0; i < frames; ++i)
         {
-            f.posLo = (std::uint32_t) (i * 64);
+            f.posLo = (std::uint32_t) i * f.periodSamples;
             history.push (f);
         }
 
         GF_EXPECT (history.size() <= history.capacity());
         const auto elapsed = history.at (history.size() - 1).position - history.at (0).position;
         GF_EXPECT (elapsed < (std::int64_t) (rate * 8.0));
+        GF_EXPECT (elapsed + f.periodSamples >= (std::int64_t) (rate * 8.0));
     }
 }
 

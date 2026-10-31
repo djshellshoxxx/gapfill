@@ -172,3 +172,30 @@ GF_TEST (TimelineGui, replacing_an_overlay_does_not_detach_the_new_frame_observe
     GF_EXPECT (fifo.pop (&drained, 1) == 1);
     GF_EXPECT (proc.getExplainState().timelineModel.frames.size() == 1);
 }
+
+GF_TEST (TimelineGui, accessible_event_rows_expose_the_same_engine_record_text_as_the_painted_list)
+{
+    GapFillAudioProcessor proc;
+    proc.setKeyboardNavigationEnabled (true);
+    TimelineEvent event;
+    event.type = EventType::GapEval;
+    event.reason = (std::uint8_t) RejectReason::TooShort;
+    event.availMs = 38;
+    event.needMs = 60;
+    event.pos = -4800;
+    proc.getExplainState().timelineModel.push (event);
+    TimelineView view (proc);
+    view.setSize (1000, 300);
+    view.refreshForTests();
+    GF_EXPECT (view.keyPressed (juce::KeyPress ('l')));
+    juce::ListBox* list = nullptr;
+    for (auto* child : view.getChildren())
+        if (auto* candidate = dynamic_cast<juce::ListBox*> (child)) list = candidate;
+    GF_EXPECT (list != nullptr && list->getModel() != nullptr);
+    GF_EXPECT (list->getModel()->getNameForRow (0) == view.getListText()[0]);
+    GF_EXPECT (list->getModel()->getNameForRow (0).contains ("38"));
+    view.addToDesktop (juce::ComponentPeer::windowIsTemporary);
+    view.setVisible (true);
+    GF_EXPECT (list->getAccessibilityHandler() != nullptr);
+    GF_EXPECT (list->getAccessibilityHandler()->getRole() == juce::AccessibilityRole::list);
+}

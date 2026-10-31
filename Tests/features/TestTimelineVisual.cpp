@@ -54,12 +54,12 @@ namespace
 
     /** Deterministic display fixture. These are synthetic engine-shaped records,
         not evidence that an audio producer or a DAW was exercised. */
-    void populate (GapFillAudioProcessor& proc)
+    void populate (GapFillAudioProcessor& proc, double rate = 192000.0)
     {
         auto& model = proc.getExplainState().timelineModel;
-        constexpr double rate = 192000.0;
-        constexpr int columns = FrameHistory::maxColumns, period = 128;
         model.frames.configure (rate, 16.0);
+        const auto columns = model.frames.capacity();
+        const auto period = visualisation::periodForRate (rate);
         proc.getExplainState().timelineZoomSeconds.store (16);
         const auto end = proc.getSourceHistoryWritePosition() - proc.getActiveLatencySamples();
         for (int i = 0; i < columns; ++i)
@@ -77,14 +77,14 @@ namespace
             frame.bandConf[2] = frame.conf * 0.6f;
             frame.flags = VizFrame::flagProtected | (frame.conf > 0.65f ? VizFrame::flagGapEligible : 0);
             frame.protectionKinds = 7;
-            frame.ppqTick = i * 2;
+            frame.ppqTick = (std::int32_t) std::lround ((double) i * period / rate * 2.5 * 96.0);
             frame.timeSigNumerator = frame.timeSigDenominator = 4;
             GF_EXPECT (model.pushFrame (frame, end));
         }
         for (int i = 0; i < TimelineModel::capacity; ++i)
         {
             TimelineEvent event;
-            event.pos = end - (std::int64_t) (TimelineModel::capacity - i - 1) * 5900;
+            event.pos = end - (std::int64_t) ((double) (TimelineModel::capacity - i - 1) * rate * 16.0 / TimelineModel::capacity);
             event.type = i % 3 == 0 ? EventType::Onset : i % 3 == 1 ? EventType::GapEval : EventType::FillStart;
             event.reason = (std::uint8_t) (i % numRejectReasons);
             event.availMs = 38;
@@ -195,7 +195,31 @@ GF_TEST (TimelineVisual, reduced_motion_sets_the_actual_timeline_timer_to_four_h
     GF_EXPECT (view.getRefreshIntervalMs() == 250);
     proc.setReducedMotionEnabled (false);
     view.visibilityChanged();
-    GF_EXPECT (view.getRefreshIntervalMs() == 50);
+    GF_EXPECT (view.getRefreshIntervalMs() == 33);
+}
+
+GF_TEST (TimelineVisual, retained_memory_includes_live_and_frozen_frame_event_list_and_text_data)
+{
+    VisualSettings settingsScope;
+    for (const auto rate : { 32000.0, 192000.0 })
+    {
+        GapFillAudioProcessor proc;
+        prepareProcessor (proc, rate, 512, false);
+        proc.setKeyboardNavigationEnabled (true);
+        TimelineView view (proc);
+        view.setSize (1800, 900);
+        populate (proc, rate);
+        view.refreshForTests();
+        GF_EXPECT (view.keyPressed (juce::KeyPress ('f')));
+        GF_EXPECT (view.keyPressed (juce::KeyPress ('i')));
+        GF_EXPECT (view.keyPressed (juce::KeyPress ('l')));
+        const auto memory = view.retainedMemoryForTests();
+        std::cout << "  TIMELINE_MEMORY rate=" << rate << " model=" << memory.model << " frame_snapshot=" << memory.frameSnapshot
+                  << " event_snapshot=" << memory.eventSnapshot << " view=" << memory.view << " text_upper_bound=" << memory.textUpperBound
+                  << " total=" << memory.total() << std::endl;
+        GF_EXPECT_MSG (memory.total() <= 1500000, "Retained timeline data exceeds the unchanged 1.5 MB ceiling");
+        GF_EXPECT (memory.textUpperBound <= 262144); // the pure cross-rate envelope reserves this full text allowance
+    }
 }
 
 GF_TEST (TimelineVisual, dense_paint_budget_reports_real_timings_when_explicitly_requested)
@@ -204,6 +228,28 @@ GF_TEST (TimelineVisual, dense_paint_budget_reports_real_timings_when_explicitly
         return;
     VisualSettings settingsScope;
     settings::GlobalSettings::shared()->setInt (settings::GlobalSettings::keyUiScale, 100);
+    bool meetsBudget = true;
+    const auto measure = [&] (TimelineView& view, GapFillAudioProcessor& proc, float scale, const char* context)
+    {
+        juce::Image image (juce::Image::ARGB, juce::roundToInt ((float) view.getWidth() * scale),
+                           juce::roundToInt ((float) view.getHeight() * scale), true);
+        juce::Graphics graphics (image);
+        graphics.addTransform (juce::AffineTransform::scale (scale));
+        for (int warmup = 0; warmup < 10; ++warmup)
+            view.paintEntireComponent (graphics, true);
+        std::array<double, 100> milliseconds {};
+        for (auto& elapsed : milliseconds)
+        {
+            const auto start = juce::Time::getHighResolutionTicks();
+            view.paintEntireComponent (graphics, true);
+            elapsed = 1000.0 * juce::Time::highResolutionTicksToSeconds (juce::Time::getHighResolutionTicks() - start);
+        }
+        std::sort (milliseconds.begin(), milliseconds.end());
+        std::cout << "  TIMELINE_PAINT context=" << context << " fixture_columns=" << proc.getExplainState().timelineModel.frames.size()
+                  << " events=512 logical=" << view.getWidth() << "x" << view.getHeight() << " scale=" << scale
+                  << " p50_ms=" << milliseconds[50] << " p95_ms=" << milliseconds[95] << " max_ms=" << milliseconds.back() << std::endl;
+        meetsBudget = meetsBudget && milliseconds.back() < 2.0;
+    };
     for (const auto size : { juce::Point<int> (1020, 620), { 1100, 700 }, { 1800, 1000 } })
     {
         GapFillAudioProcessor proc;
@@ -221,24 +267,13 @@ GF_TEST (TimelineVisual, dense_paint_budget_reports_real_timings_when_explicitly
         auto& view = overlay->getTimeline();
         view.refreshForTests();
         for (const auto scale : { 1.0f, 1.5f, 2.0f })
+            measure (view, proc, scale, "editor");
+        if (size.x == 1800)
         {
-            juce::Image image (juce::Image::ARGB, juce::roundToInt ((float) view.getWidth() * scale),
-                               juce::roundToInt ((float) view.getHeight() * scale), true);
-            juce::Graphics graphics (image);
-            graphics.addTransform (juce::AffineTransform::scale (scale));
-            for (int warmup = 0; warmup < 10; ++warmup)
-                view.paintEntireComponent (graphics, true);
-            std::array<double, 100> milliseconds {};
-            for (auto& elapsed : milliseconds)
-            {
-                const auto start = juce::Time::getHighResolutionTicks();
-                view.paintEntireComponent (graphics, true);
-                elapsed = 1000.0 * juce::Time::highResolutionTicksToSeconds (juce::Time::getHighResolutionTicks() - start);
-            }
-            std::sort (milliseconds.begin(), milliseconds.end());
-            std::cout << "  TIMELINE_PAINT fixture columns=24000 events=512 logical=" << view.getWidth() << "x" << view.getHeight() << " scale=" << scale
-                      << " p50_ms=" << milliseconds[50] << " p95_ms=" << milliseconds[95] << " max_ms=" << milliseconds.back() << std::endl;
-            GF_EXPECT_MSG (milliseconds.back() < 2.0, "Expanded timeline paint exceeded the unchanged 2 ms target");
+            view.setSize (2600, 1800); // detailed-spec worst-case canvas; no outer-window change
+            view.refreshForTests();
+            measure (view, proc, 1.0f, "canonical-2600x1800");
         }
     }
+    GF_EXPECT_MSG (meetsBudget, "Expanded timeline paint exceeded the unchanged 2 ms target");
 }

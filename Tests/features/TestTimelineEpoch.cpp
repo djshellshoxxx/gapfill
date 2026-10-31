@@ -2,6 +2,7 @@
 
 #include "dsp/VisualisationState.h"
 #include "features/timeline/Model.h"
+#include <utility>
 
 using namespace gapfill;
 using namespace gapfill::timeline;
@@ -144,5 +145,27 @@ GF_TEST (TimelineEpoch, low_sample_rates_retain_the_full_window_with_actual_thir
         GF_EXPECT (model.frames.at (0).position == 0);
         GF_EXPECT (model.frames.at (model.frames.size() - 1).position + 32 == (std::int64_t) rate * 16);
         GF_EXPECT (model.frames.memoryBytes() + sizeof (TimelineModel) < 1500000);
+    }
+}
+
+GF_TEST (TimelineEpoch, history_allocation_tracks_the_released_producer_period_and_leaves_snapshot_headroom)
+{
+    const std::pair<double, std::uint32_t> cases[] {
+        { 8000.0, 32 }, { 16000.0, 32 }, { 32000.0, 32 }, { 33599.0, 32 }, { 33600.0, 64 },
+        { 44100.0, 64 }, { 48000.0, 64 }, { 96000.0, 128 }, { 192000.0, 288 }
+    };
+    for (const auto& [rate, expectedPeriod] : cases)
+    {
+        GF_EXPECT (visualisation::periodForRate (rate) == expectedPeriod);
+        TimelineModel model;
+        model.frames.configure (rate, 16.0);
+        const auto required = (int) std::ceil (rate * 16.0 / (double) expectedPeriod);
+        GF_EXPECT (model.frames.capacity() == required);
+        // The full native view test additionally measures its frozen buffers
+        // and text. This reserves their entire bounded structured storage here.
+        const auto structuredCaches = 2048 * sizeof (FrameHistory::Column)
+                                    + TimelineModel::capacity * sizeof (TimelineEvent)
+                                    + 20 * sizeof (TimelineEvent);
+        GF_EXPECT (model.frames.memoryBytes() + sizeof (TimelineModel) + structuredCaches < 1200000);
     }
 }

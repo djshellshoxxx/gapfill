@@ -88,7 +88,7 @@ void TimelineView::visibilityChanged()
     if (isVisible())
     {
         refresh();
-        startTimerHz (proc.isReducedMotionEnabled() ? 4 : 20);
+        startTimerHz (proc.isReducedMotionEnabled() ? 4 : 30);
     }
     else
     {
@@ -126,7 +126,7 @@ std::int64_t TimelineView::windowSamples() const
 
 void TimelineView::timerCallback()
 {
-    const auto interval = proc.isReducedMotionEnabled() ? 250 : 50;
+    const auto interval = proc.isReducedMotionEnabled() ? 250 : 33;
     if (getTimerInterval() != interval)
         startTimer (interval);
     refresh();
@@ -183,13 +183,6 @@ void TimelineView::refresh()
     }
     if (inspectorShown)
         updateInspector (inspectorX);
-    listText.clear();
-    const auto sr = model.displaySampleRate();
-    for (int i = 0; i < numListItems; ++i)
-    {
-        const auto& event = listItems[(size_t) i];
-        listText.add (i18n::format ("{0} s  {1}", { juce::String ((double) (event.pos - shownEnd) / sr, 1), describe (event) }));
-    }
     list.updateContent();
     list.repaint();
     int filled = 0, skipped = 0;
@@ -214,7 +207,50 @@ int TimelineView::getNumRows()             { return numListItems; }
 
 juce::StringArray TimelineView::getListText() const
 {
-    return listText;
+    juce::StringArray result;
+    for (int i = 0; i < numListItems; ++i)
+        result.add (listRowText (i));
+    return result;
+}
+
+juce::String TimelineView::listRowText (int row) const
+{
+    if (row < 0 || row >= numListItems)
+        return {};
+    const auto& event = listItems[(size_t) row];
+    const auto rate = proc.getExplainState().timelineModel.displaySampleRate();
+    return i18n::format ("{0} s  {1}", { juce::String ((double) (event.pos - shownEnd) / rate, 1), describe (event) });
+}
+
+juce::String TimelineView::getNameForRow (int row) { return listRowText (row); }
+
+TimelineView::RetainedMemory TimelineView::retainedMemoryForTests() const
+{
+    RetainedMemory memory;
+    const auto& model = proc.getExplainState().timelineModel;
+    memory.model = sizeof (TimelineModel) + model.frames.memoryBytes();
+    memory.frameSnapshot = displayFrames.capacity() * sizeof (FrameHistory::Column);
+    memory.eventSnapshot = windowEvents.capacity() * sizeof (TimelineEvent);
+    memory.view = sizeof (*this); // includes the 20 structured list records and container objects
+    const auto charge = [&] (const juce::String& value)
+    {
+        // Pinned JUCE stores COW text. Overcharge each reference independently,
+        // including UTF conversion/spare storage and the allocation header.
+        if (value.isNotEmpty()) memory.textUpperBound += 4 * (value.getNumBytesAsUTF8() + 1) + 128;
+    };
+    charge (inspectorText);
+    const auto componentText = [&] (auto&& self, const juce::Component& component) -> void
+    {
+        charge (component.getTitle());
+        charge (component.getDescription());
+        charge (component.getName());
+        charge (component.getHelpText());
+        if (auto* button = dynamic_cast<const juce::Button*> (&component)) charge (button->getButtonText());
+        if (auto* label = dynamic_cast<const juce::Label*> (&component)) charge (label->getText());
+        for (auto* child : component.getChildren()) self (self, *child);
+    };
+    componentText (componentText, *this);
+    return memory;
 }
 
 void TimelineView::paintListBoxItem (int row, juce::Graphics& g, int width, int height, bool selected)
@@ -230,7 +266,7 @@ void TimelineView::paintListBoxItem (int row, juce::Graphics& g, int width, int 
 
     g.setColour (colours::text);
     g.setFont (fonts::ui (11.0f));
-    g.drawText (listText[row], 6, 0, width - 8, height, juce::Justification::centredLeft, true);
+    g.drawText (listRowText (row), 6, 0, width - 8, height, juce::Justification::centredLeft, true);
 }
 
 //==============================================================================

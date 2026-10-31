@@ -53,6 +53,14 @@ public:
     int getRefreshIntervalMs() const noexcept { return isTimerRunning() ? getTimerInterval() : 0; }
     juce::String getInspectorText() const { return inspectorText; }
     bool isEventListShown() const noexcept { return listOnly; }
+    struct RetainedMemory
+    {
+        std::size_t model = 0, frameSnapshot = 0, eventSnapshot = 0, view = 0, textUpperBound = 0;
+        std::size_t total() const noexcept { return model + frameSnapshot + eventSnapshot + view + textUpperBound; }
+    };
+    /** Message-thread test accounting of all retained model/view data, including
+        frozen snapshots and conservative text storage; excludes raster images. */
+    RetainedMemory retainedMemoryForTests() const;
 
 private:
     static constexpr int controlsHeight = 28;
@@ -71,7 +79,9 @@ private:
     void setListOnly (bool);
 
     int getNumRows() override;
+    juce::String getNameForRow (int row) override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
+    juce::String listRowText (int row) const;
 
     GapFillAudioProcessor& proc;
     juce::TextButton pauseButton { "FREEZE" }, zoom4 { "4 s" }, zoom8 { "8 s" }, zoom16 { "16 s" },
@@ -80,7 +90,6 @@ private:
     std::vector<TimelineEvent> windowEvents;
     std::array<TimelineEvent, (size_t) listRows> listItems {};
     int numListItems = 0;
-    juce::StringArray listText;
     std::int64_t shownEnd = 0;
     static constexpr int maxDisplayColumns = 2048;
     std::vector<FrameHistory::Column> displayFrames;
