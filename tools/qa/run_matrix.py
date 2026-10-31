@@ -66,9 +66,10 @@ class StepSpec:
 
 def parse_test_counts(text: str) -> dict | None:
     """Count test cases, not assertions/cleanup errors; skipped Python cases establish no executed coverage."""
-    found = COUNT_RE.findall(text)
-    if not found:
-        python_counts = PYTHON_COUNT_RE.findall(text)
+    found = list(COUNT_RE.finditer(text))
+    python_summaries = list(PYTHON_COUNT_RE.finditer(text))
+    if not found or (python_summaries and python_summaries[-1].start() > found[-1].start()):
+        python_counts = [match[1] for match in python_summaries]
         if not python_counts:
             return None
         total = int(python_counts[-1])
@@ -81,7 +82,7 @@ def parse_test_counts(text: str) -> dict | None:
         failed = min(total - skipped, len(set(headers)) if headers else events)
         return {"passed": max(0, total - skipped - failed), "failed": failed, "reported_tests": total,
                 "skipped_tests": skipped, "failure_events": events}
-    passed, failed = found[-1]
+    passed, failed = found[-1].groups()
     return {"passed": int(passed), "failed": int(failed), "reported_tests": int(passed) + int(failed),
             "skipped_tests": 0, "failure_events": int(failed)}
 

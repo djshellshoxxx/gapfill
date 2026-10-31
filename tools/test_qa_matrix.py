@@ -178,6 +178,13 @@ class RunMatrixTests(unittest.TestCase):
         self.assertEqual(row.get("reported_tests"), 1)
         self.assertEqual(row.get("skipped_tests"), 1)
 
+    def test_nested_cpp_output_cannot_inflate_skipped_python_coverage(self):
+        command = [sys.executable, "-I", "-c", "import unittest\nprint('999 passed, 0 failed')\n@unittest.skip('no device')\nclass Example(unittest.TestCase):\n def test_device(self): pass\nunittest.main()"]
+        row = self.run_one(rm.StepSpec("python", command, min_tests=1))
+        self.assertEqual(row["status"], "fail")
+        self.assertEqual(row["executed"], 0)
+        self.assertEqual(row.get("reported_tests"), 1)
+
     def test_real_unittest_failure_and_teardown_error_count_one_failed_case(self):
         command = [sys.executable, "-I", "-c", "import unittest\nclass Example(unittest.TestCase):\n def test_failure(self): self.fail('assertion')\n def tearDown(self): raise RuntimeError('cleanup')\nunittest.main()"]
         row = self.run_one(rm.StepSpec("python", command, min_tests=1))
