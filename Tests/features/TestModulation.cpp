@@ -399,3 +399,23 @@ GF_TEST (Modulation, typed_pitch_sync_scene_fields_and_send_preserve_mode_and_ev
     GF_EXPECT_NEAR (settings.fx.tapeExtra.amount01, .75f, 1e-6f);
     GF_EXPECT_NEAR (settings.fx.tapeExtra.mix01, .25f, 1e-6f);
 }
+
+GF_TEST (Modulation, setup_switch_undo_keeps_both_mapping_tables_and_legacy_float_bits)
+{
+    gapfill::macros::MacroModel model;
+    const auto original = model.get();
+    GF_EXPECT (model.enableExtended());
+    gapfill::macros::Mapping mapping;
+    mapping.target = 47;
+    mapping.min01 = .123456789f;
+    GF_EXPECT (model.addMapping (7, mapping) == gapfill::macros::MacroModel::AddResult::Ok);
+    GF_EXPECT (model.returnToLegacy());
+    GF_EXPECT (std::memcmp (&model.get(), &original, sizeof (original)) == 0);
+    GF_EXPECT (model.canUndoModeChange() && model.undoModeChange());
+    GF_EXPECT (model.isExtendedEnabled() && model.getExtended().count[7] == 1);
+    GF_EXPECT_NEAR (model.getExtended().map[7][0].min01, mapping.min01, 0);
+    GF_EXPECT (model.undoModeChange() && ! model.isExtendedEnabled());
+    GF_EXPECT (std::memcmp (&model.get(), &original, sizeof (original)) == 0);
+    model.resetAll();
+    GF_EXPECT (! model.canUndoModeChange());
+}

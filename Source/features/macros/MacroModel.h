@@ -28,6 +28,8 @@ public:
     bool isExtendedEnabled() const noexcept { return extendedEnabled; }
     bool enableExtended();
     bool returnToLegacy();
+    bool canUndoModeChange() const noexcept { return modeUndoAvailable; }
+    bool undoModeChange();
 
     /** Adds a mapping to `macro`. `Claimed`: another macro already owns the
         target (its index goes to `owner`). `Unavailable`: the target parameter
@@ -72,6 +74,7 @@ public:
 private:
     static Mapping normalised (Mapping) noexcept;
     Mapping normaliseActive (Mapping) const noexcept;
+    modulation::ConfigSnapshot currentSnapshot() const noexcept;
     int activeMacroCount() const noexcept { return extendedEnabled ? modulation::kMacroCount : kNumMacros; }
     auto activeMaps() noexcept -> Mapping (*)[kMaxMappings] { return extendedEnabled ? extended.map : cfg.map; }
     auto activeMaps() const noexcept -> const Mapping (*)[kMaxMappings] { return extendedEnabled ? extended.map : cfg.map; }
@@ -84,6 +87,8 @@ private:
     modulation::ExtendedConfig extended;
     TripleBuffer<modulation::ConfigSnapshot> extendedPub;
     bool extendedEnabled = false;
+    modulation::ConfigSnapshot modeUndo; ///< Message-owned exact one-level setup history, never serialized.
+    bool modeUndoAvailable = false;
     bool available[modulation::kTargetCount];
 };
 

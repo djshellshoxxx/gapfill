@@ -171,3 +171,22 @@ scales. The focused native Modulation suite now passes18tests, including the
 new seven-field projection and both independent mix/chance assertions. Four
 changed units passed syntax. Real processor preflight/voice/capture routing is
 owned by the coordinator and remains separate acceptance evidence.
+
+### Expanded editor and setup undo
+
+The editor now exposes the four additional host knobs, all eight source/depth
+pairs and both global shape/division/free-rate controls through real APVTS
+attachments. An explicit ENABLE 8/RETURN 4 switch keeps the retained setup;
+UNDO SETUP swaps the exact message-owned POD snapshots, including legacy float
+bits and both mapping tables. This setup history is not serialized. Reset or a
+valid state restore clears it. Mapping targets are grouped, source tooltips name
+the current source, Enter/F2 edits a user name, and the narrow LFO/+4 rows fold.
+Energy-to-width is rejected before changing the selected source parameter.
+
+The native focused suite passes19tests, including setup-undo byte identity.
+Three new GUI tests cover rebinding every source/depth pair, refusing Energy
+width, transport-dependent LFO presentation and eighth-macro setup undo. Those
+tests and both GUI units pass syntax; actual integrated GUI execution and
+minimum-size/large-size screenshots are pending the coordinator's native build.
+The MacroModel header is stable for that build. Resonator's new continuous
+decay/damping adapter remains unfinished and is not covered by these UI checks.

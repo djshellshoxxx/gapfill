@@ -156,15 +156,34 @@ bool MacroModel::isTargetAvailable (int target) const noexcept
 void MacroModel::publish() noexcept
 {
     pub.publish (cfg);
+    extendedPub.publish (currentSnapshot());
+}
+
+modulation::ConfigSnapshot MacroModel::currentSnapshot() const noexcept
+{
     modulation::ConfigSnapshot snapshot;
     snapshot.enabled = extendedEnabled ? 1 : 0;
     snapshot.config = extendedEnabled ? extended : modulation::extendedFromLegacy (cfg);
-    extendedPub.publish (snapshot);
+    return snapshot;
+}
+
+bool MacroModel::undoModeChange()
+{
+    if (! modeUndoAvailable) return false;
+    const auto previous = modeUndo;
+    modeUndo = currentSnapshot();
+    extendedEnabled = previous.enabled != 0;
+    extended = previous.config;
+    cfg = previous.config.retainedLegacy;
+    publish();
+    return true;
 }
 
 bool MacroModel::enableExtended()
 {
     if (extendedEnabled) return false;
+    modeUndo = currentSnapshot();
+    modeUndoAvailable = true;
     extended = modulation::extendedFromLegacy (cfg);
     extendedEnabled = true;
     publish();
@@ -174,6 +193,8 @@ bool MacroModel::enableExtended()
 bool MacroModel::returnToLegacy()
 {
     if (! extendedEnabled) return false;
+    modeUndo = currentSnapshot();
+    modeUndoAvailable = true;
     cfg = extended.retainedLegacy;
     extendedEnabled = false;
     publish();
@@ -335,6 +356,7 @@ bool MacroModel::setLfo (int macro, LfoSettings l)
 
 void MacroModel::resetAll()
 {
+    modeUndoAvailable = false;
     extendedEnabled = false;
     cfg = defaultConfig();
     extended = modulation::extendedFromLegacy (cfg);
@@ -438,6 +460,7 @@ bool MacroModel::validateTree (const juce::ValueTree& t)
 void MacroModel::restore (const juce::ValueTree& t)
 {
     if (t.isValid() && ! validateTree (t)) return;  // no partial direct restore
+    modeUndoAvailable = false;
     if (t.hasType (modulation::kSubtreeName))
     {
         modulation::ExtendedConfig next;
