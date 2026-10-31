@@ -378,3 +378,58 @@ GF_TEST (SceneBank, command_bindings_drive_next_prev_and_cancel_through_the_proc
     proc.setPlayHead (nullptr);
 }
 
+GF_TEST (SceneBank, editor_reordering_cancels_stale_requests_and_tracks_last_good)
+{
+    GapFillAudioProcessor p;
+    auto& controller = p.getLiveControl().scenes();
+    for (int i = 0; i < 3; ++i) GF_EXPECT (controller.saveCurrent (i, "Scene " + juce::String (i + 1)));
+    GF_EXPECT (controller.gotoScene (1));
+    controller.onApplied (controller.getPendingId());
+    GF_EXPECT (controller.getLastGoodIndex() == 1);
+    GF_EXPECT (controller.gotoScene (2));
+    GF_EXPECT (controller.moveScene (1, 2));
+    GF_EXPECT (controller.getPendingIndex() == -1 && controller.getLastGoodIndex() == 2);
+    GF_EXPECT (controller.duplicateScene (0));
+    GF_EXPECT (controller.getLastGoodIndex() == 3);
+    GF_EXPECT (controller.removeScene (3));
+    GF_EXPECT (controller.getLastGoodIndex() == -1 && controller.getCurrentIndex() == -1);
+    GF_EXPECT (controller.renameScene (0, "Renamed"));
+    GF_EXPECT (controller.getBank().at (0).name == "Renamed");
+    GF_EXPECT (controller.gotoScene (0));
+    GF_EXPECT (controller.setSceneQuant (0, Quant::Phrase) && controller.getPendingIndex() == -1);
+    GF_EXPECT (controller.saveCurrent (0, "Overwritten", ScopeBands));
+    GF_EXPECT (controller.getBank().at (0).quant == Quant::Phrase && controller.getBank().at (0).scope == ScopeBands);
+}
+
+GF_TEST (SceneBank, import_sidecar_undo_is_exactly_once_and_new_import_or_reset_discards_it)
+{
+    GapFillAudioProcessor p;
+    auto& controller = p.getLiveControl().scenes();
+    int restored = 0;
+    controller.rememberForUndo();
+    controller.setImportUndoAction ([&] { ++restored; });
+    GF_EXPECT (controller.undoImport());
+    GF_EXPECT (restored == 1 && ! controller.undoImport());
+    controller.rememberForUndo();
+    controller.setImportUndoAction ([&] { ++restored; });
+    controller.rememberForUndo();
+    GF_EXPECT (controller.undoImport() && restored == 1);
+    controller.rememberForUndo();
+    controller.setImportUndoAction ([&] { ++restored; });
+    controller.reset();
+    GF_EXPECT (! controller.undoImport() && restored == 1);
+}
+
+GF_TEST (SceneBank, import_undo_can_restore_the_exact_versioned_macro_snapshot)
+{
+    GapFillAudioProcessor p;
+    auto& controller = p.getLiveControl().scenes();
+    auto& mappings = p.getLiveControl().macroMappings();
+    mappings.rename (0, "Before import");
+    const auto before = mappings.toValueTree();
+    controller.rememberForUndo();
+    mappings.rename (0, "After import");
+    controller.setImportUndoAction ([&mappings, before] { mappings.restore (before); });
+    GF_EXPECT (controller.undoImport());
+    GF_EXPECT (mappings.toValueTree().isEquivalentTo (before));
+}

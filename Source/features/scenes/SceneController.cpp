@@ -182,7 +182,47 @@ bool SceneController::gotoLastGood()
 
 bool SceneController::saveCurrent (int index, const juce::String& name, std::uint16_t scope)
 {
-    return bank.store (index, captureScene (apvts, name, scope));
+    if (pendingIndex == index) cancel();
+    auto captured = captureScene (apvts, name, scope);
+    if (index >= 0 && index < bank.size()) captured.quant = bank.at (index).quant;
+    return bank.store (index, std::move (captured));
+}
+
+bool SceneController::renameScene (int index, const juce::String& name) { return bank.rename (index, name); }
+
+bool SceneController::setSceneQuant (int index, Quant quant)
+{
+    if (index < 0 || index >= bank.size() || (int) quant > (int) Quant::Phrase) return false;
+    if (pendingIndex == index) cancel();
+    bank.at (index).quant = quant;
+    return true;
+}
+
+bool SceneController::removeScene (int index)
+{
+    if (index < 0 || index >= bank.size()) return false;
+    cancel();
+    if (lastGood == index) lastGood = -1;
+    else if (lastGood > index) --lastGood;
+    return bank.remove (index);
+}
+
+bool SceneController::duplicateScene (int index)
+{
+    if (index < 0 || index >= bank.size() || bank.size() >= kMaxScenes) return false;
+    cancel();
+    if (lastGood > index) ++lastGood;
+    return bank.duplicate (index);
+}
+
+bool SceneController::moveScene (int from, int to)
+{
+    if (from < 0 || from >= bank.size() || to < 0 || to >= bank.size()) return false;
+    cancel();
+    if (lastGood == from) lastGood = to;
+    else if (from < lastGood && to >= lastGood) --lastGood;
+    else if (from > lastGood && to <= lastGood) ++lastGood;
+    return bank.move (from, to);
 }
 
 void SceneController::onApplied (std::uint32_t requestId)
@@ -310,6 +350,7 @@ void SceneController::rememberForUndo()
 {
     undoBank.assign (bank);
     hasUndo = true;
+    importUndoAction = {};
 }
 
 bool SceneController::undoImport()
@@ -319,6 +360,9 @@ bool SceneController::undoImport()
 
     replaceBank (undoBank);
     hasUndo = false;
+    auto action = std::move (importUndoAction);
+    importUndoAction = {};
+    if (action) action();
     return true;
 }
 
@@ -328,6 +372,7 @@ void SceneController::reset()
     bank.clear();
     lastGood = -1;
     hasUndo = false;
+    importUndoAction = {};
     status = {};
 }
 

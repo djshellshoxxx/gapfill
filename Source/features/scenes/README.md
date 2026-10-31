@@ -96,3 +96,21 @@ as their gatherers. Tempo and post-wet values use neutral -1 override fields;
 the processor must consume them in tempo resolution and wet post-processing.
 All178 currently admitted v2 IDs have explicit destinations across these DSP
 stages; that coverage does not replace end-to-end processor timing tests.
+
+The Performance panel exposes eight numbered scenes per page across eight
+pages, bank naming, per-scene rename/duplicate/move/delete and wrap/no-transport
+options. Reordering goes through controller APIs that cancel stale requests and
+preserve last-good identity. Store/delete require confirmation and verify the
+scene did not change during the dialog. Every asynchronous callback holds a
+component SafePointer. Export offers selected/whole bank and optional mappings;
+import presents every skip/unknown/digest detail in a scrollable review before
+an explicit scenes-only or scenes-plus-mappings choice. Import never recalls a
+scene. Choosing mappings can affect already active macros and says so.
+
+The import undo action can include a message-thread model snapshot, preserving
+mapping undo across editor closure. A new import/reset clears that sidecar;
+undo invokes it exactly once. No callback captures an editor. User names stay
+verbatim through localization; native/modal text uses complete translation
+templates with names inserted as data. The panel polls only bank/name/current
+identity and language generation; it does not serialize full dense banks on
+every UI timer tick.

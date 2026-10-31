@@ -9,6 +9,7 @@
 #include "../SlotHost.h"
 #include "../../PluginProcessor.h"
 #include "../../features/i18n/ComponentTranslator.h"
+#include "../../features/i18n/Strings.h"
 
 #include <cstring>
 
@@ -336,6 +337,7 @@ namespace
             auto& model = proc.getLiveControl().macroMappings();
             const auto& cfg = model.get();
             shownCfg = cfg;
+            shownLanguage = i18n::languageGeneration();
             {
                 const juce::ScopedValueSetter<bool> guard (updatingName, true);
                 macroName.setText (juce::String::fromUTF8 (cfg.names[selected]), juce::dontSendNotification);
@@ -368,8 +370,9 @@ namespace
                     addTarget.addItem (targetInfo (t).label, t + 1);
             addTarget.setEnabled (cfg.count[selected] < kMaxMappings);
 
-            info.setText (juce::String ((int) cfg.count[selected]) + " of "
-                              + juce::String (kMaxMappings) + " mappings" + (cfg.lfo[selected].enabled != 0 ? ", LFO running" : ""),
+            info.setText (cfg.lfo[selected].enabled != 0
+                              ? i18n::format ("{0} of {1} mappings, LFO running", { juce::String ((int) cfg.count[selected]), juce::String (kMaxMappings) })
+                              : i18n::format ("{0} of {1} mappings", { juce::String ((int) cfg.count[selected]), juce::String (kMaxMappings) }),
                           juce::dontSendNotification);
             resized();
         }
@@ -377,7 +380,8 @@ namespace
         void timerCallback() override
         {
             // Another path (state restore, bank import, controller profile) may have changed the table.
-            if (std::memcmp (&proc.getLiveControl().macroMappings().get(), &shownCfg, sizeof (shownCfg)) != 0)
+            if (std::memcmp (&proc.getLiveControl().macroMappings().get(), &shownCfg, sizeof (shownCfg)) != 0
+                || shownLanguage != i18n::languageGeneration())
                 rebuild();
         }
 
@@ -390,6 +394,7 @@ namespace
         LfoRow lfoRow;
         juce::Label info, macroName;
         MacroConfig shownCfg {};
+        std::uint64_t shownLanguage = 0;
         bool updatingName = false;
         int selected = 0;
     };

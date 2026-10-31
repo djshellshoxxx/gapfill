@@ -50,6 +50,11 @@ public:
 
     /** Saves the current sound into slot `index` (or appends when index == size). */
     bool saveCurrent (int index, const juce::String& name, std::uint16_t scope = kDefaultScope);
+    bool renameScene (int index, const juce::String& name);
+    bool setSceneQuant (int index, Quant);
+    bool removeScene (int index);
+    bool duplicateScene (int index);
+    bool moveScene (int from, int to);
 
     //------------------------------------------------------------------------
     // From the audio thread (through LiveControl's UiRequest queue).
@@ -75,6 +80,9 @@ public:
     /** Undo for the last import. */
     bool canUndoImport() const noexcept             { return hasUndo; }
     void rememberForUndo();
+    /** Optional message-thread part of the same successful bank import (e.g.
+        macro mappings). Its captured model must outlive any undo invocation. */
+    void setImportUndoAction (std::function<void()> action) { importUndoAction = std::move (action); }
     bool undoImport();
 
     void reset();     ///< clears bank and request state
@@ -106,6 +114,7 @@ private:
     std::uint8_t pendingCloudModelVersion = 1;
     std::uint8_t baselineCloudModelVersion = 1;
     std::function<void()> modelVersionsCommitted;
+    std::function<void()> importUndoAction;
 
     std::vector<ResolvedParam> resolved;       ///< entries still governed by the overlay
     std::vector<float> baseline01;             ///< parameter value when the request was made
