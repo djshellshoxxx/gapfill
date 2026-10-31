@@ -223,3 +223,78 @@ unrelated branch's green job. No worker modifies a checkout under verification.
   Python-only slice; runtime baseline preservation remains a CONTRACT dependency.
 - Released canonical216-ID SHA-256:
   `ad0beec298ca9513f7fca2ca5d43eb3b185e610f01a2cfb8f9e7b518e347d26d`.
+
+## Integrated checkpoint and second implementation wave
+
+The first expanded native checkpoint `86a3f6c` ran **1279 passed / 7 failed**.
+Its seven failures were retained in `/workspace/work/evidence/integration-2-tests.log`:
+old aggregate-budget and command-boundary fixtures, a bank fixture that no longer
+mutated scientific-format XML, two genuine translated-combo selection failures,
+a detached-component accessibility test, and not-yet-integrated parameter info.
+The corrected native timeline/desktop fixture subsequently ran **10 passed / 0
+failed** using matching checkpoint production objects. This does not establish
+acceptance of later DSP or model changes.
+
+Current native build checkpoint: `780bd17` (immutable verification checkout,
+GNU 14.2.0 Release, JUCE 8.0.15 at the pinned revision). Full native results for
+that checkpoint are pending. Its production adapters include FL20, explicit MIDI
+ownership and causal detector events, per-segment scene preflight/base/analysis/
+post-protection, mono/stereo Wet routing, deterministic cooperation, model
+selection, processor-owned A/B/navigation and real message-loop lifecycle stress.
+Local component proofs are separate from that integrated result.
+
+Reading the detailed specifications exposed further unfinished implementation.
+These rows are in scope, not external acceptance and not automatically deferred:
+
+| Requirement/source | Remaining capability and compatibility contract | Owner / boundary | Status / acceptance |
+|---|---|---|---|
+| F-M23 detailed macro sources | Explicit MacrosV3 path: eight knobs, two global LFOs including RandomGlide, signed additive depth/Energy and missing canonical targets; retain all old four-knob/36-target/schema behavior. | state_compatibility; new modulation modules, macro model/GUI; root registry/adapter | Pure contracts under review; full runtime/native acceptance pending. |
+| F-X01 detailed harmonic design | Opt-in HGEXT epoch/PSOLA path with source-coordinate incremental pitch history, intervals/scatter/snap and bounded metadata. Preserve all existing hg* values and period-cloud behavior while mode is Off. | spec_review pure tracker/epochs/PSOLA; root DSP hooks; standards_review metadata carriers | Pure prototypes/tests; actual voice integration, pitch/formant/CPU and host acceptance pending. |
+| F-L09 Scramble | Add the missing Scramble timing hook under a separate saved Groove model version; Stutter/Delay and old Groove sessions retain their established path. | runtime_safety; narrow ContextHooks/genScramble; state owner scene metadata | Version contract/probes; integrated timing/off-identity pending. |
+| F-M20 detailed Tape Damage | Separate nine-control TAPEXTRA path, probability per fill, drift/drop depth/mix and accounted 4 ms internal onset; shipped td* card stays unchanged. | runtime_safety pure stage/GUI/tests; root Voice/Engine; standards_review recipe extras | Contracts/prototypes; cumulative-delay, CPU and conformance pending. |
+| F-L24 detailed controllers | Parameter/channel/pickup feedback, bounded host feedback/echo/rate limits, reconnect and binding-monitor/profile UI exceed the existing three standalone LED sources. | standards_review next after metadata carriers | Explicit pending software; physical devices also require external acceptance. |
+| F-M18 detailed Battle | Saved versioned styles, base/modulation/bus-FX stage timing and remaining affordances. Do not silently activate legacy persisted behavior. | state_compatibility next after MacroV3, root scheduling adapter | Source-backed pending implementation. |
+| W-03 tempo prediction | Retain characterized previous-callback seam and unchanged 0.25 tolerance; implement canonical previous/current-tempo prediction separately and collect real-host jitter before threshold changes. | release_status pure tracker/measurement tools; root adapter if required | Host jitter remains external; pure behavior work pending. |
+
+### Approved second-wave shared contract
+
+- Append-only future tail sequence after the current 242 IDs: **MACROEXT 26
+  (242–267), HGEXT 7 (268–274), TAPEXTRA 9 (275–283)**. Only root registers it.
+  No released ID/index, normalized choice range or immutable fixture changes.
+- Keep the released 16-byte `FillRecipe` and every flag bit unchanged. Add an
+  optional bounded POD `RecipeExtras` alongside it: 12-byte feature-owned
+  harmonic metadata and 28-byte feature-owned Tape metadata inside a 44-byte
+  versioned wire envelope. Absence omits the extension and preserves old bytes.
+  Carry extras coherently through plans, events, history, locked/preview/template
+  recipes, MIDI targets, portable files and versioned recording/replay. Reject
+  malformed/partial pairs atomically. Tape values are quantized and dequantized
+  **before original rendering**, so replay does not acquire a rounding mismatch.
+- Groove receives its own fourth model-version byte, not an alias of Arrangement.
+  Metadata schema 2 holds four models; schema 1 retains its three existing choices
+  and selects legacy Groove. Missing/invalid metadata selects all legacy models.
+  Fresh instances/explicit upgrades use the new models; ScopeMusical scenes carry
+  only the applicable Groove domain, and ScopeFx carries Cloud.
+- MacrosV3 is a distinguishable optional subtree bounded to 8 KiB XML and retains
+  the complete legacy config for explicit return. Valid V3 supersedes V2 and V1;
+  invalid V3 falls back to a valid older representation. Source=Knob uses the knob
+  directly; other sources add signed depth before clamping. New target indices
+  append at 36; expanded ownership masks are runtime-only.
+- New Tape mix target selects TAPEXTRA when its amount is nonzero, otherwise the
+  legacy card's new inactive-sentinel mix override; it never changes both paths
+  together. Existing V1/V2 macro mappings remain unchanged.
+- The exact written fixed `2*T0` PSOLA window cancels octave-shifted sine input
+  (prototype: approximately -66 dB, exact zero for integer periods). The new path
+  therefore uses `2*min(T0,Tout)` for upward shifts, rate-one epoch reads and strict
+  pitch/formant metrics. Eight grain slots per stream bound the requested ratio
+  four; four streams total 32, below the old 96-grain bound. This is a documented
+  method correction, not a relaxed acceptance target.
+- Tape's 40-cent/0.5-Hz combination cannot fit the stated delay excursion. Derive
+  the minimum wow frequency from requested cents and the allocated delay budget
+  within 0.5–2 Hz, preserving measured depth. Tape's 4 ms and FL20's FFT onset add
+  inside the planned voice deadline; no dry/PDC latency change is allowed.
+
+Additional DSP/state/metadata changes invalidate their affected candidate tests,
+compatibility, sanitizers, performance and soak results. No worker's standalone
+component run closes the integrated rows above. The 8-hour/7-day process and seven
+consecutive nightly days, signing identities, supported desktop hosts/controllers,
+listening and owner visual approval remain distinct open acceptance gates.
