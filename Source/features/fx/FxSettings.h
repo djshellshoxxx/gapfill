@@ -30,6 +30,7 @@ struct CloudSettings
     float pitchCents = 100.0f;
     float spread01 = 0.6f;
     int   maxGrains = 48;       ///< F-D03 quality cap (Full 48, Balanced 32, Lite 16)
+    std::uint8_t modelVersion = 2; ///< Explicit metadata: old saved states select 1.
 };
 
 struct RatchetSettings
