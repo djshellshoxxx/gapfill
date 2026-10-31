@@ -8,6 +8,9 @@
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/ComponentTranslator.h"
+
+#include <cstring>
 
 namespace gapfill
 {
@@ -262,6 +265,30 @@ namespace
             reset.onClick = [this] { proc.getLiveControl().macroMappings().resetMacro (selected); rebuild(); };
             addAndMakeVisible (reset);
 
+            upgrade.setButtonText ("UPGRADE FX");
+            upgrade.setTooltip ("Enable repaired effect, energy, scale, groove and tension macro targets for this older session. "
+                                "Tension amount scales the configured depths: 0 is neutral, 100% uses their nominal values.");
+            upgrade.onClick = [this]
+            {
+                proc.getLiveControl().macroMappings().upgradeTargetSchema();
+                rebuild();
+            };
+            addAndMakeVisible (upgrade);
+
+            macroName.setTitle ("Macro name");
+            macroName.setTooltip ("Double-click to rename this macro.");
+            macroName.setEditable (false, true, false);
+            i18n::markUserContent (macroName);
+            macroName.onTextChange = [this]
+            {
+                if (! updatingName)
+                {
+                    proc.getLiveControl().macroMappings().rename (selected, macroName.getText());
+                    rebuild();
+                }
+            };
+            addAndMakeVisible (macroName);
+
             info.setFont (fonts::ui (11.0f));
             info.setColour (juce::Label::textColourId, colours::textMuted);
             addAndMakeVisible (info);
@@ -297,7 +324,10 @@ namespace
             for (auto& row : rows)
                 row.setBounds (r.removeFromTop (kRowHeight));
             lfoRow.setBounds (r.removeFromTop (kLfoHeight).reduced (0, 2));
-            info.setBounds (r.removeFromTop (20));
+            auto footer = r.removeFromTop (20);
+            macroName.setBounds (footer.removeFromLeft (juce::jmin (130, footer.getWidth() / 3)));
+            if (upgrade.isVisible()) upgrade.setBounds (footer.removeFromRight (100));
+            info.setBounds (footer);
         }
 
     private:
@@ -305,7 +335,12 @@ namespace
         {
             auto& model = proc.getLiveControl().macroMappings();
             const auto& cfg = model.get();
-            shownCount = cfg.count[selected];
+            shownCfg = cfg;
+            {
+                const juce::ScopedValueSetter<bool> guard (updatingName, true);
+                macroName.setText (juce::String::fromUTF8 (cfg.names[selected]), juce::dontSendNotification);
+            }
+            upgrade.setVisible (cfg.targetSchemaVersion == 1);
             lfoRow.set (cfg.lfo[selected]);
 
             for (int i = 0; i < kNumMacros; ++i)
@@ -333,28 +368,30 @@ namespace
                     addTarget.addItem (targetInfo (t).label, t + 1);
             addTarget.setEnabled (cfg.count[selected] < kMaxMappings);
 
-            info.setText (juce::String (cfg.names[selected]) + ": " + juce::String ((int) cfg.count[selected]) + " of "
+            info.setText (juce::String ((int) cfg.count[selected]) + " of "
                               + juce::String (kMaxMappings) + " mappings" + (cfg.lfo[selected].enabled != 0 ? ", LFO running" : ""),
                           juce::dontSendNotification);
+            resized();
         }
 
         void timerCallback() override
         {
             // Another path (state restore, bank import, controller profile) may have changed the table.
-            if (proc.getLiveControl().macroMappings().get().count[selected] != shownCount)
+            if (std::memcmp (&proc.getLiveControl().macroMappings().get(), &shownCfg, sizeof (shownCfg)) != 0)
                 rebuild();
         }
 
         GapFillAudioProcessor& proc;
         GapToggle macrosOn;
         GapKnob knobs[kNumMacros];
-        juce::TextButton select[kNumMacros], reset;
+        juce::TextButton select[kNumMacros], reset, upgrade;
         juce::ComboBox addTarget;
         MappingRow rows[kMaxMappings];
         LfoRow lfoRow;
-        juce::Label info;
+        juce::Label info, macroName;
+        MacroConfig shownCfg {};
+        bool updatingName = false;
         int selected = 0;
-        int shownCount = -1;
     };
 
     const SlotRegistrar macroEditor ({ Slot::PerformanceTab, 300,
@@ -373,6 +410,10 @@ namespace
         w.body ("Each macro can also have an LFO: switch LFO on, pick a shape (Sine, Triangle, Saw, Square or Sample & hold), and either "
                 "lock it to the tempo with SYNC and a division, or let it run free at a rate in Hz. Depth is how far it swings the macro, "
                 "Phase is where in its cycle it starts.");
+        w.body ("Older sessions keep their original advanced-target behavior until you choose UPGRADE FX. "
+                "The upgrade enables effect amounts, Energy Adapt, Scale Amount, Groove and the Tension master without changing mappings. "
+                "Tension amount scales all configured curve depths: 0 disables their contribution and 100% uses their nominal depths. "
+                "Double-click the macro name to rename it.");
     });
 }
 

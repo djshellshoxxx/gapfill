@@ -8,6 +8,7 @@
 #include "../SlotHost.h"
 #include "../../PluginProcessor.h"
 #include "../../features/bank/BankFile.h"
+#include "../../features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -22,6 +23,7 @@ namespace
             setTitle ("Scenes and banks");
 
             sceneBox.setTitle ("Scene");
+            i18n::markUserContent (sceneBox);
             sceneBox.setTooltip ("Pick a scene to recall. The change lands on the quantise boundary.");
             sceneBox.onChange = [this]
             {
