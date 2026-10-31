@@ -13,6 +13,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <ctime>
 #include <cstring>
 #include <vector>
 
@@ -528,8 +529,23 @@ GF_TEST (Arrangement, worst_frame_cost_is_reported_and_bounded)
     }
 
     std::printf ("         worst pushFrame: %.1f us (target <= 30 us on a quiet machine)\n", worst);
-    GF_EXPECT (juce::SystemStats::getEnvironmentVariable ("GAPFILL_PERF_ENFORCE", {}) != "1" || (worst < 2000.0));  // wall clock: enforced only with GAPFILL_PERF_ENFORCE=1
-    GF_EXPECT (sizeof (SectionTracker) < 100 * 1024);                        // memory budget (SSM 64 KB + features)
+    GF_EXPECT (juce::SystemStats::getEnvironmentVariable ("GAPFILL_PERF_ENFORCE", {}) != "1" || (worst <= 30.0));
+    GF_EXPECT (sizeof (SectionTracker) <= 80 * 1024);
+}
+
+GF_TEST (ArrangementV2, feature_extraction_and_tracker_meet_point_two_percent_total_cpu)
+{
+    const double sr = 48000;
+    const auto input = song (sr, { templ (Verse, 40), templ (Chorus, 40) }, 13);
+    Runner runner (sr);
+    runner.tracker.setModelVersion (2);
+    const auto started = std::clock();
+    runner.feed (input.data(), (int) input.size(), 512);
+    const double cpu = (double) (std::clock() - started) / CLOCKS_PER_SEC;
+    const double fraction = cpu / ((double) input.size() / sr);
+    std::printf ("         arrangement features+tracker CPU%.4f%% (limit0.2%%)\n", fraction * 100);
+    GF_EXPECT (runner.tracker.frames() == 160 && runner.tracker.boundaries() >= 1);
+    GF_EXPECT (juce::SystemStats::getEnvironmentVariable ("GAPFILL_PERF_ENFORCE", {}) != "1" || fraction <= 0.002);
 }
 
 GF_TEST (Arrangement, off_is_bit_identical_and_params_are_neutral)
