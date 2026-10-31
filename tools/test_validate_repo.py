@@ -1,3 +1,4 @@
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -20,6 +21,9 @@ def make_minimal_repo(root: Path, core_ids=("fill", "wet"), lock_ids=None) -> No
     )
     (root / "tools" / "param_ids" / "core.lock").write_text(
         "# lock\n" + "\n".join(core_ids if lock_ids is None else lock_ids) + "\n", encoding="utf-8"
+    )
+    (root / "tools" / "param_ids" / "HOST_ORDER").write_text(
+        "\n".join(core_ids) + "\n", encoding="utf-8"
     )
     (root / "Source" / "Presets.cpp").write_text(
         '{ "Good", "desc", { { "fill", 0.5f }, { "wet", 1.0f } } }', encoding="utf-8"
@@ -162,6 +166,74 @@ class ParamLockTests(unittest.TestCase):
     def test_real_repository_validates(self):
         root = Path(__file__).resolve().parents[1]
         self.assertEqual(validate_repo.validate(root), [])
+
+    def test_append_to_earlier_group_cannot_shift_released_host_indices(self):
+        def build(root):
+            make_minimal_repo(root)
+            add_group(root, "macros", ["macroActivity", "macroExtra"])
+            add_group(root, "lock", ["fillLock"])
+            # Per-group locks and GROUP_ORDER are valid, but the added macro
+            # moved fillLock from released host index 3 to index 4.
+            (root / "tools/param_ids/GROUP_ORDER").write_text("CORE\nMACROS\nLOCK\n")
+            (root / "tools/param_ids/HOST_ORDER").write_text("fill\nwet\nmacroActivity\nfillLock\n")
+
+        errors = self.errors(build)
+        self.assertTrue(any("host parameter index 3" in e and "fillLock" in e and "macroExtra" in e
+                            for e in errors), errors)
+
+    def test_new_tail_group_preserves_released_host_indices(self):
+        def build(root):
+            make_minimal_repo(root)
+            add_group(root, "zfirst", ["firstReleased"])
+            add_group(root, "asecond", ["secondReleased"])
+            add_group(root, "extension", ["newParameter"])
+            # File-system/alphabetical order differs deliberately from host order.
+            (root / "tools/param_ids/HOST_ORDER").write_text("fill\nwet\nfirstReleased\nsecondReleased\n")
+
+        self.assertEqual(self.errors(build), [])
+
+    def test_missing_host_order_lock_fails(self):
+        def build(root):
+            make_minimal_repo(root)
+            (root / "tools/param_ids/HOST_ORDER").unlink()
+
+        errors = self.errors(build)
+        self.assertTrue(any("missing required file: tools/param_ids/HOST_ORDER" in e for e in errors), errors)
+
+    def test_empty_host_order_cannot_disable_index_protection(self):
+        def build(root):
+            make_minimal_repo(root)
+            (root / "tools/param_ids/HOST_ORDER").write_text("# accidentally empty\n")
+
+        errors = self.errors(build)
+        self.assertTrue(any("HOST_ORDER" in e and "empty" in e for e in errors), errors)
+
+    def test_duplicate_host_order_entry_fails(self):
+        def build(root):
+            make_minimal_repo(root)
+            (root / "tools/param_ids/HOST_ORDER").write_text("fill\nfill\n")
+
+        errors = self.errors(build)
+        self.assertTrue(any("HOST_ORDER" in e and "duplicate" in e for e in errors), errors)
+
+    def test_removed_final_released_host_parameter_fails(self):
+        def build(root):
+            make_minimal_repo(root)
+            (root / "tools/param_ids/HOST_ORDER").write_text("fill\nwet\nreleasedTail\n")
+
+        errors = self.errors(build)
+        self.assertTrue(any("host parameter index 2" in e and "releasedTail" in e and "missing" in e
+                            for e in errors), errors)
+
+    def test_public_release_host_index_manifest_is_not_rewritten(self):
+        root = Path(__file__).resolve().parents[1]
+        ids = validate_repo.read_lock((root / "tools/param_ids/HOST_ORDER").read_text(encoding="utf-8"))
+        self.assertGreaterEqual(len(ids), 216)
+        # Independent snapshot of v0.0.2-beta1, e89aecd, not calculated from the
+        # current headers: changing both headers and locks cannot hide a shift.
+        released = "\n".join(ids[:216]) + "\n"
+        self.assertEqual(hashlib.sha256(released.encode("utf-8")).hexdigest(),
+                         "ad0beec298ca9513f7fca2ca5d43eb3b185e610f01a2cfb8f9e7b518e347d26d")
 
 
 class ValidateRepoTests(unittest.TestCase):
