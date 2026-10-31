@@ -2,6 +2,10 @@
 #include "../support/AllocGuard.h"
 #include "features/modulation/Sources.h"
 #include "features/modulation/ExtendedState.h"
+#include "features/modulation/Targets.h"
+#include "features/modulation/Runtime.h"
+#include "features/common/PerformanceTargets.h"
+#include "features/effective/Effective.h"
 #include "features/macros/MacroModel.h"
 #include <cstring>
 
@@ -184,4 +188,185 @@ GF_TEST (Modulation, mapping_codec_uses_the_documented_little_endian_record_byte
     GF_EXPECT (tree.getChild (1)["d"].toString() == juce::Base64::toBase64 (expected, sizeof (expected)));
     config.retainedLegacy.count[0] = 255;
     GF_EXPECT (! toExtendedTree (config).isValid());
+}
+
+GF_TEST (Modulation, first_thirty_six_knob_targets_match_the_repaired_v2_field_arithmetic)
+{
+    gapfill::macros::initTargets();
+    gapfill::modulation::initTargets();
+    for (int target = 0; target < gapfill::macros::kNumTargets; ++target)
+        for (int sample = 0; sample < 256; ++sample)
+        {
+            const auto value = sample / 255.0f;
+            gapfill::macros::MacroRuntime old;
+            for (auto& count : old.cfg.count) count = 0;
+            old.cfg.count[0] = 1;
+            old.cfg.map[0][0].target = (std::uint8_t) target;
+            gapfill::EngineSettings expected;
+            expected.perf.tension.depth[0] = .8f;
+            auto actual = expected;
+            std::uint32_t ownership = 0;
+            const float knobs[] { value, 0, 0, 0 };
+            old.evaluateBlock (expected, knobs, ownership);
+            expected.perf.advancedMacroOwnedMask = 0;
+            TargetOutputs outputs;
+            applyTarget (actual, target, value, captureTargetBase (actual), outputs);
+            GF_EXPECT_MSG (std::memcmp (&actual, &expected, sizeof (actual)) == 0, gapfill::macros::targetInfo (target).id);
+        }
+}
+
+GF_TEST (Modulation, new_physical_targets_cover_integer_skew_decay_gate_bands_and_virtual_send)
+{
+    gapfill::modulation::initTargets();
+    gapfill::EngineSettings settings;
+    TargetOutputs outputs;
+    const auto base = captureTargetBase (settings);
+    applyTarget (settings, 36, .5f, base, outputs);
+    applyTarget (settings, 37, .5f, base, outputs);
+    applyTarget (settings, 38, .5f, base, outputs);
+    applyTarget (settings, 39, .5f, base, outputs);
+    applyTarget (settings, 40, .5f, base, outputs);
+    applyTarget (settings, 41, .5f, base, outputs);
+    applyTarget (settings, 43, .25f, base, outputs);
+    for (int target = 44; target <= 46; ++target) applyTarget (settings, target, .5f, base, outputs);
+    GF_EXPECT_NEAR (settings.perf.mistakes01, .5f, 1e-6f);
+    GF_EXPECT (settings.fx.rcrush.bits == 9 && settings.fx.rcrush.rate == 8);
+    GF_EXPECT_NEAR (settings.fx.resonator.decaySeconds, .2f, 1e-6f);
+    GF_EXPECT_NEAR (settings.fx.resonator.damp01, .5f, 1e-6f);
+    GF_EXPECT_NEAR (settings.fx.ratchet.gate01, .55f, 1e-6f);
+    GF_EXPECT_NEAR (outputs.fxSend01, .25f, 1e-6f);
+    for (const auto amount : settings.bandAmt) GF_EXPECT_NEAR (amount, .5f, 1e-6f);
+    GF_EXPECT (advancedOwnership (46) == (1u << 25));
+    GF_EXPECT (advancedOwnership (47) == (1u << 26));
+    applyTarget (settings, 47, .5f, base, outputs);
+    GF_EXPECT_NEAR (settings.fx.tapeExtra.amount01, .5f, 1e-6f);
+    GF_EXPECT (isContinuousTarget (26) && isContinuousTarget (42) && ! isContinuousTarget (25));
+}
+
+GF_TEST (Modulation, tape_mix_targets_only_the_effective_active_path)
+{
+    gapfill::EngineSettings settings;
+    TargetOutputs outputs;
+    applyTarget (settings, 42, .25f, captureTargetBase (settings), outputs);
+    GF_EXPECT_NEAR (settings.fx.tape.mixOverride01, .25f, 1e-6f);
+    GF_EXPECT_NEAR (settings.fx.tapeExtra.mix01, 1, 1e-6f);
+    settings.fx.tape.mixOverride01 = -1;
+    settings.fx.tapeExtra.amount01 = .5f;
+    applyTarget (settings, 42, .75f, captureTargetBase (settings), outputs);
+    GF_EXPECT_NEAR (settings.fx.tapeExtra.mix01, .75f, 1e-6f);
+    GF_EXPECT_NEAR (settings.fx.tape.mixOverride01, -1, 1e-6f);
+    GF_EXPECT (juce::String (targetParameterId (42, true)) == "fm20_mix");
+    GF_EXPECT (juce::String (targetParameterId (42, false)) == "tdAmount");
+}
+
+GF_TEST (Modulation, runtime_resolves_ownership_before_the_tape_selector_and_mix)
+{
+    gapfill::modulation::initTargets();
+    Runtime runtime;
+    for (auto& count : runtime.cfg.count) count = 0;
+    runtime.cfg.count[0] = 1;
+    runtime.cfg.map[0][0] = { 42, 0, 0, 0, .25f, .25f, 0 };
+    runtime.cfg.count[7] = 2;
+    runtime.cfg.map[7][0] = { 47, 0, 0, 0, .5f, .5f, 0 };
+    runtime.cfg.map[7][1] = { 42, 0, 0, 0, .75f, .75f, 0 };
+    gapfill::EngineSettings settings;
+    runtime.claimOwnership (settings);
+    (void) runtime.evaluateDecision (settings, {});
+    GF_EXPECT_NEAR (settings.fx.tapeExtra.amount01, .5f, 1e-6f);
+    GF_EXPECT_NEAR (settings.fx.tapeExtra.mix01, .25f, 1e-6f);
+    GF_EXPECT_NEAR (settings.fx.tape.mixOverride01, -1, 1e-6f);
+    GF_EXPECT (settings.perf.advancedMacroOwnedMask == ((1u << 21) | (1u << 26)));
+}
+
+GF_TEST (Modulation, context_projection_preserves_derived_results_and_restores_nominal_depth_before_decision)
+{
+    gapfill::modulation::initTargets();
+    Runtime runtime;
+    for (auto& count : runtime.cfg.count) count = 0;
+    runtime.cfg.count[0] = 4;
+    for (int index = 0; index < 4; ++index) runtime.cfg.map[0][index] = { (std::uint8_t) (32 + index), 0, 0, 0, .5f, .5f, 0 };
+    gapfill::EngineSettings settings;
+    settings.perf.tension.depth[0] = .8f;
+    const auto saved = runtime.projectContextTargets (settings, {});
+    GF_EXPECT_NEAR (settings.perf.tension.depth[0], .4f, 1e-6f);
+    GF_EXPECT_NEAR (settings.perf.energy.adapt01, .5f, 1e-6f);
+    settings.perf.energy.level = 2;
+    settings.perf.groove.snap.valid = true;
+    Runtime::restoreContextBase (settings, saved);
+    GF_EXPECT_NEAR (settings.perf.tension.depth[0], .8f, 1e-6f);
+    GF_EXPECT (settings.perf.energy.level == 2 && settings.perf.groove.snap.valid);
+    (void) runtime.evaluateDecision (settings, {});
+    GF_EXPECT_NEAR (settings.perf.tension.depth[0], .4f, 1e-6f);
+}
+
+GF_TEST (Modulation, control_grid_uses_pinned_sources_and_the_same_cell_midpoint_across_host_cuts)
+{
+    gapfill::modulation::initTargets();
+    Runtime runtime;
+    for (auto& count : runtime.cfg.count) count = 0;
+    runtime.cfg.count[0] = 1;
+    runtime.cfg.map[0][0].target = 5;
+    GF_EXPECT (! runtime.needsControlGrid());
+    runtime.inputs.source[0] = MacroSource::Energy;
+    GF_EXPECT (! runtime.needsControlGrid() && ! runtime.widthAt ({}).active);
+    runtime.inputs.source[0] = MacroSource::LfoA;
+    GF_EXPECT (runtime.needsControlGrid());
+    for (int sample = -64; sample < 64; ++sample)
+    {
+        DecisionInputs at;
+        at.transportValid = true; at.outputPos = sample; at.ppq = sample / 24000.0;
+        const auto midpoint = Runtime::controlCellMidpoint (at, 24000);
+        GF_EXPECT (midpoint.outputPos % 32 == 16 || midpoint.outputPos % 32 == -16);
+        GF_EXPECT_NEAR (midpoint.ppq, midpoint.outputPos / 24000.0, 1e-12);
+        GF_EXPECT (Runtime::samplesUntilControlBoundary (sample, 512) >= 1);
+        GF_EXPECT (Runtime::samplesUntilControlBoundary (sample, 512) <= 32);
+    }
+}
+
+GF_TEST (Modulation, pinned_scene_source_projection_reaches_every_new_parameter_kind)
+{
+    gapfill::Effective::ModulationInputs inputs;
+    const auto project = [&] (const char* id, float value)
+    {
+        const auto index = gapfill::performanceTargets::indexForId (id);
+        GF_EXPECT (index >= 0);
+        gapfill::performanceTargets::applyModulation (inputs, index, value);
+    };
+    project ("fm23_macro5", 75);
+    project ("fm23_src8", 3);
+    project ("fm23_depth8", -25);
+    project ("fm23_lfoBShape", 5);
+    project ("fm23_lfoBDiv", 15);
+    project ("fm23_lfoBHz", 8);
+    GF_EXPECT_NEAR (inputs.macros.extendedInputs.knob01[4], .75f, 1e-6f);
+    GF_EXPECT (inputs.macros.extendedInputs.source[7] == MacroSource::Energy);
+    GF_EXPECT_NEAR (inputs.macros.extendedInputs.depth[7], -.25f, 1e-6f);
+    GF_EXPECT (inputs.macros.extendedInputs.lfo[1].shape == LfoShape::RandomGlide);
+    GF_EXPECT (inputs.macros.extendedInputs.lfo[1].division == 15);
+    GF_EXPECT_NEAR (inputs.macros.extendedInputs.lfo[1].freeHz, 8, 1e-6f);
+}
+
+GF_TEST (Modulation, full_runtime_evaluation_is_bounded_and_has_no_audio_thread_allocation)
+{
+    gapfill::modulation::initTargets();
+    Runtime runtime;
+    for (int macro = 0; macro < kMacroCount; ++macro)
+    {
+        runtime.inputs.source[macro] = macro % 2 ? MacroSource::LfoA : MacroSource::LfoB;
+        runtime.cfg.count[macro] = 8;
+        for (int mapping = 0; mapping < 8; ++mapping)
+            runtime.cfg.map[macro][mapping].target = (std::uint8_t) ((macro * 8 + mapping) % kTargetCount);
+    }
+    DecisionInputs at;
+    at.transportValid = true;
+    gftest::AllocGuard guard;
+    for (int sample = 0; sample < 4096; sample += 32)
+    {
+        at.outputPos = sample; at.ppq = sample / 24000.0;
+        gapfill::EngineSettings settings;
+        const auto send = runtime.evaluateDecision (settings, at).fxSend01;
+        GF_EXPECT (std::isfinite (settings.fill01) && settings.fill01 >= 0 && settings.fill01 <= 1);
+        GF_EXPECT (send >= 0 && send <= 1);
+    }
+    GF_EXPECT (guard.count() == 0);
 }

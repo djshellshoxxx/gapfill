@@ -114,7 +114,8 @@ void ContextState::onChunk (const float* mono, int numSamples, const AnalysisEng
         tensionSvc.setStatus ({});
 
     // F-L22 energy and F-X04 arrangement share the 0.5 s frames. Nothing runs while both are off.
-    const bool energyWanted = s.perf.energy.adapt01 > 0.0f;
+    const bool energyWanted = s.perf.energy.adapt01 > 0.0f
+        || (s.perf.extendedMacroRuntime != nullptr && (s.perf.advancedMacroOwnedMask & (1u << 12)) != 0);
     const bool arrangementWanted = s.perf.arr.on;
     if (arrangementWanted)
         section.setModelVersion (s.perf.arr.modelVersion);

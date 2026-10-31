@@ -74,7 +74,12 @@ namespace
         { "fl20_tilt", +[] (EngineSettings& s, float v) noexcept { s.voiceFormant.tiltDbPerOct = std::clamp (v, -6.0f, 6.0f); }, false },
         INT ("fl20_vowel", voiceFormant.vowel, 0, 5, false),
         { "fl20_preserve", +[] (EngineSettings& s, float v) noexcept { s.voiceFormant.preserve01 = std::clamp (v / 100.0f, 0.0f, 1.0f); }, false },
-        INT ("fl20_detail", voiceFormant.detail, 0, 2, false)
+        INT ("fl20_detail", voiceFormant.detail, 0, 2, false),
+        PCT ("fm20_amount", fx.tapeExtra.amount01, true), PCT ("fm20_wow", fx.tapeExtra.wow01, true),
+        PCT ("fm20_flutter", fx.tapeExtra.flutter01, true), PCT ("fm20_sat", fx.tapeExtra.sat01, true),
+        PCT ("fm20_dropDensity", fx.tapeExtra.dropDensity01, true), PCT ("fm20_dropDepth", fx.tapeExtra.dropDepth01, true),
+        PCT ("fm20_splice", fx.tapeExtra.splice01, true), PCT ("fm20_instab", fx.tapeExtra.instab01, true),
+        PCT ("fm20_mix", fx.tapeExtra.mix01, true)
     };
 
    #undef PCT

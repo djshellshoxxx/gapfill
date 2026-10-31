@@ -81,6 +81,9 @@ struct OverlayView
         Caller gates appliesAt() for this segment. Legacy raw targets are unchanged;
         their model selectors still apply at the boundary. */
     void applyBaseTo (EngineSettings&, Effective::ModulationInputs&) const noexcept;
+    /** Preflight-only projection into the pinned macro/source snapshot. Caller
+        gates appliesAt(); this never mutates engine settings or consumes publication. */
+    void applyModulationTo (Effective::ModulationInputs&) const noexcept;
     /** Opt-in detector/crossover projection before this segment's analysis. */
     void applyAnalysisTo (AnalysisSettings&) const noexcept;
 

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <iterator>
 
 namespace gapfill::targets
 {
@@ -12,6 +13,15 @@ namespace gapfill::targets
 namespace
 {
     bool eq (const char* a, const char* b) noexcept { return std::strcmp (a, b) == 0; }
+
+    std::uint32_t extendedOwnership (const char* id) noexcept
+    {
+        constexpr const char* ids[] { "mistakes", "rcBits", "rcRate", "resDecay", "resDamp", "ratGate",
+            "tdMix", "fxSend", "bandLowAmt", "bandMidAmt", "bandHighAmt", "fm20_amount" };
+        for (int index = 0; index < (int) std::size (ids); ++index)
+            if (eq (id, ids[index])) return 1u << (15 + index);
+        return 0;
+    }
 }
 
 Ref refForId (const char* id) noexcept
@@ -50,6 +60,7 @@ Ref sceneRefForId (const char* id) noexcept
     if (legacy)
     {
         legacy.performanceIndex = (std::uint8_t) (performance + 1);
+        legacy.advancedMacroMask = extendedOwnership (id);
         return legacy;
     }
     if (eq (id, "energyAdapt")) return { Kind::EnergyAdapt, 0, 1u << 12 };
@@ -57,12 +68,12 @@ Ref sceneRefForId (const char* id) noexcept
     if (eq (id, "fl09_amount")) return { Kind::GrooveAmount, 0, 1u << 14 };
     const auto effect = fxTargets::indexForId (id);
     if (effect < 0)
-        return performance >= 0 ? Ref { Kind::Performance, (std::uint8_t) performance, 0, (std::uint8_t) (performance + 1) } : Ref {};
+        return performance >= 0 ? Ref { Kind::Performance, (std::uint8_t) performance, extendedOwnership (id), (std::uint8_t) (performance + 1) } : Ref {};
     constexpr const char* advanced[] = { "swellAmount", "cloudAmount", "ratAmount", "rcAmount", "tdAmount",
         "resAmount", "fsdAmount", "dubAmount", "fmtAmount", "sfzAmount", "cvAmount" };
-    std::uint16_t mask = 0;
+    std::uint32_t mask = extendedOwnership (id);
     for (int target = 0; target < 11; ++target)
-        if (eq (id, advanced[target])) mask = (std::uint16_t) (1u << target);
+        if (eq (id, advanced[target])) mask = 1u << target;
     return { Kind::Effect, (std::uint8_t) effect, mask };
 }
 

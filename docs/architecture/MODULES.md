@@ -268,3 +268,9 @@ real effect units once at startup and applies bounded field setters on audio.
 The actual released beta1 fixture set in `Tests/fixtures` records source git
 blob IDs, SHA-256 checksums and old-reader parameter/audio expectations; it
 must never be regenerated using the current processor.
+
+`features/modulation/README.md` records the explicit MacrosV3 eight-macro mode,
+its deterministic sources, exact little-endian codec,48 append-only targets,
+context projection and pinned32-sample control-cell contracts. The four-macro
+schemas remain separate. See `docs/progress/macro-v3-contract-20261031.md` for
+migration constraints, concrete verification and remaining integration evidence.

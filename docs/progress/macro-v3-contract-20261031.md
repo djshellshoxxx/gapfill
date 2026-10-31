@@ -124,3 +124,38 @@ The descriptor count is17. History's input cap grows1KiB→2KiB to admit the
 existing16-entry input bound with new optional recipe extras; writer capacity8
 and Lock's1KiB/v1 remain unchanged. Invalid extras are independently fail-soft
 in the recipe owner's adapter; this does not reinterpret the base recipe.
+
+
+The coordinator subsequently approved permanent target47=fm20_amount (0..100%),
+bringing the new table to48. Shipped25 remains legacy tdAmount. Evaluation must
+collect all effective values/ownership first, then apply47 as an active-path
+selector before42, then remaining targets in numeric order. Thus one macro can
+enable detailed Tape and set its mix, independently of mapping/macro order.
+The27 advanced targets21..47 fit the approved32bit runtime ownership mask.
+
+### Typed runtime slice
+
+Runtime and typed48-target projection are implemented separately from live
+processor preflight wiring. A focused native repository run now passes17tests,
+including9216 first36-field byte comparisons against the repaired V2 arithmetic,
+all added physical units, Tape selector-before-mix/lowest ownership, nominal
+context restore, pinned-source control grid, negative-position cell midpoints,
+all new scene parameter kinds, maximum64-map evaluation and allocation guards.
+The pipeline regression was syntax-RED before its new fields existed, then
+syntax-GREEN with the new adapters. Actual full processor/frame/host wiring and
+that pipeline's integrated execution are still pending.
+
+The new Effective tails are MacroState.extendedRuntime/extendedInputs and
+TransportInfo.outputPos/sampleRate/energy01; old aggregate initializers retain
+neutral defaults. Runtime effective01/active are audio-owned readout caches;
+LiveControl publishes their atomics and resets caches on config/lifecycle changes.
+The oscillator itself remains random-access/stateless. ContextState keeps energy
+tracking demanded while a V3 mapping33 exists, including instantaneous zero.
+Legacy schemas retain the original gate and FX mutation path.
+
+The existing bus Amount path already ramps20ms. New Resonator decay/damping
+controls still require their own>=5ms coefficient adapter before continuous
+modulation can be accepted; the derived physical field alone is not audio
+completion. New PSOLA mix send awaits the shared typed field/bundle. The live
+preflight snapshot/grid, exact Energy frame wiring, full runtime integration,
+8-macro UI and integrated regressions remain explicit pending work.

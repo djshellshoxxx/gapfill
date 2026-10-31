@@ -10,7 +10,7 @@ namespace gapfill::modulation
 
 // The shipped 0..35 indices and their meanings never change. The detailed
 // specification's conflicting indices are implemented only as appended targets.
-inline constexpr int kTargetCount = 47;
+inline constexpr int kTargetCount = 48;
 inline constexpr std::size_t kMaxStateBytes = 8 * 1024;
 inline constexpr const char* kSubtreeName = "MacrosV3";
 

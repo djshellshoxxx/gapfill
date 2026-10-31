@@ -19,6 +19,7 @@
 // else here; the fixed call order below lives in Effective.cpp.
 
 #include "../../dsp/EngineSettings.h"
+#include "../modulation/Sources.h"
 
 namespace gapfill::Effective
 {
@@ -30,6 +31,9 @@ struct TransportInfo
     double ppq = 0.0;
     int    tsNum = 0, tsDen = 0;
     double bpm = 0.0;
+    std::int64_t outputPos = 0;
+    double sampleRate = 48000.0;
+    float energy01 = 0.0f;
 };
 
 //==============================================================================
@@ -45,6 +49,8 @@ struct MacroState
 
     /** Mappings and smoothing state (audio-thread owned, set by LiveControl); null = no mappings. */
     macros::MacroRuntime* runtime = nullptr;
+    modulation::Runtime* extendedRuntime = nullptr;
+    modulation::ModInputs extendedInputs;
 };
 
 /** Values the macro stage hands to later processing stages (C-2). */

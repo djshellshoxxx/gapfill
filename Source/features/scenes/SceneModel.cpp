@@ -54,6 +54,9 @@ namespace
         GAPFILL_PARAMS_HGRAN (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_FL20 (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_BANDFX (GAPFILL_SCENE_ADD)
+        // Optional append-only detailed Tape controls become visible when registered.
+        for (const auto* id : { "fm20_amount", "fm20_wow", "fm20_flutter", "fm20_sat", "fm20_dropDensity",
+                               "fm20_dropDepth", "fm20_splice", "fm20_instab", "fm20_mix" }) out.emplace_back (id);
     }
 
     void groupMusical (std::vector<juce::String>& out)
@@ -75,6 +78,10 @@ namespace
     {
         juce::ignoreUnused (out);
         GAPFILL_PARAMS_MACROS (GAPFILL_SCENE_ADD)
+        for (const auto* id : { "fm23_macro5", "fm23_macro6", "fm23_macro7", "fm23_macro8",
+                               "fm23_src1", "fm23_src2", "fm23_src3", "fm23_src4", "fm23_src5", "fm23_src6", "fm23_src7", "fm23_src8",
+                               "fm23_depth1", "fm23_depth2", "fm23_depth3", "fm23_depth4", "fm23_depth5", "fm23_depth6", "fm23_depth7", "fm23_depth8",
+                               "fm23_lfoAShape", "fm23_lfoBShape", "fm23_lfoADiv", "fm23_lfoBDiv", "fm23_lfoAHz", "fm23_lfoBHz" }) out.emplace_back (id);
     }
    #undef GAPFILL_SCENE_ADD
 

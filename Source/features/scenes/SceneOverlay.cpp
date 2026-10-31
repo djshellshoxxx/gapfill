@@ -73,6 +73,14 @@ void OverlayView::applyBaseTo (EngineSettings& s, Effective::ModulationInputs& i
     s.perf.sceneBaseApplied = true;
 }
 
+void OverlayView::applyModulationTo (Effective::ModulationInputs& inputs) const noexcept
+{
+    if (scopeVersion != 2) return;
+    for (int index = 0; index < n; ++index)
+        if (refs[index].performanceIndex != 0)
+            performanceTargets::applyModulation (inputs, refs[index].performanceIndex - 1, real[index]);
+}
+
 void OverlayView::applyAnalysisTo (AnalysisSettings& s) const noexcept
 {
     if (scopeVersion != 2) return;

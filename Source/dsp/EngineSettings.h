@@ -21,6 +21,7 @@ namespace gapfill
 {
 
 namespace scenes { struct OverlayView; }    // F-L07 (features/scenes/SceneOverlay.h)
+namespace modulation { struct Runtime; }
 namespace macros { struct MacroRuntime; }   // C-2 / F-M23 (features/macros/MacroEngine.h)
 namespace battle { struct BattleRuntime; }  // F-M18 (features/battle/Battle.h)
 namespace harmonic::psola { class PitchTracker; }
@@ -67,9 +68,11 @@ struct PerformanceSettings
     // WP6 live control. Neutral at their defaults (null / false / 0).
     bool  panicked = false;           // N-USE-a: no new natural fills while set
     const scenes::OverlayView* sceneView = nullptr;   // F-L07: audio-thread-owned overlay
+    const modulation::Runtime* extendedMacroRuntime = nullptr; ///< Explicit V3 path; null preserves legacy.
+    float macroFxSend01 = 1.0f; ///< V3 virtual send, combined after Tension on a local decision copy.
     const macros::MacroRuntime* macroRuntime = nullptr;   // F-M23: LFO macros re-evaluated per decision
     std::uint32_t macroOwnedMask = 0; // C-2: macro target bits claimed by macros (scenes skip them)
-    std::uint32_t advancedMacroOwnedMask = 0; // Versioned targets 21..46; original core21 mask remains separate
+    std::uint32_t advancedMacroOwnedMask = 0; // Versioned targets 21..47; original core21 mask remains separate
     bool sceneBaseApplied = false;       // v2 raw scene projected before personality/macros this segment
     int sceneMaxFillSync = -1, sceneMaxFillDivision = -1; // -1: retain parameter-derived tempo controls
     float sceneProtectLowHz = -1.0f, sceneProtectCenter01 = -1.0f; // -1: retain post-wet controls
