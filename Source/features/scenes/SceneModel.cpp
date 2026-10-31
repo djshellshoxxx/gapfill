@@ -220,7 +220,7 @@ Scene captureScene (juce::AudioProcessorValueTreeState& apvts, const juce::Strin
     Scene s;
     s.name = name.substring (0, kMaxSceneNameLen);
     s.scope = scope;
-    const auto versions = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType));
+    const auto versions = models::fromParameterState (apvts.state);
     if ((scope & ScopeFx) != 0) s.cloudModelVersion = versions.cloud;
     if ((scope & ScopeMusical) != 0) s.grooveModelVersion = versions.groove;
 

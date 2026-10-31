@@ -188,3 +188,22 @@ GF_TEST (SceneModels, legacy_scope_projects_legacy_groove_at_the_exact_boundary_
     GF_EXPECT (settings.perf.groove.modelVersion == 1);
     GF_EXPECT (! settings.perf.sceneBaseApplied);
 }
+
+GF_TEST (SceneModels, duplicate_model_children_use_legacy_and_commit_replaces_all_without_upgrading_other_domains)
+{
+    GapFillAudioProcessor processor;
+    auto& parameters = processor.getValueTreeState();
+    setVersions (parameters, { 2, 2, 2, 2 });
+    SceneController controller (parameters);
+    GF_EXPECT (controller.saveCurrent (0, "Cloud", ScopeFx));
+    parameters.state.appendChild (models::toModelVersionsTree (models::ModelVersions::legacy()), nullptr);
+    GF_EXPECT (models::fromParameterState (parameters.state) == models::ModelVersions::legacy());
+    const auto captured = captureScene (parameters, "Ambiguous", ScopeFx | ScopeMusical);
+    GF_EXPECT (captured.cloudModelVersion == 1 && captured.grooveModelVersion == 1);
+    GF_EXPECT (controller.gotoScene (0));
+    controller.onApplied (controller.getPendingId());
+    GF_EXPECT ((models::fromParameterState (parameters.state) == models::ModelVersions { 2, 1, 1, 1 }));
+    int count = 0;
+    for (const auto& child : parameters.state) if (child.hasType (models::kTreeType)) ++count;
+    GF_EXPECT (count == 1);
+}

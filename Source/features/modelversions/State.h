@@ -14,4 +14,8 @@ juce::ValueTree toModelVersionsTree (ModelVersions);
 /** Strict bounded parser. Missing, malformed or unsupported metadata selects
     all legacy models; partial upgrades must never silently mix versions. */
 ModelVersions fromModelVersionsTree (const juce::ValueTree&) noexcept;
+/** Canonical APVTS-root adapter: absent or duplicate children mean all legacy. */
+ModelVersions fromParameterState (const juce::ValueTree&) noexcept;
+/** Replaces every old metadata child with exactly one canonical selection. */
+void writeToParameterState (juce::ValueTree&, ModelVersions);
 } // namespace gapfill::models

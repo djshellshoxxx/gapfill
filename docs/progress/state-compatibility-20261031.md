@@ -80,3 +80,15 @@ roundtrip, tamper warning, absent/invalid metadata, independent manual precedenc
 single callback and legacy-scope pre-modulation projection. This component probe
 is not a full processor render; integrated boundary/host coverage remains the
 coordinator's next verification run. No heavy build was started here.
+
+### Duplicate model metadata consistency
+
+Runtime review found that the processor treated duplicate ModelVersions children
+as legacy while scenes decoded only the first. New parameter-root codec helpers
+now require exactly one metadata child and replace all old children on canonical
+write. Scene capture, pending baselines/manual precedence and domain commit use
+these helpers, so malformed metadata cannot upgrade unrelated domains. A focused
+native APVTS/controller probe passed duplicate capture as legacy, Cloud-only
+recall preserving legacy Taste/Arrangement/Groove, and exactly one canonical
+child after commit. Four changed source/test units passed syntax. The added
+processor-backed regression awaits the integrated runner. No audio path changed.

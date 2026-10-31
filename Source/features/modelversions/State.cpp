@@ -32,4 +32,22 @@ ModelVersions fromModelVersionsTree (const juce::ValueTree& tree) noexcept
                                    legacySchema ? std::uint8_t { 1 } : read ("groove") };
     return versions.valid() ? versions : ModelVersions::legacy();
 }
+ModelVersions fromParameterState (const juce::ValueTree& root) noexcept
+{
+    juce::ValueTree metadata;
+    for (const auto& child : root)
+        if (child.hasType (kTreeType))
+        {
+            if (metadata.isValid()) return ModelVersions::legacy();
+            metadata = child;
+        }
+    return fromModelVersionsTree (metadata);
+}
+
+void writeToParameterState (juce::ValueTree& root, ModelVersions versions)
+{
+    for (int index = root.getNumChildren(); --index >= 0;)
+        if (root.getChild (index).hasType (kTreeType)) root.removeChild (index, nullptr);
+    root.appendChild (toModelVersionsTree (versions), nullptr);
+}
 } // namespace gapfill::models

@@ -76,7 +76,7 @@ bool SceneController::request (int index, bool fixedBoundary, double targetPpq, 
     o.grooveModelVersion = scene.grooveModelVersion;
     pendingModelDomains = o.modelDomains;
     pendingCloudModelVersion = o.cloudModelVersion;
-    const auto versions = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType));
+    const auto versions = models::fromParameterState (apvts.state);
     baselineCloudModelVersion = versions.cloud;
     pendingGrooveModelVersion = o.grooveModelVersion;
     baselineGrooveModelVersion = versions.groove;
@@ -256,7 +256,7 @@ void SceneController::onApplied (std::uint32_t requestId)
         }
     }
 
-    auto versions = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType));
+    auto versions = models::fromParameterState (apvts.state);
     bool modelCommitted = false;
     if ((pendingModelDomains & ModelCloud) != 0 && versions.cloud == baselineCloudModelVersion)
     {
@@ -270,8 +270,7 @@ void SceneController::onApplied (std::uint32_t requestId)
     }
     if (modelCommitted)
     {
-        apvts.state.removeChild (apvts.state.getChildWithName (models::kTreeType), nullptr);
-        apvts.state.appendChild (models::toModelVersionsTree (versions), nullptr);
+        models::writeToParameterState (apvts.state, versions);
         if (modelVersionsCommitted) modelVersionsCommitted();
     }
 
@@ -299,7 +298,7 @@ void SceneController::poll()
         return;
 
     bool changed = false;
-    const auto versions = models::fromModelVersionsTree (apvts.state.getChildWithName (models::kTreeType));
+    const auto versions = models::fromParameterState (apvts.state);
     if ((pendingModelDomains & ModelCloud) != 0
         && versions.cloud != baselineCloudModelVersion)
     {
