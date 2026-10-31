@@ -24,11 +24,10 @@ namespace
 
         juce::String lookup (const juce::String& key) const
         {
-            const auto translated = selected.get (key);
+            const auto translated = selected.get (key, &english);
             if (translated.isNotEmpty())
                 return translated;
-            const auto fallback = english.get (key);
-            return fallback.isNotEmpty() ? fallback : key;
+            return key;
         }
 
         juce::String translate (const juce::String& source) const

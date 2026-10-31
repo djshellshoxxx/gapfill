@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <limits>
 #include <map>
+#include <optional>
 #include <vector>
 
 namespace gapfill::i18n
@@ -45,7 +46,7 @@ namespace
 
     struct Node
     {
-        explicit Node (juce::Component& c) : component (&c), title (c.getTitle()), description (c.getDescription())
+        explicit Node (juce::Component& c) : component (&c), title (c.getTitle()), description (c.getDescription()), help (c.getHelpText())
         {
             tooltipClient = dynamic_cast<juce::SettableTooltipClient*> (&c);
             if (tooltipClient != nullptr)
@@ -54,6 +55,8 @@ namespace
             {
                 kind = Label;
                 content = Field (label->getText());
+                labelFont = label->getFont();
+                appliedFont = labelFont;
             }
             else if (auto* button = dynamic_cast<juce::Button*> (&c))
             {
@@ -66,8 +69,9 @@ namespace
         juce::Component::SafePointer<juce::Component> component;
         enum Kind { Other, Label, Button, Combo } kind = Other;
         juce::SettableTooltipClient* tooltipClient = nullptr;
-        Field title, description, tooltip, content;
+        Field title, description, help, tooltip, content;
         std::map<int, Field> choices;
+        std::optional<juce::Font> labelFont, appliedFont;
         bool initial = true;
     };
 }
@@ -75,6 +79,26 @@ namespace
 void markUserContent (juce::Component& component)
 {
     component.getProperties().set (userContentProperty, true);
+}
+
+juce::Font fontForText (juce::Font preferred, const juce::String& displayed)
+{
+    const auto face = preferred.getTypefacePtr();
+    for (auto cursor = displayed.getCharPointer(); ! cursor.isEmpty();)
+    {
+        const auto ch = cursor.getAndAdvance();
+        if (ch <= 32)
+            continue;
+        const auto glyph = face != nullptr ? face->getNominalGlyphForCodepoint (ch) : std::nullopt;
+        if (! glyph.has_value() || *glyph == 0)
+        {
+            auto fallback = juce::Font (juce::FontOptions (preferred.getHeight()));
+            if (preferred.isBold()) fallback = fallback.boldened();
+            if (preferred.isItalic()) fallback = fallback.italicised();
+            return fallback.withHorizontalScale (preferred.getHorizontalScale());
+        }
+    }
+    return preferred;
 }
 
 struct ComponentTranslator::Impl
@@ -137,6 +161,7 @@ void ComponentTranslator::refresh()
         node.initial = false;
         update (node.title, component->getTitle(), fieldChanged, [component] (const juce::String& v) { component->setTitle (v); });
         update (node.description, component->getDescription(), fieldChanged, [component] (const juce::String& v) { component->setDescription (v); });
+        update (node.help, component->getHelpText(), fieldChanged, [component] (const juce::String& v) { component->setHelpText (v); });
         if (node.tooltipClient != nullptr)
             update (node.tooltip, node.tooltipClient->getTooltip(), fieldChanged, [&node] (const juce::String& v) { node.tooltipClient->setTooltip (v); });
         if (isUserText (*component))
@@ -146,7 +171,15 @@ void ComponentTranslator::refresh()
             case Node::Label:
             {
                 auto* label = static_cast<juce::Label*> (component);
-                update (node.content, label->getText(), fieldChanged, [label] (const juce::String& v) { label->setText (v, juce::dontSendNotification); });
+                update (node.content, label->getText(), fieldChanged, [label, &node] (const juce::String& v)
+                {
+                    if (node.appliedFont && label->getFont() != *node.appliedFont)
+                        node.labelFont = label->getFont();
+                    const auto font = fontForText (node.labelFont.value_or (label->getFont()), v);
+                    label->setFont (font);
+                    node.appliedFont = font;
+                    label->setText (v, juce::dontSendNotification);
+                });
                 break;
             }
             case Node::Button:

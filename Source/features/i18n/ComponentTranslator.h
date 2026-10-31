@@ -10,6 +10,8 @@ namespace gapfill::i18n
     Text and combo items in this subtree stay verbatim; static field titles and
     descriptions may still translate. Set before attaching the translator. */
 void markUserContent (juce::Component&);
+/** Verify the selected typeface's glyphs; use JUCE default sans when necessary. */
+juce::Font fontForText (juce::Font preferred, const juce::String& displayed);
 
 /** Message-thread presentation adapter. Stores English originals, retains item
     IDs, purges dead SafePointers and never translates editable user text. The

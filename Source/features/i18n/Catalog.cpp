@@ -89,10 +89,10 @@ bool Catalog::loadFile (const juce::File& file, juce::String& error, const Catal
     return load (bytes.getData(), bytes.getSize(), error, english);
 }
 
-juce::String Catalog::get (const juce::String& key) const
+juce::String Catalog::get (const juce::String& key, const Catalog* english) const
 {
     const auto found = strings.find (key);
-    return found == strings.end() ? juce::String() : found->second;
+    return found == strings.end() ? (english != nullptr ? english->get (key) : juce::String()) : found->second;
 }
 
 juce::String Catalog::expand (const juce::String& pattern, const juce::StringArray& arguments)

@@ -10,10 +10,33 @@ using namespace gapfill::i18n;
 
 GF_TEST (I18n, missing_key_falls_back)
 {
+    Catalog english, partial;
+    juce::String error;
+    const juce::String base = R"({"greeting":"Hello","farewell":"Goodbye"})";
+    const juce::String overlay = R"({"greeting":"Bonjour"})";
+    GF_EXPECT (english.load (base.toRawUTF8(), base.getNumBytesAsUTF8(), error));
+    GF_EXPECT (partial.load (overlay.toRawUTF8(), overlay.getNumBytesAsUTF8(), error, &english));
+    GF_EXPECT (partial.get ("farewell", &english) == "Goodbye");
     ScopedLanguage language ("pseudo");
     GF_EXPECT (tr ("common.ok").isNotEmpty());
     GF_EXPECT (text ("Unknown user data") == "Unknown user data");
     GF_EXPECT (currentLanguage() == "pseudo");
+}
+
+GF_TEST (I18n, all_keys_used_exist_and_pseudo_expands_complete_strings)
+{
+    Catalog english, pseudo;
+    juce::String error;
+    const auto languages = gftest::testDataDir().getParentDirectory().getChildFile ("Resources/lang");
+    GF_EXPECT (english.loadFile (languages.getChildFile ("en.json"), error));
+    GF_EXPECT (pseudo.loadFile (languages.getChildFile ("pseudo.json"), error, &english));
+    ScopedLanguage language ("en");
+    for (const auto& entry : english.entries())
+    {
+        GF_EXPECT (tr (entry.first) == entry.second);
+        if (entry.first != "locale.nativeName")
+            GF_EXPECT (pseudo.get (entry.first).length() >= (int) std::ceil (entry.second.length() * 1.4));
+    }
 }
 
 GF_TEST (I18n, json_rejects_oversize_malformed)

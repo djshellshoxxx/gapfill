@@ -1,4 +1,5 @@
 #include "Reasons.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::reasons
 {
@@ -58,38 +59,33 @@ bool showsNumbers (RejectReason r) noexcept
 
 juce::String labelWithNumbers (RejectReason r, float availMs, float needMs)
 {
-    juce::String s (info (r).label);
-
     if (showsNumbers (r) && needMs > 0.0f)
-        s << " (" << juce::String ((int) std::lround (juce::jmax (0.0f, availMs))) << " ms free, need "
-          << juce::String ((int) std::lround (needMs)) << " ms)";
-
-    return s;
+        return i18n::format ("{0} ({1} ms free, need {2} ms)",
+            { i18n::text (info (r).label), juce::String ((int) std::lround (juce::jmax (0.0f, availMs))), juce::String ((int) std::lround (needMs)) });
+    return i18n::text (info (r).label);
 }
 
 juce::String hoverText (RejectReason r, float availMs, float needMs)
 {
-    juce::String s (info (r).label);
-
+    const auto labelText = i18n::text (info (r).label);
+    const auto adviceText = i18n::text (info (r).advice);
     if (showsNumbers (r) && needMs > 0.0f)
-        s << " - " << juce::String ((int) std::lround (juce::jmax (0.0f, availMs))) << " ms free, "
-          << juce::String ((int) std::lround (needMs)) << " ms needed";
-
-    const juce::String a (info (r).advice);
-
-    if (a.isNotEmpty())
-        s << ". " << a;
-
-    return s;
+    {
+        const auto available = juce::String ((int) std::lround (juce::jmax (0.0f, availMs)));
+        const auto needed = juce::String ((int) std::lround (needMs));
+        return adviceText.isNotEmpty() ? i18n::format ("{0} - {1} ms free, {2} ms needed. {3}", { labelText, available, needed, adviceText })
+                                       : i18n::format ("{0} - {1} ms free, {2} ms needed", { labelText, available, needed });
+    }
+    return adviceText.isNotEmpty() ? i18n::format ("{0}. {1}", { labelText, adviceText }) : labelText;
 }
 
 juce::String statusLine (const FillEvent& e)
 {
     if (e.type == FillEventType::Started)
-        return "Last gap: filled";
+        return i18n::text ("Last gap: filled");
 
     if (e.type == FillEventType::Rejected)
-        return "Last gap: skipped - " + labelWithNumbers (e.reason, e.availMs, e.needMs);
+        return i18n::format ("Last gap: skipped - {0}", { labelWithNumbers (e.reason, e.availMs, e.needMs) });
 
     return {};
 }
@@ -134,13 +130,13 @@ juce::String whySoFewFillsText (const std::uint32_t* counts, int numCounts)
     const auto n = topReasons (counts, numCounts, top, 3);
 
     if (n == 0)
-        return "No gaps have been skipped in this session.";
+        return i18n::text ("No gaps have been skipped in this session.");
 
-    juce::String s ("Most common reasons gaps were skipped this session:\n");
+    juce::String s = i18n::text ("Most common reasons gaps were skipped this session:") + "\n";
 
     for (int i = 0; i < n; ++i)
-        s << "\n" << juce::String (i + 1) << ". " << info (top[i].reason).label << " (" << juce::String ((int) top[i].count)
-          << " gaps) - " << info (top[i].reason).advice;
+        s += i18n::format ("\n{0}. {1} ({2} gaps) - {3}", { juce::String (i + 1), i18n::text (info (top[i].reason).label),
+                juce::String ((int) top[i].count), i18n::text (info (top[i].reason).advice) });
 
     return s;
 }

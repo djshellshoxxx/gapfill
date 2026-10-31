@@ -4,6 +4,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/i18n/Catalog.cpp
     Source/features/i18n/Strings.cpp
     Source/features/i18n/ComponentTranslator.cpp
+    Source/features/i18n/Options.cpp
 )
 file(GLOB GF_I18N_CATALOGS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/Resources/lang/*.json")
 set(GF_I18N_GENERATED "${CMAKE_CURRENT_BINARY_DIR}/generated/i18n")
@@ -13,7 +14,8 @@ set(GF_I18N_ROWS "")
 set(GF_I18N_INDEX 0)
 foreach(GF_I18N_FILE IN LISTS GF_I18N_CATALOGS)
     get_filename_component(GF_I18N_CODE "${GF_I18N_FILE}" NAME_WE)
-    if(NOT GF_I18N_CODE MATCHES "^[a-zA-Z][a-zA-Z0-9_-]*$")
+    string(LENGTH "${GF_I18N_CODE}" GF_I18N_CODE_LENGTH)
+    if(NOT GF_I18N_CODE MATCHES "^[a-zA-Z][a-zA-Z0-9_-]*$" OR GF_I18N_CODE_LENGTH GREATER 32)
         message(FATAL_ERROR "Invalid language catalog filename")
     endif()
     file(SIZE "${GF_I18N_FILE}" GF_I18N_SIZE)

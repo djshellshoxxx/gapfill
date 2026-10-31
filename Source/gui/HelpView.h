@@ -10,16 +10,19 @@ namespace gapfill
 //==============================================================================
 /** The scrollable body of the help section. */
 class HelpContent : public juce::Component,
-                    private HelpWriter
+                    private HelpWriter,
+                    private juce::ChangeListener
 {
 public:
     HelpContent();
+    ~HelpContent() override;
 
     void paint (juce::Graphics&) override;
     void resized() override;
 
     /** Height needed for the current width. */
     int idealHeight() const { return (int) std::ceil (layout.getHeight()) + 40; }
+    std::function<void()> onContentChanged;
 
 private:
     // HelpWriter: what registered sections write into.
@@ -30,6 +33,8 @@ private:
     void heading (const juce::String&);
 
     void rebuildLayout (float width);
+    void rebuildContent();
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     juce::AttributedString text;
     juce::TextLayout layout;
