@@ -181,7 +181,7 @@ ProfileParse parseProfile (const juce::String& json)
 
     profile.extended = version == 3;
     const auto params = root.getProperty ("params", juce::var());
-    if (version < 3 && (! params.isVoid() || root.hasProperty ("parameterFeedback") || root.hasProperty ("txChannel")))
+    if (version < 3 && (! params.isVoid() || root.hasProperty ("parameterFeedback") || root.hasProperty ("txChannel") || root.hasProperty ("momentaryTimeoutMs")))
         return fail ("Parameter mappings and feedback configuration require version 3.");
     if (! params.isVoid() && ! params.isArray())
         return fail ("\"params\" must be a list.");
@@ -194,6 +194,8 @@ ProfileParse parseProfile (const juce::String& json)
         if (! readInt (root, "txChannel", 1, 16, channel, false, 1))
             return fail ("\"txChannel\" must be 1 to 16.");
         profile.txChannel = (std::uint8_t) channel;
+        if (! readInt (root, "momentaryTimeoutMs", 1000, 30000, profile.momentaryTimeoutMs, false, 8000))
+            return fail ("Momentary timeout must be 1000 to 30000 milliseconds.");
     }
     if (auto* arr = params.getArray())
     {
@@ -393,7 +395,7 @@ juce::String profileToJson (const Profile& p)
     bool extended = false;
     for (const auto& b : p.bindings)
         extended = extended || (int) b.cmd > 30;
-    const bool schema3 = p.extended || ! p.params.empty() || p.parameterFeedback || p.txChannel != 1;
+    const bool schema3 = p.extended || ! p.params.empty() || p.parameterFeedback || p.txChannel != 1 || p.momentaryTimeoutMs != 8000;
     root->setProperty ("version", schema3 ? 3 : extended ? 2 : 1);
     if (schema3)
     {
@@ -410,6 +412,7 @@ juce::String profileToJson (const Profile& p)
         root->setProperty ("params", params);
         root->setProperty ("parameterFeedback", p.parameterFeedback);
         root->setProperty ("txChannel", (int) p.txChannel);
+        root->setProperty ("momentaryTimeoutMs", p.momentaryTimeoutMs);
     }
 
     juce::Array<juce::var> bindings, feedback;

@@ -59,6 +59,7 @@ struct Profile
     bool extended = false;
     bool parameterFeedback = false;
     std::uint8_t txChannel = 1;
+    int momentaryTimeoutMs = 8000;
 };
 
 struct ProfileParse
