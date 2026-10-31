@@ -168,7 +168,8 @@ class NightlyTests(unittest.TestCase):
 
     def test_package_alias_duplicates_are_rejected_before_any_file_is_written(self):
         aliases = [("file.bin", "./file.bin"), ("nested/file.bin", "nested//file.bin"),
-                   ("nested/File.bin", "./nested/file.bin"), ("caf\u00e9.bin", "cafe\u0301.bin")]
+                   ("nested/File.bin", "./nested/file.bin"), ("caf\u00e9.bin", "cafe\u0301.bin"),
+                   ("nested", "nested/file.bin"), ("nested/file.bin", "nested")]
         for number, names in enumerate(aliases):
             with self.subTest(names=names):
                 archive = self.root / f"aliases-{number}.zip"

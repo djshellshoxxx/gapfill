@@ -55,6 +55,7 @@ def extract(archive: Path, out: Path) -> None:
         if len(zipped.infolist()) > 20000 or sum(member.file_size for member in zipped.infolist()) > 2 * 1024**3:
             raise ValueError("package exceeds bounded extraction limits")
         seen = set()
+        files, directories = set(), set()
         for member in zipped.infolist():
             name = PurePosixPath(member.filename)
             destination = (root / member.filename).resolve()
@@ -64,9 +65,15 @@ def extract(archive: Path, out: Path) -> None:
             if (name.is_absolute() or ".." in name.parts or "\\" in member.filename or ":" in member.filename
                     or any(part.endswith((".", " ")) or reserved.fullmatch(part) or re.search(r'[<>"|?*]', part) for part in name.parts)
                     or not destination.is_relative_to(root) or stat.S_ISLNK(mode)
-                    or canonical in seen):
+                    or not canonical or canonical in seen):
                 raise ValueError("package contains unsafe paths, symlinks or duplicate names")
+            parents = [parent.as_posix().casefold() for parent in PurePosixPath(canonical).parents
+                       if parent.as_posix() != "."]
+            if any(parent in files for parent in parents) or not member.is_dir() and canonical in directories:
+                raise ValueError("package contains conflicting file and directory paths")
             seen.add(canonical)
+            directories.update(parents)
+            (directories if member.is_dir() else files).add(canonical)
         # Validate the WHOLE archive before writing the first entry.
         zipped.extractall(root)
         for member in zipped.infolist():
