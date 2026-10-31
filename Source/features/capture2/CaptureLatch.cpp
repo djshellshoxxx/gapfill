@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace gapfill
 {
@@ -36,6 +37,10 @@ void CaptureLatch::reset() noexcept
     copyStart = 0;
     copyTotal = copied = 0;
     frozenEnd = 0;
+    requestedEnd = 0;
+    snapshotGeneration[0] = snapshotGeneration[1] = 0;
+    latestCopy = {};
+    detailNotice = None;
     lastCopy = maxCopy = 0;
     publish();
 }
@@ -43,6 +48,24 @@ void CaptureLatch::reset() noexcept
 void CaptureLatch::setLengthMs (float ms) noexcept
 {
     lengthMs = std::isfinite (ms) ? std::clamp (ms, (float) (kMinSeconds * 1000.0), (float) (kMaxSeconds * 1000.0)) : 1000.0f;
+}
+
+void CaptureLatch::setDetailed (bool enabled) noexcept
+{
+    if (detailed == enabled) return;
+    detailed = enabled;
+    pending = recaptureRequested = false;
+    latestCopy = {};
+    live.clear();
+    detailNotice = None;
+    publish();
+}
+
+int CaptureLatch::maxDetailedChunkSamples() const noexcept
+{
+    // The first write after a request must fit in the tap's quarter-second
+    // margin before copying its oldest requested sample (notably at8kHz).
+    return std::min (kMaxCopyPerBlock, std::max (1, (int) std::floor (0.25 * sr) - 16));
 }
 
 int CaptureLatch::windowSamples() const noexcept
@@ -58,6 +81,15 @@ void CaptureLatch::noteParameter (bool on) noexcept
 
 void CaptureLatch::requestRecapture() noexcept
 {
+    if (detailed)
+    {
+        if (pending) { detailNotice = Busy; publish(); return; }
+        if (! wasHeld || suppressed) { detailNotice = NotHeld; publish(); return; }
+        if (live.getWritePosition() < (std::int64_t) std::ceil (kMinSeconds * sr))
+        { detailNotice = Short; publish(); return; }
+        requestedEnd = live.getWritePosition();
+        detailNotice = None;
+    }
     recaptureRequested = true;   // consumed by update() while held; a second request replaces a pending copy
 }
 
@@ -69,7 +101,7 @@ void CaptureLatch::requestRelease() noexcept
 
 void CaptureLatch::startCopy() noexcept
 {
-    const auto end = live.getWritePosition();
+    const auto end = detailed ? requestedEnd : live.getWritePosition();
     const auto available = (int) std::min<std::int64_t> (end, (std::int64_t) live.getSize() - 8);
     copyTotal = std::min (windowSamples(), available);
 
@@ -84,6 +116,9 @@ void CaptureLatch::startCopy() noexcept
 
     // Copy into the snapshot that is NOT the active one, so running voices never see it change.
     targetIndex = activeIndex == 0 ? 1 : 0;
+    if (copySerial == std::numeric_limits<std::uint64_t>::max())
+    { pending = false; detailNotice = Overwritten; return; }
+    latestCopy = { ++copySerial, targetIndex, copyStart, copyTotal };
     snapshot[targetIndex].clear();
     pending = true;
 }
@@ -96,6 +131,14 @@ bool CaptureLatch::advance() noexcept
         return false;
 
     const auto n = std::min (kMaxCopyPerBlock, copyTotal - copied);
+    const auto oldestReadable = std::max<std::int64_t> (0, live.getWritePosition() - live.getSize() + 2);
+    if (copyStart + copied < oldestReadable)
+    {
+        pending = false;
+        latestCopy = {};
+        detailNotice = Overwritten;
+        return false; // keep the previous complete source, never publish overwritten PCM
+    }
     live.copyTo (scratch, copyStart + copied, n);
     snapshot[targetIndex].write (scratch, 0, n);
     copied += n;
@@ -106,7 +149,9 @@ bool CaptureLatch::advance() noexcept
         return false;
 
     activeIndex = targetIndex;       // block boundary: the new snapshot becomes the fill source
+    snapshotGeneration[activeIndex] = latestCopy.generation;
     pending = false;
+    detailNotice = None;
     snapshotCount.fetch_add (1, std::memory_order_relaxed);
     return true;
 }
@@ -116,6 +161,7 @@ void CaptureLatch::clearHold (SourceHistory& history) noexcept
     pending = false;
     recaptureRequested = false;
     activeIndex = -1;
+    latestCopy = {};
     copied = copyTotal = 0;
     history.setReadFloor (0);
 }
@@ -123,8 +169,6 @@ void CaptureLatch::clearHold (SourceHistory& history) noexcept
 bool CaptureLatch::update (bool held, const juce::AudioBuffer<float>& input, int start, int n,
                            SourceHistory& history) noexcept
 {
-    live.write (input, start, n);
-
     bool swapped = false;
 
     if (held && ! wasHeld)
@@ -132,12 +176,18 @@ bool CaptureLatch::update (bool held, const juce::AudioBuffer<float>& input, int
         frozenEnd = history.getWritePosition();      // freeze point: where the paused writer stands
         activeIndex = -1;
         pending = false;
+        if (detailed) live.clear();
+        detailNotice = None;
     }
     else if (! held && wasHeld)
     {
         swapped = activeIndex >= 0;                   // back to the live history: the source changes again
         clearHold (history);
+        if (detailed) live.clear();
+        detailNotice = None;
     }
+
+    if (! detailed || held) live.write (input, start, n);
 
     if (! held)
         recaptureRequested = false;                   // nothing to recapture while Capture is off
@@ -164,7 +214,10 @@ bool CaptureLatch::update (bool held, const juce::AudioBuffer<float>& input, int
 
 void CaptureLatch::publish() noexcept
 {
-    status.store (! wasHeld ? Off : (pending ? Pending : Held), std::memory_order_relaxed);
+    status.store (! wasHeld ? Off : (pending ? Pending : (detailed && activeIndex >= 0 ? HeldRecaptured : Held)), std::memory_order_relaxed);
+    notice.store (detailNotice, std::memory_order_relaxed);
+    remainingHoldMs.store ((int) std::ceil (1000.0 * std::max (0.0, kMinSeconds
+        - (double) live.getWritePosition() / sr)), std::memory_order_relaxed);
     progress.store (pending && copyTotal > 0 ? (float) copied / (float) copyTotal : 0.0f, std::memory_order_relaxed);
     heldMs.store (wasHeld ? (int) std::lround (1000.0 * (double) (pending || activeIndex < 0 ? windowSamples()
                                                                        : (int) snapshot[std::max (0, activeIndex)].getWritePosition()) / sr)

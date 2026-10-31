@@ -772,6 +772,7 @@ namespace
             bool active = false;
             ExportPurpose purpose = ExportPurpose::File;
             std::uint32_t deadlineMs = 0;
+            std::uint64_t generation = 0;
             juce::String algo;
         };
 
@@ -831,6 +832,7 @@ namespace
             }
 
             pending.active = true;
+            pending.generation = services.exportService.getGeneration();
             pending.purpose = purpose;
             pending.algo = algo;
             pending.deadlineMs = juce::Time::getMillisecondCounter()
@@ -845,10 +847,19 @@ namespace
             auto& service = proc.getRecipes().exportService;
             exporting::Failure why = exporting::Failure::None;
 
-            if (service.take (exported, why))
+            if (service.getGeneration() != pending.generation)
             {
                 pending.active = false;
-                finishExport();
+                proc.getRecipes().postMessage (exporting::failureText (exporting::Failure::Cancelled), 3500);
+                return;
+            }
+
+            exporting::ResultInfo completed;
+            if (service.take (exported, why, completed))
+            {
+                pending.active = false;
+                if (completed.generation == pending.generation)
+                    finishExport (completed.sampleRate);
             }
             else if (why != exporting::Failure::None)
             {
@@ -857,16 +868,15 @@ namespace
             }
             else if ((std::int32_t) (juce::Time::getMillisecondCounter() - pending.deadlineMs) > 0)
             {
-                service.cancelPending();
+                service.cancel();
                 pending.active = false;
                 proc.getRecipes().postMessage ("Export timed out - is audio playing?", 3500);
             }
         }
 
-        void finishExport()
+        void finishExport (double sr)
         {
             auto& services = proc.getRecipes();
-            const auto sr = services.exportService.getSampleRate();
             const auto name = exporting::defaultFileName (pending.algo, services.exportService.bpm.load(), juce::Time::getCurrentTime());
 
             if (pending.purpose == ExportPurpose::Drag)
@@ -887,9 +897,12 @@ namespace
             dir.createDirectory();
 
             chooser = std::make_unique<juce::FileChooser> (i18n::text ("Export fill"), dir.getChildFile (name), "*.wav");
+            // The chooser may stay open while another export completes. Its
+            // audio and rate belong to this result, independent of the drawer.
+            auto completedAudio = std::make_shared<juce::AudioBuffer<float>> (exported);
             chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
                                     | juce::FileBrowserComponent::warnAboutOverwriting,
-                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this), sr] (const juce::FileChooser& fc)
+                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this), sr, completedAudio] (const juce::FileChooser& fc)
             {
                 auto file = fc.getResult();
 
@@ -899,7 +912,7 @@ namespace
                 file = file.withFileExtension ("wav");
                 juce::String error;
 
-                if (exporting::writeWav24 (file, safe->exported, sr, error))
+                if (exporting::writeWav24 (file, *completedAudio, sr, error))
                     safe->proc.getRecipes().postMessage (i18n::format ("Exported {0}", { file.getFileName() }), 3500);
                 else
                     juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", i18n::errorText (error));
