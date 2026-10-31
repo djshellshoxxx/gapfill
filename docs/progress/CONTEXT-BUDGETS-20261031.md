@@ -43,3 +43,21 @@ remain required. The source optimization has exact-output evidence; its timing
 improvement and the new strict native workloads still require the coordinator's
 fresh candidate and a controlled performance run. Do not report strict budgets
 as complete on the basis of ordinary diagnostic CI passes.
+
+## Exact YIN follow-up
+
+The pitch difference function now computes four independent lag sums in
+parallel, preserving each lag's sample-addition order and the later sequential
+running-normalization order. This permits SIMD across lags without a new model,
+worker lag, changed history anchor, reassociated reduction or relaxed threshold.
+A separately compiled scalar e89aecd oracle compares8000 workloads at all four
+rates (tones, noisy tones, decays, random noise, DC, Inf and NaN): all public
+f0/confidence float bits and voiced flags match exactly. A durable128-case
+binary-input scalar trace test passes strict warnings and ASan+UBSan (leak
+checking disabled for the ptrace environment).
+
+Under concurrent compiler load, diagnostic YIN median dropped from171.4us to
+102.4us. Those samples retain outliers above0.3ms (neither is an acceptance pass).
+The controlled strict reference run and whole-plugin callback timing are still
+required. The improvement and compatibility proof must not be presented as a
+worst-case budget certification.
