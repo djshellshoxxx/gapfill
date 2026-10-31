@@ -212,6 +212,41 @@ GF_TEST (Formant, pool_is_neutral_when_off_and_falls_back_when_short_or_busy)
     GF_EXPECT (pool.claimCount() == 0 && pool.skippedShort() == 0 && pool.skippedBusy() == 0);
 }
 
+GF_TEST (Formant, pool_reset_preserves_live_claims_and_streaming_state)
+{
+    FormantPool pool;
+    pool.prepare (48000.0);
+    auto* fadingPreview = pool.request (active (7.0f), 10000, 1000);
+    auto* natural = pool.request (active (-5.0f), 10000, 1000);
+    FormantProcessor reference;
+    reference.prepare (48000.0);
+    GF_EXPECT (reference.claim (active (7.0f)));
+    for (int i = 0; i < 700; ++i)
+    {
+        float l = (float) std::sin (i * 0.13), r = (float) std::cos (i * 0.07), a = l, b = r;
+        fadingPreview->process (l, r);
+        reference.process (a, b);
+    }
+    pool.reset();
+    GF_EXPECT (pool.activeClaimCount() == 2);
+    GF_EXPECT (pool.request (active(), 10000, 1000) == nullptr);
+    for (int i = 0; i < 48; ++i)
+    {
+        float l = (float) std::sin (i * 0.13), r = (float) std::cos (i * 0.07), a = l, b = r;
+        fadingPreview->process (l, r);
+        reference.process (a, b);
+        GF_EXPECT (l == a && r == b); // reset must not erase the preview FFT tail
+    }
+    fadingPreview->release();
+    auto* replacement = pool.request (active (12.0f), 10000, 1000);
+    GF_EXPECT (replacement == fadingPreview && replacement->isClaimed());
+    natural->release();
+    GF_EXPECT (replacement->isClaimed() && pool.activeClaimCount() == 1);
+    replacement->release();
+    pool.reset();
+    GF_EXPECT (pool.activeClaimCount() == 0);
+}
+
 GF_TEST (Formant, phase_coherence_and_non_finite_recovery)
 {
     auto input = makeNoise (48000.0, 0.2, 0.1f);

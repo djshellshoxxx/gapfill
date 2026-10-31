@@ -1,5 +1,6 @@
 #include "../support/TestRig.h"
 #include "../support/VoiceRig.h"
+#include "../support/RecipeRigs.h"
 #include "features/formant/FormantPool.h"
 
 using namespace gapfill;
@@ -100,4 +101,36 @@ GF_TEST (Formant, parameter_state_round_trips_without_changing_bus_card)
                             "fl20_vowel", "fl20_preserve", "fl20_detail" })
         GF_EXPECT_NEAR (source->getValueTreeState().getRawParameterValue (id)->load(),
                         restored->getValueTreeState().getRawParameterValue (id)->load(), 1.0e-6);
+}
+
+GF_TEST (Formant, preview_reset_retains_exclusive_claim_until_fade_and_reprepare_releases)
+{
+    auto rig = std::make_unique<recipetest::EngineRig>();
+    const auto input = recipetest::steadyNoise();
+    rig->settings.voiceFormant = active (7.0f);
+    rig->settings.fillTypeIndex = (int) Algo::Stutter + 1;
+    for (int i = 0; i < 40; ++i) rig->step (input, i);
+    rig->engine.requestPreview (100);
+    rig->step (input, 40);
+    GF_EXPECT (rig->engine.isPreviewActive());
+    GF_EXPECT (rig->engine.getFormantPool().activeClaimCount() == 1);
+    rig->engine.reset();
+    GF_EXPECT (rig->engine.isPreviewActive()); // preserve the documented E-1 fade
+    GF_EXPECT (rig->engine.getFormantPool().activeClaimCount() == 1);
+    rig->step (input, 41);
+    GF_EXPECT (! rig->engine.isPreviewActive());
+    GF_EXPECT (rig->engine.getFormantPool().activeClaimCount() == 0);
+    rig->engine.requestPreview (100);
+    rig->step (input, 42);
+    GF_EXPECT (rig->engine.isPreviewActive());
+    GF_EXPECT (rig->engine.getFormantPool().activeClaimCount() == 1);
+    // Restart before the previous voice finishes: its tail must release only
+    // its own claim, and the replacement remains claimed until its own exit.
+    rig->engine.requestPreview (100);
+    rig->step (input, 43);
+    GF_EXPECT (rig->engine.isPreviewActive());
+    GF_EXPECT (rig->engine.getFormantPool().activeClaimCount() == 1);
+    rig->engine.prepare (96000.0, recipetest::kBlock, 2);
+    GF_EXPECT (! rig->engine.isPreviewActive());
+    GF_EXPECT (rig->engine.getFormantPool().activeClaimCount() == 0);
 }
