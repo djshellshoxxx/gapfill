@@ -1,6 +1,5 @@
 #include "EventRecorder.h"
-#include "../../dsp/SpscQueue.h"
-
+#include <array>
 #include <cmath>
 #include <cstring>
 
@@ -10,11 +9,54 @@ namespace gapfill::events
 //==============================================================================
 struct EventRecorder::Ring
 {
-    SpscQueue<Record, kRingCapacity> queue;
+    // A recipe command and its payload must become visible in one publication.
+    // A single-record queue cannot provide that guarantee to a concurrent drain.
+    bool push (const Record* records, int count) noexcept
+    {
+        if (fifo.getFreeSpace() < count)
+            return false;
+        const auto scope = fifo.write (count);
+        for (int i = 0; i < scope.blockSize1; ++i)
+            data[(size_t) (scope.startIndex1 + i)] = records[i];
+        for (int i = 0; i < scope.blockSize2; ++i)
+            data[(size_t) (scope.startIndex2 + i)] = records[scope.blockSize1 + i];
+        return true;
+    }
+
+    int pop (Record* destination, int count) noexcept
+    {
+        const auto scope = fifo.read (juce::jmin (count, fifo.getNumReady()));
+        for (int i = 0; i < scope.blockSize1; ++i)
+            destination[i] = data[(size_t) (scope.startIndex1 + i)];
+        for (int i = 0; i < scope.blockSize2; ++i)
+            destination[scope.blockSize1 + i] = data[(size_t) (scope.startIndex2 + i)];
+        return scope.blockSize1 + scope.blockSize2;
+    }
+
+    juce::AbstractFifo fifo { kRingCapacity + 1 };
+    std::array<Record, (size_t) kRingCapacity + 1> data {};
 };
 
 namespace
 {
+    bool needsRecipe (std::uint8_t command) noexcept
+    {
+        return command == (std::uint8_t) CommandType::LikeRecipe
+            || command == (std::uint8_t) CommandType::LockRecipe
+            || command == (std::uint8_t) CommandType::PreviewRecipe
+            || command == (std::uint8_t) CommandType::SkipRecipe;
+    }
+
+    int requiredFormat (const std::vector<Record>& records) noexcept
+    {
+        for (const auto& r : records)
+            if (r.type == (std::uint8_t) RecType::RecipePayload
+                || (r.type == (std::uint8_t) RecType::Command
+                    && r.flags > (std::uint8_t) CommandType::PreviewRecipe))
+                return 2;
+        return 1;
+    }
+
     void put16 (std::uint8_t* p, std::uint16_t v) noexcept { p[0] = (std::uint8_t) v; p[1] = (std::uint8_t) (v >> 8); }
 
     void put32 (std::uint8_t* p, std::uint32_t v) noexcept
@@ -76,6 +118,38 @@ Record fromBytes (const std::uint8_t* in) noexcept
     return r;
 }
 
+bool commandAt (const ReplayData& data, std::size_t index, Command& out) noexcept
+{
+    if (index >= data.records.size())
+        return false;
+    const auto& r = data.records[index];
+    if (r.type != (std::uint8_t) RecType::Command
+        || r.flags > (std::uint8_t) CommandType::PresetGoto
+        || (data.formatVersion >= 2 && r.p0 > 255))
+        return false;
+    Command command;
+    command.type = (CommandType) r.flags;
+    command.index = (std::int16_t) r.index;
+    command.velocity = (std::uint8_t) r.p0;
+    if (needsRecipe (r.flags) && data.formatVersion >= 2)
+    {
+        if (index + 1 >= data.records.size())
+            return false;
+        const auto& payload = data.records[index + 1];
+        if (payload.type != (std::uint8_t) RecType::RecipePayload
+            || payload.block != r.block || payload.flags != r.flags || payload.index != 0)
+            return false;
+        std::uint8_t bytes[kRecordBytes], recipe[FillRecipe::serialisedBytes];
+        toBytes (payload, bytes);
+        std::memcpy (recipe, bytes + 8, sizeof recipe);
+        command.recipe = gapfill::fromBytes (recipe);
+        if (! isValid (command.recipe))
+            return false;
+    }
+    out = command;
+    return true;
+}
+
 //==============================================================================
 EventRecorder::EventRecorder() : ring (std::make_unique<Ring>()) {}
 EventRecorder::~EventRecorder() = default;
@@ -95,7 +169,7 @@ bool EventRecorder::start (const juce::String& initialStateXml, double sampleRat
     if (isRecording())
         return false;
 
-    ring->queue.reset();
+    ring->fifo.reset();
     store.clear();
     store.reserve ((size_t) kRecordCap);
 
@@ -121,6 +195,7 @@ bool EventRecorder::start (const juce::String& initialStateXml, double sampleRat
 
     produced.store (0, std::memory_order_relaxed);
     blockIndex.store (0, std::memory_order_relaxed);
+    formatVersion.store (1, std::memory_order_relaxed);
     full.store (false, std::memory_order_relaxed);
     active.store (true, std::memory_order_release);
     return true;
@@ -137,7 +212,7 @@ void EventRecorder::drain()
 
     for (;;)
     {
-        const auto n = ring->queue.pop (batch, 256);
+        const auto n = ring->pop (batch, 256);
 
         if (n <= 0)
             break;
@@ -157,6 +232,7 @@ ReplayData EventRecorder::snapshot()
     drain();
 
     ReplayData d;
+    d.formatVersion = formatVersion.load (std::memory_order_relaxed);
     d.pluginVersion = headerVersion;
     d.stateVersion = headerStateVersion;
     d.sampleRate = headerRate;
@@ -172,15 +248,20 @@ ReplayData EventRecorder::snapshot()
 //==============================================================================
 void EventRecorder::push (const Record& r) noexcept
 {
-    if (produced.load (std::memory_order_relaxed) >= (std::uint32_t) kRecordCap)
+    push (&r, 1);
+}
+
+void EventRecorder::push (const Record* records, int count) noexcept
+{
+    if (produced.load (std::memory_order_relaxed) + (std::uint32_t) count > (std::uint32_t) kRecordCap)
     {
         full.store (true, std::memory_order_relaxed);
         active.store (false, std::memory_order_relaxed);
         return;
     }
 
-    if (ring->queue.push (r))
-        produced.fetch_add (1, std::memory_order_relaxed);
+    if (ring->push (records, count))
+        produced.fetch_add ((std::uint32_t) count, std::memory_order_relaxed);
     else
     {
         full.store (true, std::memory_order_relaxed);
@@ -264,13 +345,34 @@ void EventRecorder::onCommand (const Command& cmd) noexcept
     if (! active.load (std::memory_order_relaxed))
         return;
 
-    Record r;
+    Record records[2];
+    auto& r = records[0];
     r.type = (std::uint8_t) RecType::Command;
     r.flags = (std::uint8_t) cmd.type;
     r.index = (std::uint16_t) cmd.index;
     r.block = blockIndex.load (std::memory_order_relaxed);    // dispatched at the top of the upcoming block
     r.p0 = cmd.velocity;
-    push (r);
+    if (needsRecipe (r.flags))
+    {
+        formatVersion.store (2, std::memory_order_relaxed);
+        auto& payload = records[1];
+        payload.type = (std::uint8_t) RecType::RecipePayload;
+        payload.flags = r.flags;
+        payload.block = r.block;
+        std::uint8_t bytes[FillRecipe::serialisedBytes];
+        gapfill::toBytes (cmd.recipe, bytes);
+        const auto bits = get64 (bytes);
+        std::memcpy (&payload.pos, &bits, sizeof bits);
+        payload.p0 = get32 (bytes + 8);
+        payload.p1 = get32 (bytes + 12);
+        push (records, 2);
+    }
+    else
+    {
+        if (r.flags > (std::uint8_t) CommandType::PreviewRecipe)
+            formatVersion.store (2, std::memory_order_relaxed);
+        push (r);
+    }
 }
 
 void EventRecorder::onFillEvent (const FillEvent& e) noexcept
@@ -295,7 +397,7 @@ void EventRecorder::onFillEvent (const FillEvent& e) noexcept
 juce::String toFileText (const ReplayData& d)
 {
     juce::XmlElement root ("GapFillEvents");
-    root.setAttribute ("format", 1);
+    root.setAttribute ("format", juce::jmax (d.formatVersion, requiredFormat (d.records)));
     root.setAttribute ("pluginVersion", d.pluginVersion);
     root.setAttribute ("stateVersion", d.stateVersion);
     root.setAttribute ("sampleRate", d.sampleRate);
@@ -327,10 +429,12 @@ juce::Result fromFileText (const juce::String& text, ReplayData& out)
     if (xml == nullptr || ! xml->hasTagName ("GapFillEvents"))
         return juce::Result::fail ("Not a GapFill event file");
 
-    if (xml->getIntAttribute ("format", 0) != 1)
+    const auto version = xml->getIntAttribute ("format", 0);
+    if (version < 1 || version > 2)
         return juce::Result::fail ("Unsupported event file format");
 
     ReplayData d;
+    d.formatVersion = version;
     d.pluginVersion = xml->getStringAttribute ("pluginVersion").substring (0, 32);
     d.stateVersion = xml->getIntAttribute ("stateVersion", 0);
     d.sampleRate = xml->getDoubleAttribute ("sampleRate", 0.0);
@@ -367,7 +471,8 @@ juce::Result fromFileText (const juce::String& text, ReplayData& out)
     {
         auto r = fromBytes (static_cast<const std::uint8_t*> (decoded.getData()) + (size_t) i * (size_t) kRecordBytes);
 
-        if (r.type < 1 || r.type > kLastRecType)
+        const auto lastType = version == 1 ? (std::uint8_t) RecType::Outcome : kLastRecType;
+        if (r.type < 1 || r.type > lastType)
             return juce::Result::fail ("Event file contains an unknown record type");
 
         if (r.block < lastBlock)
@@ -380,11 +485,27 @@ juce::Result fromFileText (const juce::String& text, ReplayData& out)
         if (r.type == (std::uint8_t) RecType::BlockSize && (r.p0 < 1 || r.p0 > 65536))
             return juce::Result::fail ("Event file contains an invalid block size");
 
-        if (r.type == (std::uint8_t) RecType::Command && r.flags > (std::uint8_t) CommandType::PreviewRecipe)
+        const auto lastCommand = version == 1 ? (std::uint8_t) CommandType::PreviewRecipe : (std::uint8_t) CommandType::PresetGoto;
+        if (r.type == (std::uint8_t) RecType::Command && (r.flags > lastCommand || (version >= 2 && r.p0 > 255)))
             return juce::Result::fail ("Event file contains an unknown command");
 
         lastBlock = r.block;
         d.records.push_back (r);
+    }
+
+    for (size_t i = 0; i < d.records.size(); ++i)
+    {
+        const auto& r = d.records[i];
+        if (r.type == (std::uint8_t) RecType::Command)
+        {
+            Command command;
+            if (! commandAt (d, i, command))
+                return juce::Result::fail ("Event file contains an invalid command payload");
+        }
+        if (r.type == (std::uint8_t) RecType::RecipePayload
+            && (i == 0 || d.records[i - 1].type != (std::uint8_t) RecType::Command
+                || ! needsRecipe (d.records[i - 1].flags)))
+            return juce::Result::fail ("Event file contains an orphan recipe payload");
     }
 
     if (! d.records.empty() && (int) d.records.back().block > d.numBlocks)

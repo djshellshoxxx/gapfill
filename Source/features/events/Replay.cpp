@@ -135,9 +135,12 @@ ReplayReport replay (const ReplayData& d, const juce::AudioBuffer<float>& audio)
                 case RecType::Command:
                 {
                     Command c;
-                    c.type = (CommandType) r.flags;
-                    c.index = (std::int16_t) r.index;
-                    c.velocity = (std::uint8_t) r.p0;
+                    if (! commandAt (d, next - 1, c))
+                    {
+                        report.error = "The recording contains an invalid command payload";
+                        proc->setPlayHead (nullptr);
+                        return report;
+                    }
                     proc->postCommand (c);
                     break;
                 }
@@ -155,6 +158,7 @@ ReplayReport replay (const ReplayData& d, const juce::AudioBuffer<float>& audio)
                     break;
 
                 case RecType::Outcome:
+                case RecType::RecipePayload:
                 case RecType::None:
                     break;
             }

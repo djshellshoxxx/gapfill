@@ -302,7 +302,7 @@ GF_TEST (Events, rejects_oversize_malformed)
         return fromFileText (xml->toString(), out).wasOk();
     };
 
-    GF_EXPECT (! mutate ([] (juce::XmlElement& x) { x.setAttribute ("format", 2); }));
+    GF_EXPECT (! mutate ([] (juce::XmlElement& x) { x.setAttribute ("format", 3); }));
     GF_EXPECT (! mutate ([] (juce::XmlElement& x) { x.setAttribute ("sampleRate", 5.0); }));
     GF_EXPECT (! mutate ([] (juce::XmlElement& x) { x.setAttribute ("blockSize", 0); }));
     GF_EXPECT (! mutate ([] (juce::XmlElement& x) { x.setAttribute ("params", 100000); }));
