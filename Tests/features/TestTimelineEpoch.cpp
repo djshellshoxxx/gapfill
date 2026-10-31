@@ -126,3 +126,23 @@ GF_TEST (TimelineEpoch, unusually_high_rates_keep_actual_time_coordinates_and_bo
     GF_EXPECT (! model.adoptEpoch (2, 1));
     GF_EXPECT (model.epoch() == 1);
 }
+
+GF_TEST (TimelineEpoch, low_sample_rates_retain_the_full_window_with_actual_thirty_two_sample_frames)
+{
+    for (const auto rate : { 8000u, 16000u, 32000u })
+    {
+        TimelineModel model;
+        model.frames.configure ((double) rate, 16.0);
+        const auto number = rate * 16 / 32;
+        for (std::uint32_t i = 0; i < number; ++i)
+        {
+            auto input = frame (1, rate, i * 32);
+            input.periodSamples = 32;
+            GF_EXPECT (model.pushFrame (input, (std::int64_t) input.posLo));
+        }
+        GF_EXPECT (model.frames.size() == (int) number);
+        GF_EXPECT (model.frames.at (0).position == 0);
+        GF_EXPECT (model.frames.at (model.frames.size() - 1).position + 32 == (std::int64_t) rate * 16);
+        GF_EXPECT (model.frames.memoryBytes() + sizeof (TimelineModel) < 1500000);
+    }
+}

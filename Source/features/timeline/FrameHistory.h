@@ -29,6 +29,7 @@ public:
     };
 
     static constexpr int maxColumns = 24000;
+    static constexpr int minimumFramePeriodSamples = 32; // one analysis/control hop at low sample rates
     static constexpr std::uint8_t discontinuityFlag = 1u << 7;
 
     /** Message thread only. Existing samples are discarded when the coordinate
@@ -37,7 +38,7 @@ public:
     {
         rate = std::isfinite (sampleRate) ? std::clamp (sampleRate, 8000.0, (double) UINT32_MAX) : 48000.0;
         windowSeconds = std::isfinite (seconds) ? std::clamp (seconds, 4.0, 16.0) : 8.0;
-        const auto wanted = (int) std::clamp (std::ceil (rate * windowSeconds / 64.0), 1.0, (double) maxColumns);
+        const auto wanted = (int) std::clamp (std::ceil (rate * windowSeconds / minimumFramePeriodSamples), 1.0, (double) maxColumns);
         ring.assign ((std::size_t) wanted, Column {});
         clear();
         haveAnchor = false;
