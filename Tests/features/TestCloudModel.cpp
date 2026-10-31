@@ -2,6 +2,7 @@
 #include "../support/AllocGuard.h"
 #include "features/cloud/CloudMode.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 
@@ -88,5 +89,66 @@ GF_TEST (CloudModel, both_versions_are_bounded_deterministic_and_allocation_free
             GF_EXPECT (first.activeGrains() <= fx::kCloudMaxGrains);
         }
         GF_EXPECT (guard.count() == 0);
+    }
+}
+
+GF_TEST (CloudModel, levelling_rejects_silent_material_and_preserves_periodic_source_energy)
+{
+    for (const auto sampleRate : { 44100.0, 48000.0, 96000.0, 192000.0 })
+    {
+        SourceHistory history;
+        const auto samples = (int) sampleRate;
+        history.prepare (2, samples * 6);
+        juce::AudioBuffer<float> input (2, samples * 3);
+        fx::CloudSettings settings;
+        settings.modelVersion = 2;
+        settings.pitchCents = 0.0f;
+        settings.jitter01 = 0.0f;
+        settings.spread01 = 0.0f;
+        for (const auto frequency : { 256.0 / 0.6, 256.0 / 0.06 })
+        {
+            // These tones alias a uniform 256-probe grid on the source span
+            // or grain. Fixed stratified probes must not mistake them for silence.
+            history.clear();
+            for (int i = 0; i < input.getNumSamples(); ++i)
+            {
+                const auto value = 0.1f * (float) std::sin (juce::MathConstants<double>::twoPi * frequency * i / sampleRate);
+                input.setSample (0, i, value);
+                input.setSample (1, i, value);
+            }
+            history.write (input, 0, input.getNumSamples());
+            fx::CloudMode mode;
+            mode.configure (true, settings, 0.0f, history.getWritePosition() - 1, 5, sampleRate);
+            double energy = 0.0;
+            int count = 0;
+            for (int i = 0; i < samples; ++i)
+            {
+                float l = 0.0f, r = 0.0f;
+                mode.generate (l, r, history, 2);
+                GF_EXPECT (std::isfinite (l) && std::isfinite (r));
+                if (i > samples / 5 && i < samples * 4 / 5)
+                {
+                    energy += 0.5 * ((double) l * l + (double) r * r);
+                    ++count;
+                }
+            }
+            const auto rms = std::sqrt (energy / count);
+            GF_EXPECT (rms > 0.02 && rms < 0.06);
+        }
+        for (const auto level : { 0.0f, 1.0e-8f })
+        {
+            history.clear();
+            for (int ch = 0; ch < 2; ++ch)
+                std::fill (input.getWritePointer (ch), input.getWritePointer (ch) + input.getNumSamples(), level);
+            history.write (input, 0, input.getNumSamples());
+            fx::CloudMode mode;
+            mode.configure (true, settings, 0.0f, history.getWritePosition() - 1, 5, sampleRate);
+            for (int i = 0; i < samples / 2; ++i)
+            {
+                float l = 0.0f, r = 0.0f;
+                mode.generate (l, r, history, 2);
+                GF_EXPECT (l == 0.0f && r == 0.0f);
+            }
+        }
     }
 }

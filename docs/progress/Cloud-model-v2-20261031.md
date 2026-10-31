@@ -17,3 +17,5 @@ An independent original-source comparison compiled CloudMode from commit 1432394
 Retained failure history: window-only normalization initially reduced white-noise modulation but failed 20 seeds × 4 drum anchors (plain 1.285701 vs Cloud 1.307336, 1.68% worse). Bounded per-grain source levelling corrected that specific gap. Source energy is estimated, so this metric is not a promise of constant loudness or absence of silence on arbitrary source audio.
 
 Whole-plugin state routing, all pre-existing Cloud regressions, cross-platform native results, CPU delta under a quiet reference workload and listening/GUI review still require the integrated candidate. Scratch driver/build logs are under /workspace/work/runtime-probes; all asserted musical scenarios live in committed tests.
+
+Follow-up fourth native test passes at 44.1/48/96/192 kHz: source tones that alias a uniform energy-probe grid retain audible bounded energy with the fixed stratified estimator; silent and 1e-8-level history remain exactly silent. All four Cloud component/musical tests pass. This adds tests/help only; the source/header contract frozen in 4ed9048 is unchanged.

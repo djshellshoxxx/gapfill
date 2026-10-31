@@ -60,7 +60,7 @@ namespace
         help.body ("Options shows the Cloud, Taste and Arrangement model versions saved in this project. Older states and presets without this metadata "
                    "keep version 1. New instances, factory presets and Reset use version 2. UPGRADE MODELS explicitly selects the improved versions; "
                    "Undo restores your previous selection. Saving a project or user preset preserves the selection.");
-        help.body ("Cloud 2 reduces grain-window amplitude holes without changing Density or Size. Taste 2 learns preferences faster from explicit Like/Skip "
+        help.body ("Cloud 2 matches grain levels and reduces window holes without changing Density or Size. Taste 2 learns preferences faster from explicit Like/Skip "
                    "ratings; an unrated fill remains neutral. An existing saved taste profile stays intact until a later rating or Rebuild. "
                    "Upgrades affect future processing and do not rewrite your recorded audio or ratings library.");
     });
