@@ -1,6 +1,6 @@
 # F-L21 additive Hit Reverb contract —2026-10-31
 
-Proposal for coordinator review before dependent source/registry edits. The owner
+Functional contract approved by the coordinator before dependent source/registry edits. The owner
 has authorized implementation of the detailed ticket; this checkpoint resolves
 its differences from the released doc-12 ConvoCard. This document does not claim
 the new engine exists or that any numerical acceptance has passed.
@@ -14,18 +14,22 @@ new Mix0, so mode selection cannot accidentally apply both. It is initially a
 parallel return from the generated wet signal at the same protected pre-mix tap;
 the new BANDS host later supplies its band-selected input. It never processes
 dry input, changes dry/PDC latency, writes existing parameters or alters RNG draws.
-Capture candidates read the actual source history/detection lane independently
-of the generated reverb input. Capture/Scan must not substitute unrelated live
-input for a selected held source. Root owns hot adapters and group registration.
+Capture candidates read incoming MAIN input independently of the generated
+reverb input and the fill's frozen Capture/Scan source. The approved dedicated
+Convo-owned live tap records only while detailed mode is enabled; its minimum
+correct window is4s strongest lookback+.8s IR+bounded block allowance. Main-event
+timestamps and this writer share one input coordinate domain. Do not query a
+paused fill history or2.25s Capture tap with current main-event timestamps. Root
+owns the main-buffer tap hook, hot adapters and group registration.
 
-Proposed new tail group `L21EXT` (final name/order assigned centrally), exact IDs:
+Approved new tail group `L21EXT`, host indices286–294 after CaptureEXT285, exact IDs:
 
 | ID | Type/range/default | Contract |
 | --- | --- | --- |
 | fl21_mode | Off / Hit Reverb, Off | Off retains released cv* path. |
 | fl21_mix | float0–100,0 | Return level;0 skips processing/new capture work. |
 | fl21_source | Last Hit / Strongest / Manual, Last Hit | Automatic/manual candidate selection. |
-| fl21_hold | bool,false | Freeze current IR; explicit manual Capture may reuse the last admitted candidate, never admit a new one while held. |
+| fl21_hold | bool,false | Freeze current IR; block automatic and manual Capture while held. |
 | fl21_length | float50–800ms,250 | Clamp by prepared partition cap. |
 | fl21_preDelay | float0–50ms,0 | Align shaped IR peak, included within bounded prepared IR extent. |
 | fl21_damp | float2000–20000Hz,12000,log | Zero-phase shaping cutoff, clamp below Nyquist. |
@@ -38,15 +42,14 @@ capture, pending status, thumbnail or generation is serialized. Mode Off/absent
 is the migration default. State root2 remains unchanged. Project load/reprepare
 starts the deterministic fallback IR; scene control recalls never restore audio.
 There is no current CaptureIr command (22 is MomentaryReverse,33 PresetGoto).
-Propose append CaptureIr=34 after coordinator review, without renumbering any
+Append the approved CaptureIr=34, without renumbering any
 command. Detailed mode owns it while selected; otherwise dispatch can invoke the
 existing ConvoCard::requestCapture. Binding/profile/event validation must admit
 the new value explicitly; its source/generation semantics are still bounded.
 
-The Hold/manual interaction above needs explicit review because the ticket says
-both "Hold keeps the current IR" and "ignore new candidates". A strict alternative
-is to refuse Manual Capture while Hold; choose one before wiring UI/tests. Either
-choice must have visible text and cannot silently capture newer material.
+The approved strict Hold interpretation refuses Manual Capture while held, leaves
+the IR unchanged, disables the UI button and reports why. No new candidate may
+be admitted while Hold is on.
 
 ## Narrow modules and audio data
 
@@ -125,6 +128,15 @@ instead, the three spectrum banks alone use9,441,792bytes. Do not repeat the
 ticket's risk paragraph's "under2MB at192kHz": it conflicts with its explicit
 two-bank96partition stereo complex-float design. The48kHz two-filter1.2MB estimate
 in§5 excludes the input FDL, PCM mailboxes and scratch.
+
+The separate incoming-audio tap adds about4.85*192000*2*4=7,449,600bytes at192kHz
+stereo, plus exact rounded ring capacity/block allowance. It is part of the new
+feature's prepared memory, even when idle/disarmed, and must be included in the
+reported total. The complete functional path is therefore around18MiB rather
+than the kernel-only11MiB estimate. The canonical under2MB figure remains an
+OPEN numerical requirement/conflict; correct bounded implementation is approved,
+not a waiver or a fabricated memory pass. Do not hide the dedicated tap in
+Capture's separately specified memory budget.
 
 The ticket also demands192kHz CPU≤2×48kHz while B and bin count grow4× and P stays
 roughly75. Preserve that acceptance target and measure it; the partition table
