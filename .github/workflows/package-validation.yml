@@ -92,7 +92,7 @@ jobs:
             --asset-tag "$ASSET_TAG" --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}" \
             --out "$RUNNER_TEMP/package-evidence" --tools-dir "$RUNNER_TEMP/validators" "${flags[@]}")
           if [ "$RUNNER_OS" = Linux ]; then
-            xvfb-run -a -s '-screen 0 6000x4000x24' "${command[@]}"
+            xvfb-run -a -s '-screen 0 6000x4000x24' python3 tools/qa/x11_test_session.py "${command[@]}"
           else
             "${command[@]}"
           fi
