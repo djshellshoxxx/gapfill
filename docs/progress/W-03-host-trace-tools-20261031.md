@@ -11,6 +11,8 @@ A CAS close handshake prevents completion racing the last callback. Overflow
 and I/O failure stay explicit; incomplete data is never counted as a clean host
 measurement. Audio samples, MIDI bytes, project names and credentials are not
 recorded. The optional build is disabled by default and uses a distinct identity.
+The diagnostic declares MIDI input/output for host passthrough; it records no
+MIDI and leaves the supplied events unchanged.
 
 The analyzer preserves raw hashes, declared host/version, source/dirty/compiler/
 JUCE provenance, optional binary hashes, block-size/rate/tempo observations,

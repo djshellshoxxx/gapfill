@@ -39,7 +39,7 @@ int main()
         { processor->processBlock (audio, midi); clock.samples += 512; }
         allocations = guard.count();
     }
-    bool identical = midi.getNumEvents() == 1;
+    bool identical = processor->acceptsMidi() && processor->producesMidi() && midi.getNumEvents() == 1;
     const unsigned char expectedMidi[] { 0x90, 60, 127 };
     for (const auto event : midi)
         identical = identical && event.samplePosition == 0 && event.numBytes == 3

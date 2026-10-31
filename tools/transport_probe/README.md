@@ -2,6 +2,8 @@
 
 This separate diagnostic VST3 captures timing metadata only. It does not alter
 the GapFill product, record audio, modify MIDI or write from `processBlock`.
+Its separate VST3 declares MIDI input/output for unchanged passthrough when
+inserted before GapFill; MIDI bytes are never copied into the timing trace.
 The callback copies POD timing into a preallocated 4095-row SPSC queue; a worker
 thread formats locale-independent CSV and writes an atomic JSON sidecar.
 Overflow is counted rather than retried. A close handshake drains the final

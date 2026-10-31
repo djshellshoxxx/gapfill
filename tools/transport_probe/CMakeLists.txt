@@ -33,7 +33,7 @@ add_subdirectory("${JUCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/JUCE")
 juce_add_plugin(GapFillTransportProbe
     COMPANY_NAME "Circuit Drift Labs" BUNDLE_ID "com.circuitdriftlabs.gapfill.transportprobe"
     PLUGIN_MANUFACTURER_CODE CdLb PLUGIN_CODE GtPr PRODUCT_NAME "GapFill Transport Probe"
-    FORMATS VST3 VST3_CATEGORIES Fx IS_SYNTH FALSE NEEDS_MIDI_INPUT FALSE PRODUCES_MIDI_OUTPUT FALSE
+    FORMATS VST3 VST3_CATEGORIES Fx IS_SYNTH FALSE NEEDS_MIDI_INPUT TRUE PRODUCES_MIDI_OUTPUT TRUE
     COPY_PLUGIN_AFTER_BUILD FALSE)
 target_sources(GapFillTransportProbe PRIVATE Probe.cpp)
 target_compile_features(GapFillTransportProbe PRIVATE cxx_std_20)

@@ -65,8 +65,8 @@ public:
         // Audio and MIDI buffers remain byte-for-byte untouched.
     }
     double getTailLengthSeconds() const override { return 0; }
-    bool acceptsMidi() const override { return false; }
-    bool producesMidi() const override { return false; }
+    bool acceptsMidi() const override { return true; }
+    bool producesMidi() const override { return true; }
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
     void setCurrentProgram (int) override {}
