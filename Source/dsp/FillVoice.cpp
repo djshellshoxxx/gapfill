@@ -1214,14 +1214,28 @@ void FillVoice::genDistort (float& l, float& r) noexcept
 
 void FillVoice::genScramble (float& l, float& r) noexcept
 {
-    if (slicePos >= sliceLen)
+    int currentSliceLength = sliceLen;
+    if (setupData.grooveShifts.on)
+    {
+        const auto boundary = [&] (int k) { return k * sliceLen + setupData.grooveShifts.at (k); };
+        int ordinal = elapsed / sliceLen;
+        // Bounded shifts are less than one period, so one correction in
+        // either direction locates the actual monotonic boundary.
+        if (ordinal > 0 && elapsed < boundary (ordinal)) --ordinal;
+        else if (elapsed >= boundary (ordinal + 1)) ++ordinal;
+        const auto start = boundary (ordinal);
+        currentSliceLength = juce::jmax (1, boundary (ordinal + 1) - start);
+        sliceIndex = ordinal % juce::jmax (1, numSlices);
+        slicePos = elapsed - start;
+    }
+    else if (slicePos >= sliceLen)
     {
         slicePos = 0;
         sliceIndex = (sliceIndex + 1) % juce::jmax (1, numSlices);
     }
 
     const auto base = sliceOffset + sliceOrder[juce::jlimit (0, maxSlices - 1, sliceIndex)] * sliceLen;
-    const auto edge = juce::jmin (sliceLen / 8, (int) (sr * 0.0015) + 2);
+    const auto edge = juce::jmin (currentSliceLength / 8, (int) (sr * 0.0015) + 2);
 
     float w = 1.0f;
 
@@ -1229,8 +1243,8 @@ void FillVoice::genScramble (float& l, float& r) noexcept
     {
         if (slicePos < edge)
             w = (float) slicePos / (float) edge;
-        else if (slicePos > sliceLen - edge)
-            w = (float) (sliceLen - slicePos) / (float) edge;
+        else if (slicePos > currentSliceLength - edge)
+            w = (float) (currentSliceLength - slicePos) / (float) edge;
     }
 
     w = juce::jlimit (0.0f, 1.0f, w);
