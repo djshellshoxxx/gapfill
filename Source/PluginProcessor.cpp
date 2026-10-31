@@ -1586,6 +1586,8 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     extendedMidiOut.requestFlush();
     liveControl.forceHoldsOff();                    // F-M10: holds are never ON after a restore
     currentProgram.store (restoredProgram, std::memory_order_relaxed);
+    uiState.headerAb.requestReset();
+    uiState.presetNavigation.requestReset();
     programChangeInProgress.store (false, std::memory_order_relaxed);
 
     if (wrappedState)

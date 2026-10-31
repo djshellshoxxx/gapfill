@@ -364,8 +364,11 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     applyKeyboardNavigationSetting();
 
     // ---- A/B snapshots -----------------------------------------------------
-    slotA = proc.getValueTreeState().copyState().createCopy();
-    slotB = slotA.createCopy();
+    auto& headerAb = proc.getUiState().headerAb;
+    headerAb.synchronize (proc.getValueTreeState().copyState());
+    displayedAbSide = headerAb.isUsingB();
+    abButton.setButtonText (displayedAbSide ? "B" : "A");
+    currentPresetFile = proc.getUiState().presetNavigation.currentFile();
     proc.getUiState().editorActions.battleFromHeaderAb = [this] { return feedBattleFromHeaderAb(); };
 
     // Start every editor session with a clean visual history. Drain through
@@ -648,45 +651,23 @@ int GapFillAudioProcessorEditor::currentPresetIndex() const
 
 void GapFillAudioProcessorEditor::stepPreset (int delta)
 {
-    refreshPresetList();
+    auto& navigation = proc.getUiState().presetNavigation;
+    navigation.requestStep (delta);
+    navigation.pump (proc);
+    synchronizePresetNavigation();
+}
 
-    // F-S11: "Favourites only" steps through the starred presets; with none saved it falls back to all of them.
-    int index;
-    bool fellBack = false;
-
-    if (settingsFile->getInt (presets::kKeyStepScope, 0) == 1)
-    {
-        const auto pool = navCatalog.favouriteIndices (settingsFile->getFavourites());
-        fellBack = pool.empty();
-        index = fellBack ? navCatalog.step (currentPresetIndex(), delta)
-                         : presets::PresetCatalog::stepWithin (pool, currentPresetIndex(), delta);
-    }
-    else
-    {
-        index = navCatalog.step (currentPresetIndex(), delta);
-    }
-
-    if (index < 0)
+void GapFillAudioProcessorEditor::synchronizePresetNavigation()
+{
+    auto& navigation = proc.getUiState().presetNavigation;
+    if (navigationRevision == navigation.revision())
         return;
-
-    // Undo coalescing: a burst of steps (each within 3 s of the previous, nothing else pushed an Undo entry in between)
-    // keeps only the snapshot from before the burst, so browsing 20 presets does not push real work out of the 32 steps.
-    const auto now = juce::Time::getMillisecondCounter();
-    const bool inBurst = stepBurst.isContinuation (now, proc.getUndoPushCount());
-    const auto pushesBefore = proc.getUndoPushCount();
-
-    if (! loadCatalogEntry (navCatalog.entries()[(size_t) index]))
-        return;
-
-    if (inBurst && proc.getUndoPushCount() > pushesBefore)
-        proc.discardNewestUndoSnapshot();
-
-    stepBurst.record (now, proc.getUndoPushCount());
-
-    const auto total = (int) navCatalog.entries().size();
-    showPresetStatus (fellBack ? juce::String ("No favourites yet - stepping all presets")
-                               : "Preset " + juce::String (index + 1) + "/" + juce::String (total) + ": "
-                                     + navCatalog.entries()[(size_t) index].name);
+    navigationRevision = navigation.revision();
+    currentPresetFile = navigation.currentFile();
+    if (navigation.displayName().isNotEmpty())
+        setPresetDisplay (navigation.displayName());
+    if (navigation.status().isNotEmpty())
+        showPresetStatus (navigation.status());
 }
 
 void GapFillAudioProcessorEditor::showPresetStatus (const juce::String& text)
@@ -751,7 +732,8 @@ bool GapFillAudioProcessorEditor::loadCatalogEntry (const presets::PresetEntry& 
         return false;
     }
 
-    currentPresetFile = entry.origin == presets::PresetEntry::Origin::User ? entry.file : juce::File();
+    proc.getUiState().presetNavigation.noteLoaded (entry);
+    currentPresetFile = proc.getUiState().presetNavigation.currentFile();
     setPresetDisplay (entry.name);
     return true;
 }
@@ -767,7 +749,8 @@ void GapFillAudioProcessorEditor::showPresetBrowser()
     auto browser = std::make_unique<presets::PresetBrowser> (proc, settings::GlobalSettings::shared());
     browser->onLoaded = [this] (const presets::PresetEntry& entry)
     {
-        currentPresetFile = entry.origin == presets::PresetEntry::Origin::User ? entry.file : juce::File();
+        proc.getUiState().presetNavigation.noteLoaded (entry);
+    currentPresetFile = proc.getUiState().presetNavigation.currentFile();
         setPresetDisplay (entry.name);
     };
     // The call-out box is created after the browser, so the callbacks reach it through a shared handle.
@@ -835,7 +818,8 @@ void GapFillAudioProcessorEditor::saveUserPreset()
                     return;
                 }
 
-                currentPresetFile = file;
+                proc.getUiState().presetNavigation.noteFile (file);
+    currentPresetFile = file;
                 refreshPresetList();
                 setPresetDisplay (meta.name);
             };
@@ -939,6 +923,7 @@ bool GapFillAudioProcessorEditor::savePresetToFile (const juce::File& file)
         return false;
     }
 
+    proc.getUiState().presetNavigation.noteFile (file);
     currentPresetFile = file;
 
     // A file saved into the user preset folder should show up in the dropdown
@@ -965,6 +950,7 @@ void GapFillAudioProcessorEditor::loadPresetFromFile (const juce::File& file)
         return;
     }
 
+    proc.getUiState().presetNavigation.noteFile (file);
     currentPresetFile = file;
     setPresetDisplay (file.getFileNameWithoutExtension());
 }
@@ -1076,44 +1062,47 @@ int GapFillAudioProcessorEditor::getUnnamedKeyboardFocusableControlCountForTests
 //==============================================================================
 void GapFillAudioProcessorEditor::toggleAB()
 {
-    auto& state = proc.getValueTreeState();
-
-    // Store what is on screen into the slot we are leaving, then load the other.
-    (usingSlotB ? slotB : slotA) = state.copyState().createCopy();
-    usingSlotB = ! usingSlotB;
-
-    auto& target = usingSlotB ? slotB : slotA;
-
+    auto& ab = proc.getUiState().headerAb;
+    const auto target = ab.swap (proc.getValueTreeState().copyState());
     if (target.isValid())
-        proc.replaceParameterStateKeepingPerformance (target);      // A/B never flips performance state (docs/dev/02 F0-1)
-
-    proc.getRecipes().noteHeaderAbSide (usingSlotB);        // F-S06: level matching follows the sounding side
-    abButton.setButtonText (usingSlotB ? "B" : "A");
-    setPresetDisplay (usingSlotB ? "B" : "A");
+    {
+        proc.replaceParameterStateKeepingPerformance (target);
+        proc.syncModelVersions();
+    }
+    displayedAbSide = ab.isUsingB();
+    proc.getRecipes().noteHeaderAbSide (displayedAbSide);
+    abButton.setButtonText (displayedAbSide ? "B" : "A");
+    setPresetDisplay (displayedAbSide ? "B" : "A");
 }
 
-/** F-M18: the header A/B snapshots become Beat Battle styles A and B (the side on screen is captured first). */
 bool GapFillAudioProcessorEditor::feedBattleFromHeaderAb()
 {
     auto& state = proc.getValueTreeState();
-    (usingSlotB ? slotB : slotA) = state.copyState().createCopy();
-
+    auto& ab = proc.getUiState().headerAb;
+    ab.captureActive (state.copyState());
     auto& battles = proc.getLiveControl().battles();
-    const bool a = battles.setStyleFromState (0, state, slotA);
-    const bool b = battles.setStyleFromState (1, state, slotB);
+    const bool a = battles.setStyleFromState (0, state, ab.snapshot (false));
+    const bool b = battles.setStyleFromState (1, state, ab.snapshot (true));
     return a && b;
 }
 
 void GapFillAudioProcessorEditor::copyToOtherSlot()
 {
-    auto current = proc.getValueTreeState().copyState().createCopy();
-    (usingSlotB ? slotA : slotB) = current;
-    (usingSlotB ? slotB : slotA) = current.createCopy();
+    proc.getUiState().headerAb.copyToOther (proc.getValueTreeState().copyState());
 }
 
 //==============================================================================
 void GapFillAudioProcessorEditor::timerCallback()
 {
+    synchronizePresetNavigation();
+    auto& ab = proc.getUiState().headerAb;
+    ab.synchronize (proc.getValueTreeState().copyState());
+    if (displayedAbSide != ab.isUsingB())
+    {
+        displayedAbSide = ab.isUsingB();
+        abButton.setButtonText (displayedAbSide ? "B" : "A");
+        setPresetDisplay (displayedAbSide ? "B" : "A");
+    }
     auto& meters = proc.getMeterState();
 
     mixPanel.setLevels (meters.inputLevel.load(), meters.outputLevel.load(), meters.wetLevel.load());
@@ -1187,11 +1176,6 @@ void GapFillAudioProcessorEditor::timerCallback()
     // U-5: the view mode can change from the toggle slot or a restored project state.
     if (proc.getUiState().getViewMode() != appliedView)
         applyViewMode();
-
-    // U-4: previous / next preset requests from MIDI commands (X-1) or other threads.
-    if (const auto step = proc.getUiState().takePresetStep(); step != 0)
-        for (int i = 0; i < juce::jmin (8, std::abs (step)); ++i)
-            stepPreset (step > 0 ? 1 : -1);
 
     // U-9: the footer shows the highest-priority message (learn > ... > capture here).
     auto& board = proc.getUiState().status;

@@ -48,10 +48,16 @@ public:
     bool keyPressed (const juce::KeyPress&) override;
 
    #ifdef GAPFILL_UNIT_TESTS
-    void stepPresetForTests (int delta)         { stepPreset (delta); }
-    void forgetPresetBurstForTests()            { stepBurst.forget(); }
+    void stepPresetForTests (int delta)
+    {
+        proc.getUiState().presetNavigation.stepNowForTests (proc, delta, juce::Time::getMillisecondCounter(),
+                                                           presets::defaultScanRoots(), settingsFile);
+        synchronizePresetNavigation();
+    }
+    void forgetPresetBurstForTests()            { proc.getUiState().presetNavigation.forgetBurst(); }
     bool feedBattleFromHeaderAbForTests()       { return feedBattleFromHeaderAb(); }
-    void setHeaderSlotsForTests (const juce::ValueTree& a, const juce::ValueTree& b) { slotA = a; slotB = b; }
+    void setHeaderSlotsForTests (const juce::ValueTree& a, const juce::ValueTree& b)
+    { proc.getUiState().headerAb.setSnapshotsForTests (a, b); }
     void toggleCurrentFavouriteForTests()       { toggleCurrentFavourite(); }
     juce::String currentPresetIdentityForTests() const { return currentPresetIdentity(); }
     void applyKeyboardNavigationSettingForTests() { applyKeyboardNavigationSetting(); }
@@ -94,7 +100,8 @@ private:
     enum class Tab { Creative = 0, Weights, Spectral, Performance };
 
     void timerCallback() override;
-    presets::StepBurst stepBurst;               // F-S11: steps within 3 s of each other share one Undo entry
+    std::uint64_t navigationRevision = ~std::uint64_t { 0 };
+    bool displayedAbSide = false;
     juce::uint32 presetStatusUntilMs = 0;       // F-S11: "Preset 12/25: name" in the footer for a short while
     juce::Rectangle<int> footerBounds() const;
     void setTab (Tab newTab);
@@ -107,6 +114,7 @@ private:
     void setPresetDisplay (const juce::String&);
     int  currentPresetIndex() const;
     void stepPreset (int delta);
+    void synchronizePresetNavigation();
     juce::String currentPresetIdentity() const;
     void toggleCurrentFavourite();
     void showPresetStatus (const juce::String&);
@@ -185,11 +193,8 @@ private:
     std::unique_ptr<StackPanel> performancePanel;
     std::unique_ptr<EffectsDrawer> effectsDrawer;
 
-    // --- A/B ---
-    juce::ValueTree slotA, slotB;
-    bool usingSlotB = false;
-
-    presets::PresetCatalog navCatalog;     // factory + user entries for the < and > buttons
+    // Presentation/favourites snapshot; the processor owns stepping and A/B.
+    presets::PresetCatalog navCatalog;
 
     // The file "Save" writes to. Empty until the user has saved or opened one.
     juce::File currentPresetFile;
