@@ -79,7 +79,8 @@ GF_TEST (MidiCommands, production_capture_commands_reach_the_latch_once_after_on
     MidiCommandRig rig;
     rig.bind (CommandType::Recapture, 90);
     rig.bind (CommandType::ReleaseCapture, 91);
-    for (int i = 0; i < 32; ++i)
+    const auto warmBlocks = (int) std::ceil (0.5 * rig.proc.getSampleRate() / (double) rig.audio.getNumSamples()) + 1;
+    for (int i = 0; i < warmBlocks; ++i)
         rig.block();
     setParams (rig.proc, { { "capture", 1.0f } });
     rig.block();
