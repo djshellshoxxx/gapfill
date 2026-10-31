@@ -38,15 +38,15 @@ GF_TEST (ParameterCompatibility, released_host_indices_match_runtime_and_scene_t
 GF_TEST (ParameterCompatibility, released_cooperation_choices_keep_normalized_automation)
 {
     GapFillAudioProcessor proc;
-    auto* group = proc.apvts.getParameter ("coopGroup");
-    auto* mode = proc.apvts.getParameter ("coopMode");
+    auto* group = proc.getValueTreeState().getParameter ("coopGroup");
+    auto* mode = proc.getValueTreeState().getParameter ("coopMode");
     GF_EXPECT (group != nullptr && mode != nullptr);
     GF_EXPECT (group->getNumSteps() == 5);
     GF_EXPECT (mode->getNumSteps() == 3);
     group->setValueNotifyingHost (0.5f);
     mode->setValueNotifyingHost (0.5f);
-    GF_EXPECT_NEAR (proc.apvts.getRawParameterValue ("coopGroup")->load(), 2.0f, 0.0f);
-    GF_EXPECT_NEAR (proc.apvts.getRawParameterValue ("coopMode")->load(), 1.0f, 0.0f);
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("coopGroup")->load(), 2.0f, 0.0f);
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("coopMode")->load(), 1.0f, 0.0f);
 }
 
 GF_TEST (ParameterCompatibility, voice_formant_is_appended_neutral_and_undoable)
@@ -54,8 +54,13 @@ GF_TEST (ParameterCompatibility, voice_formant_is_appended_neutral_and_undoable)
     GapFillAudioProcessor proc;
     const auto all = allParameterIDs();
     GF_EXPECT (all.indexOf ("fl20_amount") == 216);
-    GF_EXPECT_NEAR (proc.apvts.getRawParameterValue ("fl20_amount")->load(), 0.0f, 0.0f);
-    GF_EXPECT_NEAR (proc.apvts.getRawParameterValue ("fl20_preserve")->load(), 100.0f, 0.0f);
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fl20_amount")->load(), 0.0f, 0.0f);
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fl20_preserve")->load(), 100.0f, 0.0f);
+    setParams (proc, { { "fl20_amount", 12.5f } });
+    proc.pushUndoSnapshot();
+    setParams (proc, { { "fl20_amount", 75.0f } });
+    GF_EXPECT (proc.undo());
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fl20_amount")->load(), 12.5f, 0.0f);
     for (const char* id : { "fl20_amount", "fl20_shift", "fl20_tilt", "fl20_vowel", "fl20_preserve", "fl20_detail" })
     {
         GF_EXPECT (! randomisableParameterIDs().contains (id));
