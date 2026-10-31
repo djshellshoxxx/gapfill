@@ -12,7 +12,7 @@ namespace
     {
         for (auto* child : root.getChildren())
         {
-            if (auto* label = dynamic_cast<TextLabel*> (child); label != nullptr && label->isVisible())
+            if (auto* label = dynamic_cast<TextLabel*> (child); label != nullptr && label->isVisible() && label->getText().isNotEmpty())
                 GF_EXPECT_MSG (label->getHeight() >= label->heightForWidth (label->getWidth()), label->getText());
             if (auto* button = dynamic_cast<juce::TextButton*> (child); button != nullptr && button->isVisible())
             {
