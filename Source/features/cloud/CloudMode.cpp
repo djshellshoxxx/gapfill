@@ -7,6 +7,19 @@
 
 namespace gapfill::fx
 {
+namespace
+{
+    constexpr int kEnergyProbes = 256;
+    float probePhase (int index) noexcept
+    {
+        // Fixed stratification breaks periodic-tone aliasing on a uniform
+        // probe grid, without consuming any random stream.
+        const auto bits = (std::uint32_t) (index + 1) * 0x9e3779b9u;
+        const auto fraction = ((float) (bits >> 8u) + 0.5f) / 16777216.0f;
+        return ((float) index + 0.25f + 0.5f * fraction) / kEnergyProbes;
+    }
+}
+
 
 CloudDensity limitCloudDensity (float densityHz, float sizeMs) noexcept
 {
@@ -38,6 +51,8 @@ bool CloudMode::configure (bool requested, const CloudSettings& settings, float 
 {
     reset();
     dropped = 0;
+    sourceRmsReady = false;
+    sourceRms = 0.0f;
 
     if (! requested)
         return false;
@@ -123,7 +138,43 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
     if (--countdown <= 0)
     {
         const auto oldest = history.getWritePosition() - (std::int64_t) history.getSize() + 2;
-        const auto g = drawGrain (std::max ((std::int64_t) 0, oldest));
+        auto g = drawGrain (std::max ((std::int64_t) 0, oldest));
+        if (s.modelVersion == 2)
+        {
+            constexpr int probes = kEnergyProbes;
+            if (! sourceRmsReady)
+            {
+                const auto start = std::max ((double) std::max ((std::int64_t) 0, oldest),
+                                             (double) anchor - (double) s.spanMs * 0.001 * sr);
+                double energy = 0.0;
+                for (int i = 0; i < probes; ++i)
+                {
+                    const auto position = start + ((double) anchor - start) * (double) probePhase (i);
+                    const auto a = history.read (0, position), b = history.read (channels > 1 ? 1 : 0, position);
+                    energy += 0.5 * ((double) a * a + (double) b * b);
+                }
+                sourceRms = (float) std::sqrt (energy / probes);
+                sourceRmsReady = true;
+            }
+            double energy = 0.0, weight = 0.0;
+            for (int i = 0; i < probes; ++i)
+            {
+                const auto phase = probePhase (i);
+                constexpr float edge = 0.125f; // model2 Tukey plateau75%
+                const auto w = phase < edge ? hann (0.5f * phase / edge)
+                             : (phase > 1.0f - edge ? hann (0.5f * (1.0f - phase) / edge) : 1.0f);
+                const auto position = g.pos + (double) phase * g.dur * g.rate;
+                const auto a = history.read (0, position), b = history.read (channels > 1 ? 1 : 0, position);
+                energy += 0.5 * ((double) a * a + (double) b * b) * w * w;
+                weight += (double) w * w;
+            }
+            const auto grainRms = (float) std::sqrt (energy / std::max (1.0, weight));
+            if (! std::isfinite (grainRms) || ! std::isfinite (sourceRms)
+                || grainRms < std::max (1.0e-5f, sourceRms * 0.01f))
+                g.active = false; // silent material is never amplified
+            else
+                g.sourceGain = std::clamp (sourceRms / grainRms, 0.25f, 4.0f);
+        }
         bool placed = false;
 
         for (int i = 0; i < grainCap; ++i)
@@ -159,7 +210,9 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
 
         if (g.tukey)
         {
-            constexpr float alpha = 0.5f;
+            // Model 2 keeps 75% of each grain flat. The shorter, still-smooth
+            // edges and actual-overlap gain avoid default-density holes.
+            const auto alpha = s.modelVersion == 2 ? 0.25f : 0.5f;
             const auto edge = alpha * 0.5f;
             w = phase < edge ? hann (0.5f * phase / edge)
                              : (phase > 1.0f - edge ? hann (0.5f * (1.0f - phase) / edge) : 1.0f);
@@ -175,8 +228,16 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
         if (s.modelVersion == 2)
             windowEnergy += w * w * g.amp * g.amp;
 
-        accL += s0 * w * g.amp * g.panL;
-        accR += s1 * w * g.amp * g.panR;
+        if (s.modelVersion == 2)
+        {
+            accL += s0 * g.sourceGain * w * g.amp * g.panL;
+            accR += s1 * g.sourceGain * w * g.amp * g.panR;
+        }
+        else
+        {
+            accL += s0 * w * g.amp * g.panL;
+            accR += s1 * w * g.amp * g.panR;
+        }
 
         g.pos += g.rate;
 
