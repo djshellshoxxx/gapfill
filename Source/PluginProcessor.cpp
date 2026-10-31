@@ -52,6 +52,11 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     liveControl.setMidiLearn (&midiLearn);
     liveControl.setEventQueue (&fillEvents);
     liveControl.setPanicHook ([] (void* self) noexcept { static_cast<GapFillAudioProcessor*> (self)->panicWet(); }, this);
+    liveControl.scenes().setModelVersionsCommittedCallback ([this] { syncModelVersions(); });
+    liveControl.setGroupSceneCancelReader ([] (void* self, std::uint8_t group) noexcept
+    {
+        return static_cast<GapFillAudioProcessor*> (self)->coopMember.groupCancelGeneration (group);
+    }, this);
     liveControl.setFeatureCommandSink ([] (void* self, const Command& command) noexcept
     {
         static_cast<GapFillAudioProcessor*> (self)->dispatchFeatureCommand (command);
@@ -190,7 +195,6 @@ void GapFillAudioProcessor::releaseResources()
 
 void GapFillAudioProcessor::reset()
 {
-    startTimelineEpoch();
     // Hosts call this on transport jumps and when re-arming a track: every
     // piece of running DSP state has to go, without reallocating anything.
     engine.reset();
@@ -209,6 +213,7 @@ void GapFillAudioProcessor::reset()
     mainBuffer.clear();
     delayWrite = 0;
     samplesProcessed = 0;
+    startTimelineEpoch();
     latencyCrossfade = latencyCrossfadeLength = 0;
     currentLatency = targetLatency;
 
@@ -352,6 +357,7 @@ void GapFillAudioProcessor::publishRecipeTargets() noexcept
 
 void GapFillAudioProcessor::startTimelineEpoch() noexcept
 {
+    publishedOutputPosition.store (samplesProcessed - targetLatency, std::memory_order_release);
     if (++timelineEpoch == 0)
         ++timelineEpoch;
     fillEvents.setTimelineEpoch (timelineEpoch, (std::uint32_t) std::lround (currentSampleRate));
@@ -473,7 +479,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
 
     while (offset < numSamples)
     {
-        const auto n = juce::jmin (preparedBlockSize, numSamples - offset);
+        const auto n = sceneSegmentLength (offset, juce::jmin (preparedBlockSize, numSamples - offset));
         processChunk (buffer, offset, n, bypassed);
         offset += n;
     }
@@ -513,7 +519,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
 
     while (offset < numSamples)
     {
-        const auto n = juce::jmin (preparedBlockSize, numSamples - offset);
+        const auto n = sceneSegmentLength (offset, juce::jmin (preparedBlockSize, numSamples - offset));
         processChunk (buffer, offset, n, true);
         offset += n;
     }
@@ -1052,6 +1058,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     }
 
     samplesProcessed += numSamples;
+    publishedOutputPosition.store (samplesProcessed - targetLatency, std::memory_order_release);
 }
 
 //==============================================================================

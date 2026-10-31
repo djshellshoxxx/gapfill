@@ -39,8 +39,7 @@ VisualiserOverlayComponent::VisualiserOverlayComponent (GapFillAudioProcessor& p
         {
             auto& processor = static_cast<VisualiserOverlayComponent*> (context)->proc;
             auto& model = processor.getExplainState().timelineModel;
-            const auto anchor = processor.getSourceHistoryWritePosition()
-                              - processor.getMeterState().latencySamples.load();
+            const auto anchor = processor.getTimelinePosition();
             for (int i = 0; i < count; ++i)
                 model.pushFrame (drained[i], anchor);
         });

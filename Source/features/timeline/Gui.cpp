@@ -115,7 +115,7 @@ void TimelineView::resized()
 //==============================================================================
 std::int64_t TimelineView::liveEndPos() const
 {
-    return proc.getSourceHistoryWritePosition() - (std::int64_t) proc.getMeterState().latencySamples.load();
+    return proc.getTimelinePosition();
 }
 
 std::int64_t TimelineView::windowSamples() const

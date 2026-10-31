@@ -241,6 +241,7 @@ public:
     const AnalysisEngine& getAnalysis() const noexcept { return analysis; }
     int getActiveLatencySamples() const noexcept { return meters.latencySamples.load(); }
     std::int64_t getSourceHistoryWritePosition() const noexcept { return history.getWritePosition(); }
+    std::int64_t getTimelinePosition() const noexcept { return publishedOutputPosition.load (std::memory_order_acquire); }
    #ifdef GAPFILL_UNIT_TESTS
     void flushLatencyReportForTests() { timerCallback(); }
     int getTransportJumpCountForTests() const noexcept { return transportJumpCountForTests; }
@@ -258,6 +259,8 @@ private:
     AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
     void beginHostCallbackTiming();
+    scenes::TransportSnap sceneTransportAt (int startSample, int numSamples) const noexcept;
+    int sceneSegmentLength (int startSample, int numSamples) noexcept;
     bool isParameterStateValid (const juce::ValueTree& state) const;
     void snapParametersToState();
     void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); midiOut.requestFlush(); extendedMidiOut.requestFlush(); }
@@ -331,6 +334,7 @@ private:
     int   mainChannels = 2;
 
     std::int64_t samplesProcessed = 0;
+    std::atomic<std::int64_t> publishedOutputPosition { 0 };
     int hostBlockSamples = 0; // total frames in the current DAW callback (not its current chunk)
 
     HighPass2 lowProtect[2];
