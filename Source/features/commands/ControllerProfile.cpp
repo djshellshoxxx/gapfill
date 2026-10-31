@@ -165,8 +165,51 @@ ProfileParse parseProfile (const juce::String& json)
 
     int version = 0;
 
-    if (! readInt (root, "version", 1, 2, version, true))
-        return fail ("\"version\" must be 1 or 2.");
+    if (! readInt (root, "version", 1, 3, version, true))
+        return fail ("\"version\" must be 1, 2 or 3.");
+
+    profile.extended = version == 3;
+    const auto params = root.getProperty ("params", juce::var());
+    if (version < 3 && (! params.isVoid() || root.hasProperty ("parameterFeedback") || root.hasProperty ("txChannel")))
+        return fail ("Parameter mappings and feedback configuration require version 3.");
+    if (! params.isVoid() && ! params.isArray())
+        return fail ("\"params\" must be a list.");
+    if (version == 3)
+    {
+        const auto enabled = root.getProperty ("parameterFeedback", false);
+        if (! enabled.isBool()) return fail ("\"parameterFeedback\" must be true or false.");
+        profile.parameterFeedback = (bool) enabled;
+        int channel = 1;
+        if (! readInt (root, "txChannel", 1, 16, channel, false, 1))
+            return fail ("\"txChannel\" must be 1 to 16.");
+        profile.txChannel = (std::uint8_t) channel;
+    }
+    if (auto* arr = params.getArray())
+    {
+        if (arr->size() > controller::kMaxParameterBindings)
+            return fail ("A profile can hold at most 64 parameter mappings.");
+        for (const auto& item : *arr)
+        {
+            if (item.getDynamicObject() == nullptr) return fail ("Each parameter mapping must be an object.");
+            const auto idValue = item.getProperty ("id", juce::var());
+            const auto id = idValue.toString();
+            if (! idValue.isString() || id.isEmpty() || id.length() > 64
+                || ! id.containsOnly ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"))
+                return fail ("Parameter id must be 1 to 64 identifier characters.");
+            int cc = 0, channel = 0;
+            if (! readInt (item, "cc", 0, 127, cc, true) || ! readInt (item, "channel", 0, 16, channel, false))
+                return fail ("Parameter CC must be 0 to 127 and channel 0 to 16.");
+            const auto modeValue = item.getProperty ("takeover", "jump");
+            const auto mode = modeValue.toString();
+            if (! modeValue.isString() || (mode != "jump" && mode != "pickup"))
+                return fail ("Parameter takeover must be jump or pickup.");
+            for (const auto& other : profile.params)
+                if (other.id == id.toStdString() || other.cc == cc)
+                    return fail ("Parameter mappings repeat an id or CC.");
+            profile.params.push_back ({ id.toStdString(), (std::uint8_t) cc, (std::uint8_t) channel,
+                mode == "pickup" ? controller::TakeoverMode::Pickup : controller::TakeoverMode::Jump });
+        }
+    }
 
     const auto bindings = root.getProperty ("bindings", juce::var());
     const auto feedback = root.getProperty ("feedback", juce::var());
@@ -253,8 +296,9 @@ ProfileParse parseProfile (const juce::String& json)
 
     if (auto* arr = feedback.getArray())
     {
-        if (arr->size() > kMaxFeedbackRules)
-            return fail ("A profile can hold at most 64 feedback rules.");
+        if (arr->size() > (version == 3 ? controller::kMaxIndicators : kMaxFeedbackRules))
+            return fail (version == 3 ? "A schema 3 profile can hold at most 16 indicators."
+                                      : "A profile can hold at most 64 feedback rules.");
 
         int index = 0;
 
@@ -309,6 +353,12 @@ ProfileParse parseProfile (const juce::String& json)
         }
     }
 
+    for (const auto& parameter : profile.params)
+        for (const auto& binding : profile.bindings)
+            if (binding.type == MsgType::CC && binding.number == parameter.cc
+                && (binding.channel == 0 || parameter.channel == 0 || binding.channel == parameter.channel))
+                return fail ("A CC cannot control both a parameter and a command on overlapping channels.");
+
     ProfileParse out;
     out.ok = true;
     out.profile = std::move (profile);
@@ -322,7 +372,24 @@ juce::String profileToJson (const Profile& p)
     bool extended = false;
     for (const auto& b : p.bindings)
         extended = extended || (int) b.cmd > 30;
-    root->setProperty ("version", extended ? 2 : 1);
+    const bool schema3 = p.extended || ! p.params.empty() || p.parameterFeedback || p.txChannel != 1;
+    root->setProperty ("version", schema3 ? 3 : extended ? 2 : 1);
+    if (schema3)
+    {
+        juce::Array<juce::var> params;
+        for (const auto& binding : p.params)
+        {
+            auto* item = new juce::DynamicObject();
+            item->setProperty ("id", juce::String (binding.id));
+            item->setProperty ("cc", (int) binding.cc);
+            item->setProperty ("channel", (int) binding.channel);
+            item->setProperty ("takeover", binding.takeover == controller::TakeoverMode::Pickup ? "pickup" : "jump");
+            params.add (juce::var (item));
+        }
+        root->setProperty ("params", params);
+        root->setProperty ("parameterFeedback", p.parameterFeedback);
+        root->setProperty ("txChannel", (int) p.txChannel);
+    }
 
     juce::Array<juce::var> bindings, feedback;
 
@@ -363,7 +430,7 @@ juce::String profileToJson (const Profile& p)
 
     root->setProperty ("bindings", bindings);
     root->setProperty ("feedback", feedback);
-    return juce::JSON::toString (juce::var (root));
+    return juce::JSON::toString (juce::var (root), schema3);
 }
 
 //==============================================================================

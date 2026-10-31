@@ -107,7 +107,7 @@ GF_TEST (Controllers, schema_rejects_bad_profiles_with_a_reason)
     GF_EXPECT (rejects ("{\"name\":\"\",\"version\":1}", "name"));
     GF_EXPECT (rejects ("{\"name\":\"" + juce::String::repeatedString ("x", 49) + "\",\"version\":1}", "name"));
     GF_EXPECT (rejects ("{\"name\":\"a\"}", "version"));
-    GF_EXPECT (rejects ("{\"name\":\"a\",\"version\":3}", "version"));
+    GF_EXPECT (rejects ("{\"name\":\"a\",\"version\":4}", "version"));
     GF_EXPECT (rejects ("{\"name\":\"a\",\"version\":1,\"bindings\":5}", "list"));
     GF_EXPECT (rejects ("{\"name\":\"a\",\"version\":1,\"bindings\":[5]}", "object"));
     GF_EXPECT (rejects ("{\"name\":\"a\",\"version\":1,\"bindings\":[{\"command\":\"Explode\",\"type\":\"cc\",\"number\":1}]}", "unknown command"));

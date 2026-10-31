@@ -11,6 +11,7 @@ list(APPEND GAPFILL_TEST_SOURCES
     Tests/features/TestBattle.cpp
     Tests/features/TestControllers.cpp
     Tests/features/TestControllerCore.cpp
+    Tests/features/TestControllerProfileExtended.cpp
     Tests/features/TestFillNow.cpp
     Tests/features/TestMomentary.cpp
     Tests/features/TestHoldVoices.cpp
