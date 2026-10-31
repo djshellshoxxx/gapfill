@@ -1,12 +1,12 @@
 #include "../info/ParamInfo.h"
 
-namespace gapfill
+namespace gapfill::info
 {
 namespace
 {
 const ParamInfoRegistrar midiExtendedInfo
 {
-    { "fl11_on", "Extended MIDI Output", "Send detector Hit, Gap, Fill and confidence events instead of the legacy gap/fill output", "", "" },
+    { "fl11_on", "Extended MIDI Output", "Generate Hit, Gap, Fill and confidence MIDI instead of legacy gap/fill output", "", "" },
     { "fl11_chan", "MIDI Event Channel", "Channel of the generated detector events", "1-16", "" },
     { "fl11_hit_on", "MIDI Hit Events", "Send a short note for each detected onset", "", "" },
     { "fl11_gap_on", "MIDI Gap Events", "Hold a note during an eligible gap", "", "" },
@@ -16,8 +16,8 @@ const ParamInfoRegistrar midiExtendedInfo
     { "fl11_note_fill", "MIDI Fill Note", "Note number for fill events", "0-127", "" },
     { "fl11_vel", "MIDI Event Velocity", "Follow detector strength or use fixed velocity 100", "", "" },
     { "fl11_len_ms", "MIDI Hit Length", "Duration of a detected-hit note", "10-500 ms", "" },
-    { "fl11_cc", "MIDI Confidence CC", "Confidence controller; 0 is Off, channel-mode controller numbers are refused", "0-119", "" },
-    { "fl11_timing", "MIDI Hit Timing", "Detection-early affects Hit notes only; Gap and Fill stay aligned to output audio", "", "" }
+    { "fl11_cc", "MIDI Confidence CC", "Confidence controller; 0 is Off, channel-mode numbers are refused", "0-119", "" },
+    { "fl11_timing", "MIDI Hit Timing", "Detection-early moves Hit notes; Gap and Fill stay aligned to output audio", "", "" }
 };
 }
 }
