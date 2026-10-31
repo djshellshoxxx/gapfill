@@ -1,4 +1,5 @@
 #include "FillVoice.h"
+#include "ScrambleTiming.h"
 #include "../features/sync/Sync.h"
 
 namespace gapfill
@@ -42,7 +43,7 @@ void FillVoice::prepare (double sampleRate, int numChannels)
 
     mistakeStage.prepare();   // C-3: the wobble delay lines live on the heap (small audio / Windows stacks)
 
-    maxCaptureSamples = (int) std::ceil (sr * 0.32);
+    maxCaptureSamples = voiceTiming::maximumCaptureSamples (sr);
     capture.setSize (2, maxCaptureSamples + 8, false, true, false);
 
     combSize = (int) std::ceil (sr * 0.06) + 8;
@@ -429,8 +430,7 @@ void FillVoice::configureAlgorithm()
 
     // Where the hit that opened this gap sits inside the captured slice. A few
     // milliseconds of pre-roll keeps the attack intact.
-    sliceOffset = juce::jlimit (0, juce::jmax (0, captureLength - 64),
-                                captureLength - setupData.sinceEventSamples - (int) (sr * 0.004));
+    sliceOffset = voiceTiming::sliceOffsetSamples (captureLength, setupData.sinceEventSamples, sr);
 
     // Generic loop region used by the "play the slice forward" algorithms.
     freezeXfade = juce::jlimit (16, juce::jmax (17, captureLength / 4), (int) (sr * 0.008));
@@ -633,8 +633,7 @@ void FillVoice::configureAlgorithm()
 
                 // E-2 Sync Mods: slices land on the stutter grid (at most half the material).
                 if (setupData.modSyncSeconds > 0.0f)
-                    sliceLen = juce::jlimit (48, juce::jmax (48, usable / 2),
-                                             (int) std::lround (setupData.modSyncSeconds * sr));
+                    sliceLen = voiceTiming::syncedScrambleSliceSamples (usable, setupData.modSyncSeconds, sr);
 
                 numSlices = juce::jlimit (2, maxSlices, juce::jmax (2, usable / sliceLen));
             }
