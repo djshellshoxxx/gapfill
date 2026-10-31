@@ -6,11 +6,13 @@
 - Related spec/issue/PR: docs/dev/12-SPEC-BACKLOG-AND-NEW.md section 2.5 (F-P03)
 
 ## Context
-Supported formats are VST3, AU (macOS), CLAP and Standalone. Users have asked about Pro Tools (AAX) and iOS. AAX needs Avid's SDK under licence
+Supported formats are VST3, AU (the macOS Audio Unit v2 `.component`, built by the `GapFill_AU` target on Apple platforms only), CLAP and Standalone.
+**AU v2 is in scope; AUv3 (app extension) is not.** The two share a name but not a packaging, sandbox or UI model. Users have asked about Pro Tools (AAX) and iOS. AAX needs Avid's SDK under licence
 terms that must be reviewed against the AGPL; AUv3/iOS needs a different packaging, sandbox and UI model, a CI runner and a device to validate.
 
 ## Decision
-The CMake `FORMATS` list stays VST3/AU/CLAP/Standalone for all 1.x releases. No AAX, AUv3 or iOS code, targets or CI jobs are added.
+The CMake `FORMATS` list stays VST3/AU/CLAP/Standalone for all 1.x releases (`AU` is appended only when `APPLE`; CLAP comes from `clap-juce-extensions`). No AAX, AUv3 or iOS code, targets or CI jobs are added.
+The `GapFill_AU` build, `auval` step and `.component` packaging in CI and the release workflow therefore stay; they are not a conflict with this ADR.
 
 ## Alternatives considered
 | Option | Benefits | Costs/risks | Why selected or rejected |

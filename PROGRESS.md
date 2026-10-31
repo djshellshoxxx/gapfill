@@ -3,7 +3,9 @@
 Tracks where the project stands against `include.md` (required features) and
 `theme.md` (visual identity spec). Update this at the end of every work session.
 
-Version: 0.0.1 beta · Type: audio **effect** (not an instrument)
+Version: 0.0.2 beta1 (`project(VERSION 0.0.2)`, stage `beta`) · Type: audio **effect** (not an instrument)
+
+Test counts in older session entries below (42, 48, 50, 87) are historical snapshots of the suite on that date. Measured 2026-10-30 on the 2026-10-21 baseline (`e89aecd`): **1186 tests passed, 0 failed** (`GapFillTests`, Linux Release, Xvfb, one run of 6 min). Do not copy a count forward; re-measure with `GapFillTests` (it prints `N passed, M failed`).
 
 ## include.md checklist
 
@@ -15,7 +17,7 @@ Version: 0.0.1 beta · Type: audio **effect** (not an instrument)
 | Reset button | **Done** | Header button → `GapFillAudioProcessor::resetAllParameters()`. |
 | Random button | **Done** | Random + Random All; each press reseeds from defaults so no two presses match. |
 | Save / Save As / Open / Options dropdown | **Done** | The FILE button in the top bar opens it. Save/Save As/Open use `.gapfill` files anywhere on disk. |
-| Options page (tooltips on/off, audio + MIDI device choice) | **Done** | Tooltip toggle works and persists. The Standalone device hookup now compiles and ships in both `GapFill.exe` and the VST3 (where the runtime `StandalonePluginHolder::getInstance()` check disables it). Still unexercised by hand - see Next up. |
+| Options page (tooltips on/off, audio + MIDI device choice) | **Done** | Tooltip toggle works and persists. The Standalone device hookup now compiles and ships in both `GapFill.exe` and the VST3 (where the runtime `StandalonePluginHolder::getInstance()` check disables it). Still unexercised by hand - see Next up, item 3. |
 | Export audio to WAV | **N/A** | `include.md` exempts effects. Revisit only if a "special function" export is wanted. |
 | Right-click on any control | **Done** | Reset to default, set exact value, MIDI learn / forget CC / clear all. |
 | Hover tooltips | **Done** | Set on every control; the on/off switch belongs to the Options page. |
@@ -33,6 +35,17 @@ Version: 0.0.1 beta · Type: audio **effect** (not an instrument)
 | Version in 9px muted mono, bottom-right | **Done** — `footerBounds()` reserves a 12px strip. |
 
 ## Session log
+
+### 2026-10-30 - autonomous pass: baseline, doc truth, Q-01 in CI, W-01 Linux test, one refactor seam
+
+- **Baseline** (`e89aecd`, Linux Release, Xvfb): `GapFillTests` 1186 passed, 0 failed (6 min, whole suite in one process, no OOM on 16 GB); `tools/` unit tests 46 passed; `validate_repo.py`, `completeness_audit.py`, `check_layout_literals.py` green. After this session: **1193 passed, 0 failed** (+6 `StepBurst`, +1 `EditorLifecycle`); `tools/` tests 49 passed. The old counts (42, 50, 87) in earlier entries are history.
+- **Inconsistencies resolved:** test count (header note above); `Next up` rewritten from the open-gap register; **AU vs ADR 0002 was not a conflict** - the ADR's own list includes AU v2, only AUv3 / AAX / iOS are out, so the AU build stays and the ADR wording was made explicit; Q-01 fast tier is now a CI step.
+- **Q-01:** `run_matrix.py --skip` (recorded `unverified`, never a pass; unknown step is an error). Wiring it found a real harness bug: the Python-test step used `-I` + `discover -s tools` and could not import `tools` (2 errors). Fixed with a test. Fast tier locally: 9 pass, 1 unverified-by-skip, exit 0. Not yet seen green on a hosted runner.
+- **W-01 (Linux only):** `EditorLifecycle.editor_create_destroy_while_automating_and_processing`: green on the first run, 33 s. No defect found, no fix made, nothing claimed about Windows. Limits recorded in `docs/progress/W-01.md` (message loop not pumped, no sanitizer build, one run).
+- **Refactor (separate commit, no feature work):** preset-step Undo burst rule moved from `PluginEditor::stepPreset` to `features/presetbrowser/StepBurst.h` (header-only, injected clock). Integration test `a_burst_of_preset_steps_...` passes before and after; 6 rule tests added. Hot file touched: `PluginEditor.*` (justification: the only seam in it with a test already in place).
+- **T-02 / T-01:** screenshots at min / default / large can be produced here (`GF_SCREENSHOT_DIR`, Xvfb); before-set saved under `docs/audits/screenshots/t02-before-*`. No layout value changed (ticket needs 150 / 200 % images and owner sign-off); pixel golden not built.
+- **Git:** all work is on `claude/epic-wozniak-e1pvza` (one draft PR) because the session allows pushing to that branch only; items are separate commits, not separate PRs. Each push cancels the previous hosted CI run (concurrency rule), so several "CI gate" failures in the PR history are cancellations, not test failures.
+- Unverified, as before: real hosts, hardware, Windows / macOS native behaviour, listening, screen readers, 150 / 200 % scale images, sanitizer runs.
 
 ### 2026-10-21 - completeness and wiring audit (development branch, WP3-WP11 merged)
 
@@ -201,22 +214,28 @@ Version: 0.0.1 beta · Type: audio **effect** (not an instrument)
 
 ## Next up (in order)
 
-Everything in `include.md` and `theme.md` is implemented, the full test suite is
-green (50 tests, 0 failures), and the Release VST3 bundle passes pluginval. The
-work is committed and pushed to `github.com/djshellshoxxx/gapfill` (private).
-What is left needs a person at the keyboard, or a machine with more RAM:
+Source of truth for what is open: `docs/audits/2026-10-21-completeness-audit.md`, section "Status of the numbered gaps", and `docs/dev/features/IMPLEMENTATION-STATUS.md` (65 yes, 8 partial, 1 no, 1 out of scope). The list below is the short form; it does not replace them. Nothing below can be settled in the Linux sandbox that the last sessions used.
 
-1. Manual pass on the new UI: FILE menu save / save as / open, the options page
-   and its tooltip toggle, right-click MIDI learn on a few controls, and the
-   audio/MIDI device dialog in the standalone build (`GapFill.exe`).
-2. Load the Release VST3 in a real DAW and check the MIDI-learn path end to end
-   with a hardware controller - pluginval does not send CCs.
-3. Check the meters by eye against the spec: the gradient, the 1.5s peak hold
-   and its 20dB/s fall are only verified by construction, not by a test.
-4. Finish the Linux build. Everything is staged for it (see session 17); it
-   only needs a machine with memory free.
-5. Load the CLAP in a CLAP host (Bitwig, Reaper 7, MultitrackStudio). It builds
-   and links, but no CLAP host has opened it - pluginval does not validate CLAP.
+Needs a person, a machine, or listening (all **unverified** today):
+
+1. **W-01** Windows editor-automation crash at pluginval 10 (`docs/progress/W-01.md`): Windows runner, dump, symbols. The Linux stress test exists (`EditorLifecycle` group) but proves nothing about Windows.
+2. **T-01 / T-02** pixel golden and layout pass: screenshots at three sizes and under 150 / 200 % scale. No layout value changes without them.
+3. **Real hosts and hardware**: REAPER, Live, FL, Logic, Bitwig (including Ctrl/Cmd+D and Ctrl/Cmd+Up/Down key conflicts), a hardware MIDI controller, a CLAP host, Logic / `auval` for AU. Physical-device steps are in `docs/VALIDATION.md`.
+4. **Listening**: heuristics for musical context (F-L09, F-L10, F-L22, F-M21, F-X03, F-X04, F-X05) and every effect card were checked by tests, not by ear.
+5. **Windows / macOS native**: CI builds them; what ran there beyond the `Plugin` smoke filter is not recorded here.
+
+Open by decision (recorded, do not build without the stated precondition):
+
+- F-L20 per-voice formant (gap 1): design deviation; needs listening and a hot-file DSP change.
+- F-X06 co-op beyond the in-process subset (gap 4): needs a cross-instance protocol and a multi-instance test plan.
+- F-X04 prediction window (gap 5): model limit of the section tracker. F-M03 timeline growth (gap 9): needs the T-02 visual review.
+- F-L11 extras and F-L12 `fl12_main_mode` (gap 12): DECISIONS 18. Scene `hg*` ids and `wetSolo` / `qualityMode` (gap 13): by design. F-P04 localisation: not started.
+- Skip ids 31 / 32 are not MIDI-bindable (gap 3); optional MIDI Program Change for preset stepping not built (gap 10).
+
+Tooling state:
+
+- CI runs the QA matrix **fast tier** after the full suite (`tools/qa/run_matrix.py --tier fast --skip unit`). The full tier (perf, pluginval, clap-validator, auval) stays manual.
+- Audio formats are VST3, CLAP, Standalone, plus AU on Apple (ADR 0002 keeps AU v2; only AAX, AUv3 and iOS are out).
 
 ### 2026-09-16, session 2
 - The earlier full-suite run was killed by the OS for low memory, not by a
