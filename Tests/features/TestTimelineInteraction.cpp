@@ -145,3 +145,20 @@ GF_TEST (TimelineGui, freeze_retains_the_visible_list_while_engine_records_conti
     GF_EXPECT (view.keyPressed (juce::KeyPress (juce::KeyPress::homeKey)));
     GF_EXPECT (view.getListText().size() == 2);
 }
+
+GF_TEST (TimelineGui, replacing_an_overlay_does_not_detach_the_new_frame_observer)
+{
+    GapFillAudioProcessor proc;
+    auto previous = std::make_unique<explain::VisualiserOverlayComponent> (proc);
+    explain::VisualiserOverlayComponent current (proc);
+    previous.reset();
+
+    auto& fifo = proc.getVisualisationFifo();
+    fifo.setEnabled (true);
+    VizFrame frame;
+    frame.posLo = 128;
+    fifo.push (frame);
+    VizFrame drained;
+    GF_EXPECT (fifo.pop (&drained, 1) == 1);
+    GF_EXPECT (proc.getExplainState().timelineModel.frames.size() == 1);
+}

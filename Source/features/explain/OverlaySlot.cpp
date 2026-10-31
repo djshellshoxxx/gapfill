@@ -31,10 +31,10 @@ VisualiserOverlayComponent::VisualiserOverlayComponent (GapFillAudioProcessor& p
     timelineToggle.setButtonText (timeline.isVisible() ? "HIDE TIMELINE" : "TIMELINE");
     addChildComponent (timeline);
 
-    proc.getVisualisationFifo().setReadObserver (&proc,
+    proc.getVisualisationFifo().setReadObserver (this,
         [] (void* context, const VizFrame* drained, int count)
         {
-            auto& processor = *static_cast<GapFillAudioProcessor*> (context);
+            auto& processor = static_cast<VisualiserOverlayComponent*> (context)->proc;
             auto& frames = processor.getExplainState().timelineModel.frames;
             frames.setPositionAnchor (processor.getSourceHistoryWritePosition()
                                       - processor.getMeterState().latencySamples.load());
@@ -44,7 +44,7 @@ VisualiserOverlayComponent::VisualiserOverlayComponent (GapFillAudioProcessor& p
 
 VisualiserOverlayComponent::~VisualiserOverlayComponent()
 {
-    proc.getVisualisationFifo().clearReadObserver (&proc);
+    proc.getVisualisationFifo().clearReadObserver (this);
 }
 
 void VisualiserOverlayComponent::setTimelineExpanded (bool shouldExpand)
