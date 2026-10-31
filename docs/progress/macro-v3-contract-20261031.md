@@ -88,3 +88,11 @@ plus retained legacy tree under8KiB, schema precedence/fallback, scene/import/
 Undo, LFO random access/seek/block invariance, deterministic Energy, send
 composition, width rejection/smoothing, allocation and actual integrated renders.
 This checkpoint contains contracts and neutral fields, not a completion claim.
+
+The first implementation slice adds only pure source functions. A standalone
+native probe was RED at link time before implementation, then passed six shape
+ranges over120,000 negative/positive positions, meter-aware phase, free sample
+clock, huge/nonfinite input, random-channel separation, seek repeatability,
+RandomGlide boundary continuity, Knob depth identity and signed Energy/depth.
+Five repository tests include allocation guarding. No runtime/host wiring is
+claimed by this source-only slice.
