@@ -53,7 +53,14 @@ be admitted while Hold is on.
 
 ## Narrow modules and audio data
 
-- `CandidateSelector`: fixed eight descriptors `{sourcePosition,strength,epoch}`,
+- `CandidateSelector`: fixed1024 accepted/32 pending descriptors
+  `{sourcePosition,strength,epoch}` (about17KiB, exact implementation measured).
+  The ticket's eight-entry ring cannot retain exact Strongest over4s at the
+  actual5ms minimum detection spacing (up to800 hits), or24 pending hits during
+  the120ms confirmation period. The coordinator approved this bounded correction;
+  the original eight-entry memory criterion is not claimed met. Overflow is an
+  explicit rejected/unknown admission, never an unbounded allocation. Selection
+  scans at most1024 descriptors, only at selection, never per sample. There is
   no PCM or host pointer. A candidate requires strength≥0.5, nonclipping peak<.99,
   preceding30ms peak≥20dB below its hit and no stronger event in following120ms.
   Admission is delayed until that future evidence exists. Last/Strongest search
@@ -61,10 +68,12 @@ be admitted while Hold is on.
   missing/overwritten history invalidate descriptors. No-candidate Manual request
   reports "No suitable hit yet" and leaves the active IR intact.
 - `CaptureJob`: one immutable identity `{generation,sourceEpoch,start,length,
-  copied,sourceChannels,settings}`. Audio copies at most4096samples/chunk into a
+  copied,sourceChannels,settings}`. Audio copies at most4096samples/host callback into a
   preallocated mailbox and verifies the source's oldest/newest bounds before
   every copy, including8192input/4096copy callbacks. An overwritten/changed source
-  cancels that generation; it never queues corrupted audio. Do not lend a mutable
+  cancels that generation; it never queues corrupted audio. Internal processChunk
+  calls share one beginHostBlock quota; splitting a callback must not multiply it.
+  Do not lend a mutable
   SourceHistory pointer to a worker. Only complete jobs enter the worker queue.
 - `IrPreparer`: pure shaping plus kernel construction with preallocated FFT plan/
   scratch. Remove DC,2ms fade-in, specified last70% power fade ending exactly0,
@@ -174,3 +183,14 @@ do not claim that a max bound is safe for the old serial cascade.
 Human listening/real host validation follows implemented software and remains
 explicitly open. It is not a reason to leave the deterministic fallback, source
 controls, worker contract or actual engine unimplemented.
+
+## Parameter/settings checkpoint
+
+`l21ext.cpp` now supplies the exact nine controls in the table, version hint3,
+logarithmic Damp normalization, and empty Performance/Random-All allowlists.
+`convreverb::Settings` in `HitReverbSettings.h` uses enabled, mix01, source,
+hold, lengthMs, preDelayMs, dampHz, decay01 and stereo. Root gathers the two
+percentage parameters with*.01 and choice indices into the scoped enums.
+Sanitisation clamps malformed optional values before preparing bounded work.
+The pure settings probe passes2/2 under strict GCC warnings; the actual builder
+passes JUCE8 syntax compilation. Registry/host/scene integration is pending.
