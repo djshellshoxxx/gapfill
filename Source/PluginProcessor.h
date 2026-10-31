@@ -27,6 +27,7 @@
 #include "features/midiout/MidiOut.h"
 #include "features/quality/Quality.h"
 #include "features/coop/Coop.h"
+#include "features/transport/TransportTracker.h"
 
 namespace gapfill
 {
@@ -316,9 +317,7 @@ private:
 
     juce::SmoothedValue<float> dryGain, wetGain, outGain, centreProtect, widthAmount, bypassMix;
 
-    double lastPpqPosition = 0.0; // projected PPQ at the next DAW callback
-    bool   lastTransportPlaying = false;
-    bool   lastTransportPositionValid = false;
+    transport::TransportTracker transportTracker;
    #ifdef GAPFILL_UNIT_TESTS
     int transportJumpCountForTests = 0;
    #endif

@@ -105,6 +105,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     (void) surpriseTargets (0);
 
     currentSampleRate = juce::jmax (8000.0, sampleRate);
+    transportTracker.prepare (currentSampleRate);
     preparedBlockSize = juce::jlimit (16, 65536, samplesPerBlock > 0 ? samplesPerBlock : 512);
     mainChannels = juce::jlimit (1, 2, juce::jmax (1, getMainBusNumOutputChannels()));
 
@@ -217,9 +218,7 @@ void GapFillAudioProcessor::reset()
     meters.sidechainRequested.store (false);
     meters.captureActive.store (false);
 
-    lastPpqPosition = 0.0;
-    lastTransportPlaying = false;
-    lastTransportPositionValid = false;
+    transportTracker.reset();
    #ifdef GAPFILL_UNIT_TESTS
     transportJumpCountForTests = 0;
    #endif
@@ -443,15 +442,11 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
     // Compare this callback's position with the end predicted by the PREVIOUS
     // complete host callback. Using the current chunk length is wrong when a
     // DAW changes buffer sizes or processBlock splits oversized host buffers.
-    if (playing && startSample == 0)
+    if (startSample == 0)
     {
-        // W-03: "playing without a PPQ" is a one-shot (the callback that loses the position), not a reset on every
-        // callback, which would panic the wet signal and restart the gap counter in every block.
-        const bool jumped = ! lastTransportPlaying
-                            || (ppqValid ? (! lastTransportPositionValid || std::abs (ppq - lastPpqPosition) > 0.25)
-                                         : lastTransportPositionValid);
+        const auto kind = transportTracker.update ({ playing, ppqValid, ppq, bpm, hostBlockSamples });
 
-        if (jumped)
+        if (kind == transport::JumpKind::Start || kind == transport::JumpKind::Discontinuity)
         {
             engine.noteTransportJump();
             contextState.onTransportJump();
@@ -460,17 +455,11 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
             ++transportJumpCountForTests;
            #endif
         }
-
-        lastPpqPosition = ppqValid ? ppq + (double) hostBlockSamples / samplesPerBeat : 0.0;
-        lastTransportPositionValid = ppqValid;
+        else if (kind == transport::JumpKind::Stop)
+        {
+            panicWet();
+        }
     }
-    else if (lastTransportPlaying && ! playing && startSample == 0)
-    {
-        panicWet();
-    }
-
-    if (startSample == 0)
-        lastTransportPlaying = playing;
 
     // Tempo-synced lengths (E-2): the host tempo, else the last one it reported,
     // else the Options fallback (120 BPM by default). Out-of-range lengths are
