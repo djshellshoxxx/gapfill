@@ -44,6 +44,9 @@ struct Command
     std::uint32_t issuedMs = 0;    ///< juce::Time::getMillisecondCounter() at push; 0 = unstamped (never stale)
     RecipeExtras extras {};
     std::uint64_t lockEpoch = 0;   ///< transient restore generation; never persisted in recipe/event files
+    std::uint8_t controllerBehavior = 0; ///< 0 legacy, 3 detailed controller semantics
+    std::uint8_t controllerMode = 0;     ///< BindMode0 trigger,1 momentary,2 toggle
+    std::uint8_t controllerSlot = 0;     ///< fixed binding token0..47, independent held-source ownership
 };
 
 //==============================================================================

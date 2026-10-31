@@ -272,6 +272,18 @@ These rows are in scope, not external acceptance and not automatically deferred:
   internal segments at most4096 samples plus an overwrite guard; no unbounded
   copy or larger-than-budget ring is allowed. Current Granular voices retain
   the existing safe source-change fade because they still borrow history.
+- Next reserved host tail is **L21EXT nine controls at286–294** for the opt-in
+  detailed Hit Reverb; the separate contract lists exact IDs/defaults. Reserve
+  append-only `CaptureIr=34` after existing `PresetGoto=33`; no current command
+  is renumbered. Hold blocks both automatic and manual IR replacement. Keep the
+  detailed ticket's under2MB-at192k claim explicitly open against its own two
+  stereo float-spectrum-bank arithmetic; the bounded implementation and actual
+  measured memory must be reviewable before resolving that numerical conflict.
+- Controller commands append runtime behavior/mode/binding-slot bytes, preserving
+  the16-byte recipe and all flags. New momentary semantics use a distinct CmdV3
+  subtree because the actual released Cmd reader ignores version attributes.
+  Events4 must encode the added command semantics explicitly in its fixed24-byte
+  record; older event file formats keep their exact reader/writer behavior.
 - Keep the released 16-byte `FillRecipe` and every flag bit unchanged. Add an
   optional bounded POD `RecipeExtras` alongside it: 12-byte feature-owned
   harmonic metadata and 28-byte feature-owned Tape metadata inside a 44-byte
