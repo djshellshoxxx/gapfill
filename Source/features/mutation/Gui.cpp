@@ -4,6 +4,7 @@
 #include "../../gui/HelpRegistry.h"
 #include "../../gui/LookAndFeel.h"
 #include "../info/ParamInfo.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::mutation
 {
@@ -14,7 +15,7 @@ juce::String LabPanel::geneDisplayName (int gene)
         return {};
 
     if (const auto* info = info::ParamInfoRegistry::get().find (geneIds()[(size_t) gene]))
-        return info->shortName;
+        return i18n::text (info->shortName);
 
     return geneIds()[(size_t) gene];
 }
@@ -43,6 +44,7 @@ LabPanel::LabPanel (GapFillAudioProcessor& p) : proc (p), lab (p.getUiState().la
         if (lab.favourites.empty())
             menu.addItem (1000, "No favourites yet - press FAV on a variation", false);
 
+        i18n::translateMenu (menu, [] (int id) { return id > 0 && id < 1000; });
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&breedButton),
                             [safe = juce::Component::SafePointer<LabPanel> (this)] (int r)
                             {
@@ -91,7 +93,7 @@ LabPanel::LabPanel (GapFillAudioProcessor& p) : proc (p), lab (p.getUiState().la
     {
         auto* t = pinToggles.add (new juce::ToggleButton (geneDisplayName (i)));
         t->setToggleState (lab.isPinned (i), juce::dontSendNotification);
-        t->setTitle ("Pin " + geneDisplayName (i));
+        t->setTitle (i18n::format ("Pin {0}", { geneDisplayName (i) }));
         t->setTooltip ("Pinned controls are copied unchanged into every variation.");
         t->onClick = [this, i, t] { lab.setPinned (i, t->getToggleState()); };
         pinContent.addAndMakeVisible (*t);
@@ -123,7 +125,7 @@ LabPanel::LabPanel (GapFillAudioProcessor& p) : proc (p), lab (p.getUiState().la
             refresh();
 
             if (auto* handler = getAccessibilityHandler())
-                handler->postAnnouncement ("Kept variation " + juce::String::charToString ((juce::juce_wchar) ('A' + c)),
+                handler->postAnnouncement (i18n::format ("Kept variation {0}", { juce::String::charToString ((juce::juce_wchar) ('A' + c)) }),
                                            juce::AccessibilityHandler::AnnouncementPriority::medium);
         };
         card.fav.onClick = [this, c] { lab.addFavourite (c); refresh(); };
@@ -133,6 +135,7 @@ LabPanel::LabPanel (GapFillAudioProcessor& p) : proc (p), lab (p.getUiState().la
         addAndMakeVisible (card.fav);
     }
 
+    translator = std::make_unique<i18n::ComponentTranslator> (*this); // call-outs can live outside the editor tree
     refresh();
     startTimerHz (15);
 }
@@ -166,6 +169,11 @@ juce::String LabPanel::describeChild (int child) const
 void LabPanel::timerCallback()
 {
     lab.tick();
+    if (lastLanguageGeneration != i18n::languageGeneration())
+    {
+        refresh();
+        resized();
+    }
 
     // tick() may have ended the preview (something else changed the sound).
     if (lab.previewing() < 0)
@@ -183,10 +191,16 @@ void LabPanel::refresh()
     const juce::ScopedValueSetter<bool> guard (refreshing, true);
     const auto* gen = lab.currentGeneration();
 
-    parentText = gen != nullptr ? "Parent: your current sound  |  generation " + juce::String (gen->index)
-                                        + "  |  " + juce::String (lab.numGenerations()) + " kept in history"
-                                : juce::String ("Parent: your current sound. Press MUTATE to make four variations.");
+    lastLanguageGeneration = i18n::languageGeneration();
+    parentText = gen != nullptr ? i18n::format ("Parent: your current sound  |  generation {0}  |  {1} kept in history",
+                                               { juce::String (gen->index), juce::String (lab.numGenerations()) })
+                                : i18n::text ("Parent: your current sound. Press MUTATE to make four variations.");
     parentLabel.setText (parentText, juce::dontSendNotification);
+    for (int i = 0; i < pinToggles.size(); ++i)
+    {
+        pinToggles[i]->setButtonText (geneDisplayName (i));
+        pinToggles[i]->setTitle (i18n::format ("Pin {0}", { geneDisplayName (i) }));
+    }
 
     for (int c = 0; c < kNumChildren; ++c)
     {
@@ -194,14 +208,15 @@ void LabPanel::refresh()
         const bool have = gen != nullptr;
         const auto letter = juce::String::charToString ((juce::juce_wchar) ('A' + c));
         card.detail = have ? describeChild (c) : juce::String();
-        card.title = "Variation " + letter + (have ? ", differs in " + card.detail : juce::String());
+        card.title = have ? i18n::format ("Variation {0}, differs in {1}", { letter, card.detail })
+                          : i18n::format ("Variation {0}", { letter });
         card.preview.setEnabled (have);
         card.keep.setEnabled (have);
         card.fav.setEnabled (have && (int) lab.favourites.size() < kMaxFavourites);
         card.preview.setToggleState (lab.previewing() == c, juce::dontSendNotification);
-        card.preview.setTitle ("Preview variation " + letter);
-        card.keep.setTitle ("Keep variation " + letter);
-        card.fav.setTitle ("Favourite variation " + letter);
+        card.preview.setTitle (i18n::format ("Preview variation {0}", { letter }));
+        card.keep.setTitle (i18n::format ("Keep variation {0}", { letter }));
+        card.fav.setTitle (i18n::format ("Favourite variation {0}", { letter }));
     }
 
     revertButton.setEnabled (lab.numGenerations() > 0);
@@ -271,8 +286,9 @@ void LabPanel::paint (juce::Graphics& g)
     g.drawRect (getLocalBounds(), 1);
 
     g.setColour (colours::text);
-    g.setFont (fonts::sectionHeader (12.0f));
-    g.drawText ("MUTATION LAB", 12, 10, 200, 16, juce::Justification::centredLeft);
+    const auto title = i18n::text ("MUTATION LAB");
+    g.setFont (i18n::fontForText (fonts::sectionHeader (12.0f), title));
+    g.drawText (title, 12, 10, 300, 16, juce::Justification::centredLeft);
 
     for (int c = 0; c < kNumChildren; ++c)
     {
@@ -286,8 +302,10 @@ void LabPanel::paint (juce::Graphics& g)
         g.drawRoundedRectangle (r.reduced (0.5f), 4.0f, previewing ? 2.0f : 1.0f);
 
         g.setColour (colours::text);
-        g.setFont (fonts::ui (16.0f, true));
-        g.drawText (juce::String::charToString ((juce::juce_wchar) ('A' + c)) + (previewing ? "  (hearing)" : ""),
+        const auto letter = juce::String::charToString ((juce::juce_wchar) ('A' + c));
+        const auto heading = previewing ? i18n::format ("{0}  (hearing)", { letter }) : letter;
+        g.setFont (i18n::fontForText (fonts::ui (16.0f, true), heading));
+        g.drawText (heading,
                     card.bounds.reduced (8, 4).removeFromTop (22), juce::Justification::centredLeft);
 
         g.setColour (colours::textMuted);

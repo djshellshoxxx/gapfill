@@ -17,6 +17,8 @@ juce::String tr (const juce::String& key);
 juce::String text (const juce::String& english);
 /** Complete-sentence template; arguments are inserted verbatim, never translated. */
 juce::String format (const juce::String& englishPattern, std::initializer_list<juce::String> arguments);
+/** UI sink for legacy file errors; recognized dynamic arguments stay verbatim. */
+juce::String errorText (const juce::String& english);
 juce::String currentLanguage();
 std::uint64_t languageGeneration();
 std::vector<Language> availableLanguages();

@@ -12,6 +12,7 @@
 #include "../SlotHost.h"
 #include "../../PluginProcessor.h"
 #include "../../features/wetbus/WetBus.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -115,15 +116,15 @@ namespace
             // Wet bus: declared or not, enabled by the host or not.
             juce::String wet;
             if (! wetbus::isDeclared (juce::PluginHostType::getPluginLoadedAs()))
-                wet = "Wet bus: not available in this plug-in format";
+                wet = i18n::text ("Wet bus: not available in this plug-in format");
             else if (proc.getBusCount (false) > wetbus::kWetBusIndex && proc.getBus (false, wetbus::kWetBusIndex)->isEnabled())
-                wet = proc.getBus (false, wetbus::kWetBusIndex)->getNumberOfChannels() == 1
-                          ? "Wet bus: enabled by the host (mono)" : "Wet bus: enabled by the host (stereo)";
+                wet = i18n::text (proc.getBus (false, wetbus::kWetBusIndex)->getNumberOfChannels() == 1
+                                     ? "Wet bus: enabled by the host (mono)" : "Wet bus: enabled by the host (stereo)");
             else
-                wet = "Wet bus: off - enable it in your DAW's plug-in output routing";
+                wet = i18n::text ("Wet bus: off - enable it in your DAW's plug-in output routing");
 
             if (v.getRawParameterValue ("wetSolo")->load() > 0.5f)
-                wet += "  |  WET ONLY: Dry and Wet are bypassed";
+                wet = i18n::format ("{0}  |  WET ONLY: Dry and Wet are bypassed", { wet });
 
             setText (wetStatus, wet);
 
@@ -138,20 +139,26 @@ namespace
 
             setText (coopStatus, proc.getCoop().describe());
 
-            char buf[64];
             const int mode = (int) std::lround (v.getRawParameterValue ("qualityMode")->load());
-            juce::String q = quality::footerText (mode, proc.getAppliedQualityLevel(), buf, 64);
+            const auto applied = proc.getAppliedQualityLevel();
+            juce::String q;
+            if (mode == quality::ModeAuto)
+                q = i18n::format ("Quality: {0} (auto)", { i18n::text (quality::levelName (applied)) });
+            else if (applied != quality::Full)
+                q = i18n::format ("Quality: {0}", { i18n::text (quality::levelName (applied)) });
 
             if (proc.getQualityController().requestedLevel() != proc.getAppliedQualityLevel())
-                q += (q.isEmpty() ? "" : "  |  ") + juce::String ("change waits for a quiet moment");
+                q = q.isEmpty() ? i18n::text ("change waits for a quiet moment")
+                                : i18n::format ("{0}  |  change waits for a quiet moment", { q });
 
             setText (qualityStatus, q);
         }
 
         static void setText (juce::Label& l, const juce::String& t)
         {
-            if (l.getText() != t)
-                l.setText (t, juce::dontSendNotification);
+            const auto displayed = i18n::text (t);
+            if (l.getText() != displayed)
+                l.setText (displayed, juce::dontSendNotification);
         }
 
         GapFillAudioProcessor& proc;

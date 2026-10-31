@@ -28,6 +28,15 @@ field metadata may translate. Call `translateMenu(menu, preserveItemPredicate)`
 before showing dynamic menus, preserving user-data item IDs explicitly.
 
 Options, Help writer sinks and reason/legend presentation use the service.
+Separate preset-browser and Mutation Lab call-outs own adapters because desktop
+popups may live outside the editor tree. Native dialogs and dynamic status/a11y
+sentences use explicit formatters. The preset browser keeps a canonical category
+property separate from translated chip text; user/factory names retain their
+identity. The recipe formatter changes display only; generated filenames and
+serialized recipe descriptions keep the existing canonical English function.
+`errorText` recognizes documented legacy file-error templates at presentation
+sinks and preserves path/name arguments. Registered ParamInfo tooltips use an
+exact alias table plus complete templates, retaining canonical metadata APIs.
 `fontForText` checks nominal glyph coverage and falls back to JUCE default sans
 when the chosen face is missing a character. Renderer owners must use it where
 they select fonts for custom drawing. English reason enum labels/advice remain
@@ -39,9 +48,13 @@ key and an estimated sink category. **Pending categories are not coverage.**
 Review runtime fragments, menus and custom drawing explicitly; the catalog's
 presence cannot prove a string is wired. The pseudo catalog accents and expands
 complete strings by at least 40 percent, retaining placeholders unchanged.
+It accents one letter per word to exercise glyph coverage within the byte cap;
+protocol IDs, structure tags, thread names and numeric character sets are pruned.
+Plain HelpRegistrar bodies are cataloged at the actual split-paragraph sinks.
 
 `I18n` tests cover validation, English fallback, placeholder preservation,
 project-state neutrality, user-data collisions, item IDs, language round trips,
-dynamic children and allocation-free unchanged refresh. Actual multilingual
+dynamic children, real shaped Help glyph bounds at three widths, and
+allocation-free unchanged refresh. Actual multilingual
 layout/native glyph/host evidence must still be recorded; use `ScopedLanguage`
 in tests so locale selection cannot contaminate later golden/layout cases.

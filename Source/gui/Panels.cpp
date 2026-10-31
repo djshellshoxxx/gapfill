@@ -1,5 +1,7 @@
 #include "Panels.h"
 #include "../features/info/ParamInfo.h"
+#include "../features/i18n/Strings.h"
+#include "../features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -456,8 +458,9 @@ void SpectralPanel::paint (juce::Graphics& g)
         g.fillRoundedRectangle (filled, 3.0f);
 
         g.setColour (colours::textDim);
-        g.setFont (juce::Font (juce::FontOptions (9.5f)));
-        g.drawText (lanes[i].confidence > 0.55f ? "SPACE AVAILABLE" : "BUSY",
+        const auto status = i18n::text (lanes[i].confidence > 0.55f ? "SPACE AVAILABLE" : "BUSY");
+        g.setFont (i18n::fontForText (juce::Font (juce::FontOptions (9.5f)), status));
+        g.drawText (status,
                     bounds.reduced (5.0f, 0.0f).toNearestInt(), juce::Justification::centredLeft);
     }
 }

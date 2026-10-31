@@ -4,6 +4,7 @@
 #include "../../gui/HelpRegistry.h"
 #include "../../gui/Knob.h"
 #include "../../gui/LookAndFeel.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::presets
 {
@@ -62,7 +63,7 @@ PresetBrowser::PresetBrowser (GapFillAudioProcessor& p, std::shared_ptr<settings
 
     catalog.setFactory (factoryEntries());
 
-    search.setTextToShowWhenEmpty ("Search presets by name or description", colours::textMuted);
+    search.setTextToShowWhenEmpty (i18n::text ("Search presets by name or description"), colours::textMuted);
     search.setTitle ("Search presets");
     search.setDescription ("Type to filter the preset list by name or description");
     search.setColour (juce::TextEditor::backgroundColourId, colours::background);
@@ -97,12 +98,15 @@ PresetBrowser::PresetBrowser (GapFillAudioProcessor& p, std::shared_ptr<settings
     countLabel.setJustificationType (juce::Justification::centredRight);
     addAndMakeVisible (countLabel);
 
+    translator = std::make_unique<i18n::ComponentTranslator> (*this);
+    i18n::languageChanges().addChangeListener (this);
     applyFilter();
     startBackgroundScan();
 }
 
 PresetBrowser::~PresetBrowser()
 {
+    i18n::languageChanges().removeChangeListener (this);
     stopTimer();
 
     if (scan != nullptr)
@@ -159,9 +163,10 @@ void PresetBrowser::buildChips()
     for (const auto& n : names)
     {
         auto* chip = chips.add (new juce::TextButton (n));
+        chip->getProperties().set ("gf.presetCategory", n); // canonical identity never comes from translated text
         chip->setClickingTogglesState (true);
         chip->setRadioGroupId (4410);
-        chip->setTitle ("Category " + n);
+        chip->setTitle (i18n::format ("Category {0}", { i18n::text (n) }));
         chip->setWantsKeyboardFocus (false);
         chip->onClick = [this, n] { setCategory (n == "All" ? juce::String() : n); };
         addAndMakeVisible (chip);
@@ -174,8 +179,9 @@ void PresetBrowser::updateChipStates()
 {
     for (auto* chip : chips)
     {
-        const auto isAll = chip->getButtonText() == "All";
-        const bool on = isAll ? categoryFilter.isEmpty() : categoryFilter == chip->getButtonText();
+        const auto identity = chip->getProperties()["gf.presetCategory"].toString();
+        const auto isAll = identity == "All";
+        const bool on = isAll ? categoryFilter.isEmpty() : categoryFilter == identity;
         chip->setToggleState (on, juce::dontSendNotification);
     }
 }
@@ -199,8 +205,23 @@ void PresetBrowser::applyFilter()
     list.updateContent();
     list.repaint();
 
-    countLabel.setText (juce::String ((int) visibleRows.size()) + " of " + juce::String ((int) catalog.entries().size()),
+    countLabel.setText (i18n::format ("{0} of {1}", { juce::String ((int) visibleRows.size()), juce::String ((int) catalog.entries().size()) }),
                         juce::dontSendNotification);
+}
+
+void PresetBrowser::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    search.setTextToShowWhenEmpty (i18n::text ("Search presets by name or description"), colours::textMuted);
+    for (auto* chip : chips)
+    {
+        const auto identity = chip->getProperties()["gf.presetCategory"].toString();
+        chip->setButtonText (i18n::text (identity));
+        chip->setTitle (i18n::format ("Category {0}", { i18n::text (identity) }));
+    }
+    applyFilter();
+    translator->refresh();
+    resized();
+    repaint();
 }
 
 void PresetBrowser::showSuggestions (bool show)
@@ -253,8 +274,12 @@ void PresetBrowser::paint (juce::Graphics& g)
         g.setColour (colours::accent.withAlpha (0.14f));
         g.fillRoundedRectangle (suggestionBounds.toFloat(), 3.0f);
         g.setColour (colours::text);
-        g.setFont (fonts::ui (11.5f));
-        g.drawText ("Suggested: " + suggested.joinIntoString (", ") + "   |   " + suggestionText,
+        juce::StringArray displayed;
+        for (const auto& category : suggested)
+            displayed.add (i18n::text (category));
+        const auto message = i18n::format ("Suggested: {0}   |   {1}", { displayed.joinIntoString (", "), suggestionText });
+        g.setFont (i18n::fontForText (fonts::ui (11.5f), message));
+        g.drawText (message,
                     suggestionBounds.reduced (6, 0), juce::Justification::centredLeft, true);
     }
 }
@@ -346,18 +371,19 @@ void PresetBrowser::paintListBoxItem (int row, juce::Graphics& g, int w, int h, 
     auto top = text.removeFromTop (16);
 
     g.setColour (colours::text);
-    g.setFont (fonts::ui (13.0f).boldened());
-    const auto tag = e.origin == PresetEntry::Origin::User ? e.category + "  |  user" : e.category;
+    g.setFont (i18n::fontForText (fonts::ui (13.0f).boldened(), e.name));
+    const auto tag = e.origin == PresetEntry::Origin::User ? i18n::format ("{0}  |  user", { e.category }) : i18n::text (e.category);
     const auto tagWidth = textWidth (fonts::ui (10.5f), tag) + 6;
     g.drawText (e.name, top.withTrimmedRight (tagWidth), juce::Justification::centredLeft, true);
 
     g.setColour (colours::textMuted);
-    g.setFont (fonts::ui (10.5f));
+    g.setFont (i18n::fontForText (fonts::ui (10.5f), tag));
     g.drawText (tag, top.removeFromRight (tagWidth), juce::Justification::centredRight, true);
 
     g.setColour (colours::textDim);
-    g.setFont (fonts::ui (11.0f));
-    g.drawText (e.description, text, juce::Justification::centredLeft, true);
+    const auto description = e.origin == PresetEntry::Origin::User ? e.description : i18n::text (e.description);
+    g.setFont (i18n::fontForText (fonts::ui (11.0f), description));
+    g.drawText (description, text, juce::Justification::centredLeft, true);
 }
 
 juce::String PresetBrowser::getNameForRow (int row)
@@ -366,7 +392,9 @@ juce::String PresetBrowser::getNameForRow (int row)
         return {};
 
     const auto& e = catalog.entries()[(size_t) visibleRows[(size_t) row]];
-    return e.name + ", " + e.category + (settingsFile->isFavourite (e.identity) ? ", favourite" : "");
+    const auto category = e.origin == PresetEntry::Origin::User ? e.category : i18n::text (e.category);
+    return settingsFile->isFavourite (e.identity) ? i18n::format ("{0}, {1}, favourite", { e.name, category })
+                                                : i18n::format ("{0}, {1}", { e.name, category });
 }
 
 void PresetBrowser::listBoxItemClicked (int row, const juce::MouseEvent& e)
@@ -410,7 +438,7 @@ bool PresetBrowser::loadVisibleRow (int row)
     if (! loadPreset (proc, entry, error))
     {
         juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
-                                                "Could not open preset", error, "OK", this);
+                                                i18n::text ("Could not open preset"), i18n::errorText (error), i18n::text ("OK"), this);
         return false;
     }
 
@@ -438,6 +466,7 @@ void PresetBrowser::showRowMenu (int row)
 
     juce::Component::SafePointer<PresetBrowser> safe (this);
 
+    i18n::translateMenu (menu);
     menu.showMenuAsync (juce::PopupMenu::Options(), [safe, entry, row] (int result)
     {
         if (safe == nullptr || result == 0)
@@ -454,10 +483,10 @@ void PresetBrowser::showRowMenu (int row)
         }
         else if (result == 2)
         {
-            auto* window = new juce::AlertWindow ("Rename preset", "New name:", juce::MessageBoxIconType::NoIcon);
+            auto* window = new juce::AlertWindow (i18n::text ("Rename preset"), i18n::text ("New name:"), juce::MessageBoxIconType::NoIcon);
             window->addTextEditor ("name", entry.name, {});
-            window->addButton ("Rename", 1);
-            window->addButton ("Cancel", 0);
+            window->addButton (i18n::text ("Rename"), 1);
+            window->addButton (i18n::text ("Cancel"), 0);
             gapfill::applyPaletteTo (*window);
 
             window->enterModalState (true, juce::ModalCallbackFunction::create ([safe, entry, window] (int r)
@@ -471,15 +500,15 @@ void PresetBrowser::showRowMenu (int row)
                 juce::String error;
 
                 if (! renameUserPreset (entry, name, error))
-                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Could not rename preset", error, "OK", safe.getComponent());
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, i18n::text ("Could not rename preset"), i18n::errorText (error), i18n::text ("OK"), safe.getComponent());
 
                 safe->refreshNow();
             }), false);
         }
         else if (result == 3)
         {
-            juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Delete preset",
-                                                "Delete \"" + entry.name + "\"? This cannot be undone.", "Delete", "Cancel", safe.getComponent(),
+            juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, i18n::text ("Delete preset"),
+                                                i18n::format ("Delete \"{0}\"? This cannot be undone.", { entry.name }), i18n::text ("Delete"), i18n::text ("Cancel"), safe.getComponent(),
                                                 juce::ModalCallbackFunction::create ([safe, entry] (int r)
             {
                 if (safe == nullptr || r != 1)
@@ -488,7 +517,7 @@ void PresetBrowser::showRowMenu (int row)
                 juce::String error;
 
                 if (! deleteUserPreset (entry, error))
-                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "Could not delete preset", error, "OK", safe.getComponent());
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, i18n::text ("Could not delete preset"), i18n::errorText (error), i18n::text ("OK"), safe.getComponent());
 
                 safe->refreshNow();
             }));

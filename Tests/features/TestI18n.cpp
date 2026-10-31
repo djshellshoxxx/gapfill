@@ -3,6 +3,11 @@
 #include "features/i18n/Catalog.h"
 #include "features/i18n/Strings.h"
 #include "features/i18n/ComponentTranslator.h"
+#include "features/i18n/RecipePresentation.h"
+#include "features/history/Describe.h"
+#include "features/presetbrowser/PresetBrowser.h"
+#include "features/info/ParamInfo.h"
+#include "gui/HelpView.h"
 #include "../support/AllocGuard.h"
 #include <array>
 
@@ -149,7 +154,97 @@ GF_TEST (I18n, new_components_and_choices_translate_without_changing_model_ids)
     translate.refresh();
     choices.addItem ("OK", 73);
     choices.setSelectedId (73, juce::dontSendNotification);
+    int changes = 0;
+    choices.onChange = [&changes] { ++changes; };
     translate.refresh();
     GF_EXPECT (choices.getItemText (0) == text ("OK"));
     GF_EXPECT (choices.getSelectedId() == 73);
+    GF_EXPECT (changes == 0);
+    GF_EXPECT (setLanguage ("en", false));
+    translate.refresh();
+    GF_EXPECT (choices.getSelectedId() == 73 && choices.getText() == "OK" && changes == 0);
+}
+
+GF_TEST (I18n, file_error_templates_preserve_paths_as_arguments)
+{
+    ScopedLanguage language ("pseudo");
+    const juce::String path = "/user/Language/OK/{0}.wav";
+    const auto displayed = errorText ("Couldn't open " + path + " for writing.");
+    GF_EXPECT (displayed == format ("Couldn't open {0} for writing.", { path }));
+    GF_EXPECT (displayed.contains (path));
+    GF_EXPECT (errorText (path) == path);
+}
+
+GF_TEST (I18n, recipe_display_translation_preserves_canonical_name_and_data)
+{
+    gapfill::FillRecipe recipe;
+    recipe.algo = 0;
+    recipe.band = 1;
+    recipe.lengthMs = 180;
+    const auto original = gapfill::history::describeRecipe (recipe, 0.0);
+    {
+        ScopedLanguage language ("en");
+        GF_EXPECT (describeRecipe (recipe) == original);
+    }
+    {
+        ScopedLanguage language ("pseudo");
+        GF_EXPECT (describeRecipe (recipe) != original);
+        GF_EXPECT (describeRecipe (recipe).contains ("180"));
+        GF_EXPECT (gapfill::history::describeRecipe (recipe, 0.0) == original);
+        GF_EXPECT (recipe.lengthMs == 180 && recipe.band == 1 && recipe.algo == 0);
+    }
+}
+
+GF_TEST (I18n, translated_preset_category_chips_keep_canonical_filter_identity)
+{
+    ScopedLanguage language ("pseudo");
+    gapfill::GapFillAudioProcessor processor;
+    juce::TemporaryFile temporary (".xml");
+    auto settings = std::make_shared<gapfill::settings::GlobalSettings> (temporary.getFile());
+    gapfill::presets::PresetBrowser browser (processor, settings, {});
+    browser.refreshNow();
+    const auto all = browser.getNumVisible();
+    browser.setCategory ("Rhythmic");
+    for (auto* child : browser.getChildren())
+        if (auto* button = dynamic_cast<juce::TextButton*> (child))
+            if (button->getProperties()["gf.presetCategory"].toString() == "All")
+            {
+                GF_EXPECT (button->getButtonText() == text ("All"));
+                button->onClick();
+                GF_EXPECT (browser.getNumVisible() == all);
+                GF_EXPECT (button->getToggleState());
+                return;
+            }
+    GF_EXPECT (false);
+}
+
+GF_TEST (I18n, registered_parameter_tooltips_translate_as_presentation_only)
+{
+    const auto* metadata = gapfill::info::ParamInfoRegistry::get().find ("density");
+    GF_EXPECT (metadata != nullptr);
+    if (metadata == nullptr) return;
+    const auto canonical = gapfill::info::tooltipFor (*metadata);
+    ScopedLanguage language ("pseudo");
+    const auto displayed = text (canonical);
+    GF_EXPECT (displayed != canonical);
+    GF_EXPECT (displayed.contains (metadata->typicalRange));
+    GF_EXPECT (gapfill::info::tooltipFor (*metadata) == canonical);
+}
+
+GF_TEST (I18n, layout_no_clip_longest_string)
+{
+    // Help renders every registered prose entry, including the longest sentence,
+    // with real shaped fonts. Verify its actual glyph bounds at narrow/default/
+    // wide content widths, rather than estimating from character counts.
+    for (const auto* code : { "en", "pseudo" })
+    {
+        ScopedLanguage language (code);
+        gapfill::HelpContent content;
+        for (const auto width : { 320, 700, 1250 })
+        {
+            content.setSize (width, 100);
+            content.setSize (width, content.idealHeight());
+            GF_EXPECT (! content.hasHorizontalOverflow());
+        }
+    }
 }

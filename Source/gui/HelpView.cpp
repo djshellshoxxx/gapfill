@@ -93,6 +93,18 @@ void HelpContent::resized()
     rebuildLayout ((float) getWidth() - 32.0f);
 }
 
+bool HelpContent::hasHorizontalOverflow() const
+{
+    const auto available = juce::jmax (120.0f, (float) getWidth() - 32.0f);
+    for (int index = 0; index < layout.getNumLines(); ++index)
+    {
+        const auto bounds = layout.getLine (index).getLineBoundsX();
+        if (bounds.getStart() < -1.0f || bounds.getEnd() > available + 1.0f)
+            return true;
+    }
+    return false;
+}
+
 void HelpContent::paint (juce::Graphics& g)
 {
     layout.draw (g, juce::Rectangle<float> (16.0f, 10.0f,

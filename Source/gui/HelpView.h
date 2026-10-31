@@ -22,6 +22,8 @@ public:
 
     /** Height needed for the current width. */
     int idealHeight() const { return (int) std::ceil (layout.getHeight()) + 40; }
+    /** Actual shaped glyph bounds, used by layout QA at supported widths. */
+    bool hasHorizontalOverflow() const;
     std::function<void()> onContentChanged;
 
 private:

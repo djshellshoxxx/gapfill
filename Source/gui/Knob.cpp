@@ -2,6 +2,8 @@
 #include "../MidiLearn.h"
 #include "../features/info/ParamInfo.h"
 #include "../PluginProcessor.h"
+#include "../features/i18n/Strings.h"
+#include "../features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -28,14 +30,14 @@ namespace
         therefore outlives both the window and the editor. */
     void promptForValue (juce::RangedAudioParameter& parameter)
     {
-        auto* window = new juce::AlertWindow ("Set " + parameter.getName (32),
-                                              "Enter a new value:",
+        auto* window = new juce::AlertWindow (i18n::format ("Set {0}", { i18n::text (parameter.getName (32)) }),
+                                              i18n::text ("Enter a new value:"),
                                               juce::MessageBoxIconType::NoIcon);
         applyPaletteTo (*window);
 
         window->addTextEditor ("value", parameter.getCurrentValueAsText(), {});
-        window->addButton ("Set", 1, juce::KeyPress (juce::KeyPress::returnKey));
-        window->addButton ("Cancel", 0, juce::KeyPress (juce::KeyPress::escapeKey));
+        window->addButton (i18n::text ("Set"), 1, juce::KeyPress (juce::KeyPress::returnKey));
+        window->addButton (i18n::text ("Cancel"), 0, juce::KeyPress (juce::KeyPress::escapeKey));
 
         // Modal loops are disabled in this build, so everything is async.
         window->enterModalState (true, juce::ModalCallbackFunction::create (
@@ -119,10 +121,10 @@ void showParameterMenu (juce::Component& owner,
     // never store a pointer to it.
     juce::PopupMenu menu;
 
-    menu.addSectionHeader (parameter->getName (32));
+    menu.addSectionHeader (i18n::text (parameter->getName (32)));
 
     const auto defaultText = parameter->getText (parameter->getDefaultValue(), 24);
-    menu.addItem (kMenuReset, "Reset to default (" + defaultText + ")");
+    menu.addItem (kMenuReset, i18n::format ("Reset to default ({0})", { defaultText }));
     menu.addItem (kMenuSetValue, "Set value...");
 
     if (midiLearn != nullptr)
@@ -134,7 +136,7 @@ void showParameterMenu (juce::Component& owner,
         else
             menu.addItem (kMenuMidiLearn, "MIDI learn");
 
-        menu.addItem (kMenuMidiClear, mappedCC >= 0 ? "Forget MIDI CC " + juce::String (mappedCC)
+        menu.addItem (kMenuMidiClear, mappedCC >= 0 ? i18n::format ("Forget MIDI CC {0}", { juce::String (mappedCC) })
                                                     : juce::String ("Forget MIDI CC"),
                       mappedCC >= 0);
 
@@ -142,6 +144,7 @@ void showParameterMenu (juce::Component& owner,
                       midiLearn->getNumMappings() > 0);
     }
 
+    i18n::translateMenu (menu);
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&owner),
                         [parameter, midiLearn, parameterID] (int result)
     {

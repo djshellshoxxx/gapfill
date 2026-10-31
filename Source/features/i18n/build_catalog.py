@@ -51,11 +51,14 @@ def classify(value: str, source: str, start: int, end: int, path: Path, ids: set
     if re.search(r"(?:i18n::)?(?:text|format)\s*\(\s*$", prefix) and re.search(r"[A-Za-z]", value):
         return "explicit-translation"
     if (not re.search(r"[A-Za-z]", value) or value in PROTECTED or value in ids or len(value) > 8192
+            or re.fullmatch(r"[A-Z]", value) or re.fullmatch(r"[0-9eE .,+/\-]+", value)
             or "\0" in value or re.search(r"#[ \t]*include[^\n]*$", prefix)
             or value.startswith(("http:", "https:", "com.", "JUCE_", "GAPFILL_", "GF_"))
             or value.startswith(("{\"", "[{", "<?xml"))
             or re.fullmatch(r"[A-Za-z][A-Za-z0-9]*(?:[._][A-Za-z0-9]+)+", value)
             or re.search(r"(?:setProperty|getProperty|getChildWithName|hasProperty|hasType|Identifier)\s*\(\s*$", prefix)
+            or re.search(r"(?:Identifier|ValueTree)\s*(?:\w+\s*)?[{(]\s*$", prefix)
+            or re.search(r"(?:juce::Thread|ThreadWithProgressWindow)\s*\(\s*$", prefix)
             or re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", value) and value[0].islower()
             or re.search(r"\.(?:h|cpp|json|xml|gapfill|gfrecipe|gapbank|wav|png|zip)$", value)):
         return "protected-or-nonprose"
@@ -65,7 +68,8 @@ def classify(value: str, source: str, start: int, end: int, path: Path, ids: set
         if re.search(r"(?:menu|Menu)\.[^;]*$", prefix):
             return "pending-menu-adapter"
         return "component-adapter"
-    if re.search(r"(?:\.body|\.title|\.entry|HelpRegistrar)\s*\([^;]*$", prefix) or path.name == "HelpSections.cpp":
+    if (re.search(r"(?:\.body|\.title|\.entry|HelpRegistrar)\s*\([^;]*$", prefix)
+            or re.search(r"\bHelpRegistrar\s+\w+\s*\([^;]*$", prefix) or path.name == "HelpSections.cpp"):
         return "help-writer-adapter"
     if re.search(r"(?:drawText|drawFittedText)\s*\([^;]*$", prefix):
         return "pending-custom-drawing"
@@ -79,10 +83,37 @@ def classify(value: str, source: str, start: int, end: int, path: Path, ids: set
 def pseudo(value: str) -> str:
     # Numbered placeholders are copied exactly. Their argument data is never
     # accented, padded or interpreted by the runtime formatter.
-    parts = re.split(r"(\{\d+\}|\{\{|\}\})", value)
-    accented = "".join(part if re.fullmatch(r"\{\d+\}|\{\{|\}\}", part) else part.translate(ACCENTS) for part in parts)
+    parts = re.split(r"(\{\d+\}|\{\{|\}\}|\s+)", value)
+    def accent_word(match):
+        word = match[0]
+        for index, character in enumerate(word):
+            replacement = character.translate(ACCENTS)
+            if replacement != character:
+                return word[:index] + replacement + word[index + 1:]
+        return word
+    # One accent per word exercises non-ASCII glyphs while preserving catalog
+    # room for real UI sentences. Expansion still measures Unicode codepoints,
+    # not bytes, and remains at least +40% for every complete presentation key.
     target = max(len(value) + 2, math.ceil(len(value) * 1.4))
-    return "[" + accented + "~" * max(0, target - len(accented) - 2) + "]"
+    padding = max(0, target - len(value) - 2)
+    eligible = [index for index, part in enumerate(parts) if part and not part.isspace()
+                and not re.search(r"\{|\}", part) and len(part) <= 20]
+    weight = sum(len(parts[index]) for index in eligible)
+    cumulative = applied = 0
+    output = []
+    for index, part in enumerate(parts):
+        placeholder = re.fullmatch(r"\{\d+\}|\{\{|\}\}", part)
+        output.append(part if placeholder else re.sub(r"[A-Za-z]+", accent_word, part))
+        if index in eligible:
+            cumulative += len(part)
+            desired = padding * cumulative // weight
+            output.append("~" * (desired - applied))
+            applied = desired
+    if applied < padding:
+        # A template with only placeholders or one long identifier still expands
+        # without producing an unbreakable paragraph-long padding token.
+        output.extend(" " + "~" * min(12, padding - index) for index in range(0, padding - applied, 12))
+    return "[" + "".join(output) + "]"
 
 
 def build():
@@ -102,12 +133,25 @@ def build():
             record = {"file": path.relative_to(REPO).as_posix(), "line": source.count("\n", 0, start) + 1,
                       "english": value, "wiring": status, "key": None}
             if status not in ("protected-or-nonprose", "pending-dynamic-template"):
-                key = by_value.get(value, "s." + hashlib.sha256(value.encode("utf-8")).hexdigest()[:12])
-                if key in english and english[key] != value:
-                    raise ValueError("catalog key collision")
-                english[key] = value
-                by_value[value] = key
-                record["key"] = key
+                # The plain HelpRegistrar overload splits its body at newlines
+                # before calling HelpWriter. Catalog those actual paragraph
+                # sinks, rather than a never-displayed combined literal.
+                prefix = source[max(0, start - 180):start]
+                paragraphs = value.splitlines() if "\n" in value and re.search(r"\bHelpRegistrar\s+\w+\s*\([^;]*$", prefix) else [value]
+                keys = []
+                for paragraph in paragraphs:
+                    if not paragraph:
+                        continue
+                    key = by_value.get(paragraph, "s." + hashlib.sha256(paragraph.encode("utf-8")).hexdigest()[:12])
+                    if key in english and english[key] != paragraph:
+                        raise ValueError("catalog key collision")
+                    english[key] = paragraph
+                    by_value[paragraph] = key
+                    keys.append(key)
+                if len(paragraphs) == 1:
+                    record["key"] = keys[0] if keys else None
+                else:
+                    record["paragraph_keys"] = keys
             records.append(record)
     localized = {key: pseudo(value) for key, value in english.items()}
     localized["locale.nativeName"] = "Pseudo (+40%)"

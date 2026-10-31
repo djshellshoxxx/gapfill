@@ -1,4 +1,6 @@
 #include "OptionsView.h"
+#include "../features/i18n/Strings.h"
+#include "../features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -128,8 +130,9 @@ void OptionsView::paint (juce::Graphics& g)
     g.fillRect (header.getX(), header.getCentreY() - 6.0f, 2.0f, 12.0f);
 
     g.setColour (colours::text);
-    g.setFont (fonts::sectionHeader (12.0f));
-    g.drawText ("OPTIONS", header.withTrimmedLeft (10.0f), juce::Justification::centredLeft, false);
+    const auto title = i18n::text ("OPTIONS");
+    g.setFont (i18n::fontForText (fonts::sectionHeader (12.0f), title));
+    g.drawText (title, header.withTrimmedLeft (10.0f), juce::Justification::centredLeft, false);
 
     GapFillLookAndFeel::drawSeparator (g, header.withY (header.getBottom()).withHeight (8.0f));
 }

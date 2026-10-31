@@ -71,7 +71,7 @@ jobs:
         run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py
 
       - name: Release assurance tool regressions
-        run: python -m unittest tools.qa.nightly_test
+        run: python -m unittest tools.qa.nightly_test tools.test_release_pipeline tools.test_i18n_catalog
 
       - name: Completeness audit and layout-literal ratchet
         run: |
