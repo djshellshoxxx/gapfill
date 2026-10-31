@@ -61,6 +61,7 @@ void gatherContext (EngineSettings& s, const ParamCache& p) noexcept
 
 void ContextState::prepare (double sampleRate) noexcept
 {
+    rate = std::isfinite (sampleRate) && sampleRate >= 8000.0 ? sampleRate : 48000.0;
     energyTracker.prepare (sampleRate);
     groove.prepare (sampleRate);
     key.prepare (sampleRate);
@@ -115,6 +116,8 @@ void ContextState::onChunk (const float* mono, int numSamples, const AnalysisEng
     // F-L22 energy and F-X04 arrangement share the 0.5 s frames. Nothing runs while both are off.
     const bool energyWanted = s.perf.energy.adapt01 > 0.0f;
     const bool arrangementWanted = s.perf.arr.on;
+    if (arrangementWanted)
+        section.setModelVersion (s.perf.arr.modelVersion);
 
     if (! energyWanted && ! arrangementWanted)
     {
@@ -164,7 +167,14 @@ void ContextState::onChunk (const float* mono, int numSamples, const AnalysisEng
     if (arrangementWanted)
     {
         s.perf.arr.state = section.state();
-        publishArrangement();
+        if (s.perf.arr.modelVersion == 2)
+        {
+            const double bpm = s.samplesPerBeat > 1.0 ? 60.0 * rate / s.samplesPerBeat : 0.0;
+            const double endPpq = s.ppqAtBlockStart + (s.samplesPerBeat > 1.0 ? (double) numSamples / s.samplesPerBeat : 0.0);
+            s.perf.arr.state = arrangement::snapPrediction (s.perf.arr.state, s.transportValid, endPpq, bpm,
+                                                           s.perf.tsNum, s.perf.tsDen, s.perf.phrase.bars);
+        }
+        publishArrangement (&s.perf.arr.state);
     }
 }
 
@@ -197,9 +207,9 @@ float ContextState::tensionFxSend (const EngineSettings& s, int numSamples) cons
     return std::clamp (1.0f - t.depth[tension::FxSend] * std::max (0.0f, 1.0f - 2.0f * out.c[tension::FxSend]), 0.0f, 1.0f);
 }
 
-void ContextState::publishArrangement() noexcept
+void ContextState::publishArrangement (const arrangement::ArrangementState* view) noexcept
 {
-    const auto& a = section.state();
+    const auto& a = view != nullptr ? *view : section.state();
     const auto q8 = [] (float v, float lo, float hi) { return (std::uint64_t) std::lround (255.0f * (std::clamp (v, lo, hi) - lo) / (hi - lo)); };
 
     arrWord0.store (((std::uint64_t) a.sectionIndex << 32) | ((std::uint64_t) a.framesInto << 16) | (std::uint64_t) (std::uint16_t) a.expectedIn,

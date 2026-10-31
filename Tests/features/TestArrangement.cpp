@@ -612,6 +612,53 @@ GF_TEST (Arrangement, calm_reduces_fills_in_quiet_sections_of_a_song)
     GF_EXPECT_MSG (quietNone == 0 || quietCalm * 10 <= quietNone * 7, "quiet fills " + juce::String (quietNone) + " -> " + juce::String (quietCalm));
 }
 
+GF_TEST (ArrangementV2, calm_removes_at_least_forty_percent_of_quiet_section_fills_over_forty_seeds)
+{
+    const double sr = 48000.0;
+    const auto mono = song (sr, { templ (Chorus, 30), templ (Verse, 20) }, 8);
+    juce::AudioBuffer<float> input (2, (int) mono.size());
+    for (int ch = 0; ch < 2; ++ch)
+        std::copy (mono.begin(), mono.end(), input.getWritePointer (ch));
+
+    auto quietFills = [&] (int seed, float calm)
+    {
+        auto proc = std::make_unique<GapFillAudioProcessor>();
+        setParams (*proc, { { "seed", (float) seed }, { "fill", 100 }, { "density", 50 },
+                            { "fx04_on", 1 }, { "fx04_calm", calm }, { "fx04_lift", 0 }, { "fx04_settle", 0 } });
+        TestPlayHead ph;
+        ph.bpm = 120;
+        RenderOptions options;
+        options.playHead = &ph;
+        int previous = 0, quiet = 0;
+        options.onBlock = [&] (int, int start)
+        {
+            const int count = proc->getFillEngine().getFillsStarted();
+            // Fixed source-time window, including every eligible opportunity;
+            // do not exclude low-confidence frames to improve the result.
+            if (start >= (int) (36.0 * sr))
+                quiet += count - previous;
+            previous = count;
+        };
+        renderOffline (*proc, input, 512, sr, options);
+        const auto learned = proc->getContextState().arrangementState();
+        GF_EXPECT (! learned.learning && learned.energy01 < 0.2f && learned.confidence >= 0.7f);
+        return quiet;
+    };
+
+    int baseline = 0, thinned = 0;
+    for (int seed = 1; seed <= 40; ++seed)
+    {
+        const int without = quietFills (seed, 0);
+        const int with = quietFills (seed, 100);
+        GF_EXPECT_MSG (with <= without, "seed " + juce::String (seed) + ": " + juce::String (without) + " -> " + juce::String (with));
+        baseline += without;
+        thinned += with;
+    }
+    std::printf ("         40 paired seeds, source-derived quiet fills: %d -> %d\n", baseline, thinned);
+    GF_EXPECT (baseline >= 100);
+    GF_EXPECT_MSG (thinned * 5 <= baseline * 3, "quiet fills " + juce::String (baseline) + " -> " + juce::String (thinned));
+}
+
 GF_TEST (Arrangement, audio_thread_does_not_allocate_while_tracking_sections)
 {
     GapFillAudioProcessor proc;
