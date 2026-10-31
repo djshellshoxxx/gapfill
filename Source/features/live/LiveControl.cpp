@@ -70,6 +70,7 @@ void LiveControl::reset() noexcept
     sceneEngine.reset();
     panicCtl.reset();
     extendedMacroRuntime.resetReadout();
+    modulationTransportValid.store (false, std::memory_order_relaxed);
     for (auto& value : uiEffective) value.store (0.0f, std::memory_order_relaxed);
 }
 
@@ -313,6 +314,7 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t 
     holdTimedOut.store (hold.timedOutMask(), std::memory_order_relaxed);
 
     macroRuntime.chunkSeconds = (float) ((double) std::max (1, numSamples) / sampleRate);
+    modulationTransportValid.store (s.transportValid, std::memory_order_relaxed);
 
     for (int target = 0; target < modulation::kTargetCount; ++target)
         uiEffective[target].store (extendedMacros ? extendedMacroRuntime.effective01[target]

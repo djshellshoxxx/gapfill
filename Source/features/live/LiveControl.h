@@ -177,6 +177,7 @@ public:
     void preflightModulationInputs (const Effective::ModulationInputs&, int seed,
                                     const scenes::TransportSnap&) noexcept;
     int modulationSegmentLength (std::int64_t outputPos, int maxSamples) const noexcept;
+    bool modulationHasTransport() const noexcept { return modulationTransportValid.load (std::memory_order_relaxed); }
     /** Copies the already pinned inputs. Never consumes another publication. */
     void fillModulationInputs (Effective::ModulationInputs&, int seed) noexcept;
 
@@ -242,6 +243,7 @@ private:
     modulation::Runtime extendedMacroRuntime;
     Effective::ModulationInputs pinnedModulation;
     bool extendedMacros = false;
+    std::atomic<bool> modulationTransportValid { false };
     std::atomic<float> uiEffective[modulation::kTargetCount] {};
     GlitchRoulette rouletteState { juce::Random::getSystemRandom() };
 
