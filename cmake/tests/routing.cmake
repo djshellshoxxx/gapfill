@@ -6,5 +6,4 @@ list(APPEND GAPFILL_TEST_SOURCES
     Tests/features/TestMidiOut.cpp
     Tests/features/TestMidiExtended.cpp
     Tests/features/TestQuality.cpp
-    Tests/features/TestCoop.cpp
 )

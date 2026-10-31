@@ -535,11 +535,14 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             vizAccum.periodSamples = (std::uint32_t) (AnalysisEngine::hopSize * vizDecim);
             vizAccum.sampleRateHz = (std::uint32_t) std::lround (sr);
             vizAccum.timelineEpoch = events != nullptr ? events->getTimelineEpoch() : 0;
-            const auto ppq = s.ppqAtBlockStart + (double) (outputPos - blockStartPos) / s.samplesPerBeat;
-            const auto tick = ppq * 96.0;
-            vizAccum.ppqTick = s.transportValid && std::isfinite (tick)
-                && tick > (double) INT32_MIN && tick <= (double) INT32_MAX
-                ? (std::int32_t) std::llround (tick) : INT32_MIN;
+            vizAccum.ppqTick = INT32_MIN;
+            if (s.transportValid && s.samplesPerBeat > 1.0)
+            {
+                const auto ppq = s.ppqAtBlockStart + (double) (outputPos - blockStartPos) / s.samplesPerBeat;
+                const auto tick = ppq * 96.0;
+                if (std::isfinite (tick) && tick > (double) INT32_MIN && tick <= (double) INT32_MAX)
+                    vizAccum.ppqTick = (std::int32_t) std::llround (tick);
+            }
             const bool knownMeter = s.perf.tsNum > 0 && s.perf.tsNum <= 255 && s.perf.tsDen > 0 && s.perf.tsDen <= 255;
             vizAccum.timeSigNumerator = knownMeter ? (std::uint8_t) s.perf.tsNum : 0;
             vizAccum.timeSigDenominator = knownMeter ? (std::uint8_t) s.perf.tsDen : 0;
