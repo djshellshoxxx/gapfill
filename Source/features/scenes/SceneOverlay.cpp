@@ -42,6 +42,14 @@ void OverlayView::applyTo (EngineSettings& s) const noexcept
             targets::apply (s, refs[i], real[i]);
 }
 
+void OverlayView::applyFxTo (EngineSettings& s) const noexcept
+{
+    for (int i = 0; i < n; ++i)
+        if (refs[i].kind == targets::Kind::Effect
+            && (targets::macroBit (refs[i]) & s.perf.macroOwnedMask) == 0)
+            targets::apply (s, refs[i], real[i]);
+}
+
 //==============================================================================
 namespace quantiser
 {

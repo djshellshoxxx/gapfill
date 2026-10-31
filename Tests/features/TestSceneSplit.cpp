@@ -102,3 +102,23 @@ GF_TEST (SceneSplit, preflight_keeps_the_generation_cancellable_until_its_first_
     engine.stagePublished (ctl.publisher(), t);
     GF_EXPECT (engine.beginChunk (ctl.publisher(), t).appliedId == 0);
 }
+
+GF_TEST (SceneSplit, effect_projection_preserves_all_unrelated_effective_settings)
+{
+    OverlayView view;
+    view.n = 3;
+    view.refs[0] = targets::sceneRefForId ("fill");
+    view.real[0] = 90;
+    view.refs[1] = targets::sceneRefForId ("fmtAmount");
+    view.real[1] = 75;
+    view.refs[2] = targets::sceneRefForId ("fl20_shift");
+    view.real[2] = -7;
+    EngineSettings s;
+    s.fill01 = .2f;
+    s.perf.energy.adapt01 = .3f;
+    view.applyFxTo (s);
+    GF_EXPECT_NEAR (s.fill01, .2, 1e-6);
+    GF_EXPECT_NEAR (s.perf.energy.adapt01, .3, 1e-6);
+    GF_EXPECT_NEAR (s.fx.formant.amount01, .75, 1e-6);
+    GF_EXPECT_NEAR (s.voiceFormant.shiftSt, -7, 1e-6);
+}

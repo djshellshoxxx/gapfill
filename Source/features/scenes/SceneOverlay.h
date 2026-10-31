@@ -64,6 +64,10 @@ struct OverlayView
 
     void applyTo (EngineSettings&) const noexcept;
 
+    /** Apply only effect-card and voice-effect settings. Caller first checks
+        appliesAt() at the segment start, before effect-chain preparation. */
+    void applyFxTo (EngineSettings&) const noexcept;
+
     void clear() noexcept { active = false; immediate = false; boundaryPpq = 0.0; n = 0; }
 };
 
