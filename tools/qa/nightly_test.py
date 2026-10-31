@@ -77,6 +77,46 @@ class NightlyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("--target GapFill_AU", result.stdout)
 
+    def test_soak_requires_real_processor_summary(self):
+        self.program("print('1 passed, 0 failed')\n")
+        result = subprocess.run([sys.executable, str(REPO / "tools/qa/soak_run.py"),
+                                 "--binary", str(self.binary), "--seconds", "0.1", "--warmup", "0.01",
+                                 "--out", str(self.root / "soak")], capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertTrue((self.root / "soak/soak.json").is_file(), result.stderr)
+        evidence = json.loads((self.root / "soak/soak.json").read_text())
+        self.assertEqual(evidence["status"], "fail")
+        self.assertIn("summary", evidence["detail"])
+
+    def test_rss_criterion_uses_measured_samples_and_one_percent_limit(self):
+        from tools.qa import soak_run
+        good = soak_run.rss_result([10000, 10000, 10000, 10050, 10050, 10050])
+        self.assertEqual(good["status"], "pass")
+        self.assertAlmostEqual(good["growth_percent"], 0.5)
+        self.assertEqual(soak_run.rss_result([10000, 10000, 10000, 10200, 10200, 10200])["status"], "fail")
+        self.assertEqual(soak_run.rss_result([])["status"], "unverified")
+
+    def test_soak_keeps_one_process_and_measures_requested_duration(self):
+        self.program("import json, os, time\nprint('GF_SOAK_BEGIN', flush=True)\n"
+                     "seconds=float(os.environ['GF_SOAK_SECONDS'])\ntime.sleep(seconds)\n"
+                     "print('GF_SOAK_SUMMARY ' + json.dumps({'measured_seconds': seconds, 'blocks': 1, "
+                     "'processed_samples': 512, 'peak': 0.5, 'allocations': 0, 'engine_idle': True}))\n"
+                     "print('1 passed, 0 failed')\n")
+        from tools.qa import soak_run
+        evidence = soak_run.run(self.binary, seconds=0.15, warmup=0, seed=42, out=self.root / "soak")
+        self.assertEqual(evidence["process_starts"], 1)
+        self.assertEqual(evidence["processor_status"], "pass")
+        self.assertGreaterEqual(evidence["seconds_from_launch"], 0.15)
+        self.assertGreater(len(evidence["rss_samples"]), 1)
+
+    def test_malformed_soak_summary_retains_failure_evidence(self):
+        self.program("print('GF_SOAK_SUMMARY {\"measured_seconds\":\"invalid\",\"blocks\":1,"
+                     "\"processed_samples\":512,\"peak\":0,\"allocations\":0,\"engine_idle\":true}')\n"
+                     "print('1 passed, 0 failed')\n")
+        from tools.qa import soak_run
+        evidence = soak_run.run(self.binary, seconds=0.01, warmup=0, seed=42, out=self.root / "soak")
+        self.assertEqual(evidence["status"], "fail")
+
 
 if __name__ == "__main__":
     unittest.main()
