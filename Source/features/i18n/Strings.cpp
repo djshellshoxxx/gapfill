@@ -136,17 +136,25 @@ bool setLanguage (const juce::String& code, bool persist) { return service().sel
 juce::ChangeBroadcaster& languageChanges() { return service(); }
 std::vector<Language> availableLanguages()
 {
-    std::vector<Language> result;
-    for (const auto& locale : data::languages)
+    // Embedded catalogs are immutable for this loaded module. Validate their
+    // display metadata once; opening another editor must not parse them again.
+    // Return an owned copy so callers cannot mutate the cached language list.
+    static const auto languages = []
     {
-        Catalog catalog;
-        juce::String error;
-        if (catalog.load (locale.bytes, locale.size, error, &service().english))
+        std::vector<Language> result;
+        const auto& english = service().english;
+        for (const auto& locale : data::languages)
         {
-            const auto name = catalog.get ("locale.nativeName");
-            result.push_back ({ locale.code, name.isNotEmpty() ? name : juce::String (locale.code) });
+            Catalog catalog;
+            juce::String error;
+            if (catalog.load (locale.bytes, locale.size, error, &english))
+            {
+                const auto name = catalog.get ("locale.nativeName");
+                result.push_back ({ locale.code, name.isNotEmpty() ? name : juce::String (locale.code) });
+            }
         }
-    }
-    return result;
+        return result;
+    }();
+    return languages;
 }
 }

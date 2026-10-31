@@ -10,6 +10,9 @@ source fragment embeds catalog bytes in a generated header used only by
 `Strings.cpp`, so adding a locale is a data-only change and does not change
 legacy/JUCE compiler flags. Catalogs validate completely before activation;
 unknown/missing translations use the embedded English table.
+The language picker validates immutable embedded metadata once per loaded
+module and returns owned copies of its language list. Activating a language
+still validates the selected catalog against English.
 
 Use `text("A complete English sentence.")` for known static presentation,
 `format("Saved {0}.", {filename})` for complete sentences, and `tr("stable.key")`
