@@ -5,6 +5,7 @@
 
 #include "gui/MeterMath.h"
 #include "gui/WaveformGapView.h"
+#include "features/access/Access.h"
 
 using namespace gapfill;
 using namespace gapfill::meter;
@@ -18,6 +19,20 @@ namespace
     {
         ScopedMeterClock() { LevelMeter::setClockForTests (&testMeterClock); }
         ~ScopedMeterClock() { LevelMeter::setClockForTests (nullptr); }
+    };
+
+    struct ScopedStandardPalette
+    {
+        ScopedStandardPalette()
+        {
+            for (const auto contrast : { access::Contrast::Standard, access::Contrast::High, access::Contrast::DimVenue })
+                if (access::paletteFor (contrast).background == colours::background
+                     && access::paletteFor (contrast).text == colours::text)
+                    previous = contrast;
+            access::applyPalette (access::Contrast::Standard);
+        }
+        ~ScopedStandardPalette() { access::applyPalette (previous); }
+        access::Contrast previous = access::Contrast::Standard;
     };
 
     juce::Image meterImage (LevelMeter& meter, int width)
@@ -243,3 +258,34 @@ GF_TEST (Meter, component_clock_controls_hold_and_decay)
     m.tickForTests();
     GF_EXPECT_NEAR (m.peakDbForTests(), -6.0 - 20.0 / 30.0, 1.0e-4);
 }
+
+#if JUCE_LINUX
+GF_TEST (MeterPixelsLinux, meter_pixels_unchanged_golden)
+{
+    ScopedMeterClock clock;
+    ScopedStandardPalette palette;
+    meterClockMs = 1000;
+
+    // Width 25 is the complete meter without the optional font-dependent
+    // readout. The separate raster boundary test exercises its 26 px threshold.
+    for (const auto db : { -100, -18, -6, 0 })
+    {
+        const auto file = gftest::goldenPath ("meter/meter-25x100-" + juce::String (db) + "dB.png");
+        const auto expected = juce::ImageFileFormat::loadFrom (file);
+        GF_EXPECT_MSG (expected.isValid(), "Missing reviewed meter reference: " + file.getFileName());
+        LevelMeter meter;
+        meter.setLevel (db == -100 ? 0.0f : juce::Decibels::decibelsToGain ((float) db));
+        const auto actual = meterImage (meter, 25);
+        GF_EXPECT (expected.getBounds() == actual.getBounds());
+
+        int changed = 0;
+        for (int y = 0; y < actual.getHeight(); ++y)
+            for (int x = 0; x < actual.getWidth(); ++x)
+            {
+                const auto a = actual.getPixelAt (x, y), b = expected.getPixelAt (x, y);
+                changed += ! sameColour (a, b) || std::abs ((int) a.getAlpha() - (int) b.getAlpha()) > 1;
+            }
+        GF_EXPECT_MSG (changed == 0, juce::String (changed) + " meter pixels differ beyond one channel step at " + juce::String (db) + " dB");
+    }
+}
+#endif
