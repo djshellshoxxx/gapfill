@@ -64,7 +64,7 @@ The calibration UI reads two original scalar settings for its complete result
 sentence; analysis results, storage and audio execution remain unchanged.
 Known uppercase aliases fix labels whose constructors uppercase the canonical
 display name. The current native alias probe passes while retaining canonical
-metadata and path arguments. All 17 affected translation units/tests passed
+metadata and path arguments. All 16 distinct affected translation units/tests passed
 native syntax checks across this slice. The final source inventory additionally
 prunes factory identities, serialized state/reason/command keys and compiler
 diagnostics; English is 165,056 bytes and pseudo is 232,204 bytes on this branch,
