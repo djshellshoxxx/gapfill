@@ -40,7 +40,7 @@ struct ImportReport
     int unknownIds = 0;                       ///< ids this version does not know (ignored)
     bool digestMismatch = false;              ///< integrity warning, the user may continue
     bool digestPresent = false;
-    juce::ValueTree macros;                   ///< optional <Macros>, validated by its owner
+    juce::ValueTree macros;                   ///< optional validated <MacrosV2>, or legacy <Macros>
 };
 
 struct ExportOptions

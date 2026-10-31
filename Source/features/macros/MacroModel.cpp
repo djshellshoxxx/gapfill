@@ -12,6 +12,13 @@ namespace
     int toPermille (float v) noexcept        { return (int) std::lround (std::clamp (std::isfinite (v) ? v : 0.0f, 0.0f, 1.0f) * 1000.0f); }
     float fromPermille (int v) noexcept      { return (float) v * 0.001f; }
 
+    bool exactInteger (const juce::var& value, int expected)
+    {
+        if (value.isString()) return value.toString() == juce::String (expected);
+        if (! value.isInt() && ! value.isInt64() && ! value.isDouble()) return false;
+        return (double) value == (double) expected;
+    }
+
     /** Parses a comma separated integer tuple of `expected` (or, when `minimum` < expected, at
         least `minimum`) values; missing trailing values keep what the caller pre-filled. */
     bool parseInts (const juce::String& text, int expected, int* out, int minimum = -1)
@@ -25,7 +32,8 @@ namespace
         {
             const auto p = parts[i].trim();
 
-            if (p.isEmpty() || ! p.containsOnly ("0123456789-") || p.length() > 9)
+            const auto digits = p.startsWithChar ('-') ? p.substring (1) : p;
+            if (p.isEmpty() || digits.isEmpty() || ! digits.containsOnly ("0123456789") || p.length() > 9)
                 return false;
 
             out[i] = p.getIntValue();
@@ -61,6 +69,7 @@ namespace
 
         if (maps.isNotEmpty())
         {
+            if (maps.startsWithChar (';') || maps.endsWithChar (';') || maps.contains (";;")) return false;
             const auto entries = juce::StringArray::fromTokens (maps, ";", "");
 
             if (entries.size() > kMaxMappings)
@@ -282,11 +291,20 @@ void MacroModel::resetAll()
     publish();
 }
 
+bool MacroModel::upgradeTargetSchema()
+{
+    if (cfg.targetSchemaVersion == 2) return false;
+    cfg.targetSchemaVersion = 2;
+    publish();
+    return true;
+}
+
 //==============================================================================
 juce::ValueTree MacroModel::toValueTree() const
 {
     juce::ValueTree t (subtreeName);
-    t.setProperty ("v", 1, nullptr);
+    t.setProperty ("v", 2, nullptr);
+    t.setProperty ("targets", (int) cfg.targetSchemaVersion, nullptr);
 
     for (int m = 0; m < kNumMacros; ++m)
     {
@@ -318,8 +336,17 @@ juce::ValueTree MacroModel::toValueTree() const
 
 bool MacroModel::validateTree (const juce::ValueTree& t)
 {
-    if (! t.hasType (subtreeName) || t.getNumChildren() > kNumMacros)
+    const bool legacy = t.hasType (legacySubtreeName);
+    const auto version = t.getProperty ("v", legacy ? 1 : 0);
+    const auto targets = t.getProperty ("targets", 0);
+    if ((! legacy && ! t.hasType (subtreeName)) || t.getNumChildren() > kNumMacros
+        || (legacy ? ! exactInteger (version, 1)
+                   : ! exactInteger (version, 2) || (! exactInteger (targets, 1) && ! exactInteger (targets, 2))))
         return false;
+
+    juce::MemoryOutputStream bytes;
+    t.writeToStream (bytes);
+    if (bytes.getDataSize() > 2 * 1024) return false;
 
     bool seen[kNumMacros] {};
 
@@ -338,10 +365,12 @@ bool MacroModel::validateTree (const juce::ValueTree& t)
 
 void MacroModel::restore (const juce::ValueTree& t)
 {
+    if (t.isValid() && ! validateTree (t)) return;  // no partial direct restore
     cfg = defaultConfig();
 
-    if (t.hasType (subtreeName))
+    if (t.isValid())
     {
+        cfg.targetSchemaVersion = t.hasType (legacySubtreeName) ? 1 : (std::uint8_t) (int) t["targets"];
         bool claimed[kNumTargets] {};
 
         for (const auto& n : t)

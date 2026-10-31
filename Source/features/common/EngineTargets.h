@@ -19,13 +19,15 @@ enum class Kind : std::uint8_t
     None = 0, Fill, Intensity, Complexity, Chaos, Density, FillType, Weight,
     ProtTrans, ProtNext, ProtSC, MinGap, MaxFill, ProtectHold,
     BandOn, BandAmt, BandInt, BandProb, XoverLM, XoverMH,
-    HarmonicAmount, HarmonicVoices, HarmonicMotion, HarmonicTone, Effect
+    HarmonicAmount, HarmonicVoices, HarmonicMotion, HarmonicTone, Effect,
+    EnergyAdapt, ScaleAmount, GrooveAmount
 };
 
 struct Ref
 {
     Kind kind = Kind::None;
     std::uint8_t sub = 0;        ///< algorithm (Weight) or band (Band*)
+    std::uint16_t advancedMacroMask = 0; ///< resolved once, MacroV2 targets 21..35
 
     explicit operator bool() const noexcept { return kind != Kind::None; }
 };

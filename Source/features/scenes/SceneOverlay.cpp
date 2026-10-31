@@ -38,7 +38,8 @@ targets::Ref overlayTargetFor (int paramIndex) noexcept
 void OverlayView::applyTo (EngineSettings& s) const noexcept
 {
     for (int i = 0; i < n; ++i)
-        if ((targets::macroBit (refs[i]) & s.perf.macroOwnedMask) == 0)    // macros own their targets
+        if ((targets::macroBit (refs[i]) & s.perf.macroOwnedMask) == 0
+            && (refs[i].advancedMacroMask & s.perf.advancedMacroOwnedMask) == 0)
             targets::apply (s, refs[i], real[i]);
 }
 
@@ -46,7 +47,8 @@ void OverlayView::applyFxTo (EngineSettings& s) const noexcept
 {
     for (int i = 0; i < n; ++i)
         if (refs[i].kind == targets::Kind::Effect
-            && (targets::macroBit (refs[i]) & s.perf.macroOwnedMask) == 0)
+            && (targets::macroBit (refs[i]) & s.perf.macroOwnedMask) == 0
+            && (refs[i].advancedMacroMask & s.perf.advancedMacroOwnedMask) == 0)
             targets::apply (s, refs[i], real[i]);
 }
 

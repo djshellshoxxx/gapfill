@@ -39,6 +39,7 @@ namespace
     };
 
     std::array<targets::Ref, kNumTargets> targetRefs {};
+    std::array<targets::Ref, kNumTargets> targetRefsV2 {};
     std::once_flag initFlag;
 
     inline float clamp01 (float x) noexcept { return x < 0.0f ? 0.0f : (x > 1.0f ? 1.0f : x); }
@@ -61,12 +62,22 @@ const TargetInfo& targetInfo (int index) noexcept
     return kTargets[std::clamp (index, 0, kNumTargets - 1)];
 }
 
+const char* targetParameterId (int index) noexcept
+{
+    if (index == 32) return "fm21_on";
+    if (index == 35) return "fl09_amount";
+    return targetInfo (index).id;
+}
+
 void initTargets()
 {
     std::call_once (initFlag, []
     {
         for (int i = 0; i < kNumTargets; ++i)
+        {
             targetRefs[(size_t) i] = targets::refForId (kTargets[i].id);
+            targetRefsV2[(size_t) i] = targets::sceneRefForId (targetParameterId (i));
+        }
     });
 }
 
@@ -178,14 +189,25 @@ void MacroRuntime::applyTarget (EngineSettings& s, int t, float eff01) const noe
         return;
     }
 
-    if (const auto ref = targetRefs[(size_t) t]; ref)
+    if (t == 32 && cfg.targetSchemaVersion == 2)
+    {
+        for (int lane = 0; lane < tension::kLanes; ++lane)
+            s.perf.tension.depth[lane] = tensionBaseDepth[lane] * clamp01 (eff01);
+        return;
+    }
+
+    const auto& refs = cfg.targetSchemaVersion == 2 ? targetRefsV2 : targetRefs;
+    if (const auto ref = refs[(size_t) t]; ref)
         targets::apply (s, ref, real);
 }
 
 void MacroRuntime::evaluateBlock (EngineSettings& s, const float knobIn[kNumMacros], std::uint32_t& ownedMask) noexcept
 {
     ownedMask = 0;
+    s.perf.advancedMacroOwnedMask = 0;
     widthOn = false;
+    for (int lane = 0; lane < tension::kLanes; ++lane)
+        tensionBaseDepth[lane] = s.perf.tension.depth[lane];
 
     for (int t = 0; t < kNumTargets; ++t)
         active[t] = false;
@@ -234,6 +256,8 @@ void MacroRuntime::evaluateBlock (EngineSettings& s, const float knobIn[kNumMacr
             effective01[t] = eff;
             applyTarget (s, t, eff);
             ownedMask |= targets::macroBit (targetRefs[(size_t) t]);
+            if (cfg.targetSchemaVersion == 2 && t >= kNumC2Targets)
+                s.perf.advancedMacroOwnedMask |= (std::uint16_t) (1u << (t - kNumC2Targets));
 
             if (t == 5)
             {

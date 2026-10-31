@@ -65,6 +65,7 @@ struct PerformanceSettings
     const scenes::OverlayView* sceneView = nullptr;   // F-L07: audio-thread-owned overlay
     const macros::MacroRuntime* macroRuntime = nullptr;   // F-M23: LFO macros re-evaluated per decision
     std::uint32_t macroOwnedMask = 0; // C-2: macro target bits claimed by macros (scenes skip them)
+    std::uint16_t advancedMacroOwnedMask = 0; // MacroV2: appended targets 21..35, independent of the released mask
     std::uint32_t fillNowId = 0;      // F-P02: a new id requests one forced fill at fillNowPos (output timeline)
     std::int64_t fillNowPos = 0;
     bool  fillNowOverSustained = false;

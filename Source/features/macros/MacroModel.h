@@ -34,6 +34,10 @@ public:
     bool setLfo (int macro, LfoSettings);
     void resetAll();
 
+    /** Explicitly activates repaired advanced target dispatch for a restored
+        legacy configuration. Leaves names, mappings and LFO values intact. */
+    bool upgradeTargetSchema();
+
     /** Which macro (0..3) owns `target`, or -1. */
     int ownerOf (int target) const noexcept;
 
@@ -45,7 +49,8 @@ public:
     void publish() noexcept                          { pub.publish (cfg); }
 
     //------------------------------------------------------------------------
-    static constexpr const char* subtreeName = "Macros";
+    static constexpr const char* legacySubtreeName = "Macros";
+    static constexpr const char* subtreeName = "MacrosV2";
 
     juce::ValueTree toValueTree() const;
     static bool validateTree (const juce::ValueTree&);

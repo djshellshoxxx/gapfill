@@ -80,7 +80,7 @@ GF_TEST (State, reserved_subtree_caps_fit_the_total_budget)
         sum += d.maxBytes;
 
     GF_EXPECT (sum <= state::kTotalSubtreeBudget);
-    GF_EXPECT (state::reservedSubtrees().size() == 15);   // 14 existing owners + ScenesV2; legacy Scenes stays read-only
+    GF_EXPECT (state::reservedSubtrees().size() == 16);   // existing owners + ScenesV2/MacrosV2; legacy rows stay read-only
 }
 
 GF_TEST (State, bad_oversized_and_absent_subtrees_fail_soft)

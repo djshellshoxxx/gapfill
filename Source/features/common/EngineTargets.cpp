@@ -47,8 +47,17 @@ Ref sceneRefForId (const char* id) noexcept
     const auto legacy = refForId (id);
     if (legacy)
         return legacy;
+    if (eq (id, "energyAdapt")) return { Kind::EnergyAdapt, 0, 1u << 12 };
+    if (eq (id, "scaleAmount")) return { Kind::ScaleAmount, 0, 1u << 13 };
+    if (eq (id, "fl09_amount")) return { Kind::GrooveAmount, 0, 1u << 14 };
     const auto effect = fxTargets::indexForId (id);
-    return effect >= 0 ? Ref { Kind::Effect, (std::uint8_t) effect } : Ref {};
+    if (effect < 0) return {};
+    constexpr const char* advanced[] = { "swellAmount", "cloudAmount", "ratAmount", "rcAmount", "tdAmount",
+        "resAmount", "fsdAmount", "dubAmount", "fmtAmount", "sfzAmount", "cvAmount" };
+    std::uint16_t mask = 0;
+    for (int target = 0; target < 11; ++target)
+        if (eq (id, advanced[target])) mask = (std::uint16_t) (1u << target);
+    return { Kind::Effect, (std::uint8_t) effect, mask };
 }
 
 std::uint32_t macroBit (Ref ref) noexcept
@@ -100,6 +109,9 @@ void apply (EngineSettings& s, Ref ref, float real) noexcept
         case Kind::HarmonicMotion: s.perf.harmonic.motion01 = std::clamp (pct, 0.0f, 1.0f); break;
         case Kind::HarmonicTone:   s.perf.harmonic.tone = std::clamp (pct, -1.0f, 1.0f); break;
         case Kind::Effect:      fxTargets::apply (s, ref.sub, real); break;
+        case Kind::EnergyAdapt: s.perf.energy.adapt01 = std::clamp (pct, 0.0f, 1.0f); break;
+        case Kind::ScaleAmount: s.scaleLock.amount01 = std::clamp (pct, 0.0f, 1.0f); break;
+        case Kind::GrooveAmount: s.perf.groove.amount01 = std::clamp (pct, 0.0f, 1.0f); break;
         case Kind::None:        break;
     }
 }

@@ -147,6 +147,7 @@ namespace
     // A deliberate read-only owner: keep legacy restore support without ever
     // writing two competing banks to the same project state.
     juce::ValueTree legacyScenesSerialise (const GapFillAudioProcessor&) { return {}; }
+    juce::ValueTree legacyMacrosSerialise (const GapFillAudioProcessor&) { return {}; }
 }
 
 const std::vector<SubtreeDesc>& reservedSubtrees()
@@ -155,7 +156,8 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
     // (and only its row): validate / apply / serialise / reset.
     static const std::vector<SubtreeDesc> table =
     {
-        { "Macros",  2 * Ki,  &macros::MacroModel::validateTree, &macrosApply, &macrosSerialise, &macrosReset },   // C-2
+        { "Macros",  2 * Ki,  &macros::MacroModel::validateTree, &macrosApply, &legacyMacrosSerialise, &macrosReset },   // released v1: read only
+        { "MacrosV2", 2 * Ki, &macros::MacroModel::validateTree, &macrosApply, &macrosSerialise, &macrosReset, "Macros" },
         { "Lock",    1 * Ki,  lock::validate, lock::apply, lock::serialise, lock::reset },   // C-5
         { "History", 1 * Ki,  history::validate, history::apply, history::serialise, history::reset },   // U-1
         { "Perf",    4 * Ki,  &perfValidateAll, &perfApplyAll, &perfSerialiseAll, &perfResetAll },   // U prefs + panic options (WP6)

@@ -1,4 +1,5 @@
 #include "BankFile.h"
+#include "../macros/MacroModel.h"
 
 #include <cmath>
 #include <cstdint>
@@ -251,8 +252,11 @@ juce::String exportToString (const SceneBank& bank, const ExportOptions& options
     }
 
     if (options.includeMacros && options.macros.isValid())
+    {
+        if (! macros::MacroModel::validateTree (options.macros)) return {};
         if (auto macros = options.macros.createXml())
             root.addChildElement (macros.release());
+    }
 
     root.createNewChildElement ("Digest")->setAttribute ("sha256", digestOf (selected, bank.getName(), kFormatVersion));
     const auto text = root.toString (juce::XmlElement::TextFormat().withoutHeader());
@@ -415,8 +419,17 @@ ImportReport parseString (const juce::String& text)
         r.accepted.push_back (std::move (s));
     }
 
-    if (auto* macros = xml->getChildByName ("Macros"))
-        r.macros = juce::ValueTree::fromXml (*macros);
+    if (auto* current = xml->getChildByName (macros::MacroModel::subtreeName))
+    {
+        auto tree = juce::ValueTree::fromXml (*current);
+        if (macros::MacroModel::validateTree (tree)) r.macros = tree;
+    }
+    if (! r.macros.isValid())
+        if (auto* legacy = xml->getChildByName (macros::MacroModel::legacySubtreeName))
+        {
+            auto tree = juce::ValueTree::fromXml (*legacy);
+            if (macros::MacroModel::validateTree (tree)) r.macros = tree;
+        }
 
     if (auto* d = xml->getChildByName ("Digest"))
     {
