@@ -28,15 +28,21 @@ def git_value(*args: str) -> str:
 
 def provenance(binary: Path, build_dir: Path | None, config: str) -> dict:
     cache = {}
+    compiler = {}
     if build_dir is not None and (build_dir / "CMakeCache.txt").is_file():
         for line in (build_dir / "CMakeCache.txt").read_text(errors="replace").splitlines():
             if "=" in line and line.startswith(("CMAKE_CXX_", "CMAKE_C_", "CMAKE_BUILD_TYPE:")):
                 key, value = line.split("=", 1)
                 cache[key] = value
+        for path in sorted(build_dir.glob("CMakeFiles/*/CMakeCXXCompiler.cmake")):
+            for key in ("CMAKE_CXX_COMPILER", "CMAKE_CXX_COMPILER_ID", "CMAKE_CXX_COMPILER_VERSION"):
+                found = re.search(r"set\(" + key + r' "([^"\r\n]*)"\)', path.read_text(errors="replace"))
+                if found:
+                    compiler[key] = found[1]
     return {"source_sha": git_value("rev-parse", "HEAD"),
             "source_dirty": bool(git_value("status", "--porcelain", "--untracked-files=no")),
             "os": platform.system(), "architecture": platform.machine(),
-            "python": platform.python_version(), "build_config": config, "cmake_cache": cache,
+            "python": platform.python_version(), "build_config": config, "cmake_cache": cache, "compiler": compiler,
             "performance_baseline_enforced": os.environ.get("GAPFILL_PERF_ENFORCE") == "1",
             "binary": str(binary),
             "binary_sha256": hashlib.sha256(binary.read_bytes()).hexdigest() if binary.is_file() else None,
