@@ -480,8 +480,21 @@ void LiveControl::handleUi (const UiRequest& r, GapFillAudioProcessor& proc)
 {
     switch ((int) r.kind)
     {
-        case (int) UiRequest::SceneApplied:  sceneCtl.onApplied ((std::uint32_t) r.a); break;
+        case (int) UiRequest::SceneApplied:
+            sceneCtl.onApplied ((std::uint32_t) r.a);
+            if (groupSceneRequestId == (std::uint32_t) r.a)
+            {
+                groupSceneRequestId = 0;
+                groupSceneRequestGroup = 0;
+            }
+            break;
         case (int) UiRequest::SceneMissedDeadline:
+            if (groupSceneRequestId == (std::uint32_t) r.a)
+            {
+                proc.getCoop().cancelGroupScenes();
+                groupSceneRequestId = 0;
+                groupSceneRequestGroup = 0;
+            }
             sceneCtl.rejectPending ((std::uint32_t) r.a, "Group scene cancelled: missed boundary or transport changed");
             break;
         case (int) UiRequest::SceneGoto:     sceneCtl.gotoScene (r.a); break;
@@ -515,6 +528,40 @@ void LiveControl::handleUi (const UiRequest& r, GapFillAudioProcessor& proc)
     }
 }
 
+void LiveControl::pumpGroupScenes (GapFillAudioProcessor& proc)
+{
+    auto& member = proc.getCoop();
+    coop::GroupSceneEvent event;
+    // The channel retains the latest request plus its cancel epoch. Bound this
+    // work even if another instance keeps publishing while the timer runs.
+    for (int count = 0; count < 4 && member.pollGroupSceneEvent (event); ++count)
+    {
+        if (event.kind == coop::GroupSceneEvent::Cancel)
+        {
+            if (event.group == groupSceneRequestGroup)
+            {
+                if (groupSceneRequestId != 0 && sceneCtl.getPendingId() == groupSceneRequestId)
+                    sceneCtl.cancel();
+                groupSceneRequestId = 0;
+                groupSceneRequestGroup = 0;
+            }
+            continue;
+        }
+
+        // Consume and invalidate a recall while panicked. Recovery must never
+        // turn an old, already-consumed group request back into a local action.
+        if (panicCtl.isPanicked()
+            || ! sceneCtl.gotoSceneAt (event.sceneIndex, event.targetPpq,
+                                      (std::uint8_t) event.group, event.cancelGeneration))
+        {
+            member.cancelGroupScenes();
+            continue;
+        }
+        groupSceneRequestId = sceneCtl.getPendingId();
+        groupSceneRequestGroup = event.group;
+    }
+}
+
 void LiveControl::pump (GapFillAudioProcessor& proc)
 {
     UiRequest batch[8];
@@ -530,6 +577,7 @@ void LiveControl::pump (GapFillAudioProcessor& proc)
             handleUi (batch[i], proc);
     }
 
+    pumpGroupScenes (proc);
     sceneCtl.poll();
 
     // ---- F-L24 LED feedback (message thread; never touches audio) ------------

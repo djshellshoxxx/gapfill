@@ -206,6 +206,7 @@ private:
     void post (UiRequest::Kind, int a = 0) noexcept;
     void emit (FillEventType, std::int64_t pos) noexcept;
     void handleUi (const UiRequest&, GapFillAudioProcessor&);
+    void pumpGroupScenes (GapFillAudioProcessor&);
     void guardGroupScene() noexcept;
 
     juce::AudioProcessorValueTreeState& apvts;
@@ -224,6 +225,8 @@ private:
     commands::Scanner scanner;
     scenes::SceneController sceneCtl;
     scenes::SceneEngine sceneEngine;
+    std::uint32_t groupSceneRequestId = 0;           // message-thread owner; never identifies a local request
+    int groupSceneRequestGroup = 0;
     panic::PanicController panicCtl;
     macros::MacroModel macroModel;
     battle::BattleModel battleModel;
