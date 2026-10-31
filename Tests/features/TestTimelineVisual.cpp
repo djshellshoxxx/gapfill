@@ -3,6 +3,7 @@
 
 #include "PluginEditor.h"
 #include "features/explain/OverlaySlot.h"
+#include "features/health/Gui.h"
 #include "features/i18n/Strings.h"
 #include "features/presetbrowser/GlobalSettings.h"
 #include "features/timeline/Gui.h"
@@ -142,6 +143,24 @@ namespace
         }
         GF_EXPECT (bypassFound && panicFound);
     }
+
+    juce::Component* titled (juce::Component& root, const juce::String& title)
+    {
+        std::vector<juce::Component*> components;
+        collectAll (root, components);
+        for (auto* component : components)
+            if (component->getTitle() == i18n::text (title))
+                return component;
+        return nullptr;
+    }
+
+    void scrollTo (juce::Viewport& viewport, juce::Component& component)
+    {
+        auto* content = viewport.getViewedComponent();
+        GF_EXPECT (content != nullptr);
+        const auto origin = content->getLocalPoint (&component, juce::Point<int>());
+        viewport.setViewPosition (0, juce::jmax (0, origin.y - 6));
+    }
 }
 
 GF_TEST (TimelineVisual, expanded_keyboard_views_keep_mix_and_safety_controls_across_size_scale_matrix)
@@ -220,6 +239,74 @@ GF_TEST (TimelineVisual, retained_memory_includes_live_and_frozen_frame_event_li
         GF_EXPECT_MSG (memory.total() <= 1500000, "Retained timeline data exceeds the unchanged 1.5 MB ceiling");
         GF_EXPECT (memory.textUpperBound <= 262144); // the pure cross-rate envelope reserves this full text allowance
     }
+}
+
+GF_TEST (PresentationVisual, localized_readouts_options_tour_and_health_across_size_scale_matrix)
+{
+    VisualSettings settingsScope;
+    for (const auto size : { juce::Point<int> (1020, 620), { 1100, 700 }, { 1800, 1000 } })
+        for (const int scale : { 100, 150, 200 })
+        {
+            settings::GlobalSettings::shared()->setInt (settings::GlobalSettings::keyUiScale, scale);
+            GapFillAudioProcessor proc;
+            proc.setKeyboardNavigationEnabled (true);
+            proc.getUiState().setViewMode (ui::ViewMode::Advanced);
+            GapFillAudioProcessorEditor editor (proc);
+            editor.setSize (size.x, size.y);
+            editor.applyScaleForTests();
+            editor.applyViewModeForTests();
+            editor.selectPerformanceForTests();
+            editor.resized();
+            const auto name = "presentation-" + i18n::currentLanguage() + "-" + juce::String (size.x) + "x" + juce::String (size.y)
+                            + "-scale" + juce::String (scale);
+            snapshot (editor, name + "-performance-top-fixture", scale);
+            auto* performance = editor.getPerformancePanelForTests();
+            GF_EXPECT (performance != nullptr);
+            auto* viewport = find<juce::Viewport> (*performance);
+            GF_EXPECT (viewport != nullptr);
+            for (const auto& title : { juce::String ("Automatic key"), juce::String ("Harmonic granular") })
+            {
+                auto* strip = titled (*performance, title);
+                GF_EXPECT_MSG (strip != nullptr, "Missing musical readout " + title);
+                scrollTo (*viewport, *strip);
+                snapshot (editor, name + (title == "Automatic key" ? "-key-fixture" : "-harmonic-fixture"), scale);
+            }
+
+            GF_EXPECT (proc.getExplainState().openOptions != nullptr);
+            proc.getExplainState().openOptions();
+            auto& options = editor.getOptionsViewForTests();
+            auto* outputs = titled (options, "Outputs");
+            GF_EXPECT (outputs != nullptr);
+            scrollTo (options.getExtraViewport(), *outputs);
+            snapshot (editor, name + "-outputs-fixture", scale);
+            GF_EXPECT (options.onClose != nullptr);
+            options.onClose();
+
+            editor.showTour (true);
+            auto* tourOverlay = editor.getTourOverlayForTests();
+            GF_EXPECT (tourOverlay != nullptr);
+            for (int step = 1; step <= 3; ++step)
+            {
+                snapshot (editor, name + "-tour" + juce::String (step) + "-fixture", scale);
+                if (step < 3)
+                    tourOverlay->pressNext();
+            }
+            tourOverlay->pressSkip();
+
+            health::Observations observation;
+            observation.sampleRate = 48000.0;
+            observation.numSamples = 96000;
+            observation.tempoFeatureOn = true;
+            observation.transportValid = false;
+            auto& explain = proc.getExplainState();
+            explain.healthMonitor.update (observation);
+            explain.healthTracker.update (explain.healthMonitor.getMask(), juce::Time::getMillisecondCounter());
+            explain.fallbackBpm.store (137.0);
+            health::DetailsPanel details (proc);
+            juce::CallOutBox callout (details, editor.getLocalBounds().removeFromBottom (22).toFloat(), &editor);
+            callout.setVisible (true);
+            snapshot (editor, name + "-health-fixture", scale);
+        }
 }
 
 GF_TEST (TimelineVisual, dense_paint_budget_reports_real_timings_when_explicitly_requested)
