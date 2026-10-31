@@ -39,6 +39,8 @@ GF_TEST (SceneBase, released_scope_lists_are_frozen_and_new_shaping_does_not_exp
     }
     for (const char* id : { "dry", "wet", "output", "bypass", "lookahead", "seed", "wetSolo", "wetSafety", "qualityMode" })
         GF_EXPECT (! contains (idsForScope (kAllScopes), id));
+    for (const char* id : { "wetBusMainMode", "wetBusLevel", "fl11_on", "fl11_chan", "fl11_note_hit", "fl11_timing" })
+        GF_EXPECT_MSG (isNeverId (id), id);
 }
 
 GF_TEST (SceneBase, every_admitted_scene_id_has_a_destination_in_its_actual_dsp_stage)
