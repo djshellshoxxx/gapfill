@@ -11,13 +11,14 @@ struct ModelVersions
     std::uint8_t cloud = 2;
     std::uint8_t taste = 2;
     std::uint8_t arrangement = 2;
+    std::uint8_t groove = 2;
 
-    static constexpr ModelVersions legacy() noexcept { return { 1, 1, 1 }; }
+    static constexpr ModelVersions legacy() noexcept { return { 1, 1, 1, 1 }; }
 
     constexpr bool valid() const noexcept
     {
         return cloud >= 1 && cloud <= 2 && taste >= 1 && taste <= 2
-            && arrangement >= 1 && arrangement <= 2;
+            && arrangement >= 1 && arrangement <= 2 && groove >= 1 && groove <= 2;
     }
 
     /** One atomic uint32 can publish a coherent selection to the audio thread. */
@@ -25,6 +26,7 @@ struct ModelVersions
     {
         return valid() ? (std::uint32_t) cloud | ((std::uint32_t) taste << 8u)
                                               | ((std::uint32_t) arrangement << 16u)
+                                              | ((std::uint32_t) groove << 24u)
                        : legacy().packed();
     }
 
@@ -32,8 +34,9 @@ struct ModelVersions
     {
         const ModelVersions result { (std::uint8_t) (value & 0xffu),
                                      (std::uint8_t) ((value >> 8u) & 0xffu),
-                                     (std::uint8_t) ((value >> 16u) & 0xffu) };
-        return (value & 0xff000000u) == 0 && result.valid() ? result : legacy();
+                                     (std::uint8_t) ((value >> 16u) & 0xffu),
+                                     (std::uint8_t) ((value >> 24u) & 0xffu) };
+        return result.valid() ? result : legacy();
     }
 
     bool operator== (const ModelVersions&) const noexcept = default;
