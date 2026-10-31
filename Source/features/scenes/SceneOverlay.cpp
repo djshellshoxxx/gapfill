@@ -119,6 +119,21 @@ void SceneEngine::load (const Overlay& o) noexcept
 
 void SceneEngine::arm (const TransportSnap& t, Result& r) noexcept
 {
+    if (active.fixedBoundary != 0)
+    {
+        if (! t.valid || ! std::isfinite (active.targetPpq) || t.ppq > active.targetPpq)
+        {
+            r.missedDeadlineId = active.id;
+            cancelPending();
+            return;
+        }
+
+        currentView.active = true;
+        currentView.immediate = false;
+        currentView.boundaryPpq = active.targetPpq;
+        return;
+    }
+
     const auto mode = (Quant) active.quant;
     currentView.active = true;
 
@@ -188,6 +203,13 @@ SceneEngine::Result SceneEngine::beginChunk (TripleBuffer<Overlay>& pub, const T
                 }
                 break;
         }
+    }
+
+    if (phase == Phase::Pending && active.fixedBoundary != 0
+        && (! t.valid || (lastValid && (t.ppq < lastEndPpq - 1.0e-6 || t.ppq > lastEndPpq + 1.0))))
+    {
+        r.missedDeadlineId = active.id;
+        cancelPending();
     }
 
     if (phase == Phase::Pending)

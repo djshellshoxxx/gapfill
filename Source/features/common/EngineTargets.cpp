@@ -22,6 +22,8 @@ Ref refForId (const char* id) noexcept
         { "protTrans", Kind::ProtTrans, 0 }, { "protNext", Kind::ProtNext, 0 }, { "protSC", Kind::ProtSC, 0 },
         { "minGap", Kind::MinGap, 0 }, { "maxFill", Kind::MaxFill, 0 }, { "protectHold", Kind::ProtectHold, 0 },
         { "xoverLM", Kind::XoverLM, 0 }, { "xoverMH", Kind::XoverMH, 0 },
+        { "hgAmount", Kind::HarmonicAmount, 0 }, { "hgVoices", Kind::HarmonicVoices, 0 },
+        { "hgMotion", Kind::HarmonicMotion, 0 }, { "hgTone", Kind::HarmonicTone, 0 },
         { "bandLowOn", Kind::BandOn, 0 }, { "bandMidOn", Kind::BandOn, 1 }, { "bandHighOn", Kind::BandOn, 2 },
         { "bandLowAmt", Kind::BandAmt, 0 }, { "bandMidAmt", Kind::BandAmt, 1 }, { "bandHighAmt", Kind::BandAmt, 2 },
         { "bandLowInt", Kind::BandInt, 0 }, { "bandMidInt", Kind::BandInt, 1 }, { "bandHighInt", Kind::BandInt, 2 },
@@ -83,6 +85,10 @@ void apply (EngineSettings& s, Ref ref, float real) noexcept
         case Kind::BandProb:    s.bandProb[band] = pct; break;
         case Kind::XoverLM:     s.xoverLM = real; s.xoverMH = std::max (s.xoverMH, s.xoverLM * 1.5f); break;
         case Kind::XoverMH:     s.xoverMH = std::max (real, s.xoverLM * 1.5f); break;
+        case Kind::HarmonicAmount: s.perf.harmonic.amount01 = std::clamp (pct, 0.0f, 1.0f); break;
+        case Kind::HarmonicVoices: s.perf.harmonic.voices = std::clamp ((int) std::lround (real), 1, 6); break;
+        case Kind::HarmonicMotion: s.perf.harmonic.motion01 = std::clamp (pct, 0.0f, 1.0f); break;
+        case Kind::HarmonicTone:   s.perf.harmonic.tone = std::clamp (pct, -1.0f, 1.0f); break;
         case Kind::None:        break;
     }
 }

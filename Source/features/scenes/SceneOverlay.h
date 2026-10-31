@@ -39,6 +39,8 @@ struct Overlay
     std::uint16_t n = 0;
     std::uint16_t idx[kMaxOverlayEntries] {};
     float real[kMaxOverlayEntries] {};
+    std::uint8_t fixedBoundary = 0;                         ///< group recall: preserve the published PPQ
+    double targetPpq = 0.0;
 };
 
 /** What the scheduler sees. Owned by the audio thread (stable address). */
@@ -98,6 +100,7 @@ public:
     {
         std::uint32_t appliedId = 0;       ///< non-zero: the boundary was reached in this chunk
         bool usedTransportFallback = false;
+        std::uint32_t missedDeadlineId = 0; ///< fixed group recall was cancelled, never applied late
     };
 
     /** Audio thread, once per processed chunk (before the engine runs). */

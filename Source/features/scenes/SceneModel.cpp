@@ -1,4 +1,5 @@
 #include "SceneModel.h"
+#include "SceneCodec.h"
 
 #include "../../Parameters.h"
 
@@ -47,7 +48,7 @@ namespace
         GAPFILL_PARAMS_SPFREEZE (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_CONVO (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_SCRUB (GAPFILL_SCENE_ADD)
-        // hgran (F-X01, 4 ids) is not scene-recallable: the default scope is already at the 128-id file cap.
+        GAPFILL_PARAMS_HGRAN (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_BANDFX (GAPFILL_SCENE_ADD)
     }
 
@@ -184,7 +185,7 @@ int numParams()
 //==============================================================================
 bool Scene::operator== (const Scene& o) const noexcept
 {
-    if (name != o.name || scope != o.scope || quant != o.quant || params.size() != o.params.size())
+    if (name != o.name || scope != o.scope || quant != o.quant || scopeVersion != o.scopeVersion || params.size() != o.params.size())
         return false;
 
     for (size_t i = 0; i < params.size(); ++i)
@@ -216,6 +217,12 @@ Scene captureScene (juce::AudioProcessorValueTreeState& apvts, const juce::Strin
 
 bool isSceneValid (const Scene& scene, juce::String& why)
 {
+    if (scene.scopeVersion < 1 || scene.scopeVersion > 2 || scene.scope > kAllScopes || (int) scene.quant > (int) Quant::Phrase)
+    {
+        why = "unsupported scene scope or quantise version";
+        return false;
+    }
+
     if (scene.params.size() > (size_t) kMaxSceneParams)
     {
         why = "too many parameters";
@@ -227,6 +234,9 @@ bool isSceneValid (const Scene& scene, juce::String& why)
         why = "name too long";
         return false;
     }
+
+    std::vector<std::uint16_t> seen;
+    seen.reserve (scene.params.size());
 
     for (const auto& p : scene.params)
     {
@@ -247,6 +257,14 @@ bool isSceneValid (const Scene& scene, juce::String& why)
             why = "value out of range";
             return false;
         }
+
+        if (std::find (seen.begin(), seen.end(), p.index) != seen.end())
+        {
+            why = "duplicate parameter";
+            return false;
+        }
+
+        seen.push_back (p.index);
     }
 
     return true;
@@ -267,6 +285,11 @@ bool resolveScene (juce::AudioProcessorValueTreeState& apvts, const Scene& scene
 
     for (const auto& id : idsForScope (scene.scope))
     {
+        // Released scenes did not control harmonic granular. New groups must
+        // also leave old recall semantics intact (the beta had 216 host IDs).
+        if (scene.scopeVersion == 1 && (id.startsWith ("hg") || paramIndexOf (id) >= 216))
+            continue;
+
         auto* p = apvts.getParameter (id);
 
         if (p == nullptr)
@@ -292,6 +315,11 @@ bool resolveScene (juce::AudioProcessorValueTreeState& apvts, const Scene& scene
 bool SceneBank::store (int index, Scene s)
 {
     if (index < 0 || index > size() || index >= kMaxScenes)
+        return false;
+
+    juce::String why;
+
+    if (! isSceneValid (s, why))
         return false;
 
     if (index == size())
@@ -386,19 +414,23 @@ namespace
 
         for (size_t i = 0; i < params.size(); ++i)
         {
-            std::memcpy (d + i * 6, &params[i].index, 2);
-            std::memcpy (d + i * 6 + 2, &params[i].value01, 4);
+            codec::writeLittleEndian (d + i * 6, params[i].index, params[i].value01);
         }
 
         return juce::Base64::toBase64 (mb.getData(), mb.getSize());
     }
 
-    bool decodeParams (const juce::String& text, std::vector<SceneParam>& out)
+    bool decodeParams (const juce::String& text, std::vector<SceneParam>& out, int schemaVersion)
     {
         out.clear();
 
         if (text.isEmpty())
             return true;
+
+        const auto maxParams = schemaVersion == 1 ? kLegacyMaxSceneParams : kMaxSceneParams;
+
+        if (text.getNumBytesAsUTF8() > (size_t) ((maxParams * 6 + 2) / 3 * 4))
+            return false;
 
         juce::MemoryOutputStream mos;
 
@@ -407,7 +439,7 @@ namespace
 
         const auto size = mos.getDataSize();
 
-        if (size % 6 != 0 || size / 6 > (size_t) kMaxSceneParams)
+        if (size % 6 != 0 || size / 6 > (size_t) maxParams)
             return false;
 
         const auto* d = static_cast<const std::uint8_t*> (mos.getData());
@@ -415,8 +447,15 @@ namespace
         for (size_t i = 0; i < size / 6; ++i)
         {
             SceneParam p;
-            std::memcpy (&p.index, d + i * 6, 2);
-            std::memcpy (&p.value01, d + i * 6 + 2, 4);
+            if (schemaVersion == 1)
+            {
+                std::memcpy (&p.index, d + i * 6, 2);
+                std::memcpy (&p.value01, d + i * 6 + 2, 4);
+            }
+            else
+            {
+                codec::readLittleEndian (d + i * 6, p.index, p.value01);
+            }
             out.push_back (p);
         }
 
@@ -424,41 +463,50 @@ namespace
     }
 }
 
-juce::ValueTree SceneBank::toValueTree (std::size_t maxBytes, bool* truncated) const
+juce::ValueTree SceneBank::toValueTree (std::size_t maxBytes, bool* failed, juce::String* why) const
 {
     juce::ValueTree t (subtreeName);
-    t.setProperty ("v", 1, nullptr);
+    t.setProperty ("v", kSceneSchemaVersion, nullptr);
     t.setProperty ("name", name, nullptr);
     t.setProperty ("cur", current, nullptr);
     t.setProperty ("wrap", options.wrap ? 1 : 0, nullptr);
     t.setProperty ("q", (int) options.quant, nullptr);
     t.setProperty ("nt", options.immediateWithoutTransport ? 1 : 0, nullptr);
 
-    if (truncated != nullptr)
-        *truncated = false;
-
-    std::size_t used = (std::size_t) t.toXmlString().getNumBytesAsUTF8();
+    if (failed != nullptr)
+        *failed = false;
+    if (why != nullptr)
+        why->clear();
 
     for (const auto& s : scenes)
     {
+        juce::String error;
+
+        if (! isSceneValid (s, error))
+        {
+            if (failed != nullptr)
+                *failed = true;
+            if (why != nullptr)
+                *why = "Scene \"" + s.name + "\" is invalid: " + error;
+            return {};
+        }
+
         juce::ValueTree n ("S");
         n.setProperty ("n", s.name, nullptr);
         n.setProperty ("sc", (int) s.scope, nullptr);
         n.setProperty ("q", (int) s.quant, nullptr);
+        n.setProperty ("sv", (int) s.scopeVersion, nullptr);
         n.setProperty ("d", encodeParams (s.params), nullptr);
-
-        const auto cost = (std::size_t) n.toXmlString().getNumBytesAsUTF8() + 2;
-
-        if (used + cost > maxBytes)
-        {
-            if (truncated != nullptr)
-                *truncated = true;
-
-            break;
-        }
-
-        used += cost;
         t.appendChild (n, nullptr);
+    }
+
+    if ((std::size_t) t.toXmlString().getNumBytesAsUTF8() > std::min (maxBytes, kMaxSceneStateBytes))
+    {
+        if (failed != nullptr)
+            *failed = true;
+        if (why != nullptr)
+            *why = "The scene bank exceeds its project-state limit; no scenes were saved.";
+        return {};
     }
 
     return t;
@@ -466,7 +514,19 @@ juce::ValueTree SceneBank::toValueTree (std::size_t maxBytes, bool* truncated) c
 
 bool SceneBank::validateTree (const juce::ValueTree& t)
 {
-    if (! t.hasType (subtreeName) || t.getNumChildren() > kMaxScenes)
+    if ((! t.hasType (subtreeName) && ! t.hasType (legacySubtreeName)) || t.getNumChildren() > kMaxScenes)
+        return false;
+
+    const auto versionText = t.getProperty ("v").toString();
+    if (versionText != "1" && versionText != "2")
+        return false;
+    const auto version = versionText.getIntValue();
+
+    if ((t.hasType (legacySubtreeName) && version != 1) || (t.hasType (subtreeName) && version != kSceneSchemaVersion))
+        return false;
+
+    const auto maxBytes = version == 1 ? (std::size_t) (24 * 1024) : kMaxSceneStateBytes;
+    if ((std::size_t) t.toXmlString().getNumBytesAsUTF8() > maxBytes)
         return false;
 
     if ((int) t.getProperty ("q", 3) < 1 || (int) t.getProperty ("q", 3) > 4)
@@ -490,8 +550,12 @@ bool SceneBank::validateTree (const juce::ValueTree& t)
 
         s.scope = (std::uint16_t) sc;
         s.quant = (Quant) q;
+        const auto scopeVersion = version == 1 ? juce::String ("1") : n.getProperty ("sv").toString();
+        if (scopeVersion != "1" && scopeVersion != "2")
+            return false;
+        s.scopeVersion = (std::uint8_t) scopeVersion.getIntValue();
 
-        if (! decodeParams (n.getProperty ("d").toString(), s.params))
+        if (! decodeParams (n.getProperty ("d").toString(), s.params, version))
             return false;
 
         juce::String why;
@@ -505,16 +569,23 @@ bool SceneBank::validateTree (const juce::ValueTree& t)
 
 void SceneBank::restore (const juce::ValueTree& t)
 {
-    clear();
+    if (! t.isValid())
+    {
+        clear();
+        return;
+    }
 
-    if (! t.hasType (subtreeName))
+    if (! validateTree (t))
         return;
 
-    name = t.getProperty ("name").toString().substring (0, kMaxBankNameLen);
-    current = (int) t.getProperty ("cur", -1);
-    options.wrap = (int) t.getProperty ("wrap", 0) != 0;
-    options.quant = (Quant) juce::jlimit (1, 4, (int) t.getProperty ("q", (int) Quant::Bar));
-    options.immediateWithoutTransport = (int) t.getProperty ("nt", 1) != 0;
+    SceneBank next;
+    const auto version = (int) t.getProperty ("v");
+
+    next.name = t.getProperty ("name").toString();
+    next.current = (int) t.getProperty ("cur", -1);
+    next.options.wrap = (int) t.getProperty ("wrap", 0) != 0;
+    next.options.quant = (Quant) (int) t.getProperty ("q", (int) Quant::Bar);
+    next.options.immediateWithoutTransport = (int) t.getProperty ("nt", 1) != 0;
 
     for (const auto& n : t)
     {
@@ -522,12 +593,15 @@ void SceneBank::restore (const juce::ValueTree& t)
         s.name = n.getProperty ("n").toString();
         s.scope = (std::uint16_t) juce::jlimit (0, 255, (int) n.getProperty ("sc", kDefaultScope));
         s.quant = (Quant) juce::jlimit (0, 4, (int) n.getProperty ("q", 0));
-        decodeParams (n.getProperty ("d").toString(), s.params);
-        scenes.push_back (std::move (s));
+        s.scopeVersion = (std::uint8_t) (version == 1 ? 1 : (int) n.getProperty ("sv"));
+        decodeParams (n.getProperty ("d").toString(), s.params, version);
+        next.scenes.push_back (std::move (s));
     }
 
-    if (current >= size())
-        current = -1;
+    if (next.current < -1 || next.current >= next.size())
+        next.current = -1;
+
+    assign (next);
 }
 
 juce::String SceneBank::canonicalPayload() const
@@ -536,7 +610,7 @@ juce::String SceneBank::canonicalPayload() const
 
     for (const auto& s : scenes)
     {
-        out << s.name << '|' << (int) s.scope << '|' << (int) s.quant << '|';
+        out << s.name << '|' << (int) s.scope << '|' << (int) s.quant << '|' << (int) s.scopeVersion << '|';
 
         for (const auto& p : s.params)
             out << paramIdAt (p.index) << '=' << juce::String (p.value01, 6) << ';';

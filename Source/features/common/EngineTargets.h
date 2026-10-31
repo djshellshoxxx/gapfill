@@ -18,7 +18,8 @@ enum class Kind : std::uint8_t
 {
     None = 0, Fill, Intensity, Complexity, Chaos, Density, FillType, Weight,
     ProtTrans, ProtNext, ProtSC, MinGap, MaxFill, ProtectHold,
-    BandOn, BandAmt, BandInt, BandProb, XoverLM, XoverMH
+    BandOn, BandAmt, BandInt, BandProb, XoverLM, XoverMH,
+    HarmonicAmount, HarmonicVoices, HarmonicMotion, HarmonicTone
 };
 
 struct Ref

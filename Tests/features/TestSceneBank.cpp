@@ -91,14 +91,14 @@ GF_TEST (SceneBank, export_of_a_selection_and_no_paths_or_host_info)
     const auto home = juce::File::getSpecialLocation (juce::File::userHomeDirectory).getFullPathName();
     GF_EXPECT (! text.contains (home) && ! text.contains ("\\") && ! text.contains ("/home"));
     GF_EXPECT (! text.contains (juce::SystemStats::getComputerName()) || juce::SystemStats::getComputerName().isEmpty());
-    GF_EXPECT (text.contains ("formatVersion=\"1\"") && text.contains ("stateVersion=\"3\""));
+    GF_EXPECT (text.contains ("formatVersion=\"2\"") && text.contains ("stateVersion=\"2\""));
 }
 
 GF_TEST (SceneBank, import_rejects_oversize_malformed_and_newer_versions)
 {
     juce::String huge = "<GapBank formatVersion=\"1\">";
 
-    while (huge.length() < 300 * 1024)
+    while (huge.length() < (int) kMaxFileBytes + 1)
         huge << "<Scene name=\"x\"/>";
 
     huge << "</GapBank>";
@@ -110,7 +110,7 @@ GF_TEST (SceneBank, import_rejects_oversize_malformed_and_newer_versions)
     GF_EXPECT (parseString ("<GapBank/>").status == ParseStatus::Malformed);                          // no version
     GF_EXPECT (parseString ("<GapBank formatVersion=\"0\"/>").status == ParseStatus::Malformed);
 
-    const auto newer = parseString (wrap ("", "formatVersion=\"2\""));
+    const auto newer = parseString (wrap ("", "formatVersion=\"3\""));
     GF_EXPECT (newer.status == ParseStatus::NewerVersion && newer.message.contains ("newer GapFill"));
 
     GF_EXPECT (parseString (wrap ("")).status == ParseStatus::Empty);

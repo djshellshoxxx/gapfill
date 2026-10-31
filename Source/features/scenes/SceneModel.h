@@ -19,7 +19,10 @@ namespace gapfill::scenes
 {
 
 inline constexpr int kMaxScenes = 64;
-inline constexpr int kMaxSceneParams = 128;
+inline constexpr int kLegacyMaxSceneParams = 128;
+inline constexpr int kMaxSceneParams = 256;
+inline constexpr int kSceneSchemaVersion = 2;
+inline constexpr std::size_t kMaxSceneStateBytes = 256 * 1024;
 inline constexpr int kMaxSceneNameLen = 32;
 inline constexpr int kMaxBankNameLen = 48;
 
@@ -61,6 +64,7 @@ struct Scene
     juce::String name;
     std::uint16_t scope = kDefaultScope;
     Quant quant = Quant::Inherit;
+    std::uint8_t scopeVersion = 2;       ///< v1 retains the released scope (no hg* or post-beta IDs)
     std::vector<SceneParam> params;      ///< sparse: differs from the default
 
     bool operator== (const Scene& o) const noexcept;
@@ -115,12 +119,14 @@ public:
     void assign (const SceneBank& other);
 
     //------------------------------------------------------------------------
-    // <Scenes> subtree (<= 24 KiB).
-    static constexpr const char* subtreeName = "Scenes";
+    // New readers accept released <Scenes v=1>; writers use a distinct type
+    // so released readers safely ignore v2 instead of misreading its payload.
+    static constexpr const char* legacySubtreeName = "Scenes";
+    static constexpr const char* subtreeName = "ScenesV2";
 
-    /** Serialises scenes in order until the cap would be exceeded; the rest are
-        left out and `truncated` is set (the bank can still be exported). */
-    juce::ValueTree toValueTree (std::size_t maxBytes, bool* truncated = nullptr) const;
+    /** All-or-nothing serialisation. Failure returns an invalid tree and sets
+        `failed`/`why`; the original bank is unchanged and no prefix is saved. */
+    juce::ValueTree toValueTree (std::size_t maxBytes, bool* failed = nullptr, juce::String* why = nullptr) const;
     static bool validateTree (const juce::ValueTree&);
     void restore (const juce::ValueTree&);
 

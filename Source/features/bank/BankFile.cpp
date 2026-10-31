@@ -11,6 +11,40 @@ using namespace scenes;
 
 namespace
 {
+    juce::String valueText (float value, int formatVersion)
+    {
+        return formatVersion == 1 ? juce::String (value, 6) : juce::String ((double) value, 9, true);
+    }
+
+    bool normalisedValue (const juce::String& text, float& out)
+    {
+        const auto* p = text.toRawUTF8();
+        const auto digits = [&p] { int n = 0; while (*p >= '0' && *p <= '9') { ++p; ++n; } return n; };
+        if (*p == '+' || *p == '-')
+            ++p;
+        int mantissa = digits();
+        if (*p == '.')
+        {
+            ++p;
+            mantissa += digits();
+        }
+        if (mantissa == 0)
+            return false;
+        if (*p == 'e' || *p == 'E')
+        {
+            ++p;
+            if (*p == '+' || *p == '-')
+                ++p;
+            if (digits() == 0)
+                return false;
+        }
+        if (*p != '\0')
+            return false;
+        const auto value = text.getDoubleValue();
+        out = (float) value;
+        return std::isfinite (value) && value >= 0.0 && value <= 1.0;
+    }
+
     struct ScopeName { const char* name; std::uint16_t bit; };
     constexpr ScopeName kScopeNames[] =
     {
@@ -136,9 +170,9 @@ namespace
         return out;
     }
 
-    juce::String digestOf (const std::vector<Scene>& selected, const juce::String& bankName)
+    juce::String digestOf (const std::vector<Scene>& selected, const juce::String& bankName, int formatVersion)
     {
-        return sha256Hex (canonicalPayload (selected, bankName));
+        return sha256Hex (canonicalPayload (selected, bankName, formatVersion));
     }
 }
 
@@ -147,7 +181,7 @@ juce::String sha256 (const juce::String& text)
     return sha256Hex (text);
 }
 
-juce::String canonicalPayload (const std::vector<Scene>& selected, const juce::String& bankName)
+juce::String canonicalPayload (const std::vector<Scene>& selected, const juce::String& bankName, int formatVersion)
 {
     juce::String out;
     out << bankName << '\n';
@@ -156,8 +190,11 @@ juce::String canonicalPayload (const std::vector<Scene>& selected, const juce::S
     {
         out << s.name << '|' << scopeToString (s.scope) << '|' << quantName (s.quant) << '|';
 
+        if (formatVersion >= 2)
+            out << (int) s.scopeVersion << '|';
+
         for (const auto& p : s.params)
-            out << paramIdAt (p.index) << '=' << juce::String (p.value01, 6) << ';';
+            out << paramIdAt (p.index) << '=' << valueText (p.value01, formatVersion) << ';';
 
         out << '\n';
     }
@@ -183,10 +220,12 @@ juce::String exportToString (const SceneBank& bank, const ExportOptions& options
                 selected.push_back (bank.at (i));
     }
 
-    // Round the values to the file precision first so the digest matches what a reader sees.
-    for (auto& s : selected)
-        for (auto& p : s.params)
-            p.value01 = juce::String (p.value01, 6).getFloatValue();
+    for (const auto& s : selected)
+    {
+        juce::String why;
+        if (! isSceneValid (s, why))
+            return {};
+    }
 
     juce::XmlElement root ("GapBank");
     root.setAttribute ("formatVersion", kFormatVersion);
@@ -201,12 +240,13 @@ juce::String exportToString (const SceneBank& bank, const ExportOptions& options
         e->setAttribute ("name", s.name);
         e->setAttribute ("quant", quantName (s.quant));
         e->setAttribute ("scope", scopeToString (s.scope));
+        e->setAttribute ("scopeVersion", (int) s.scopeVersion);
 
         for (const auto& p : s.params)
         {
             auto* pe = e->createNewChildElement ("P");
             pe->setAttribute ("id", paramIdAt (p.index));
-            pe->setAttribute ("v", juce::String (p.value01, 6));
+            pe->setAttribute ("v", valueText (p.value01, kFormatVersion));
         }
     }
 
@@ -214,15 +254,17 @@ juce::String exportToString (const SceneBank& bank, const ExportOptions& options
         if (auto macros = options.macros.createXml())
             root.addChildElement (macros.release());
 
-    root.createNewChildElement ("Digest")->setAttribute ("sha256", digestOf (selected, bank.getName()));
-    return root.toString (juce::XmlElement::TextFormat().withoutHeader());
+    root.createNewChildElement ("Digest")->setAttribute ("sha256", digestOf (selected, bank.getName(), kFormatVersion));
+    const auto text = root.toString (juce::XmlElement::TextFormat().withoutHeader());
+    return (juce::int64) text.getNumBytesAsUTF8() <= kMaxFileBytes ? text : juce::String();
 }
 
 //==============================================================================
 void migrateBank (juce::XmlElement& root, int fromVersion)
 {
-    // formatVersion 1 is the only version; the hook exists so the first real
-    // change has a place to go (docs/dev/12 N-VAL import step).
+    // v1 stays readable without rewriting its digest or widening its scope.
+    // v2 adds scopeVersion and lossless float text; the parser handles each
+    // representation explicitly rather than mutating the input XML.
     juce::ignoreUnused (root, fromVersion);
 }
 
@@ -233,7 +275,7 @@ ImportReport parseString (const juce::String& text)
     if ((juce::int64) text.getNumBytesAsUTF8() > kMaxFileBytes)
     {
         r.status = ParseStatus::TooLarge;
-        r.message = "This file is larger than 256 KiB and is not a GapFill scene bank.";
+        r.message = "This file is larger than 1 MiB and cannot be imported as a GapFill scene bank.";
         return r;
     }
 
@@ -254,7 +296,14 @@ ImportReport parseString (const juce::String& text)
         return r;
     }
 
-    const auto version = xml->getIntAttribute ("formatVersion", -1);
+    const auto versionText = xml->getStringAttribute ("formatVersion");
+    const auto version = versionText.getIntValue();
+
+    if (versionText != juce::String (version))
+    {
+        r.message = "The scene bank has an invalid format version.";
+        return r;
+    }
 
     if (version > kFormatVersion)
     {
@@ -285,6 +334,15 @@ ImportReport parseString (const juce::String& text)
         Scene s;
         s.name = se->getStringAttribute ("name").substring (0, kMaxSceneNameLen);
         const auto fail = [&] (const juce::String& why) { r.skipped.push_back ({ s.name, why }); };
+        const auto scopeVersion = version == 1 ? juce::String ("1") : se->getStringAttribute ("scopeVersion");
+
+        if (scopeVersion != "1" && scopeVersion != "2")
+        {
+            fail ("unsupported scene scope version");
+            continue;
+        }
+
+        s.scopeVersion = (std::uint8_t) scopeVersion.getIntValue();
 
         if (se->getStringAttribute ("name").length() > kMaxSceneNameLen)
         {
@@ -302,13 +360,14 @@ ImportReport parseString (const juce::String& text)
 
         bool bad = false;
         int unknownInScene = 0;
+        const auto maxParams = version == 1 ? kLegacyMaxSceneParams : kMaxSceneParams;
 
         for (auto* pe : se->getChildWithTagNameIterator ("P"))
         {
-            if ((int) s.params.size() > kMaxSceneParams)
+            if ((int) s.params.size() >= maxParams)
             {
                 bad = true;
-                fail ("more than 128 parameters");
+                fail ("more than " + juce::String (maxParams) + " parameters");
                 break;
             }
 
@@ -329,19 +388,12 @@ ImportReport parseString (const juce::String& text)
                 break;
             }
 
-            if (! vText.containsOnly ("0123456789.-+eE") || vText.isEmpty())
+            float v = 0.0f;
+
+            if (! normalisedValue (vText, v))
             {
                 bad = true;
                 fail ("invalid value for " + id);
-                break;
-            }
-
-            const auto v = vText.getFloatValue();
-
-            if (! std::isfinite (v) || v < 0.0f || v > 1.0f)
-            {
-                bad = true;
-                fail ("value out of range for " + id);
                 break;
             }
 
@@ -351,9 +403,11 @@ ImportReport parseString (const juce::String& text)
         if (bad)
             continue;
 
-        if (s.params.size() > (size_t) kMaxSceneParams)
+        juce::String why;
+
+        if (! isSceneValid (s, why))
         {
-            fail ("more than 128 parameters");
+            fail (why);
             continue;
         }
 
@@ -370,7 +424,7 @@ ImportReport parseString (const juce::String& text)
 
         // The digest covers what the exporter wrote; compare against the file's own scenes
         // (including skipped ones would need them parsed, so a skipped scene also shows as a mismatch).
-        r.digestMismatch = d->getStringAttribute ("sha256") != digestOf (r.accepted, r.bankName);
+        r.digestMismatch = d->getStringAttribute ("sha256") != digestOf (r.accepted, r.bankName, version);
     }
 
     if (r.accepted.empty())
@@ -401,7 +455,7 @@ ImportReport parseFile (const juce::File& file)
     if (file.getSize() > kMaxFileBytes)
     {
         r.status = ParseStatus::TooLarge;
-        r.message = "This file is larger than 256 KiB and is not a GapFill scene bank.";
+        r.message = "This file is larger than 1 MiB and cannot be imported as a GapFill scene bank.";
         return r;
     }
 
@@ -425,6 +479,16 @@ ApplyResult applyImport (SceneController& controller, const ImportReport& report
     {
         out.message = report.message.isNotEmpty() ? report.message : "Nothing to import.";
         return out;
+    }
+
+    for (const auto& scene : report.accepted)
+    {
+        juce::String why;
+        if (! isSceneValid (scene, why))
+        {
+            out.message = "The imported bank is invalid: " + why;
+            return out;
+        }
     }
 
     // Build the complete result first; only then swap it in.
@@ -484,6 +548,13 @@ ApplyResult applyImport (SceneController& controller, const ImportReport& report
             break;
     }
 
+    juce::String why;
+    if (! next.toValueTree (kMaxSceneStateBytes, nullptr, &why).isValid())
+    {
+        out.message = why;
+        return out;
+    }
+
     controller.rememberForUndo();
     controller.replaceBank (next);
 
@@ -497,6 +568,12 @@ ApplyResult applyImport (SceneController& controller, const ImportReport& report
 
 bool writeFile (const juce::File& target, const juce::String& text, bool allowOverwrite, juce::String& error)
 {
+    if (text.isEmpty())
+    {
+        error = "No complete scene bank could be exported. Check its scene values and size.";
+        return false;
+    }
+
     if (target.exists() && ! allowOverwrite)
     {
         error = "The file already exists. Choose a different name or confirm the overwrite.";
@@ -505,7 +582,7 @@ bool writeFile (const juce::File& target, const juce::String& text, bool allowOv
 
     if ((juce::int64) text.getNumBytesAsUTF8() > kMaxFileBytes)
     {
-        error = "The bank is larger than 256 KiB and cannot be exported.";
+        error = "The bank is larger than 1 MiB and cannot be exported.";
         return false;
     }
 

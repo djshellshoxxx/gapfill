@@ -29,6 +29,11 @@ public:
     /** Requests scene `index`. False (status set) when the index is out of range
         or the scene is invalid; the previous state is then kept. */
     bool gotoScene (int index);
+    /** Group recall at an explicit future PPQ boundary. A missed deadline or
+        transport discontinuity cancels rather than applying at another time. */
+    bool gotoSceneAt (int index, double targetPpq);
+    /** Message-thread acknowledgement of a fixed request rejected by audio. */
+    void rejectPending (std::uint32_t requestId, const juce::String& reason);
     bool next();
     bool prev();
 
@@ -70,7 +75,7 @@ public:
     void reset();     ///< clears bank and request state
 
 private:
-    bool request (int index);
+    bool request (int index, bool fixedBoundary = false, double targetPpq = 0.0);
     int  clampStep (int from, int delta) const;
     void publishOverlay (Overlay::Kind kind);
 
@@ -86,6 +91,8 @@ private:
     std::uint32_t idCounter = 0;
     std::uint8_t pendingQuant = (std::uint8_t) Quant::Immediate;
     std::uint8_t pendingWait = 0;
+    bool pendingFixedBoundary = false;
+    double pendingTargetPpq = 0.0;
 
     std::vector<ResolvedParam> resolved;       ///< entries still governed by the overlay
     std::vector<float> baseline01;             ///< parameter value when the request was made

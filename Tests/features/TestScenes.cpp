@@ -360,7 +360,10 @@ GF_TEST (Scenes, invalid_scene_is_never_applied_and_last_good_is_kept)
     auto& ctl = proc.getLiveControl().scenes();
     ctl.getBank().options.quant = Quant::Immediate;
     ctl.getBank().store (0, sceneWith ("Good", { { "fill", 0.5f } }));
-    ctl.getBank().store (1, sceneWith ("Bad", { { "dry", 0.5f } }));
+    ctl.getBank().store (1, sceneWith ("Bad", { { "fill", 0.5f } }));
+    // Simulate corruption after admission; the controller must still defend
+    // against an invalid mutable slot without disturbing the last good scene.
+    ctl.getBank().at (1).params[0].index = (std::uint16_t) paramIndexOf ("dry");
 
     prepareProcessor (proc, kSr, 256, false);
     juce::AudioBuffer<float> work (2, 256);
@@ -517,10 +520,9 @@ GF_TEST (Scenes, bank_state_round_trip_old_state_and_cap)
     GF_EXPECT (back.options.quant == Quant::Phrase);
     GF_EXPECT (back.canonicalPayload() == bank.canonicalPayload());
 
-    // beyond the cap the tail is left out and reported, never a corrupt subtree
+    // A small cap fails explicitly rather than silently saving a prefix.
     const auto small = bank.toValueTree (4 * 1024, &truncated);
-    GF_EXPECT (truncated && SceneBank::validateTree (small));
-    GF_EXPECT (state::serialisedSize (small) <= 4 * 1024);
+    GF_EXPECT (truncated && ! small.isValid());
 }
 
 GF_TEST (Scenes, malformed_scenes_subtree_is_dropped_and_the_rest_of_the_state_loads)
@@ -534,7 +536,7 @@ GF_TEST (Scenes, malformed_scenes_subtree_is_dropped_and_the_rest_of_the_state_l
     auto xml = juce::AudioProcessor::getXmlFromBinary (blob.getData(), (int) blob.getSize());
     GF_EXPECT (xml != nullptr);
 
-    auto* scenesXml = xml->getChildByName ("Scenes");
+    auto* scenesXml = xml->getChildByName (SceneBank::subtreeName);
     GF_EXPECT (scenesXml != nullptr && scenesXml->getNumChildElements() == 1);
 
     // round trip
@@ -556,7 +558,7 @@ GF_TEST (Scenes, malformed_scenes_subtree_is_dropped_and_the_rest_of_the_state_l
     GF_EXPECT_NEAR (pv (c.getValueTreeState().getRawParameterValue ("chaos")), 77.0, 0.01);   // rest loaded
 
     // old state without the subtree: empty bank
-    scenesXml = xml->getChildByName ("Scenes");
+    scenesXml = xml->getChildByName (SceneBank::subtreeName);
     xml->removeChildElement (scenesXml, true);
     juce::MemoryBlock old;
     juce::AudioProcessor::copyXmlToBinary (*xml, old);

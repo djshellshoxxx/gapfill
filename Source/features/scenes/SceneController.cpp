@@ -20,8 +20,14 @@ void SceneController::publishOverlay (Overlay::Kind kind)
     pub.publish (o);
 }
 
-bool SceneController::request (int index)
+bool SceneController::request (int index, bool fixedBoundary, double targetPpq)
 {
+    if (fixedBoundary && ! std::isfinite (targetPpq))
+    {
+        status = "The group scene boundary is invalid";
+        return false;
+    }
+
     if (index < 0 || index >= bank.size())
     {
         status = "Scene " + juce::String (index + 1) + " does not exist";
@@ -53,6 +59,10 @@ bool SceneController::request (int index)
     o.waitForTransport = bank.options.immediateWithoutTransport ? 0 : 1;
     pendingQuant = o.quant;
     pendingWait = o.waitForTransport;
+    o.fixedBoundary = fixedBoundary ? 1 : 0;
+    o.targetPpq = targetPpq;
+    pendingFixedBoundary = fixedBoundary;
+    pendingTargetPpq = targetPpq;
     o.n = (std::uint16_t) resolved.size();
 
     for (size_t i = 0; i < resolved.size(); ++i)
@@ -72,6 +82,20 @@ bool SceneController::request (int index)
 bool SceneController::gotoScene (int index)
 {
     return request (index);
+}
+
+bool SceneController::gotoSceneAt (int index, double targetPpq)
+{
+    return request (index, true, targetPpq);
+}
+
+void SceneController::rejectPending (std::uint32_t requestId, const juce::String& reason)
+{
+    if (requestId != 0 && requestId == pendingId)
+    {
+        cancel();
+        status = reason;
+    }
 }
 
 int SceneController::clampStep (int from, int delta) const
@@ -223,6 +247,8 @@ void SceneController::poll()
         o.id = pendingId;
         o.quant = pendingQuant;
         o.waitForTransport = pendingWait;
+        o.fixedBoundary = pendingFixedBoundary ? 1 : 0;
+        o.targetPpq = pendingTargetPpq;
         o.n = (std::uint16_t) resolved.size();
 
         for (size_t i = 0; i < resolved.size(); ++i)
