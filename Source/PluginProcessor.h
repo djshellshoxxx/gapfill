@@ -31,6 +31,7 @@
 
 namespace gapfill
 {
+namespace models { struct ModelVersions; }
 
 //==============================================================================
 class GapFillAudioProcessor  : public juce::AudioProcessor,
@@ -129,6 +130,11 @@ public:
     int getAppliedQualityLevel() const noexcept     { return appliedQuality.load (std::memory_order_relaxed); }
     const coop::CoopMember& getCoop() const noexcept                       { return coopMember; }      // F-X06
     coop::CoopMember& getCoop() noexcept                                   { return coopMember; }
+
+    /** Message-thread version selection; the getter is an atomic audio-safe snapshot. */
+    models::ModelVersions getModelVersions() const noexcept;
+    void setModelVersions (models::ModelVersions, bool notifyHost);
+    void upgradeModels();
 
     /** WP11 UI shell state: status board, Simple/Advanced view mode (message thread). */
     ui::UiState& getUiState() noexcept                              { return uiState; }
@@ -248,6 +254,7 @@ private:
     EngineSettings gatherEngineSettings();
     AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
+    void beginHostCallbackTiming();
     bool isParameterStateValid (const juce::ValueTree& state) const;
     void snapParametersToState();
     void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); midiOut.requestFlush(); }
@@ -324,6 +331,8 @@ private:
     juce::SmoothedValue<float> dryGain, wetGain, outGain, centreProtect, widthAmount, bypassMix;
 
     transport::TransportTracker transportTracker;
+    transport::HostTiming hostTiming;
+    std::atomic<std::uint32_t> modelVersionsPacked { 0x020202u };
    #ifdef GAPFILL_UNIT_TESTS
     int transportJumpCountForTests = 0;
    #endif

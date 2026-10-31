@@ -8,6 +8,14 @@
 namespace gapfill::transport
 {
 
+/** One host callback's immutable timing, shared by all internal segments. */
+struct HostTiming
+{
+    double bpm = 120.0, ppq = 0.0;
+    bool tempoValid = false, ppqValid = false, playing = false;
+    int tsNum = 0, tsDen = 0;
+};
+
 /** Complete HOST callback snapshot, never an internal sub-chunk. The adapter
     supplies finite PPQ when ppqValid is true, and a resolved finite BPM > 1
     (120 when host tempo is invalid), just as updateTempoInfo did before. */

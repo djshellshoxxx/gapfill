@@ -3,13 +3,14 @@
 namespace gapfill
 {
 
-void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample, int /*numSamples*/)
+void GapFillAudioProcessor::beginHostCallbackTiming()
 {
-    double bpm = 120.0;
-    bool tempoValid = false;
-    bool playing = false;
-    double ppq = 0.0;
-    bool ppqValid = false;
+    hostTiming = {};
+    auto& bpm = hostTiming.bpm;
+    auto& tempoValid = hostTiming.tempoValid;
+    auto& playing = hostTiming.playing;
+    auto& ppq = hostTiming.ppq;
+    auto& ppqValid = hostTiming.ppqValid;
 
     if (auto* ph = getPlayHead())
     {
@@ -34,24 +35,15 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
 
             if (const auto ts = pos->getTimeSignature())
             {
-                s.perf.tsNum = ts->numerator;
-                s.perf.tsDen = ts->denominator;
+                hostTiming.tsNum = ts->numerator;
+                hostTiming.tsDen = ts->denominator;
             }
         }
     }
 
-    const auto samplesPerBeat = 60.0 / bpm * currentSampleRate;
-
-    s.samplesPerBeat = samplesPerBeat;
-    // The host reports the position of the whole block, so offset it for the
-    // sub-chunk we are actually rendering.
-    s.ppqAtBlockStart = ppq + (double) startSample / samplesPerBeat;
-    s.transportValid = playing && ppqValid && tempoValid;
-
     // Compare this callback's position with the end predicted by the PREVIOUS
     // complete host callback. Using the current chunk length is wrong when a
     // DAW changes buffer sizes or processBlock splits oversized host buffers.
-    if (startSample == 0)
     {
         const auto kind = transportTracker.update ({ playing, ppqValid, ppq, bpm, hostBlockSamples });
 
@@ -70,6 +62,19 @@ void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample,
             panicWet();
         }
     }
+
+}
+
+void GapFillAudioProcessor::updateTempoInfo (EngineSettings& s, int startSample, int /*numSamples*/)
+{
+    const auto bpm = hostTiming.bpm;
+    const auto tempoValid = hostTiming.tempoValid;
+    const auto samplesPerBeat = 60.0 / bpm * currentSampleRate;
+    s.samplesPerBeat = samplesPerBeat;
+    s.ppqAtBlockStart = hostTiming.ppq + (double) startSample / samplesPerBeat;
+    s.transportValid = hostTiming.playing && hostTiming.ppqValid && tempoValid;
+    s.perf.tsNum = hostTiming.tsNum;
+    s.perf.tsDen = hostTiming.tsDen;
 
     // Tempo-synced lengths (E-2): the host tempo, else the last one it reported,
     // else the Options fallback (120 BPM by default). Out-of-range lengths are

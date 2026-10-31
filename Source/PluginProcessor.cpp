@@ -459,6 +459,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     }
 
     hostBlockSamples = numSamples;
+    beginHostCallbackTiming();
     const bool bypassed = pb (params.bypass);
 
     if constexpr (midiout::kActive)
@@ -499,6 +500,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     }
 
     hostBlockSamples = numSamples;
+    beginHostCallbackTiming();
 
     if constexpr (midiout::kActive)
         midiOut.beginBlock (gatherMidiOutSettings(), numSamples);
