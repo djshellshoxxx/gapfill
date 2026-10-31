@@ -2,6 +2,7 @@
 
 #include "features/explain/OverlaySlot.h"
 #include "features/timeline/Gui.h"
+#include "features/i18n/Strings.h"
 
 using namespace gapfill;
 using namespace gapfill::timeline;
@@ -101,6 +102,7 @@ GF_TEST (TimelineGui, expansion_stays_within_the_editor_available_area)
 
 GF_TEST (TimelineGui, inspector_uses_the_engine_reason_record)
 {
+    i18n::ScopedLanguage language ("en");
     GapFillAudioProcessor proc;
     proc.setKeyboardNavigationEnabled (true);
     TimelineEvent event;

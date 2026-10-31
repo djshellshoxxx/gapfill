@@ -2,6 +2,7 @@
 
 #include "../../PluginProcessor.h"
 #include "../reasons/Gui.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::timeline
 {
@@ -155,7 +156,7 @@ void TimelineView::paintFrameLanes (juce::Graphics& g, juce::Rectangle<float> au
         {
             g.setColour (colours::text);
             const float dashes[] { 2.0f, 3.0f };
-            g.drawDashedLine ({ x, audio.getY(), x, plot.getBottom() - 14.0f }, dashes, 2, 1.0f);
+            g.drawDashedLine ({ x, audio.getY(), x, plot.getBottom() - 28.0f }, dashes, 2, 1.0f);
         }
 
         if (column.ppqTick != INT32_MIN)
@@ -168,12 +169,12 @@ void TimelineView::paintFrameLanes (juce::Graphics& g, juce::Rectangle<float> au
             if (beat != oldBeat)
             {
                 g.setColour (colours::textMuted.withAlpha (0.45f));
-                g.drawVerticalLine ((int) x, audio.getY(), plot.getBottom() - 14.0f);
+                g.drawVerticalLine ((int) x, audio.getY(), plot.getBottom() - 28.0f);
                 if (column.timeSigNumerator > 0 && column.timeSigDenominator > 0 && beat % column.timeSigNumerator == 0)
                 {
                     g.setFont (fonts::mono (9.0f));
                     g.drawText (juce::String (beat / column.timeSigNumerator + 1),
-                                juce::Rectangle<float> (x + 2.0f, audio.getY(), 40.0f, 11.0f),
+                                juce::Rectangle<float> (x + 2.0f, plot.getBottom() - 28.0f, 40.0f, 11.0f),
                                 juce::Justification::centredLeft, false);
                 }
             }
@@ -187,9 +188,9 @@ void TimelineView::paintFrameLanes (juce::Graphics& g, juce::Rectangle<float> au
     {
         g.setFont (fonts::label (8.5f));
         g.setColour (colours::text);
-        const char* names[] { "LOW", "MID", "HIGH" };
         for (int band = 0; band < 3; ++band)
-            g.drawText (names[band], juce::Rectangle<float> (bands.getX() + 4.0f,
+            g.drawText (band == 0 ? i18n::text ("LOW") : band == 1 ? i18n::text ("MID") : i18n::text ("HIGH"),
+                        juce::Rectangle<float> (bands.getX() + 4.0f,
                         bands.getY() + (float) band * bands.getHeight() / 3.0f, 40.0f, bands.getHeight() / 3.0f),
                         juce::Justification::centredLeft, false);
     }
@@ -198,7 +199,7 @@ void TimelineView::paintFrameLanes (juce::Graphics& g, juce::Rectangle<float> au
     {
         g.setColour (colours::textMuted);
         g.setFont (fonts::ui (9.0f));
-        g.drawText ("No host tempo - time only", audio.reduced (4.0f), juce::Justification::topRight, true);
+        g.drawText (i18n::text ("No host tempo - time only"), audio.reduced (4.0f), juce::Justification::topRight, true);
     }
 }
 

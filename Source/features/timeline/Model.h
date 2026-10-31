@@ -48,7 +48,8 @@ static_assert (std::is_trivially_copyable_v<TimelineEvent>);
     GapEval with no reason plus a FillStart). Returns how many were written to `out`. */
 int fromEngineEvent (const FillEvent&, TimelineEvent out[2]) noexcept;
 
-/** One-line text for the keyboard-reachable companion list and the legend. */
+/** Message-thread display text for the companion list/legend. Localized human
+    wording is separate from the stable English typeName/schema labels. */
 juce::String describe (const TimelineEvent&);
 
 /** Total, never throws: every EventType has a name and an explanation. */

@@ -1,6 +1,7 @@
 #include "Gui.h"
 
 #include "../../PluginProcessor.h"
+#include "../i18n/Strings.h"
 
 #include <limits>
 
@@ -20,7 +21,10 @@ void TimelineView::setPaused (bool paused)
 {
     proc.getExplainState().timelineModel.setPaused (paused, liveEndPos());
     pauseButton.setToggleState (paused, juce::dontSendNotification);
-    pauseButton.setButtonText (paused ? "LIVE" : "FREEZE");
+    pauseButton.setButtonText (paused ? i18n::text ("LIVE") : i18n::text ("FREEZE"));
+    pauseButton.setTitle (pauseButton.getButtonText());
+    pauseButton.setTooltip (paused ? i18n::text ("Resume the live display")
+                                  : i18n::text ("Freeze the display. Events keep being recorded."));
     snapshotReady = false;
     refresh();
 }
@@ -79,7 +83,7 @@ void TimelineView::updateInspector (float x)
     inspectorX = x;
     if (windowEvents.empty() || plotBounds().getWidth() <= 0)
     {
-        inspectorText = "No recorded gap outcome at this position";
+        inspectorText = i18n::text ("No recorded gap outcome at this position");
         return;
     }
 
@@ -102,12 +106,12 @@ void TimelineView::updateInspector (float x)
 
     if (nearest == nullptr)
     {
-        inspectorText = "No recorded gap outcome at this position";
+        inspectorText = i18n::text ("No recorded gap outcome at this position");
         return;
     }
 
     const auto seconds = (double) (shownEnd - nearest->pos) / juce::jmax (8000.0, proc.getExplainState().sampleRate.load());
-    inspectorText = juce::String (seconds, 2) + " s ago: " + describe (*nearest);
+    inspectorText = i18n::format ("{0} s ago: {1}", { juce::String (seconds, 2), describe (*nearest) });
 }
 
 void TimelineView::mouseMove (const juce::MouseEvent& event)

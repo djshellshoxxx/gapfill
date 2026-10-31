@@ -4,6 +4,7 @@
 #include "LookAndFeel.h"
 #include "MeterMath.h"
 #include "../dsp/VisualisationState.h"
+#include "../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -226,7 +227,7 @@ public:
 
         g.setColour (colours::textDim);
         g.setFont (juce::Font (juce::FontOptions (10.0f)));
-        g.drawText ("GAP CONFIDENCE  " + juce::String ((int) std::round (value * 100.0f)) + "%",
+        g.drawText (i18n::format ("GAP CONFIDENCE  {0}%", { juce::String ((int) std::round (value * 100.0f)) }),
                     getLocalBounds().reduced (6, 0), juce::Justification::centredLeft);
     }
 

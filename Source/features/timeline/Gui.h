@@ -12,6 +12,7 @@
 #include "Model.h"
 
 #include <functional>
+#include <limits>
 
 namespace gapfill
 {
@@ -79,6 +80,7 @@ private:
     std::vector<TimelineEvent> windowEvents;
     std::array<TimelineEvent, (size_t) listRows> listItems {};
     int numListItems = 0;
+    juce::StringArray listText;
     std::int64_t shownEnd = 0;
     static constexpr int maxDisplayColumns = 2048;
     std::vector<FrameHistory::Column> displayFrames;
@@ -86,6 +88,7 @@ private:
     juce::String inspectorText;
     float inspectorX = 0.0f;
     std::int64_t dragStartEnd = 0;
+    std::uint64_t displayedLanguageGeneration = std::numeric_limits<std::uint64_t>::max();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TimelineView)
 };

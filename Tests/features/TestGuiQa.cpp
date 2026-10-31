@@ -13,6 +13,7 @@
 
 #include "PluginEditor.h"
 #include "features/presetbrowser/GlobalSettings.h"
+#include "features/i18n/Strings.h"
 
 #include <iostream>
 #include <set>
@@ -29,16 +30,22 @@ namespace
             file = juce::File::getSpecialLocation (juce::File::tempDirectory)
                      .getChildFile ("gapfill-guiqa-" + juce::String::toHexString (juce::Random::getSystemRandom().nextInt64()) + ".xml");
             settings::GlobalSettings::useFileForTests (file);
+            const auto wanted = juce::SystemStats::getEnvironmentVariable ("GF_GUI_LANGUAGE", "en");
+            language = std::make_unique<i18n::ScopedLanguage> (wanted);
+            GF_EXPECT_MSG (i18n::currentLanguage() == wanted, "Unknown GUI QA language: " + wanted);
+            settings::GlobalSettings::shared()->setString (settings::GlobalSettings::keyLanguage, wanted);
         }
 
         ~ScopedSettings()
         {
+            language.reset();
             settings::GlobalSettings::useFileForTests (juce::File::getSpecialLocation (juce::File::tempDirectory)
                                                          .getChildFile ("gapfill-guiqa-reset.xml"));
             file.deleteFile();
         }
 
         juce::File file;
+        std::unique_ptr<i18n::ScopedLanguage> language;
     };
 
     float textWidthOf (const juce::Font& font, const juce::String& text)

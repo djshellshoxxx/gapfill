@@ -2,6 +2,7 @@
 
 #include "../../Parameters.h"
 #include "../reasons/Reasons.h"
+#include "../i18n/Strings.h"
 
 #include <cmath>
 
@@ -94,23 +95,22 @@ juce::String describe (const TimelineEvent& e)
     {
         case EventType::GapEval:
             if (e.reason == (std::uint8_t) RejectReason::None)
-                return "Gap evaluated: filled";
+                return i18n::text ("Gap evaluated: filled");
 
-            return "Gap skipped: " + reasons::labelWithNumbers ((RejectReason) e.reason, (float) e.availMs, (float) e.needMs)
-                   + ". " + reasons::advice ((RejectReason) e.reason);
+            return i18n::format ("Gap skipped: {0}. {1}",
+                { reasons::labelWithNumbers ((RejectReason) e.reason, (float) e.availMs, (float) e.needMs),
+                  i18n::text (reasons::advice ((RejectReason) e.reason)) });
 
         case EventType::FillStart:
         {
-            juce::String s = "Fill started";
-
             if (e.algo < numAlgos)
-                s << ": " << algoName ((Algo) e.algo) << ", " << juce::String (e.lenMs) << " ms";
-
-            return s;
+                return i18n::format ("Fill started: {0}, {1} ms",
+                                      { i18n::text (algoName ((Algo) e.algo)), juce::String (e.lenMs) });
+            return i18n::text ("Fill started");
         }
 
         default:
-            return typeName (e.type);
+            return i18n::text (typeName (e.type));
     }
 }
 

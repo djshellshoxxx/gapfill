@@ -11,7 +11,8 @@
 namespace gapfill::explain
 {
 
-class VisualiserOverlayComponent : public juce::Component
+class VisualiserOverlayComponent : public juce::Component,
+                                   private juce::ChangeListener
 {
 public:
     explicit VisualiserOverlayComponent (GapFillAudioProcessor&);
@@ -33,6 +34,9 @@ public:
     static constexpr int stripHeight = 22;
 
 private:
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
+    void updateText();
+
     GapFillAudioProcessor& proc;
     reasons::LegendStrip legend;
     juce::TextButton timelineToggle { "TIMELINE" };

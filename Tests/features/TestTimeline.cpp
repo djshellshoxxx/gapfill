@@ -5,6 +5,7 @@
 
 #include "features/reasons/Reasons.h"
 #include "features/timeline/Model.h"
+#include "features/i18n/Strings.h"
 
 #include <set>
 #include <tuple>
@@ -57,6 +58,7 @@ GF_TEST (Timeline, record_is_32_bytes_and_every_type_has_text)
 
 GF_TEST (Timeline, reason_enum_to_text_total)
 {
+    i18n::ScopedLanguage language ("en");
     // Every reason the engine can return has text on the timeline, and that text is the E-3 wording.
     for (int r = 0; r < numRejectReasons; ++r)
     {
