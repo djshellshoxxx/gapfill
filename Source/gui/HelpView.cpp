@@ -81,6 +81,11 @@ void HelpContent::versionLine (const juce::String& s)
 
 void HelpContent::rebuildLayout (float width)
 {
+    // Construction has no text geometry yet. Let resized() supply the real
+    // width instead of shaping all Help at a throwaway 120-pixel fallback.
+    if (width <= 0.0f)
+        return;
+
     if (std::abs (width - lastWidth) < 1.0f)
         return;
 
