@@ -109,6 +109,8 @@ public:
     std::atomic<std::uint32_t> mutedHealth { 0 };      ///< bit per health::HealthCode
     std::atomic<std::uint32_t> mutedFixit { 0 };       ///< bit per fixit::RuleId
     std::atomic<int> timelineZoomSeconds { 8 };        ///< 4, 8 or 16
+    std::atomic<bool> timelineExpanded { false };
+    std::atomic<bool> timelineList { false };
 
     //--- owned parts -----------------------------------------------------------
     telemetry::CpuMeter cpu;                           // audio writes

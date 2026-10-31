@@ -251,6 +251,9 @@ GF_TEST (Timeline, frames_keep_actual_period_and_detect_fifo_loss)
     f.peak = 0.7f;
     f.conf = 0.55f;
     f.ppqTick = 384;
+    f.timeSigNumerator = 7;
+    f.timeSigDenominator = 8;
+    f.protectionKinds = VizFrame::protectionHit | VizFrame::protectionLookahead;
 
     for (int i = 0; i < 3; ++i)
     {
@@ -261,6 +264,8 @@ GF_TEST (Timeline, frames_keep_actual_period_and_detect_fifo_loss)
     GF_EXPECT (history.size() == 3);
     GF_EXPECT (! history.at (2).incompleteBefore);
     GF_EXPECT (history.at (2).position == 576 && history.at (2).ppqTick == 384);
+    GF_EXPECT (history.at (2).timeSigNumerator == 7 && history.at (2).timeSigDenominator == 8);
+    GF_EXPECT (history.at (2).protectionKinds == (VizFrame::protectionHit | VizFrame::protectionLookahead));
     GF_EXPECT_NEAR (history.at (2).confidence, 0.55, 1.0e-6);
     f.posLo += 2 * f.periodSamples;
     history.push (f);

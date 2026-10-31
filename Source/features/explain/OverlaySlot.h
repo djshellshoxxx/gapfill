@@ -22,6 +22,10 @@ public:
 
     bool isTimelineExpanded() const noexcept   { return timeline.isVisible(); }
     void setTimelineExpanded (bool shouldExpand);
+    /** Called by the editor after its compact slot layout; bounds are in the
+        editor's coordinates and end above Mix/footer safety controls. */
+    void setExpansionBounds (juce::Rectangle<int> availableInParent);
+    std::function<void()> onExpansionChanged;
 
     reasons::LegendStrip& getLegend() noexcept          { return legend; }
     timeline::TimelineView& getTimeline() noexcept      { return timeline; }

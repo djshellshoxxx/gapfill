@@ -235,6 +235,8 @@ bool validateSubtree (const juce::ValueTree& t)
         && intInRange (t, "fixitMuted", 0, (1 << fixit::numRules) - 1)
         && intInRange (t, "suggestions", 0, 1)
         && intInRange (t, "legendCollapsed", 0, 1)
+        && intInRange (t, "timelineExpanded", 0, 1)
+        && intInRange (t, "timelineList", 0, 1)
         && intInRange (t, "zoom", 4, 16)
         && (! t.hasProperty ("zoom") || (int) t.getProperty ("zoom") == 4 || (int) t.getProperty ("zoom") == 8
                                       || (int) t.getProperty ("zoom") == 16);
@@ -249,6 +251,8 @@ void applySubtree (GapFillAudioProcessor& p, const juce::ValueTree& t)
     s.showSuggestions.store ((int) t.getProperty ("suggestions", 1) != 0);
     s.legendCollapsed.store ((int) t.getProperty ("legendCollapsed", 0) != 0);
     s.timelineZoomSeconds.store ((int) t.getProperty ("zoom", 8));
+    s.timelineExpanded.store ((int) t.getProperty ("timelineExpanded", 0) != 0);
+    s.timelineList.store ((int) t.getProperty ("timelineList", 0) != 0);
 }
 
 juce::ValueTree serialiseSubtree (const GapFillAudioProcessor& p)
@@ -259,8 +263,10 @@ juce::ValueTree serialiseSubtree (const GapFillAudioProcessor& p)
     const bool suggestions = s.showSuggestions.load();
     const bool collapsed = s.legendCollapsed.load();
     const auto zoom = s.timelineZoomSeconds.load();
+    const auto expanded = s.timelineExpanded.load();
+    const auto list = s.timelineList.load();
 
-    if (muted == 0 && fixitMuted == 0 && suggestions && ! collapsed && zoom == 8)
+    if (muted == 0 && fixitMuted == 0 && suggestions && ! collapsed && zoom == 8 && ! expanded && ! list)
         return {};                                   // all defaults: write nothing
 
     juce::ValueTree t (kType);
@@ -269,6 +275,10 @@ juce::ValueTree serialiseSubtree (const GapFillAudioProcessor& p)
     t.setProperty ("suggestions", suggestions ? 1 : 0, nullptr);
     t.setProperty ("legendCollapsed", collapsed ? 1 : 0, nullptr);
     t.setProperty ("zoom", zoom, nullptr);
+    if (expanded)
+        t.setProperty ("timelineExpanded", 1, nullptr);
+    if (list)
+        t.setProperty ("timelineList", 1, nullptr);
     return t;
 }
 
@@ -280,6 +290,8 @@ void resetSubtree (GapFillAudioProcessor& p)
     s.showSuggestions.store (true);
     s.legendCollapsed.store (false);
     s.timelineZoomSeconds.store (8);
+    s.timelineExpanded.store (false);
+    s.timelineList.store (false);
 }
 
 } // namespace gapfill::explain

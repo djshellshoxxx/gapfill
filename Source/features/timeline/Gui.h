@@ -33,6 +33,11 @@ public:
     void visibilityChanged() override;
     void paint (juce::Graphics&) override;
     void resized() override;
+    bool keyPressed (const juce::KeyPress&) override;
+    void mouseMove (const juce::MouseEvent&) override;
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseDrag (const juce::MouseEvent&) override;
+    std::unique_ptr<juce::AccessibilityHandler> createAccessibilityHandler() override;
 
     std::function<void()> onCloseRequested;
 
@@ -45,24 +50,42 @@ public:
     int getNumListRows() const;
     void refreshForTests()    { refresh(); }
     int getRefreshIntervalMs() const noexcept { return isTimerRunning() ? getTimerInterval() : 0; }
+    juce::String getInspectorText() const { return inspectorText; }
+    bool isEventListShown() const noexcept { return listOnly; }
 
 private:
+    static constexpr int controlsHeight = 28;
     void timerCallback() override;
     void refresh();
     std::int64_t liveEndPos() const;
     std::int64_t windowSamples() const;
     void paintLanes (juce::Graphics&, juce::Rectangle<float> plot);
+    void collectFrames();
+    void paintFrameLanes (juce::Graphics&, juce::Rectangle<float> audioLane,
+                         juce::Rectangle<float> gapLane, juce::Rectangle<float> protectionLane,
+                         juce::Rectangle<float> bandLanes);
+    juce::Rectangle<int> plotBounds() const;
+    void updateInspector (float x);
+    void setPaused (bool);
+    void setListOnly (bool);
 
     int getNumRows() override;
     void paintListBoxItem (int row, juce::Graphics&, int width, int height, bool selected) override;
 
     GapFillAudioProcessor& proc;
-    juce::TextButton pauseButton { "PAUSE" }, zoom4 { "4 s" }, zoom8 { "8 s" }, zoom16 { "16 s" }, closeButton { "CLOSE" };
+    juce::TextButton pauseButton { "FREEZE" }, zoom4 { "4 s" }, zoom8 { "8 s" }, zoom16 { "16 s" },
+                     listButton { "EVENT LIST" }, closeButton { "CLOSE" };
     juce::ListBox list { "Recent gap events", nullptr };
     std::vector<TimelineEvent> windowEvents;
     std::array<TimelineEvent, (size_t) listRows> listItems {};
     int numListItems = 0;
     std::int64_t shownEnd = 0;
+    static constexpr int maxDisplayColumns = 2048;
+    std::vector<FrameHistory::Column> displayFrames;
+    bool listOnly = false, inspectorShown = false, snapshotReady = false;
+    juce::String inspectorText;
+    float inspectorX = 0.0f;
+    std::int64_t dragStartEnd = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TimelineView)
 };

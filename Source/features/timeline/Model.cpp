@@ -171,6 +171,21 @@ void TimelineModel::clear() noexcept
     head = 0;
     count = 0;
     haveLoss = false;
+    frames.clear();
+}
+
+void TimelineModel::scrubTo (std::int64_t position, std::int64_t livePos) noexcept
+{
+    if (! paused)
+        return;
+
+    auto first = livePos;
+    if (count > 0)
+        first = juce::jmin (first, at (0).pos);
+    if (frames.size() > 0)
+        first = juce::jmin (first, frames.at (0).position);
+
+    frozenPos = juce::jlimit (first, juce::jmax (first, livePos), position);
 }
 
 } // namespace gapfill::timeline

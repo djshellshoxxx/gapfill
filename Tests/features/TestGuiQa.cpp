@@ -199,7 +199,7 @@ namespace
         bool scrub = false;      ///< Freeze & Scrub switched on (its Position / Width knobs show in the drawer)
     };
 
-    void maybeSnapshot (juce::Component& editor, const juce::String& file)
+    void maybeSnapshot (juce::Component& editor, const juce::String& file, float scale)
     {
         const auto dir = juce::SystemStats::getEnvironmentVariable ("GF_SCREENSHOT_DIR", {});
 
@@ -208,7 +208,7 @@ namespace
 
         juce::File target (dir);
         target.createDirectory();
-        auto image = editor.createComponentSnapshot (editor.getLocalBounds(), true, 1.0f);
+        auto image = editor.createComponentSnapshot (editor.getLocalBounds(), true, scale);
         juce::PNGImageFormat png;
         juce::FileOutputStream out (target.getChildFile (file + ".png"));
         GF_EXPECT_MSG (out.openedOk(), "Cannot write screenshot " + file);
@@ -381,8 +381,14 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
                               << " textColour=" << cb->findColour (juce::ComboBox::textColourId).toString() << std::endl;
         }
 
-        auto image = editor.createComponentSnapshot (editor.getLocalBounds(), true, 1.0f);
-        GF_EXPECT (image.getWidth() == s.w && image.getHeight() == s.h);
+        const auto applied = editor.getAppliedScalePercentForTests();
+        const auto rasterScale = (float) applied / 100.0f;
+        if (juce::SystemStats::getEnvironmentVariable ("GF_SCREENSHOT_DIR", {}).isNotEmpty())
+            GF_EXPECT_MSG (applied == s.scale, "Requested " + juce::String (s.scale) + " percent, but this display only permits "
+                           + juce::String (applied) + ". Capture with a 6000x4000 virtual display for the full matrix.");
+        auto image = editor.createComponentSnapshot (editor.getLocalBounds(), true, rasterScale);
+        GF_EXPECT (image.getWidth() == juce::roundToInt ((float) s.w * rasterScale)
+                    && image.getHeight() == juce::roundToInt ((float) s.h * rasterScale));
 
         // not a blank / single-colour page
         std::set<juce::uint32> colours;
@@ -392,6 +398,6 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
                 colours.insert (image.getPixelAt (x, y).getARGB());
 
         GF_EXPECT_MSG (colours.size() > 20, juce::String (s.name) + " renders nearly flat");
-        maybeSnapshot (editor, s.name);
+        maybeSnapshot (editor, s.name, rasterScale);
     }
 }

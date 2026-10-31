@@ -81,7 +81,7 @@ public:
     /** True when a loss happened inside the window (shown as a striped end-cap). */
     bool isIncomplete (std::int64_t endPos, std::int64_t windowSamples) const noexcept
     {
-        return haveLoss && lossUpToPos > endPos - windowSamples;
+        return haveLoss && lossUpToPos <= endPos && lossUpToPos > endPos - windowSamples;
     }
 
     /** Newest events first, at most `maxItems`, for the companion list. */
@@ -91,6 +91,8 @@ public:
     void setPaused (bool shouldPause, std::int64_t nowPos) noexcept { paused = shouldPause; frozenPos = nowPos; }
     bool isPaused() const noexcept                                   { return paused; }
     std::int64_t viewEnd (std::int64_t livePos) const noexcept       { return paused ? frozenPos : livePos; }
+    /** Frozen inspection is bounded by data the view can still retrieve. */
+    void scrubTo (std::int64_t position, std::int64_t livePos) noexcept;
 
     void clear() noexcept;
 

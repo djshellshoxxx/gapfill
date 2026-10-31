@@ -26,28 +26,49 @@ VisualiserOverlayComponent::VisualiserOverlayComponent (GapFillAudioProcessor& p
     addAndMakeVisible (timelineToggle);
 
     timeline.onCloseRequested = [this] { setTimelineExpanded (false); };
-    timeline.setVisible (false);                       // collapsed by default
+    timeline.setVisible (proc.getExplainState().timelineExpanded.load());
+    timelineToggle.setToggleState (timeline.isVisible(), juce::dontSendNotification);
+    timelineToggle.setButtonText (timeline.isVisible() ? "HIDE TIMELINE" : "TIMELINE");
     addChildComponent (timeline);
 
-    auto& frames = proc.getExplainState().timelineModel.frames;
-    proc.getVisualisationFifo().setReadObserver (&frames,
+    proc.getVisualisationFifo().setReadObserver (&proc,
         [] (void* context, const VizFrame* drained, int count)
         {
-            static_cast<timeline::FrameHistory*> (context)->push (drained, count);
+            auto& processor = *static_cast<GapFillAudioProcessor*> (context);
+            auto& frames = processor.getExplainState().timelineModel.frames;
+            frames.setPositionAnchor (processor.getSourceHistoryWritePosition()
+                                      - processor.getMeterState().latencySamples.load());
+            frames.push (drained, count);
         });
 }
 
 VisualiserOverlayComponent::~VisualiserOverlayComponent()
 {
-    proc.getVisualisationFifo().clearReadObserver (&proc.getExplainState().timelineModel.frames);
+    proc.getVisualisationFifo().clearReadObserver (&proc);
 }
 
 void VisualiserOverlayComponent::setTimelineExpanded (bool shouldExpand)
 {
+    const bool changed = timeline.isVisible() != shouldExpand;
+    proc.getExplainState().timelineExpanded.store (shouldExpand);
     timelineToggle.setToggleState (shouldExpand, juce::dontSendNotification);
     timelineToggle.setButtonText (shouldExpand ? "HIDE TIMELINE" : "TIMELINE");
     timeline.setVisible (shouldExpand);
     resized();
+    if (changed && onExpansionChanged != nullptr)
+        onExpansionChanged();
+}
+
+void VisualiserOverlayComponent::setExpansionBounds (juce::Rectangle<int> available)
+{
+    if (! timeline.isVisible() || available.isEmpty())
+        return;
+
+    const auto compact = getBounds();
+    const auto height = juce::jmin (compact.getHeight() * 3, available.getBottom() - compact.getY());
+    if (height > compact.getHeight())
+        setBounds (compact.withHeight (height));
+    toFront (false);
 }
 
 void VisualiserOverlayComponent::resized()

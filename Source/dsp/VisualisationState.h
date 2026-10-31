@@ -40,6 +40,9 @@ struct VizFrame
     std::uint32_t posLo = 0;     // output sample position at the first accumulated hop
     std::int32_t ppqTick = INT32_MIN; // PPQ * 96; invalid when the host supplied no position
     std::uint32_t periodSamples = 64; // actual producer period, preserving compact decimation
+    std::uint8_t timeSigNumerator = 0, timeSigDenominator = 0; // 0 = unknown: show beats without guessed bar labels
+    static constexpr std::uint8_t protectionHit = 1, protectionNext = 2, protectionLookahead = 4;
+    std::uint8_t protectionKinds = 0; // classifications recorded by the engine, never inferred by the view
 };
 
 static_assert (std::is_trivially_copyable_v<VizFrame>, "VizFrame travels through a lock-free FIFO");

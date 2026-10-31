@@ -24,6 +24,8 @@ public:
         std::uint32_t periodSamples = 64;
         std::uint8_t flags = 0, algorithm = 0xff, band = 0xff, reason = 0;
         bool incompleteBefore = false;
+        std::uint8_t timeSigNumerator = 0, timeSigDenominator = 0;
+        std::uint8_t protectionKinds = 0;
     };
 
     static constexpr int maxColumns = 24000;
@@ -38,6 +40,7 @@ public:
         const auto wanted = std::clamp ((int) std::ceil (rate * windowSeconds / 64.0), 1, maxColumns);
         ring.assign ((std::size_t) wanted, Column {});
         clear();
+        haveAnchor = false;
     }
 
     /** Input supplies peak/conf/energy/bandConf/duck, posLo/ppqTick/periodSamples
@@ -53,8 +56,18 @@ public:
         const bool seam = (frame.flags & discontinuityFlag) != 0;
         const bool loss = havePosition && ! seam && delta != lastPeriod;
 
-        if (! havePosition)
+        if (! havePosition || seam)
+        {
             newestPosition = (std::int64_t) frame.posLo;
+            if (haveAnchor)
+            {
+                newestPosition = (anchor & ~std::int64_t { 0xffffffffll }) | frame.posLo;
+                if (newestPosition - anchor > INT32_MAX)
+                    newestPosition -= 0x100000000ll;
+                else if (anchor - newestPosition > INT32_MAX)
+                    newestPosition += 0x100000000ll;
+            }
+        }
         else
             newestPosition += (std::int64_t) (std::int32_t) delta;
 
@@ -78,6 +91,13 @@ public:
         column.band = frame.band;
         column.reason = frame.reason;
         column.incompleteBefore = loss;
+        if constexpr (requires { frame.timeSigNumerator; frame.timeSigDenominator; })
+        {
+            column.timeSigNumerator = frame.timeSigNumerator;
+            column.timeSigDenominator = frame.timeSigDenominator;
+        }
+        if constexpr (requires { frame.protectionKinds; })
+            column.protectionKinds = frame.protectionKinds;
 
         if (count == (int) ring.size())
         {
@@ -114,9 +134,15 @@ public:
     std::size_t memoryBytes() const noexcept { return ring.capacity() * sizeof (Column); }
     double sampleRate() const noexcept { return rate; }
     double seconds() const noexcept { return windowSeconds; }
+    /** Full output position on editor creation, to resolve the first low-word
+        frame after the process has already crossed a 32-bit wrap. */
+    void setPositionAnchor (std::int64_t position) noexcept { anchor = position; haveAnchor = true; }
 
     const Column& at (int index) const noexcept
     {
+        static constexpr Column empty {};
+        if (count == 0)
+            return empty;
         return ring[(std::size_t) ((head + std::clamp (index, 0, std::max (0, count - 1))) % (int) ring.size())];
     }
 
@@ -136,7 +162,9 @@ private:
     int head = 0, count = 0;
     double rate = 48000.0, windowSeconds = 8.0;
     bool havePosition = false;
+    bool haveAnchor = false;
     std::int64_t newestPosition = 0;
+    std::int64_t anchor = 0;
     std::uint32_t lastPositionLo = 0, lastPeriod = 64;
 };
 
