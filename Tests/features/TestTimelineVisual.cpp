@@ -131,7 +131,10 @@ namespace
         {
             const bool bypass = dynamic_cast<juce::Button*> (component) != nullptr
                                 && component->getProperties()[kParamIdProperty].toString() == "bypass";
-            const bool panic = component->getTitle() == i18n::text ("Panic: silence GapFill effects now");
+            // The global footer chip is an editor slot. Performance has a
+            // separate Panic button inside its hidden card on this Creative view.
+            const bool panic = component->getParentComponent() == &editor
+                            && component->getTitle() == i18n::text ("Panic: silence GapFill effects now");
             if (! bypass && ! panic)
                 continue;
             GF_EXPECT (visibleInTree (*component, editor) && component->isEnabled());
@@ -179,6 +182,7 @@ GF_TEST (TimelineVisual, expanded_keyboard_views_keep_mix_and_safety_controls_ac
             editor.applyScaleForTests();
             editor.applyViewModeForTests();
             editor.applyKeyboardNavigationSettingForTests();
+            editor.setVisible (true); // exercise hit testing on the actual visible editor tree
             auto* overlay = find<explain::VisualiserOverlayComponent> (editor);
             GF_EXPECT (overlay != nullptr);
             populate (proc);
@@ -210,11 +214,16 @@ GF_TEST (TimelineVisual, reduced_motion_sets_the_actual_timeline_timer_to_four_h
     TimelineView view (proc);
     view.setSize (1000, 300);
     proc.setReducedMotionEnabled (true);
-    view.visibilityChanged();
+    GF_EXPECT (view.getRefreshIntervalMs() == 0);
+    view.setVisible (true);
     GF_EXPECT (view.getRefreshIntervalMs() == 250);
+    view.setVisible (false);
+    GF_EXPECT (view.getRefreshIntervalMs() == 0);
     proc.setReducedMotionEnabled (false);
-    view.visibilityChanged();
+    view.setVisible (true);
     GF_EXPECT (view.getRefreshIntervalMs() == 33);
+    view.setVisible (false);
+    GF_EXPECT (view.getRefreshIntervalMs() == 0);
 }
 
 GF_TEST (TimelineVisual, retained_memory_includes_live_and_frozen_frame_event_list_and_text_data)
