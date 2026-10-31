@@ -46,6 +46,7 @@ public:
     juce::StringArray getListText() const;
 
     static constexpr int listRows = 20;
+    static constexpr int outcomeRows = 16;
 
     // Test access
     int getNumListRows() const;
@@ -75,6 +76,7 @@ private:
                          juce::Rectangle<float> bandLanes);
     juce::Rectangle<int> plotBounds() const;
     void updateInspector (float x);
+    void updateListAccessibility();
     void setPaused (bool);
     void setListOnly (bool);
 
@@ -90,6 +92,8 @@ private:
     std::vector<TimelineEvent> windowEvents;
     std::array<TimelineEvent, (size_t) listRows> listItems {};
     int numListItems = 0;
+    std::array<TimelineEvent, (size_t) outcomeRows> outcomeItems {};
+    int numOutcomeItems = 0;
     std::int64_t shownEnd = 0;
     static constexpr int maxDisplayColumns = 2048;
     std::vector<FrameHistory::Column> displayFrames;

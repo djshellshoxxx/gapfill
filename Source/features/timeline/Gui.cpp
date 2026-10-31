@@ -166,6 +166,7 @@ void TimelineView::refresh()
         model.window (shownEnd, windowSamples(), windowEvents);
         collectFrames();
         numListItems = model.latest (listItems.data(), listRows);
+        numOutcomeItems = model.latestOutcomes (outcomeItems.data(), outcomeRows, shownEnd);
     }
     displayedLanguageGeneration = languageGeneration;
     if (languageChanged || generationChanged)
@@ -178,8 +179,7 @@ void TimelineView::refresh()
         listButton.setButtonText (i18n::text ("EVENT LIST"));
         closeButton.setButtonText (i18n::text ("CLOSE"));
         setTitle (i18n::text ("Gap timeline"));
-        list.setTitle (i18n::text ("Recent gap events"));
-        list.setDescription (i18n::text ("The last 20 timeline events as text, newest first."));
+        updateListAccessibility();
     }
     if (inspectorShown)
         updateInspector (inspectorX);
@@ -202,24 +202,34 @@ void TimelineView::refresh()
     repaint();
 }
 
-int TimelineView::getNumListRows() const   { return numListItems; }
-int TimelineView::getNumRows()             { return numListItems; }
+int TimelineView::getNumListRows() const   { return listOnly ? numOutcomeItems : numListItems; }
+int TimelineView::getNumRows()             { return getNumListRows(); }
+
+void TimelineView::updateListAccessibility()
+{
+    list.setTitle (listOnly ? i18n::text ("Recent gap outcomes") : i18n::text ("Recent gap events"));
+    list.setDescription (listOnly ? i18n::text ("The last 16 gap outcomes at or before the inspected time, newest first.")
+                                  : i18n::text ("The last 20 timeline events as text, newest first."));
+}
 
 juce::StringArray TimelineView::getListText() const
 {
     juce::StringArray result;
-    for (int i = 0; i < numListItems; ++i)
+    for (int i = 0; i < getNumListRows(); ++i)
         result.add (listRowText (i));
     return result;
 }
 
 juce::String TimelineView::listRowText (int row) const
 {
-    if (row < 0 || row >= numListItems)
+    if (row < 0 || row >= getNumListRows())
         return {};
-    const auto& event = listItems[(size_t) row];
+    const auto& event = listOnly ? outcomeItems[(size_t) row] : listItems[(size_t) row];
     const auto rate = proc.getExplainState().timelineModel.displaySampleRate();
-    return i18n::format ("{0} s  {1}", { juce::String ((double) (event.pos - shownEnd) / rate, 1), describe (event) });
+    auto description = describe (event);
+    if (listOnly && event.type == EventType::GapEval && event.reason == 0 && event.algo < numAlgos)
+        description = i18n::format ("Filled: {0}, {1} ms", { i18n::text (algoName ((Algo) event.algo)), juce::String (event.lenMs) });
+    return i18n::format ("{0} s  {1}", { juce::String ((double) (event.pos - shownEnd) / rate, 1), description });
 }
 
 juce::String TimelineView::getNameForRow (int row) { return listRowText (row); }
@@ -255,7 +265,7 @@ TimelineView::RetainedMemory TimelineView::retainedMemoryForTests() const
 
 void TimelineView::paintListBoxItem (int row, juce::Graphics& g, int width, int height, bool selected)
 {
-    if (row < 0 || row >= numListItems)
+    if (row < 0 || row >= getNumListRows())
         return;
 
     if (selected)

@@ -35,6 +35,8 @@ void TimelineView::setListOnly (bool enabled)
     proc.getExplainState().timelineList.store (enabled);
     listButton.setToggleState (enabled, juce::dontSendNotification);
     list.setVisible (enabled);
+    updateListAccessibility();
+    list.updateContent();
     resized();
     repaint();
 }

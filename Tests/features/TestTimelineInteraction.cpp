@@ -191,11 +191,58 @@ GF_TEST (TimelineGui, accessible_event_rows_expose_the_same_engine_record_text_a
     juce::ListBox* list = nullptr;
     for (auto* child : view.getChildren())
         if (auto* candidate = dynamic_cast<juce::ListBox*> (child)) list = candidate;
-    GF_EXPECT (list != nullptr && list->getModel() != nullptr);
-    GF_EXPECT (list->getModel()->getNameForRow (0) == view.getListText()[0]);
-    GF_EXPECT (list->getModel()->getNameForRow (0).contains ("38"));
+    GF_EXPECT (list != nullptr && list->getListBoxModel() != nullptr);
+    GF_EXPECT (list->getListBoxModel()->getNameForRow (0) == view.getListText()[0]);
+    GF_EXPECT (list->getListBoxModel()->getNameForRow (0).contains ("38"));
     view.addToDesktop (juce::ComponentPeer::windowIsTemporary);
     view.setVisible (true);
     GF_EXPECT (list->getAccessibilityHandler() != nullptr);
     GF_EXPECT (list->getAccessibilityHandler()->getRole() == juce::AccessibilityRole::list);
+}
+
+GF_TEST (TimelineGui, event_list_has_sixteen_frozen_outcomes_and_scrubs_without_future_records)
+{
+    i18n::ScopedLanguage language ("en");
+    GapFillAudioProcessor proc;
+    proc.setKeyboardNavigationEnabled (true);
+    auto& model = proc.getExplainState().timelineModel;
+    for (int i = 0; i < 30; ++i)
+    {
+        TimelineEvent outcome;
+        outcome.type = EventType::GapEval;
+        outcome.reason = (std::uint8_t) RejectReason::TooShort;
+        outcome.availMs = (std::uint16_t) (100 + i);
+        outcome.needMs = 200;
+        outcome.pos = (i - 30) * 1000;
+        model.push (outcome);
+        auto onset = outcome;
+        onset.type = EventType::Onset;
+        model.push (onset);
+    }
+    auto future = model.at (0);
+    future.pos = 1000;
+    model.push (future);
+    TimelineView view (proc);
+    view.setSize (1000, 300);
+    view.refreshForTests();
+    GF_EXPECT (view.getNumListRows() == 20); // shipped canvas API
+    GF_EXPECT (view.keyPressed (juce::KeyPress ('f')));
+    GF_EXPECT (view.keyPressed (juce::KeyPress ('l')));
+    GF_EXPECT (view.getNumListRows() == 16);
+    const auto frozen = view.getListText();
+    GF_EXPECT (frozen[0].contains ("129"));
+    for (const auto& line : frozen)
+        GF_EXPECT (! line.contains ("Event"));
+    auto arriving = future;
+    arriving.pos = -500;
+    arriving.availMs = 777;
+    model.push (arriving);
+    view.refreshForTests();
+    GF_EXPECT (view.getListText() == frozen);
+    GF_EXPECT (view.keyPressed (juce::KeyPress (juce::KeyPress::leftKey)));
+    const auto scrubbed = view.getListText();
+    GF_EXPECT (scrubbed.size() == 16 && scrubbed != frozen);
+    GF_EXPECT (scrubbed[0].contains ("125")); // -5000 is newest at the -4800 edge
+    for (const auto& line : scrubbed)
+        GF_EXPECT (! line.contains ("777"));
 }

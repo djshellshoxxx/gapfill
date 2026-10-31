@@ -169,3 +169,43 @@ GF_TEST (TimelineEpoch, history_allocation_tracks_the_released_producer_period_a
         GF_EXPECT (model.frames.memoryBytes() + sizeof (TimelineModel) + structuredCaches < 1200000);
     }
 }
+
+GF_TEST (TimelineEpoch, canonical_list_keeps_sixteen_gap_outcomes_at_or_before_the_inspected_edge)
+{
+    TimelineModel model;
+    for (int i = 0; i < 30; ++i)
+    {
+        TimelineEvent outcome;
+        outcome.type = i % 5 == 0 ? EventType::Preview : EventType::GapEval;
+        outcome.pos = i * 1000;
+        model.push (outcome);
+        auto marker = outcome;
+        marker.type = EventType::Onset;
+        model.push (marker);
+    }
+    TimelineEvent outcomes[16];
+    GF_EXPECT (model.latestOutcomes (outcomes, 16, 24000) == 16);
+    for (int i = 0; i < 16; ++i)
+    {
+        GF_EXPECT (outcomes[i].pos == (24 - i) * 1000);
+        GF_EXPECT (outcomes[i].type == EventType::GapEval || outcomes[i].type == EventType::Preview);
+    }
+    GF_EXPECT (model.latestOutcomes (outcomes, 16, -1) == 0);
+    // Canvas callers retain the shipped generic-event contract.
+    TimelineEvent generic[20];
+    GF_EXPECT (model.latest (generic, 20) == 20);
+    GF_EXPECT (generic[0].type == EventType::Onset && generic[0].pos == 29000);
+
+    FillEvent started;
+    started.type = FillEventType::Started;
+    started.recipe.algo = 2;
+    started.recipe.lengthMs = 123;
+    TimelineEvent converted[2];
+    GF_EXPECT (fromEngineEvent (started, converted) == 2);
+    GF_EXPECT (converted[0].type == EventType::GapEval);
+    GF_EXPECT (converted[0].algo == started.recipe.algo && converted[0].lenMs == started.recipe.lengthMs);
+    started.type = FillEventType::LockSet;
+    GF_EXPECT (fromEngineEvent (started, converted) == 0);
+    started.type = FillEventType::LockCleared;
+    GF_EXPECT (fromEngineEvent (started, converted) == 0);
+}

@@ -52,6 +52,8 @@ int fromEngineEvent (const FillEvent& e, TimelineEvent out[2]) noexcept
             eval.type = EventType::GapEval;
             eval.reason = (std::uint8_t) RejectReason::None;
             eval.availMs = sat16 (e.availMs);
+            eval.algo = e.recipe.algo;
+            eval.lenMs = e.recipe.lengthMs;
             out[0] = eval;
 
             auto start = base;
@@ -83,7 +85,9 @@ int fromEngineEvent (const FillEvent& e, TimelineEvent out[2]) noexcept
         case FillEventType::SceneApplied:  base.type = EventType::SceneApplied; break;
         case FillEventType::Panic:         base.type = EventType::Panic;        break;
         case FillEventType::Recover:       base.type = EventType::Recover;      break;
-        case FillEventType::None:          return 0;
+        case FillEventType::None:
+        case FillEventType::LockSet:
+        case FillEventType::LockCleared:   return 0; // control acknowledgements are not timeline events
     }
 
     out[0] = base;
@@ -203,6 +207,18 @@ int TimelineModel::latest (TimelineEvent* out, int maxItems) const noexcept
         out[i] = at (count - 1 - i);
 
     return n;
+}
+
+int TimelineModel::latestOutcomes (TimelineEvent* out, int maxItems, std::int64_t endPos) const noexcept
+{
+    int written = 0;
+    for (int i = count; --i >= 0 && written < maxItems;)
+    {
+        const auto& event = at (i);
+        if (event.pos <= endPos && (event.type == EventType::GapEval || event.type == EventType::Preview))
+            out[written++] = event;
+    }
+    return written;
 }
 
 void TimelineModel::clear() noexcept

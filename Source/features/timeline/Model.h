@@ -100,6 +100,9 @@ public:
 
     /** Newest events first, at most `maxItems`, for the companion list. */
     int latest (TimelineEvent* out, int maxItems) const noexcept;
+    /** One row per evaluated gap or preview, excluding future records beyond
+        the inspected/frozen edge. Bounded and allocation-free. */
+    int latestOutcomes (TimelineEvent* out, int maxItems, std::int64_t endPos) const noexcept;
 
     /** Pause freezes only the DISPLAY: events keep being recorded. */
     void setPaused (bool shouldPause, std::int64_t nowPos) noexcept { paused = shouldPause; frozenPos = nowPos; }
