@@ -120,7 +120,15 @@ GF_TEST (TimelineGui, inspector_uses_the_engine_reason_record)
     GF_EXPECT (view.getInspectorText().contains ("38"));
     GF_EXPECT (view.getInspectorText().contains ("60"));
     GF_EXPECT (view.getInspectorText().contains ("Gap"));
-    GF_EXPECT (view.getAccessibilityHandler() != nullptr);
+    // JUCE requires a native window handle before it exposes a handler; a
+    // detached offscreen fixture cannot exercise that contract.
+    view.addToDesktop (juce::ComponentPeer::windowIsTemporary);
+    view.setVisible (true);
+    auto* handler = view.getAccessibilityHandler();
+    GF_EXPECT (handler != nullptr);
+    GF_EXPECT (handler->getRole() == juce::AccessibilityRole::group);
+    GF_EXPECT (handler->getTitle() == "Gap timeline");
+    GF_EXPECT (handler->getDescription().contains ("gaps"));
 }
 
 GF_TEST (TimelineGui, freeze_retains_the_visible_list_while_engine_records_continue)
