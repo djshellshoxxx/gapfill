@@ -3,6 +3,7 @@
 #include "../../gui/HelpRegistry.h"
 #include "../../gui/Knob.h"
 #include "../../gui/LookAndFeel.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::tour
 {
@@ -146,8 +147,11 @@ TourOverlay::TourOverlay (std::vector<TourStep> s, TourModel& m) : steps (std::m
     dontShowButton.onClick = [this] { model.dontShowAgain(); close (0); };
     exampleButton.onClick = [this] { if (onLoadExample != nullptr) onLoadExample(); };
 
+    i18n::languageChanges().addChangeListener (this);
     refresh();
 }
+
+TourOverlay::~TourOverlay() { i18n::languageChanges().removeChangeListener (this); }
 
 void TourOverlay::parentHierarchyChanged()
 {
@@ -169,24 +173,50 @@ void TourOverlay::close (int)
 
 void TourOverlay::setExampleStatus (const juce::String& text)
 {
-    status.setText (text, juce::dontSendNotification);
+    exampleStatus = text;
+    status.setText (i18n::text (text), juce::dontSendNotification);
+}
+
+void TourOverlay::updateText()
+{
+    const auto& step = getStep();
+    const auto n = model.numSteps();
+    const auto label = i18n::format ("Quick tour, step {0} of {1}", { juce::String (model.index() + 1), juce::String (n) });
+    const auto stepTitle = i18n::text (step.title);
+    const auto stepBody = i18n::text (step.body);
+
+    card.setTitle (label);
+    card.setDescription (i18n::format ("{0}. {1}", { stepTitle, stepBody }));
+    title.setText (i18n::format ("{0}  -  {1}", { label.toUpperCase(), stepTitle.toUpperCase() }), juce::dontSendNotification);
+    body.setText (stepBody, juce::dontSendNotification);
+    status.setText (i18n::text (exampleStatus), juce::dontSendNotification);
+    backButton.setButtonText (i18n::text ("BACK"));
+    backButton.setTitle (i18n::text ("Back"));
+    skipButton.setButtonText (i18n::text ("SKIP"));
+    skipButton.setTitle (i18n::text ("Skip tour"));
+    dontShowButton.setButtonText (i18n::text ("DON'T SHOW AGAIN"));
+    dontShowButton.setTitle (i18n::text ("Don't show the tour again"));
+    exampleButton.setButtonText (i18n::text ("LOAD EXAMPLE"));
+    exampleButton.setTitle (i18n::text ("Load example"));
+    exampleButton.setTooltip (i18n::text ("Loads the Drum Gap Glitch preset. Undo goes back."));
+    nextButton.setButtonText (model.isLast() ? i18n::text ("DONE") : i18n::text ("NEXT"));
+    nextButton.setTitle (model.isLast() ? i18n::text ("Done") : i18n::text ("Next"));
+}
+
+void TourOverlay::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    updateText();
+    resized();
+    repaint();
 }
 
 void TourOverlay::refresh()
 {
-    const auto& step = getStep();
-    const auto n = model.numSteps();
-    const auto label = "Quick tour, step " + juce::String (model.index() + 1) + " of " + juce::String (n);
-
-    card.setTitle (label);
-    card.setDescription (step.title + ". " + step.body);
-    title.setText (label.toUpperCase() + "  -  " + step.title.toUpperCase(), juce::dontSendNotification);
-    body.setText (step.body, juce::dontSendNotification);
-    status.setText ({}, juce::dontSendNotification);
+    exampleStatus.clear();
+    updateText();
 
     backButton.setEnabled (model.index() > 0);
-    nextButton.setButtonText (model.isLast() ? "DONE" : "NEXT");
-    exampleButton.setVisible (step.offersExample);
+    exampleButton.setVisible (getStep().offersExample);
 
     resized();
     repaint();

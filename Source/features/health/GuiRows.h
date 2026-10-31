@@ -2,6 +2,7 @@
 
 // Status-detail row layout and ownership, separated from health presentation.
 #include "Gui.h"
+#include "../i18n/Strings.h"
 #include <cmath>
 
 namespace gapfill::health
@@ -14,37 +15,37 @@ public:
 
     void addHeader (const juce::String& text)
     {
-        auto l = std::make_unique<juce::Label> ("", text);
+        auto l = std::make_unique<juce::Label> ("", i18n::text (text));
         l->setFont (fonts::sectionHeader (11.0f));
         l->setColour (juce::Label::textColourId, colours::accent);
         l->setInterceptsMouseClicks (false, false);
+        plain << "\n" << l->getText() << "\n";
         add (std::move (l), 20);
-        plain << "\n" << text << "\n";
     }
 
     void addText (const juce::String& text, juce::Colour colour = colours::text, float size = 11.5f)
     {
-        auto l = std::make_unique<juce::Label> ("", text);
+        auto l = std::make_unique<juce::Label> ("", i18n::text (text));
         l->setFont (fonts::ui (size));
         l->setColour (juce::Label::textColourId, colour);
         l->setMinimumHorizontalScale (1.0f);
         l->setJustificationType (juce::Justification::topLeft);
         l->setInterceptsMouseClicks (false, false);
         wrapped.push_back ({ l.get(), size });
+        plain << l->getText() << "\n";
         add (std::move (l), 16);
-        plain << text << "\n";
     }
 
     void addToggle (const juce::String& text, bool state, std::function<void (bool)> onChange)
     {
-        auto t = std::make_unique<juce::ToggleButton> (text);
+        auto t = std::make_unique<juce::ToggleButton> (i18n::text (text));
         t->setToggleState (state, juce::dontSendNotification);
         t->setColour (juce::ToggleButton::textColourId, colours::text);
         t->setColour (juce::ToggleButton::tickColourId, colours::accent);
         auto* raw = t.get();
         t->onClick = [raw, onChange] { onChange (raw->getToggleState()); };
         add (std::move (t), 24);
-        plain << "[" << (state ? "x" : " ") << "] " << text << "\n";
+        plain << "[" << (state ? "x" : " ") << "] " << raw->getButtonText() << "\n";
     }
 
     void addButtons (std::vector<std::pair<juce::String, std::function<void()>>> buttons)
@@ -53,12 +54,12 @@ public:
 
         for (auto& b : buttons)
         {
-            auto btn = std::make_unique<juce::TextButton> (b.first);
+            auto btn = std::make_unique<juce::TextButton> (i18n::text (b.first));
             auto fn = b.second;
             btn->onClick = [fn] { fn(); };
             row->addAndMakeVisible (*btn);
             buttonsOwned.push_back (std::move (btn));
-            plain << "<" << b.first << "> ";
+            plain << "<" << buttonsOwned.back()->getButtonText() << "> ";
         }
 
         plain << "\n";

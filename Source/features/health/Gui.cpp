@@ -1,5 +1,6 @@
 #include "Gui.h"
 #include "GuiRows.h"
+#include "DisplayText.h"
 
 #include "../../PluginProcessor.h"
 #include "../../gui/SlotHost.h"
@@ -8,6 +9,7 @@
 #include "../explain/ExplainState.h"
 #include "../info/StatusBoard.h"
 #include "../telemetry/Telemetry.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::health
 {
@@ -82,12 +84,13 @@ FooterView computeFooterView (GapFillAudioProcessor& proc)
     switch (v.kind)
     {
         case FooterKind::Health:
-            v.text = describe (code, contextFor (proc)).message;
+            v.text = displayDescription (code, contextFor (proc)).message;
             v.healthIsCritical = isCritical (code);
             break;
 
         case FooterKind::Fixit:
-            v.text = (chip.kind == fixit::Chip::Kind::Applied ? "Applied: " : "Suggestion: ") + chip.proposal.text;
+            v.text = chip.kind == fixit::Chip::Kind::Applied ? i18n::format ("Applied: {0}", { proposalText (chip.proposal) })
+                                                           : i18n::format ("Suggestion: {0}", { proposalText (chip.proposal) });
             break;
 
         case FooterKind::LastGap:
@@ -133,8 +136,8 @@ juce::String DetailsPanel::contentSignature() const
     const auto& chip = ex.fixitController.getChip();
     return juce::String (ex.healthTracker.getMask()) + "|" + juce::String (ex.mutedHealth.load()) + "|" + juce::String ((int) chip.kind)
          + chip.proposal.text + "|" + juce::String ((int) ex.showSuggestions.load()) + "|"
-         + events::describeRecording (proc) + "|" + juce::String ((int) (ex.cpu.getCpu01() * 100.0f))
-         + "|" + juce::String (proc.getMeterState().latencySamples.load());
+         + recordingText (ex.recorder) + "|" + juce::String ((int) (ex.cpu.getCpu01() * 100.0f))
+         + "|" + juce::String (proc.getMeterState().latencySamples.load()) + "|" + juce::String (i18n::languageGeneration());
 }
 
 void DetailsPanel::timerCallback()
@@ -148,6 +151,8 @@ void DetailsPanel::timerCallback()
 
 void DetailsPanel::rebuild()
 {
+    setTitle (i18n::text ("Status details"));
+    setDescription (i18n::text ("Active health messages, the current suggestion, why gaps were skipped, latency and estimated CPU, and diagnostics."));
     signature = contentSignature();
     auto& ex = proc.getExplainState();
     const auto scroll = viewport.getViewPositionY();
@@ -165,11 +170,11 @@ void DetailsPanel::rebuild()
 
     for (int i = 0; i < n; ++i)
     {
-        const auto d = describe (entries[i].code, contextFor (proc));
+        const auto d = displayDescription (entries[i].code, contextFor (proc));
         const auto seconds = (int) ((std::uint32_t) (now - entries[i].onsetMs) / 1000);
-        r->addText (d.message + (entries[i].muted ? "  (hidden from the footer)" : ""),
+        r->addText (entries[i].muted ? i18n::format ("{0}  (hidden from the footer)", { d.message }) : d.message,
                     isCritical (entries[i].code) ? colours::clip : isWarning (entries[i].code) ? colours::warning : colours::text, 12.5f);
-        r->addText (d.explanation + "\nWhat to do: " + d.action + "\nActive for " + juce::String (seconds) + " s.", colours::textMuted);
+        r->addText (i18n::format ("{0}\nWhat to do: {1}\nActive for {2} s.", { d.explanation, d.action, juce::String (seconds) }), colours::textMuted);
 
         if (isMutable (entries[i].code))
         {
@@ -185,7 +190,7 @@ void DetailsPanel::rebuild()
 
     if (chip.kind == fixit::Chip::Kind::Suggestion && ex.showSuggestions.load())
     {
-        r->addText (chip.proposal.text, colours::text, 12.5f);
+        r->addText (proposalText (chip.proposal), colours::text, 12.5f);
         const bool confirm = chip.proposal.needsConfirm;
 
         if (confirm)
@@ -198,7 +203,7 @@ void DetailsPanel::rebuild()
     }
     else if (chip.kind == fixit::Chip::Kind::Applied)
     {
-        r->addText ("Applied: " + chip.proposal.text, colours::text, 12.5f);
+        r->addText (i18n::format ("Applied: {0}", { proposalText (chip.proposal) }), colours::text, 12.5f);
         r->addButtons ({ { "UNDO", [this] { proc.getExplainState().undoFixit(); } } });
     }
     else
@@ -220,12 +225,11 @@ void DetailsPanel::rebuild()
 
     // ---- performance -------------------------------------------------------------
     r->addHeader ("LATENCY AND CPU");
-    r->addText (telemetry::describeTelemetry (proc.getLatencySamples(), juce::jmax (8000.0, ex.sampleRate.load()),
-                                              ex.cpu.getCpu01(), ex.cpu.isEnabled()), colours::text);
+    r->addText (telemetryText (proc.getLatencySamples(), juce::jmax (8000.0, ex.sampleRate.load()), ex.cpu.getCpu01(), ex.cpu.isEnabled()), colours::text);
 
     // ---- diagnostics ---------------------------------------------------------------
     r->addHeader ("DIAGNOSTICS");
-    r->addText (events::describeRecording (proc), colours::text);
+    r->addText (recordingText (ex.recorder), colours::text);
     r->addText (events::kPrivacyNote, colours::textMuted, 10.5f);
 
     std::vector<std::pair<juce::String, std::function<void()>>> buttons;
@@ -233,18 +237,26 @@ void DetailsPanel::rebuild()
     buttons.push_back ({ "SAVE...", [this]
     {
         events::stopRecording (proc);
-        chooser = std::make_shared<juce::FileChooser> ("Save GapFill event recording",
+        chooser = std::make_shared<juce::FileChooser> (i18n::text ("Save GapFill event recording"),
                                                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
                                                            .getChildFile ("gapfill-session.gfevents"), "*.gfevents");
         auto keep = chooser;
+        juce::Component::SafePointer<DetailsPanel> safePanel (this);
         chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
                                 | juce::FileBrowserComponent::warnAboutOverwriting,
-                              [this, keep] (const juce::FileChooser& fc)
+                              [safePanel, keep] (const juce::FileChooser& fc)
                               {
+                                  if (safePanel == nullptr)
+                                      return;
                                   if (fc.getResult() != juce::File())
-                                      events::saveRecording (proc, fc.getResult().withFileExtension ("gfevents"));
+                                  {
+                                      const auto result = events::saveRecording (safePanel->proc, fc.getResult().withFileExtension ("gfevents"));
+                                      if (result.failed())
+                                          juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
+                                              i18n::text ("Could not save recording"), i18n::errorText (result.getErrorMessage()));
+                                  }
 
-                                  rebuild();
+                                  safePanel->rebuild();
                               });
     } });
 
@@ -252,7 +264,7 @@ void DetailsPanel::rebuild()
     {
         buttons.push_back ({ "OPEN REPLAY...", [this]
         {
-            chooser = std::make_shared<juce::FileChooser> ("Open a GapFill event recording",
+            chooser = std::make_shared<juce::FileChooser> (i18n::text ("Open a GapFill event recording"),
                                                            juce::File::getSpecialLocation (juce::File::userDocumentsDirectory), "*.gfevents");
             auto keep = chooser;
             chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
@@ -268,19 +280,19 @@ void DetailsPanel::rebuild()
 
                                       if (result.failed())
                                       {
-                                          message = "Could not open the recording: " + result.getErrorMessage();
+                                          message = i18n::format ("Could not open the recording: {0}", { i18n::errorText (result.getErrorMessage()) });
                                       }
                                       else
                                       {
                                           const auto report = events::replay (data, syntheticAudio (data.sampleRate, (double) data.numBlocks * data.preparedBlockSize / data.sampleRate));
                                           const auto recorded = events::outcomesOf (data).size();
-                                          message = "Replayed " + juce::String (report.blocksReplayed) + " blocks with built-in test audio.\n"
-                                                  + "Recorded gaps: " + juce::String ((int) recorded) + ", replayed gaps: " + juce::String ((int) report.outcomes.size()) + ".\n"
-                                                  + (report.firstDivergence < 0 ? "The outcomes are identical."
-                                                                                : "First difference: " + report.divergenceText);
+                                          message = i18n::format ("Replayed {0} blocks with built-in test audio.\nRecorded gaps: {1}, replayed gaps: {2}.\n{3}",
+                                              { juce::String (report.blocksReplayed), juce::String ((int) recorded), juce::String ((int) report.outcomes.size()),
+                                                report.firstDivergence < 0 ? i18n::text ("The outcomes are identical.")
+                                                                          : i18n::format ("First difference: {0}", { report.divergenceText }) });
                                       }
 
-                                      juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, "Replay", message);
+                                      juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::InfoIcon, i18n::text ("Replay"), message);
                                   });
         } });
     }
@@ -367,6 +379,14 @@ void FooterStatusComponent::timerCallback()
 
 void FooterStatusComponent::update (bool force)
 {
+    setTitle (i18n::text ("Status"));
+    setDescription (i18n::text ("Shows the most important status message. Click for details."));
+    statusButton.setButtonText (i18n::text ("STATUS"));
+    statusButton.setTooltip (i18n::text ("Status details: health, suggestions, why gaps were skipped, latency and CPU, diagnostics"));
+    dismissButton.setTooltip (i18n::text ("Not now"));
+    dismissButton.setTitle (i18n::text ("Dismiss suggestion"));
+    undoButton.setButtonText (i18n::text ("UNDO"));
+    undoButton.setTooltip (i18n::text ("Restore the previous values"));
     auto next = computeFooterView (proc);
     const auto now = juce::Time::getMillisecondCounter();
 
@@ -383,8 +403,8 @@ void FooterStatusComponent::update (bool force)
 
     const bool suggestion = view.kind == FooterKind::Fixit && chip.kind == fixit::Chip::Kind::Suggestion;
     applyButton.setVisible (suggestion);
-    applyButton.setButtonText (suggestion && chip.proposal.needsConfirm ? "REVIEW" : "APPLY");
-    applyButton.setTitle (chip.proposal.spoken);
+    applyButton.setButtonText (suggestion && chip.proposal.needsConfirm ? i18n::text ("REVIEW") : i18n::text ("APPLY"));
+    applyButton.setTitle (proposalSpoken (chip.proposal));
     dismissButton.setVisible (suggestion);
     undoButton.setVisible (view.kind == FooterKind::Fixit && chip.kind == fixit::Chip::Kind::Applied);
 
