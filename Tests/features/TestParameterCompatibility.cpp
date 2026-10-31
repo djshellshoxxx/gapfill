@@ -87,3 +87,24 @@ GF_TEST (ParameterCompatibility, extended_midi_output_is_opt_in_and_preserved_by
         GF_EXPECT (! randomisableParameterIDs().contains (id));
     }
 }
+
+GF_TEST (ParameterCompatibility, detailed_feature_tail_order_and_neutral_defaults_are_fixed)
+{
+    GapFillAudioProcessor proc;
+    const auto ids = allParameterIDs();
+    GF_EXPECT (ids.size() == 284);
+    GF_EXPECT (ids.indexOf ("fm23_macro5") == 242);
+    GF_EXPECT (ids.indexOf ("fx01_mode") == 268);
+    GF_EXPECT (ids.indexOf ("fm20_amount") == 275);
+    GF_EXPECT (ids.indexOf ("fm20_mix") == 283);
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fx01_mode")->load(), 0.0f, 0.0f);
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fm20_amount")->load(), 0.0f, 0.0f);
+    GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fm20_mix")->load(), 100.0f, 0.0f);
+    for (const auto* id : { "fm23_macro5", "fm23_src1", "fm23_depth8", "fm23_lfoAHz", "fx01_mode" })
+        GF_EXPECT (performanceParameterIDs().contains (id));
+    for (const auto* id : { "fx01_motion", "fx01_scatter", "fx01_tone", "fm20_amount", "fm20_wow", "fm20_mix" })
+    {
+        GF_EXPECT (! performanceParameterIDs().contains (id));
+        GF_EXPECT (! randomisableParameterIDs().contains (id));
+    }
+}

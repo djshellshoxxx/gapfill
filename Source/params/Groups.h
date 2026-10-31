@@ -50,3 +50,6 @@
 #include "midiext.h"
 #include "wetbusext.h"
 #include "coopext.h"
+#include "macroext.h"
+#include "hgext.h"
+#include "fm20.h"
