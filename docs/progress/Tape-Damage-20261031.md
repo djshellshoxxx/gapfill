@@ -49,3 +49,20 @@ not a quiet reference pass. `GAPFILL_PERF_ENFORCE=1` enforces the 0.6% component
 target. More optimisation and a scheduled quiet run are required. Whole-plugin
 source drain, TapeStop/protection/FL20 stacking, golden X20, native host and visual
 checks remain open until the coordinator records their evidence.
+
+## Macro V3 fallback for the released card
+
+The new Macro V3 Tape Mix target routes to `tapeExtra.mix01` while the new
+Chance is above zero, and otherwise to the released card's `mixOverride01`.
+The released card now applies that explicit nonnegative finite override only
+to its final wet blend. Negative or nonfinite sentinels take the original two
+expressions verbatim; Amount continues to control depth and disabling.
+
+Two native cases prove independent dry/full/quarter blends at all four rates,
+negative/nonfinite sentinel equality, Amount 0 identity and AllocGuard. Running
+the same new tests against the actual `1432394` card source fails on the missing
+dry override as expected. A separate comparison compiles the original source as
+an independent renamed class: 8,552,250 floats match bit for bit across four rates,
+three Amounts, three active control sets, five seeds and 64 versus 17-sample chunks.
+This is an adapter for the opt-in Macro V3 target; it does not remap saved `td*`
+parameters or enable the new Tape Damage stage.
