@@ -8,6 +8,7 @@
 #include "PluginEditor.h"
 #include "features/FeatureHooks.h"
 #include "features/state/StateSubtrees.h"
+#include "features/state/SavedStateCache.h"
 #include "features/panic/WetSafety.h"
 #include "features/wetout/WetOut.h"
 #include "features/wetbus/WetBus.h"
@@ -78,6 +79,9 @@ GapFillAudioProcessor::GapFillAudioProcessor()
         apvts.addParameterListener (id, this);
 
     randomSource.setSeedRandomly();
+    savedStateCache = std::make_unique<state::SavedStateCache>();
+    juce::MemoryBlock initialState;
+    getStateInformation (initialState); // establish a valid fallback before a host's first save
     startTimerHz (15);
 }
 
@@ -260,8 +264,11 @@ void GapFillAudioProcessor::reset()
 //==============================================================================
 void GapFillAudioProcessor::timerCallback()
 {
-    if (stateSaveFailed.exchange (false, std::memory_order_relaxed))
-        recipeServices.postMessage ("Project state could not be saved within its validation or size limits. The previous saved state was retained.", 6000);
+    const auto saveFailure = stateSaveFailure.exchange (0, std::memory_order_relaxed);
+    if (saveFailure != 0)
+        recipeServices.postMessage (saveFailure == 1
+            ? "Project state could not be saved within its validation or size limits. The previous saved state was retained."
+            : "Project state could not be saved within its validation or size limits. No previous valid state was available.", 6000);
     drainFillEvents();
     explainState.timerTick (juce::Time::getMillisecondCounter());
     const auto tasteRevision = contextState.tasteService().revision();
@@ -1215,6 +1222,12 @@ bool GapFillAudioProcessor::undo()
 //==============================================================================
 void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
+    const auto retainPrevious = [this, &destData]
+    {
+        const auto result = savedStateCache->retainOnFailure (destData);
+        stateSaveFailure.store (result == state::SavedStateCache::Fallback::Unavailable ? 2 : 1,
+                                std::memory_order_relaxed);
+    };
     juce::ValueTree root ("GAPFILL_STATE");
     root.setProperty ("version", 1, nullptr);
     root.setProperty ("stateVersion", state::kStateVersion, nullptr);
@@ -1232,7 +1245,7 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     const auto written = state::writeSubtrees (*this, root, state::reservedSubtrees());
     if (! written.ok)
     {
-        stateSaveFailed.store (true, std::memory_order_relaxed);
+        retainPrevious();
         return;
     }
 
@@ -1242,13 +1255,14 @@ void GapFillAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
         copyXmlToBinary (*xml, candidate);
         if (candidate.getSize() > (size_t) maxPresetFileBytes)
         {
-            stateSaveFailed.store (true, std::memory_order_relaxed);
+            retainPrevious();
             return;
         }
+        savedStateCache->remember (candidate);
         destData.swapWith (candidate);
     }
     else
-        stateSaveFailed.store (true, std::memory_order_relaxed);
+        retainPrevious();
 }
 
 bool GapFillAudioProcessor::isParameterStateValid (const juce::ValueTree& state) const
@@ -1608,6 +1622,11 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
 
         state::applyPlan (*this, subtreePlan);
     }
+
+    // Cache the fully validated, sanitized restored state, rather than the
+    // unchecked incoming bytes. A host may fail its first save after loading.
+    juce::MemoryBlock restoredSnapshot;
+    getStateInformation (restoredSnapshot);
 
     // Every parameter may have moved: CLAP hosts need a value rescan and VST3
     // hosts refresh their displayed values.

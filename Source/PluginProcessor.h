@@ -35,6 +35,8 @@
 namespace gapfill
 {
 
+namespace state { class SavedStateCache; }
+
 //==============================================================================
 class GapFillAudioProcessor  : public juce::AudioProcessor,
                                private juce::Timer,
@@ -301,7 +303,8 @@ private:
     std::atomic<double> midiOutOffsetMs { 0.0 };
     quality::QualityController qualityCtl;           // F-D03
     std::atomic<int> appliedQuality { 0 };
-    std::atomic<bool> stateSaveFailed { false };
+    std::atomic<int> stateSaveFailure { 0 }; // 1: prior valid blob retained; 2: none available
+    std::unique_ptr<state::SavedStateCache> savedStateCache;
     coop::CoopMember coopMember;                     // F-X06: claims a registry slot only while coopGroup != Off
 
     MeterState meters;
