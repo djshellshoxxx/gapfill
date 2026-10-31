@@ -142,6 +142,8 @@ private:
     int fixitDivider = 0;
     std::uint32_t lastDroppedOutcomes = 0, lastDroppedOptional = 0;
     std::int64_t newestEventPos = 0;
+    std::uint32_t newestEventEpoch = 0;
+    bool haveNewestEvent = false;
 };
 
 /** RAII wrapper for the CPU estimate: two clock reads per processBlock. */

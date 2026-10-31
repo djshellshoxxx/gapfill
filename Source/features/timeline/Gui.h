@@ -89,6 +89,7 @@ private:
     float inspectorX = 0.0f;
     std::int64_t dragStartEnd = 0;
     std::uint64_t displayedLanguageGeneration = std::numeric_limits<std::uint64_t>::max();
+    std::uint32_t displayedEpoch = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TimelineView)
 };

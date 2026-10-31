@@ -15,6 +15,8 @@
 #include <array>
 #include <vector>
 
+namespace gapfill { struct VizFrame; }
+
 namespace gapfill::timeline
 {
 
@@ -66,6 +68,17 @@ public:
     /** Message thread. */
     void push (const TimelineEvent&) noexcept;
     void pushEngineEvent (const FillEvent&) noexcept;
+    /** Message thread, through the existing FIFO consumer. May resize the
+        bounded history only when a new sample-rate generation is adopted. */
+    bool pushFrame (const VizFrame&, std::int64_t positionAnchor);
+
+    /** Both independently drained queues adopt before insertion. A newer
+        nonzero generation clears both histories once; older generations are
+        rejected using modular comparison. Epoch zero is unmanaged legacy data
+        and is accepted only until the first managed generation. No allocation. */
+    bool adoptEpoch (std::uint32_t epoch, std::uint32_t sampleRateHz = 0) noexcept;
+    std::uint32_t epoch() const noexcept { return currentEpoch; }
+    double displaySampleRate() const noexcept { return currentSampleRate; }
 
     /** The fillEvents queue (or its optional-event shortcut) dropped events:
         everything at or before `pos` of the newest known event may be incomplete. */
@@ -105,6 +118,8 @@ private:
     std::int64_t lossUpToPos = 0;
     bool paused = false;
     std::int64_t frozenPos = 0;
+    std::uint32_t currentEpoch = 0;
+    double currentSampleRate = 48000.0;
 };
 
 } // namespace gapfill::timeline

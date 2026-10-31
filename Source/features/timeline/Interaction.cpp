@@ -68,7 +68,7 @@ bool TimelineView::keyPressed (const juce::KeyPress& key)
               && model.isPaused())
     {
         const auto seconds = key.getModifiers().isShiftDown() ? 1.0 : 0.1;
-        const auto step = (std::int64_t) std::llround (seconds * proc.getExplainState().sampleRate.load());
+        const auto step = (std::int64_t) std::llround (seconds * model.displaySampleRate());
         model.scrubTo (shownEnd + (key.getKeyCode() == juce::KeyPress::leftKey ? -step : step), liveEndPos());
         refresh();
     }
@@ -110,7 +110,7 @@ void TimelineView::updateInspector (float x)
         return;
     }
 
-    const auto seconds = (double) (shownEnd - nearest->pos) / juce::jmax (8000.0, proc.getExplainState().sampleRate.load());
+    const auto seconds = (double) (shownEnd - nearest->pos) / proc.getExplainState().timelineModel.displaySampleRate();
     inspectorText = i18n::format ("{0} s ago: {1}", { juce::String (seconds, 2), describe (*nearest) });
 }
 

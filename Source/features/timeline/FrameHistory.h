@@ -35,9 +35,9 @@ public:
         system changes, avoiding interpolation between sample rates. */
     void configure (double sampleRate, double seconds)
     {
-        rate = std::isfinite (sampleRate) ? std::clamp (sampleRate, 8000.0, 192000.0) : 48000.0;
+        rate = std::isfinite (sampleRate) ? std::clamp (sampleRate, 8000.0, (double) UINT32_MAX) : 48000.0;
         windowSeconds = std::isfinite (seconds) ? std::clamp (seconds, 4.0, 16.0) : 8.0;
-        const auto wanted = std::clamp ((int) std::ceil (rate * windowSeconds / 64.0), 1, maxColumns);
+        const auto wanted = (int) std::clamp (std::ceil (rate * windowSeconds / 64.0), 1.0, (double) maxColumns);
         ring.assign ((std::size_t) wanted, Column {});
         clear();
         haveAnchor = false;

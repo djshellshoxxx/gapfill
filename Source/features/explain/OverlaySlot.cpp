@@ -38,10 +38,11 @@ VisualiserOverlayComponent::VisualiserOverlayComponent (GapFillAudioProcessor& p
         [] (void* context, const VizFrame* drained, int count)
         {
             auto& processor = static_cast<VisualiserOverlayComponent*> (context)->proc;
-            auto& frames = processor.getExplainState().timelineModel.frames;
-            frames.setPositionAnchor (processor.getSourceHistoryWritePosition()
-                                      - processor.getMeterState().latencySamples.load());
-            frames.push (drained, count);
+            auto& model = processor.getExplainState().timelineModel;
+            const auto anchor = processor.getSourceHistoryWritePosition()
+                              - processor.getMeterState().latencySamples.load();
+            for (int i = 0; i < count; ++i)
+                model.pushFrame (drained[i], anchor);
         });
 }
 

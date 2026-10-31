@@ -29,8 +29,10 @@ TimelineView::TimelineView (GapFillAudioProcessor& p) : proc (p)
     auto& explain = proc.getExplainState();
     windowEvents.reserve (TimelineModel::capacity);
     displayFrames.reserve (maxDisplayColumns);
+    if (explain.timelineModel.epoch() == 0)
+        explain.timelineModel.adoptEpoch (0, (std::uint32_t) juce::jlimit (8000.0, (double) UINT32_MAX, explain.sampleRate.load()));
     if (explain.timelineModel.frames.capacity() == 0)
-        explain.timelineModel.frames.configure (explain.sampleRate.load(), 16.0);
+        explain.timelineModel.frames.configure (explain.timelineModel.displaySampleRate(), 16.0);
     explain.timelineModel.frames.setPositionAnchor (liveEndPos());
 
     pauseButton.setClickingTogglesState (true);
@@ -118,7 +120,8 @@ std::int64_t TimelineView::liveEndPos() const
 
 std::int64_t TimelineView::windowSamples() const
 {
-    return (std::int64_t) (proc.getExplainState().timelineZoomSeconds.load() * juce::jmax (8000.0, proc.getExplainState().sampleRate.load()));
+    return (std::int64_t) (proc.getExplainState().timelineZoomSeconds.load()
+                          * proc.getExplainState().timelineModel.displaySampleRate());
 }
 
 void TimelineView::timerCallback()
@@ -132,7 +135,7 @@ void TimelineView::timerCallback()
 void TimelineView::refresh()
 {
     auto& model = proc.getExplainState().timelineModel;
-    const auto rate = juce::jmax (8000.0, proc.getExplainState().sampleRate.load());
+    const auto rate = model.displaySampleRate();
     if (model.frames.sampleRate() != rate)
     {
         model.frames.configure (rate, 16.0);
@@ -141,6 +144,15 @@ void TimelineView::refresh()
     }
     setWantsKeyboardFocus (proc.isKeyboardNavigationEnabled());
     list.setWantsKeyboardFocus (proc.isKeyboardNavigationEnabled());
+    const bool generationChanged = displayedEpoch != model.epoch();
+    if (generationChanged)
+    {
+        displayedEpoch = model.epoch();
+        snapshotReady = false;
+        inspectorShown = false;
+        inspectorText.clear();
+        resized();
+    }
     const auto end = model.viewEnd (liveEndPos());
     const auto languageGeneration = i18n::languageGeneration();
     const bool languageChanged = languageGeneration != displayedLanguageGeneration;
@@ -156,8 +168,9 @@ void TimelineView::refresh()
         numListItems = model.latest (listItems.data(), listRows);
     }
     displayedLanguageGeneration = languageGeneration;
-    if (languageChanged)
+    if (languageChanged || generationChanged)
     {
+        pauseButton.setToggleState (model.isPaused(), juce::dontSendNotification);
         pauseButton.setButtonText (model.isPaused() ? i18n::text ("LIVE") : i18n::text ("FREEZE"));
         pauseButton.setTitle (pauseButton.getButtonText());
         pauseButton.setTooltip (model.isPaused() ? i18n::text ("Resume the live display")
@@ -171,7 +184,7 @@ void TimelineView::refresh()
     if (inspectorShown)
         updateInspector (inspectorX);
     listText.clear();
-    const auto sr = juce::jmax (8000.0, proc.getExplainState().sampleRate.load());
+    const auto sr = model.displaySampleRate();
     for (int i = 0; i < numListItems; ++i)
     {
         const auto& event = listItems[(size_t) i];
@@ -247,7 +260,7 @@ void TimelineView::paint (juce::Graphics& g)
 
 void TimelineView::paintLanes (juce::Graphics& g, juce::Rectangle<float> plot)
 {
-    const auto sr = juce::jmax (8000.0, proc.getExplainState().sampleRate.load());
+    const auto sr = proc.getExplainState().timelineModel.displaySampleRate();
     const auto window = windowSamples();
     const auto startPos = shownEnd - window;
     auto axis = plot.removeFromBottom ((float) kAxisHeight);

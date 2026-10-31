@@ -112,13 +112,21 @@ void ExplainState::onChunk (const ChunkInfo& c) noexcept
 //==============================================================================
 void ExplainState::onFillEvent (const FillEvent& e) noexcept
 {
+    if (! timelineModel.adoptEpoch (e.timelineEpoch, e.sampleRateHz))
+        return;
     timelineModel.pushEngineEvent (e);
-    newestEventPos = juce::jmax (newestEventPos, e.pos);
+    if (! haveNewestEvent || newestEventEpoch != timelineModel.epoch())
+        newestEventPos = e.pos;
+    else
+        newestEventPos = juce::jmax (newestEventPos, e.pos);
+    newestEventEpoch = timelineModel.epoch();
+    haveNewestEvent = true;
 }
 
 void ExplainState::noteQueueDrops (std::uint32_t droppedOutcomes, std::uint32_t droppedOptional) noexcept
 {
-    if (droppedOutcomes != lastDroppedOutcomes || droppedOptional != lastDroppedOptional)
+    if (haveNewestEvent && newestEventEpoch == timelineModel.epoch()
+        && (droppedOutcomes != lastDroppedOutcomes || droppedOptional != lastDroppedOptional))
         timelineModel.noteDropped (newestEventPos);
 
     lastDroppedOutcomes = droppedOutcomes;

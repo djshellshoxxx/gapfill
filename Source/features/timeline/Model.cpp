@@ -1,6 +1,7 @@
 #include "Model.h"
 
 #include "../../Parameters.h"
+#include "../../dsp/VisualisationState.h"
 #include "../reasons/Reasons.h"
 #include "../i18n/Strings.h"
 
@@ -131,11 +132,49 @@ void TimelineModel::push (const TimelineEvent& e) noexcept
 
 void TimelineModel::pushEngineEvent (const FillEvent& e) noexcept
 {
+    if (! adoptEpoch (e.timelineEpoch, e.sampleRateHz))
+        return;
+
     TimelineEvent out[2];
     const auto n = fromEngineEvent (e, out);
 
     for (int i = 0; i < n; ++i)
         push (out[i]);
+}
+
+bool TimelineModel::adoptEpoch (std::uint32_t incoming, std::uint32_t sampleRateHz) noexcept
+{
+    if (sampleRateHz != 0 && sampleRateHz < 8000)
+        return false;
+    if (incoming == 0)
+    {
+        if (currentEpoch != 0)
+            return false;
+        if (sampleRateHz != 0)
+            currentSampleRate = (double) sampleRateHz;
+        return true;
+    }
+    if (incoming == currentEpoch)
+        return sampleRateHz == 0 || (double) sampleRateHz == currentSampleRate;
+    if (currentEpoch != 0 && (std::int32_t) (incoming - currentEpoch) <= 0)
+        return false;
+
+    clear();
+    currentEpoch = incoming;
+    if (sampleRateHz != 0)
+        currentSampleRate = (double) sampleRateHz;
+    return true;
+}
+
+bool TimelineModel::pushFrame (const VizFrame& frame, std::int64_t positionAnchor)
+{
+    if (! adoptEpoch (frame.timelineEpoch, frame.sampleRateHz))
+        return false;
+    if (frames.capacity() > 0 && frames.sampleRate() != currentSampleRate)
+        frames.configure (currentSampleRate, 16.0);
+    frames.setPositionAnchor (positionAnchor);
+    frames.push (frame);
+    return true;
 }
 
 const TimelineEvent& TimelineModel::at (int i) const noexcept
@@ -171,6 +210,9 @@ void TimelineModel::clear() noexcept
     head = 0;
     count = 0;
     haveLoss = false;
+    lossUpToPos = 0;
+    paused = false;
+    frozenPos = 0;
     frames.clear();
 }
 
