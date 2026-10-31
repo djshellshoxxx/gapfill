@@ -32,3 +32,20 @@ Its base FillRecipe remains16 bytes with all eight existing flags unchanged.
 
 Epoch finder and pitch-synchronous captured-buffer voice are the next separate
 modules; their production wiring is not claimed by this tracker/codec checkpoint.
+
+`PitchMarks` is the single prepared mono scratch owner for sequential fill starts.
+It leaves captured L/R untouched, returns owned ascending epoch marks with full
+source-window coverage, and rejects short/invalid/irregular captures. `Voice`
+copies those marks and borrows its own FillVoice capture until reset/end. Source
+read positions advance by exactly one; pitch comes from output-epoch spacing.
+Upward windows are2*min(T0,Tout) to avoid the proven fixed-window sine cancellation.
+A5Hz DC guard removes the local mean introduced by shortened windows. Per-stream
+Hann rotations are prepared once and advanced by a double recurrence, not a cos
+call for every sample. Mono source channels explicitly bypass stereo panning.
+
+The internal Settings.mix01 is the derived global-FX-send weight, never a host
+parameter. At zero the adapter skips pitch query/epoch/configure. `Voice::render`
+returns unweighted PSOLA; `mixWeight` lets the adapter blend ordinary Granular by
+1-mix and PSOLA bymix. Existing incoming recipe choice metadata is retained at
+zero send. Missing/invalid epoch data falls back before playback; a runtime source
+fault stays silent in the selected engine until the original deadline.

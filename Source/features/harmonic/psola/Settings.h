@@ -17,6 +17,7 @@ struct Settings
     float scatter01 = 0.2f;
     float tone = 0.0f;
     float snap01 = 0.0f;
+    float mix01 = 1.0f; // internal global-FX-send blend, never a host parameter
 };
 
 /** Absolute pitch-class mask (bit0 C through bit11 B). rootPc=-1 means no key. */
