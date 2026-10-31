@@ -107,6 +107,16 @@ GF_TEST (Meter, peak_does_not_fall_during_hold)
     GF_EXPECT (p.peakDb == -12.0f);
 }
 
+GF_TEST (Meter, peak_hold_survives_millisecond_counter_wrap)
+{
+    PeakHold p;
+    const auto start = std::numeric_limits<juce::uint32>::max() - 500u;
+    p.push (-12.0f, start);
+    GF_EXPECT (p.tick (start + 100u) == PeakHold::Tick::Held);
+    GF_EXPECT (p.tick (start + 1499u) == PeakHold::Tick::Held);
+    GF_EXPECT (p.tick (start + 1500u) == PeakHold::Tick::Falling);
+}
+
 GF_TEST (Meter, peak_falls_20_dB_per_second)
 {
     PeakHold p;

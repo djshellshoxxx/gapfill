@@ -70,7 +70,9 @@ struct PeakHold
         (the caller stops its timer). */
     Tick tick (juce::uint32 nowMs, float dtSeconds = 0.0f) noexcept
     {
-        if (nowMs < holdUntilMs)
+        // The display clock wraps every ~49 days; compare the short deadline
+        // modulo 2^32, rather than treating the wrapped deadline as the past.
+        if ((std::int32_t) (nowMs - holdUntilMs) < 0)
             return Tick::Held;
 
         // dtSeconds <= 0 means "one timer period", computed as it always was (20 dB / 30).
