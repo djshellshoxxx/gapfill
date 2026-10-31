@@ -32,7 +32,8 @@ namespace
     {
         // A modal confirmation may dismiss the profile callout. Keep the
         // editor as the lifetime anchor so an intentional reset still runs.
-        auto* anchor = source.getTopLevelComponent();
+        juce::Component* anchor = proc.getActiveEditor();
+        if (anchor == nullptr) anchor = source.findParentComponentOfClass<juce::AudioProcessorEditor>();
         if (anchor == nullptr) anchor = &source;
         const juce::Component::SafePointer<juce::Component> safe (anchor);
         juce::AlertWindow::showAsync (juce::MessageBoxOptions()
