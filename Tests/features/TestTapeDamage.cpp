@@ -7,6 +7,7 @@
 #include <ctime>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 
 using namespace gapfill;
 using namespace gapfill::tapedamage;
@@ -363,4 +364,30 @@ GF_TEST (TapeDamage, saturation_render_matches_the_level_compensated_tanh_oracle
         std::printf ("         Tape tanh oracle sr%.0f maximum absolute error %.8g\n", sr, maximumError);
         GF_EXPECT (maximumError < 2e-4);
     }
+}
+
+GF_TEST (TapeDamage, live_carrier_send_keeps_raw_mix_replay_and_zero_gate_separate)
+{
+    auto settings = baseSettings();
+    settings.mix01 = 0.8f; settings.sat01 = 0.7f; settings.wow01 = 0.3f;
+    const auto input = makeNoise (48000, 0.2, 0.3f);
+    TapeDamage original, replay, muted;
+    original.prepare (48000); replay.prepare (48000); muted.prepare (48000);
+    GF_EXPECT (original.begin (settings, 772, input.getNumSamples(), 0, {}, false, 0.25f));
+    const auto decision = original.metadata();
+    GF_EXPECT (decision.chosen == 1 && decision.values[Mix] == 8000);
+    GF_EXPECT (replay.begin ({}, 999, input.getNumSamples(), 0, decision, true, 0.25f));
+    GF_EXPECT (identical (render (original, input, 1), render (replay, input, 13)));
+    GF_EXPECT (! muted.begin ({}, 111, input.getNumSamples(), 0, decision, true, 0.0f));
+    GF_EXPECT (muted.metadata() == decision && muted.latencySamples() == 0 && ! muted.isActive());
+    GF_EXPECT (identical (input, render (muted, input)));
+    GF_EXPECT (! muted.begin (settings, 111, input.getNumSamples(), 0, {}, false, 0.0f));
+    GF_EXPECT (muted.metadata() == TapeMeta {} && muted.latencySamples() == 0);
+    GF_EXPECT (! muted.begin (settings, 111, input.getNumSamples(), 0, {}, false,
+                             std::numeric_limits<float>::quiet_NaN()));
+    GF_EXPECT (muted.metadata() == TapeMeta {});
+    GF_EXPECT (muted.begin (settings, 772, input.getNumSamples(), 0, decision, true, 1.0f));
+    GF_EXPECT (muted.metadata() == decision && muted.latencySamples() == 192);
+    muted.reset();
+    GF_EXPECT (muted.latencySamples() == 0 && muted.metadata() == TapeMeta {});
 }

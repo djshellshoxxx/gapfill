@@ -84,3 +84,19 @@ control/output frame caches. The output cache was proved bit-identical on
 but paired measurements were slower (scalar 0.8759%, cached 1.0412%). Those
 prototypes and their extra layout/state do not ship. Further motion optimisation
 must preserve the requested objective limits; the CPU requirement remains open.
+
+## Live carrier send and replay
+
+`begin` now has a final `float liveSend01 = 1` argument. Callers must pass the raw
+nine Tape controls and the current combined FX Send for **both** natural and
+replay renders. Do not scale the requested Mix first: that would store a carrier
+value and then attenuate it twice on replay. The codec still records only the
+raw nine quantised controls; runtime Mix is their dequantised Mix times live Send.
+
+At Send 0 (also used for routing skip), a natural fill omits Tape metadata; a
+replay retains its exact recorded decision, including chosen=true. Both return
+inactive with zero actual latency before RNG creation or line reset/clear. A
+separate render-selection flag reports actual delay independently of metadata.
+Ten native Tape cases pass, including exact original/replay output at unchanged
+25% Send with raw Mix 80%, zero-send passthrough and preserved metadata, invalid
+live send and reset. This is a carrier correction, not a wire/schema change.

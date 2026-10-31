@@ -18,7 +18,8 @@ namespace
         help.body ("The older Tape Destruction card keeps its saved behaviour and controls. Macro version 3 Tape Mix controls Tape Damage Mix when its Chance is above zero; "
                    "otherwise it controls the older card's independent mix. It never routes to both at once. Tape Damage also works with the Tape Stop fill algorithm.");
         help.body ("Use Tab and Shift-Tab to reach Enable, Show or Hide controls and the knobs. Arrow keys edit the focused value; the shared right-click menu offers typed entry, "
-                   "reset and MIDI learn. The summary updates as text and has no motion animation. Saved replay keeps the recorded decision and settings; older recipes without it stay unchanged.");
+                   "reset and MIDI learn. The summary updates as text and has no motion animation. Saved replay keeps the recorded decision and settings; "
+                   "the current FX Send and band routing still apply. Older recipes without a Tape Damage decision stay unchanged.");
     });
 }
 }

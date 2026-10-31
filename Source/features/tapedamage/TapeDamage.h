@@ -31,13 +31,16 @@ public:
 
     /** outputSamples is the span available before a later stage's drain.
         minimumSourceSamples is the algorithm's source minimum.
-        Replay always honours the recorded decision; absent metadata means off. */
+        Replay always honours the recorded decision; absent metadata means off.
+        Controls contain raw Mix. liveSend01 is the current carrier send for
+        both original/replay renders; it is never stored in the decision. */
     bool begin (const fx::TapeExtraSettings&, std::uint64_t voiceSeed, int outputSamples,
-                int minimumSourceSamples, const TapeMeta& replay = {}, bool replayRecipe = false) noexcept;
+                int minimumSourceSamples, const TapeMeta& replay = {}, bool replayRecipe = false,
+                float liveSend01 = 1.0f) noexcept;
     void process (float& l, float& r) noexcept;
 
     bool isActive() const noexcept { return active; }
-    int latencySamples() const noexcept { return meta.version == 1 && meta.chosen != 0 ? baseDelay : 0; }
+    int latencySamples() const noexcept { return renderSelected ? baseDelay : 0; }
     int nominalLatencySamples() const noexcept { return baseDelay; }
     int sourceInputSamples() const noexcept { return std::max (0, plannedSamples - latencySamples()); }
     bool skippedShort() const noexcept { return shortSkipped; }
@@ -61,7 +64,7 @@ private:
 
     double sr = 48000.0;
     int mask = 0, write = 0, baseDelay = 0, elapsed = 0, plannedSamples = 0;
-    bool active = false, shortSkipped = false;
+    bool active = false, shortSkipped = false, renderSelected = false;
     std::vector<Stereo> line;
     TapeMeta meta;
     fx::TapeExtraSettings settings;

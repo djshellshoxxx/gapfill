@@ -65,7 +65,7 @@ void TapeDamage::prepare (double sampleRate)
 
 void TapeDamage::reset() noexcept
 {
-    active = shortSkipped = false;
+    active = shortSkipped = renderSelected = false;
     meta = {};
     elapsed = plannedSamples = write = 0;
     eventSize = nextEvent = 0;
@@ -83,16 +83,21 @@ void TapeDamage::reset() noexcept
 }
 
 bool TapeDamage::begin (const fx::TapeExtraSettings& requested, std::uint64_t voiceSeed, int outputSamples,
-                        int minimumSourceSamples, const TapeMeta& replay, bool replayRecipe) noexcept
+                        int minimumSourceSamples, const TapeMeta& replay, bool replayRecipe, float liveSend01) noexcept
 {
-    active = shortSkipped = false;
+    active = shortSkipped = renderSelected = false;
     eventSize = nextEvent = 0;
     plannedSamples = outputSamples;
     elapsed = 0;
-    meta = replayRecipe ? (isValidTapeMeta (replay) ? replay : TapeMeta {})
-                        : latchTapeSettings (requested, hashCombine (voiceSeed, kDspSalt));
+    meta = replayRecipe && isValidTapeMeta (replay) ? replay : TapeMeta {};
+    const float send = std::isfinite (liveSend01) ? std::clamp (liveSend01, 0.0f, 1.0f) : 0.0f;
+    // A live carrier gate cannot rewrite a saved decision. Natural ineligible
+    // voices omit it. This precedes even latching, RNG construction and reset.
+    if (send <= 0.0f) return false;
+    if (! replayRecipe) meta = latchTapeSettings (requested, hashCombine (voiceSeed, kDspSalt));
     if (meta.version == 0 || (replayRecipe && meta.chosen == 0)) return false;
     settings = settingsFromTapeMeta (meta);
+    settings.mix01 *= send;
     if (mask == 0 || outputSamples < (int) std::ceil (sr * 0.040)
         || outputSamples < baseDelay || std::max (0, minimumSourceSamples) > outputSamples - baseDelay)
     {
@@ -100,7 +105,11 @@ bool TapeDamage::begin (const fx::TapeExtraSettings& requested, std::uint64_t vo
         shortSkipped = true;
         return false;
     }
-    if (settings.mix01 <= 0.0f) { meta.chosen = 0; return false; }
+    if (settings.mix01 <= 0.0f)
+    {
+        if (! replayRecipe) meta.chosen = 0;
+        return false;
+    }
     if (! replayRecipe && settings.amount01 < 1.0f)
     {
         Rng choice;
@@ -112,6 +121,7 @@ bool TapeDamage::begin (const fx::TapeExtraSettings& requested, std::uint64_t vo
     meta = chosen;
     meta.chosen = 1;
     settings = settingsFromTapeMeta (meta);
+    settings.mix01 *= send;
     plannedSamples = outputSamples;
 
     Rng wow;
@@ -138,6 +148,7 @@ bool TapeDamage::begin (const fx::TapeExtraSettings& requested, std::uint64_t vo
     drive = 1.0f + 5.0f * settings.sat01;
     inverseDrive = 1.0f / drive;
     createEvents();
+    renderSelected = true;
     active = true;
     return true;
 }
