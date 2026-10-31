@@ -3,6 +3,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/lock/LockStage.cpp
     Source/features/lock/LockEngine.cpp
     Source/features/lock/LockPublication.cpp
+    Source/features/lock/ProcessorLock.cpp
 )
 list(APPEND GAPFILL_SOURCES
     Source/features/lock/LockSubtree.cpp

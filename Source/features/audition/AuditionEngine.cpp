@@ -8,6 +8,7 @@
 
 #include "../../dsp/FillEngine.h"
 #include "../Salts.h"
+#include "../modulation/Runtime.h"
 
 namespace gapfill
 {
@@ -77,9 +78,19 @@ void FillEngine::servePendingPreview (std::int64_t outputPos, const AnalysisEngi
 
 bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
                                const AnalysisEngine& analysis, const SourceHistory& history,
-                               const EngineSettings& s, const FillRecipe* recipeIn,
+                               const EngineSettings& base, const FillRecipe* recipeIn,
                                int gainCentiDb, FillEventQueue* events, const RecipeExtras& extras) noexcept
 {
+    auto effective = base;
+    if (base.perf.extendedMacroRuntime != nullptr)
+    {
+        const bool havePpq = base.transportValid && base.samplesPerBeat > 1.0;
+        Effective::applyMacroLfos (effective, base.ppqAtBlockStart,
+            { havePpq, base.ppqAtBlockStart, base.perf.tsNum, base.perf.tsDen,
+              havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0, outputPos, sr, analysis.frameAt (outputPos).energy });
+        modulation::applyCombinedEffectSend (effective, effective.perf.macroFxSend01 * base.perf.previewTensionSend01);
+    }
+    const auto& s = effective;
     auto fail = [this] (PreviewStatus why)
     {
         preview.status = why;

@@ -3,6 +3,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/modulation/Targets.cpp
     Source/features/modulation/Runtime.cpp
     Source/features/modulation/LiveInputs.cpp
+    Source/features/modulation/ProcessorModulation.cpp
     Source/features/modulation/ExtendedConfig.cpp
     Source/features/modulation/ExtendedState.cpp
 )

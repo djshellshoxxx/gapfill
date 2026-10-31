@@ -52,6 +52,11 @@ GapFillAudioProcessor::GapFillAudioProcessor()
     midiLearn.connect (apvts);
     liveControl.setMidiLearn (&midiLearn);
     liveControl.setEventQueue (&fillEvents);
+    engine.setLockPublication (&recipeServices.lockPublication);
+    liveControl.setLockEpochReader ([] (void* self) noexcept
+    {
+        return static_cast<GapFillAudioProcessor*> (self)->recipeServices.lockPublication.currentEpoch();
+    }, this);
     liveControl.setPanicHook ([] (void* self) noexcept
     {
         auto& processor = *static_cast<GapFillAudioProcessor*> (self);
@@ -359,6 +364,11 @@ void GapFillAudioProcessor::drainCommands() noexcept
 
 void GapFillAudioProcessor::dispatchFeatureCommand (const Command& command) noexcept
 {
+    if (! engine.acceptsLockCommand (command))
+    {
+        rejectedLockCommands.fetch_add (1, std::memory_order_relaxed);
+        return;
+    }
     explainState.onCommand (command);
     if (command.type == CommandType::Recapture)
         shaping.capture.requestRecapture();
@@ -489,6 +499,7 @@ void GapFillAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce
     juce::ScopedNoDenormals noDenormals;
     const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
+    adoptPendingLockRestore();
     midiLearn.processMidi (midi);
     liveControl.beginBlock (midi, engine, samplesProcessed - (std::int64_t) targetLatency);
     recipeServices.onMidi (engine, midi);
@@ -531,6 +542,7 @@ void GapFillAudioProcessor::processBlockBypassed (juce::AudioBuffer<float>& buff
     juce::ScopedNoDenormals noDenormals;
     const explain::BlockTimer cpuTimer (explainState, buffer.getNumSamples(), currentSampleRate);
 
+    adoptPendingLockRestore();
     midiLearn.processMidi (midi);
     liveControl.beginBlock (midi, engine, samplesProcessed - (std::int64_t) targetLatency);
     recipeServices.onMidi (engine, midi);
@@ -734,7 +746,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     engineSettings.perf.sc.tracker = scDriveWanted ? &scTracker : nullptr;     // F-L13 (inert without a connected bus)
     engineSettings.historyOffset = samplesProcessed + numSamples - fillSource.getWritePosition();
     updateTempoInfo (engineSettings, startSample, numSamples);
-    contextState.onChunk (monoMain.data(), numSamples, analysis, samplesProcessed, engineSettings);       // WP7: F-L22 energy, F-L09 groove
+    updateContextForChunk (engineSettings, numSamples); // WP7 trackers see projected V3 context controls
 
     // F-D03 quality: the level in force (changes only while the engine is idle, or after a short fade).
     {
@@ -806,8 +818,18 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     analysis.discardEventsBefore (juce::jmax ((std::int64_t) 0, outputStart));
 
     // WP8 (FX-0): bus effect chain sees the wet bus before the wet post-processing.
-    fx::applyEffectSend (engineSettings.fx, contextState.tensionFxSend (engineSettings, numSamples));      // WP7 F-M21 FX lane (identity while Tension is off)
-    auto fxIo = fxChain.beginBlock (engineSettings.fx, numSamples);
+    EngineSettings continuousSettings;
+    const auto extendedModulation = engineSettings.perf.extendedMacroRuntime != nullptr;
+    const EngineSettings* busSettings = &engineSettings;
+    if (extendedModulation)
+    {
+        prepareModulatedBus (continuousSettings, engineSettings, numSamples);
+        engineSettings.perf.previewTensionSend01 = continuousSettings.perf.previewTensionSend01;
+        busSettings = &continuousSettings;
+    }
+    else
+        fx::applyEffectSend (engineSettings.fx, contextState.tensionFxSend (engineSettings, numSamples));
+    auto fxIo = fxChain.beginBlock (busSettings->fx, numSamples);
 
     engine.clearTransitions();
     if constexpr (midiout::kActive)
@@ -836,7 +858,7 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
                             engineSettings.transportValid && engineSettings.samplesPerBeat > 1.0,
                             engineSettings.ppqAtBlockStart, engineSettings.samplesPerBeat);
 
-    fxChain.processBus (wetBuffer, 0, numSamples, engineSettings.fx, fxIo, outputStart);
+    fxChain.processBus (wetBuffer, 0, numSamples, busSettings->fx, fxIo, outputStart);
 
     // ---- dry path: lookahead delay with click-free latency changes -------
     {
@@ -914,8 +936,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         centreProtect.setTargetValue (engineSettings.perf.sceneProtectCenter01 >= 0.0f
             ? engineSettings.perf.sceneProtectCenter01 : pv (params.protCenter) * 0.01f);
         // C-2: the Space macro owns the wet width while it maps it; F-M21 Tension adds its delta on top.
-        const float widthBase = engineSettings.perf.macroWidthOn ? engineSettings.perf.macroWidth01 : pv (params.width) * 0.01f;
-        widthAmount.setTargetValue (widthBase + contextState.tensionWidthDelta (engineSettings, widthBase, numSamples));      // WP7 (0 while Tension is off)
+        const float widthBase = busSettings->perf.macroWidthOn ? busSettings->perf.macroWidth01 : pv (params.width) * 0.01f;
+        widthAmount.setTargetValue (widthBase + contextState.tensionWidthDelta (*busSettings, widthBase,
+                                                                               extendedModulation ? 0 : numSamples));
         const bool monoWet = pb (params.wetMono);
 
         for (int i = 0; i < numSamples; ++i)

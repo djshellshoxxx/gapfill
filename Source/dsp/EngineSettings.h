@@ -57,6 +57,7 @@ struct PerformanceSettings
     harmonic::psola::Settings pitchSync;    // opt-in detailed F-X01; released hg* remains independent
     const harmonic::psola::PitchTracker* pitchTracker = nullptr;
     float fxSend01 = 1.0f;                  // F-M21 output: effect amount scale (1 = neutral); read by the effect cards that honour it
+    float previewTensionSend01 = 1.0f;      // V3 preview keeps live controls; no Battle/decision stages
     BudgetSettings budget;            // F-D01
     bool  likeActive = false;         // C-11
     int   quantDivision = -1;         // E-2 fill-length quantise, -1 off

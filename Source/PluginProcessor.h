@@ -150,7 +150,8 @@ public:
     // Cross-thread queues (docs/dev/02 F0-4)
 
     /** Message thread only (single producer). Returns false if the queue is full. */
-    bool postCommand (const Command& command) noexcept   { return commands.push (command); }
+    bool postCommand (const Command& command) noexcept;
+    std::uint32_t getRejectedLockCommands() const noexcept { return rejectedLockCommands.load (std::memory_order_relaxed); }
 
     /** Message thread. Moves audio-thread fill events into the history and the
         outcome log; also called by the 15 Hz timer. Returns how many were drained. */
@@ -274,8 +275,13 @@ private:
         A static member because BusesProperties is protected in juce::AudioProcessor. */
     static BusesProperties makeBuses();
     midiout::Settings gatherMidiOutSettings() const noexcept;       // F-L11
+    modulation::DecisionInputs modulationPosition (const EngineSettings&, std::int64_t outputPos,
+                                                    bool canonical) const noexcept;
+    void updateContextForChunk (EngineSettings&, int numSamples) noexcept;
+    void prepareModulatedBus (EngineSettings& bus, const EngineSettings& raw, int numSamples) const noexcept;
     midiout::MidiOutSettings gatherExtendedMidiOutSettings() const noexcept;
     void beginMidiOutput (juce::MidiBuffer&, int numSamples, bool bypassed) noexcept;
+    void adoptPendingLockRestore() noexcept;
     void finishMidiOutput (juce::MidiBuffer&) noexcept;
     void collectEarlyMidiHits (std::int64_t start, int numSamples) noexcept;
 
@@ -313,6 +319,7 @@ private:
     ShapingRuntime shaping;
 
     CommandQueue    commands;        // message -> audio, drained once per block
+    std::atomic<std::uint32_t> rejectedLockCommands { 0 };
     FillEventQueue  fillEvents;      // audio -> message, drained by the timer
     RecipeHistory   recipeHistory;   // message thread only (survives the editor)
     GapOutcomeLog   outcomeLog;      // message thread only

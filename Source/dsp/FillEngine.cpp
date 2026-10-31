@@ -655,7 +655,8 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
 
     EngineSettings s = base;
     const Effective::TransportInfo transport { havePpq, ppq, base.perf.tsNum, base.perf.tsDen,
-                                               havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0 };
+                                               havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0,
+                                               outputPos, sr, frame.energy };
     Effective::applyAtDecision (s, ppq, transport);
     if (! forced && s.perf.coop.view != nullptr && s.perf.coop.view->mode == coop::Deterministic)
     {
