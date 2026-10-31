@@ -5,6 +5,7 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "qa"))
@@ -53,7 +54,7 @@ class RunMatrixTests(unittest.TestCase):
         self.assertIn("pluginval", row["detail"])
 
     def test_bad_filter_expected_to_fail_passes_only_when_nonzero(self):
-        ok = self.run_one(rm.StepSpec("bad", fake("ERROR: test filter matched zero tests\n", 1), expect_nonzero=True))
+        ok = self.run_one(rm.StepSpec("bad", fake("0 passed, 0 failed\nERROR: test filter matched zero tests: nonexistent_filter_should_fail\n", 1), expect_nonzero=True))
         self.assertEqual(ok["status"], "pass")
         bad = self.run_one(rm.StepSpec("bad", fake("0 passed, 0 failed\n", 0), expect_nonzero=True))
         self.assertEqual(bad["status"], "fail")
@@ -134,6 +135,49 @@ class RunMatrixTests(unittest.TestCase):
 
     def test_sha_is_recorded(self):
         self.assertTrue(rm.git_sha())
+
+    def test_bad_filter_rejects_crash_exit_even_with_expected_diagnostic(self):
+        diagnostic = "0 passed, 0 failed\nERROR: test filter matched zero tests: nonexistent_filter_should_fail\n"
+        row = self.run_one(rm.StepSpec("bad", fake(diagnostic, 139), expect_nonzero=True))
+        self.assertEqual(row["status"], "fail")
+        self.assertTrue(row["crash"])
+
+    def test_bad_filter_rejects_unrelated_failure_and_missing_summary(self):
+        for text, code in (("segmentation fault", 1),
+                           ("ERROR: test filter matched zero tests\n", 1),
+                           ("0 passed, 0 failed\nERROR: test filter matched zero tests\n", 2)):
+            with self.subTest(text=text, code=code):
+                row = self.run_one(rm.StepSpec("bad", fake(text, code), expect_nonzero=True))
+                self.assertEqual(row["status"], "fail")
+
+    def test_step_records_exit_and_log_hash_for_evidence_integrity(self):
+        row = self.run_one(rm.StepSpec("unit", fake("5 passed, 0 failed\n"), min_tests=1))
+        self.assertEqual(row.get("exit_code"), 0)
+        self.assertRegex(row.get("log_sha256", ""), r"^[0-9a-f]{64}$")
+        self.assertEqual(row.get("command_argv"), fake("5 passed, 0 failed\n"))
+
+    def test_python_unittest_counts_are_required_and_recorded(self):
+        for output, expected in (("Ran 3 tests in 0.01s\n\nOK\n", "pass"),
+                                 ("Ran 0 tests in 0.01s\n\nOK\n", "fail"),
+                                 ("Ran 3 tests in 0.01s\n\nFAILED (failures=1)\n", "fail")):
+            with self.subTest(output=output):
+                row = self.run_one(rm.StepSpec("python", fake(output), min_tests=1))
+                self.assertEqual(row["status"], expected)
+                if expected == "pass":
+                    self.assertEqual(row["executed"], 3)
+
+    def test_qa_lifecycle_selects_concurrent_stress_instead_of_history_reopen(self):
+        step = {s.name: s for s in rm.default_steps(["GapFillTests"], "fast")}["gui-lifecycle"]
+        self.assertEqual(step.cmd[-1], "EditorLifecycle")
+
+    def test_auval_uses_the_target_identity_and_nonmac_is_not_applicable(self):
+        with mock.patch.object(rm.platform, "system", return_value="Darwin"), \
+             mock.patch.object(rm.shutil, "which", return_value="/usr/bin/auval"):
+            step = {s.name: s for s in rm.default_steps(["x"], "full")}["auval"]
+            self.assertEqual(step.cmd[-3:], ["aumf", "Gpfl", "Gfau"])
+        with mock.patch.object(rm.platform, "system", return_value="Linux"):
+            step = {s.name: s for s in rm.default_steps(["x"], "full")}["auval"]
+            self.assertFalse(step.extra.get("applicable", True))
 
 
 if __name__ == "__main__":

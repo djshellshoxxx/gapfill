@@ -20,8 +20,10 @@ Standard library only; safe under ``python -I``.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import platform
+import plistlib
 import re
 import shlex
 import shutil
@@ -33,6 +35,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
 COUNT_RE = re.compile(r"(\d+) passed, (\d+) failed")
+PYTHON_COUNT_RE = re.compile(r"Ran (\d+) tests? in [^\n]+")
 
 # Manual rows of docs/dev/07-QA-AND-RELEASE.md that no script can fill. Listed, never marked as passed.
 MANUAL_ROWS = [
@@ -61,7 +64,12 @@ def parse_counts(text: str) -> tuple[int, int] | None:
     """(passed, failed) of the LAST ``N passed, M failed`` line of the test binary, or None."""
     found = COUNT_RE.findall(text)
     if not found:
-        return None
+        python_counts = PYTHON_COUNT_RE.findall(text)
+        if not python_counts:
+            return None
+        failures = re.search(r"FAILED \(([^\n]+)\)", text)
+        failed = sum(int(n) for n in re.findall(r"(?:failures|errors)=(\d+)", failures[1])) if failures else 0
+        return int(python_counts[-1]) - failed, failed
     passed, failed = found[-1]
     return int(passed), int(failed)
 
@@ -69,7 +77,8 @@ def parse_counts(text: str) -> tuple[int, int] | None:
 def run_step(spec: StepSpec, *, cwd: Path, log_dir: Path, runner=subprocess.run) -> dict:
     """Runs one step and returns its evidence row. Never raises for a failing command."""
     row = {"name": spec.name, "status": "fail", "executed": 0, "passed": 0, "failed": 0,
-           "seconds": 0.0, "log": "", "command": " ".join(shlex.quote(c) for c in (spec.cmd or [])), "detail": ""}
+           "seconds": 0.0, "log": "", "command": " ".join(shlex.quote(c) for c in (spec.cmd or [])), "detail": "",
+           "command_argv": spec.cmd or [], "exit_code": None, "signal": None, "log_sha256": "", **spec.extra}
 
     if spec.cmd is None:
         row["status"] = "unverified"
@@ -94,23 +103,28 @@ def run_step(spec: StepSpec, *, cwd: Path, log_dir: Path, runner=subprocess.run)
 
     row["seconds"] = round(time.monotonic() - started, 2)
     log_path.write_text(output, encoding="utf-8")
+    row["exit_code"] = code
+    row["signal"] = -code if code < 0 else None
+    row["log_sha256"] = hashlib.sha256(log_path.read_bytes()).hexdigest()
     counts = parse_counts(output)
 
     if counts is not None:
         row["passed"], row["failed"] = counts
         row["executed"] = counts[0] + counts[1]
 
-    if spec.expect_nonzero:
-        # Guard step: the command must fail, and for a real reason (the test binary reports it), not a crash on start.
-        ok = code != 0 and code not in (124, 127)
-        row["status"] = "pass" if ok else "fail"
-        row["detail"] = "failed as required" if ok else f"expected a non-zero exit, got {code}"
-        return row
-
     if code < 0 or code >= 128:                              # killed by a signal / crash
         row["detail"] = f"crashed or was killed (exit {code}); collect a dump from the OS crash handler and attach it"
         row["crash"] = True
-    elif code != 0:
+        return row
+
+    if spec.expect_nonzero:
+        # Guard step: the command must fail, and for a real reason (the test binary reports it), not a crash on start.
+        ok = code == 1 and counts == (0, 0) and "ERROR: test filter matched zero tests" in output
+        row["status"] = "pass" if ok else "fail"
+        row["detail"] = "unmatched filter rejected as required" if ok else f"expected exit 1, zero-test summary and unmatched-filter diagnostic; got exit {code}"
+        return row
+
+    if code != 0:
         row["detail"] = f"exit {code}"
     elif spec.min_tests and row["executed"] < spec.min_tests:
         row["detail"] = f"executed {row['executed']} tests, at least {spec.min_tests} required (a step that runs nothing is a failure)"
@@ -127,13 +141,43 @@ def python_test_files() -> list[str]:
     return sorted(p.relative_to(REPO).as_posix() for p in (REPO / "tools").glob("test_*.py"))
 
 
-def default_steps(binary: list[str], tier: str, *, pluginval=None, vst3=None, clap_validator=None, clap=None) -> list[StepSpec]:
+def auval_command(bundle: Path | None = None, *, cmake_file: Path = REPO / "CMakeLists.txt") -> list[str]:
+    """Use built AudioComponents metadata when supplied; otherwise read this target's literal JUCE declarations."""
+    if bundle is not None:
+        with (bundle / "Contents" / "Info.plist").open("rb") as stream:
+            components = plistlib.load(stream)["AudioComponents"]
+        if len(components) != 1:
+            raise ValueError("the AU bundle must declare exactly one AudioComponent")
+        component = components[0]
+        identity = [component[k] for k in ("type", "subtype", "manufacturer")]
+    else:
+        text = cmake_file.read_text(encoding="utf-8")
+        target = re.search(r"juce_add_plugin\(GapFill\s+(.*?)\n\)", text, re.S)
+        if target is None:
+            raise ValueError("GapFill target declarations were not found; supply --au with the built bundle")
+        def literal(name):
+            match = re.search(r"\b" + name + r"\s+([A-Za-z0-9]+)\b", target[1])
+            if match is None:
+                raise ValueError(f"cannot resolve {name}; supply --au with the built bundle")
+            return match[1]
+        synth, midi = literal("IS_SYNTH"), literal("NEEDS_MIDI_INPUT")
+        if synth not in ("TRUE", "FALSE") or midi not in ("TRUE", "FALSE"):
+            raise ValueError("cannot resolve AU type; supply --au with the built bundle")
+        kind = "aumu" if synth == "TRUE" else "aumf" if midi == "TRUE" else "aufx"
+        identity = [kind, literal("PLUGIN_CODE"), literal("PLUGIN_MANUFACTURER_CODE")]
+    if any(not isinstance(code, str) or len(code) != 4 or not code.isascii() for code in identity):
+        raise ValueError("AudioComponent identity requires three ASCII FourCC values")
+    return ["auval", "-v", *identity]
+
+
+def default_steps(binary: list[str], tier: str, *, pluginval=None, vst3=None, clap_validator=None, clap=None,
+                  au_bundle: Path | None = None) -> list[StepSpec]:
     py = sys.executable
     steps: list[StepSpec] = [
         StepSpec("preflight-validate-repo", [py, "-I", "tools/validate_repo.py"]),
         # Not `-I` and not `discover -s tools`: the tests do `from tools import ...`, which needs the repository root on
         # sys.path (what `-m` provides) and a file list (tools/ is a namespace package, which discover refuses).
-        StepSpec("preflight-python-tests", [py, "-m", "unittest", *python_test_files()]),
+        StepSpec("preflight-python-tests", [py, "-m", "unittest", *python_test_files()], min_tests=1),
         StepSpec("unit", binary + ["-Perf"], min_tests=100, tiers=("fast",)),
         StepSpec("unit-all", binary, min_tests=100, tiers=("full",)),
         StepSpec("bad-filter-must-fail", binary + ["nonexistent_filter_should_fail"], expect_nonzero=True),
@@ -143,7 +187,7 @@ def default_steps(binary: list[str], tier: str, *, pluginval=None, vst3=None, cl
         StepSpec("determinism", binary + ["repeatable"], min_tests=1),
         StepSpec("robust", binary + ["missing_tempo_information_is_handled"], min_tests=1),
         StepSpec("fixtures", binary + ["StateCompat"], min_tests=1),
-        StepSpec("gui-lifecycle", binary + ["survives_reopen"], min_tests=1),
+        StepSpec("gui-lifecycle", binary + ["EditorLifecycle"], min_tests=1),
         StepSpec("perf", binary + ["Perf"], min_tests=1, tiers=("full",)),
     ]
 
@@ -158,9 +202,11 @@ def default_steps(binary: list[str], tier: str, *, pluginval=None, vst3=None, cl
     steps.append(validator("clap-validator", clap_validator, clap, lambda t, c: [t, "validate", c]))
 
     if platform.system() == "Darwin" and shutil.which("auval"):
-        steps.append(StepSpec("auval", ["auval", "-v", "aufx", "GpFl", "CDLb"], tiers=("full",)))
+        steps.append(StepSpec("auval", auval_command(au_bundle), tiers=("full",)))
     else:
-        steps.append(StepSpec("auval", None, tiers=("full",), unverified_reason="auval runs on macOS only"))
+        steps.append(StepSpec("auval", None, tiers=("full",),
+                              unverified_reason="auval unavailable" if platform.system() == "Darwin" else "not applicable: auval runs on macOS only",
+                              extra={"applicable": platform.system() == "Darwin"}))
 
     return [s for s in steps if tier in s.tiers]
 
