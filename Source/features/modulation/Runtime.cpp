@@ -169,7 +169,8 @@ void applyCombinedEffectSend (EngineSettings& settings, float send) noexcept
         settings.fx.tape.amount01 = tapeDepth;
         settings.fx.tape.mixOverride01 *= send;
     }
-    settings.fx.tapeExtra.mix01 *= send;
+    // Detailed Tape latches raw controls; its voice adapter applies the live
+    // combined send after restoring optional recipe decisions.
     settings.perf.pitchSync.mix01 *= send;
     settings.voiceFormant.amount01 *= send;
     settings.voiceFormant.enabled = settings.voiceFormant.enabled && settings.voiceFormant.amount01 > 0;

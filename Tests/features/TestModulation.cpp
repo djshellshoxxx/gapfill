@@ -397,7 +397,7 @@ GF_TEST (Modulation, typed_pitch_sync_scene_fields_and_send_preserve_mode_and_ev
     GF_EXPECT_NEAR (settings.perf.pitchSync.snap01, 1, 1e-6f);
     GF_EXPECT_NEAR (settings.perf.pitchSync.mix01, .25f, 1e-6f);
     GF_EXPECT_NEAR (settings.fx.tapeExtra.amount01, .75f, 1e-6f);
-    GF_EXPECT_NEAR (settings.fx.tapeExtra.mix01, .25f, 1e-6f);
+    GF_EXPECT_NEAR (settings.fx.tapeExtra.mix01, 1.0f, 1e-6f); // raw Mix, live send consumed at voice begin
 }
 
 GF_TEST (Modulation, setup_switch_undo_keeps_both_mapping_tables_and_legacy_float_bits)

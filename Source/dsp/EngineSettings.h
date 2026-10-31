@@ -24,7 +24,7 @@ namespace scenes { struct OverlayView; }    // F-L07 (features/scenes/SceneOverl
 namespace modulation { struct Runtime; }
 namespace macros { struct MacroRuntime; }   // C-2 / F-M23 (features/macros/MacroEngine.h)
 namespace battle { struct BattleRuntime; }  // F-M18 (features/battle/Battle.h)
-namespace harmonic::psola { class PitchTracker; }
+namespace harmonic::psola { class PitchSourceRouter; }
 
 //==============================================================================
 // Performance / creative settings (docs/dev/02-FOUNDATIONS.md F0-5). Every
@@ -55,7 +55,10 @@ struct PerformanceSettings
     arrangement::Fx04Settings arr;          // F-X04
     harmonic::HarmonicParams harmonic;      // F-X01
     harmonic::psola::Settings pitchSync;    // opt-in detailed F-X01; released hg* remains independent
-    const harmonic::psola::PitchTracker* pitchTracker = nullptr;
+    const harmonic::psola::PitchSourceRouter* pitchTracker = nullptr;
+    bool captureHeld = false;
+    float captureScan01 = 0.0f;
+    int captureWindowSamples = 0;
     float fxSend01 = 1.0f;                  // F-M21 output: effect amount scale (1 = neutral); read by the effect cards that honour it
     float previewTensionSend01 = 1.0f;      // V3 preview keeps live controls; no Battle/decision stages
     BudgetSettings budget;            // F-D01
@@ -148,6 +151,7 @@ struct EngineSettings
         follows the input; it grows while Capture holds the history frozen so
         fills keep reading the latched material. */
     std::int64_t historyOffset = 0;
+    int sourceChannels = 2; // actual main input, independent of a stereo Wet bus
 
     /** Creative / performance settings owned by the feature tickets. */
     PerformanceSettings perf;

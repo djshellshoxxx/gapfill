@@ -54,3 +54,5 @@
 #include "hgext.h"
 #include "fm20.h"
 #include "captureext.h"
+#include "l21ext.h"
+#include "battlev2.h"

@@ -277,6 +277,7 @@ private:
     fx::ScrubVoice scrub;                     // F-M19 performance voice (independent of the scheduler)
     momentary::HoldVoices holdVoices;         // F-M10 / F-S07 hold voices (outside the pool and the preview)
     SpectralSmear spectral;
+    harmonic::psola::PitchMarks pitchMarks;
     fx::FxMeters* fxMeters = nullptr;
     fx::EngineBlockIO* blockIO = nullptr;     ///< valid only inside process()
 

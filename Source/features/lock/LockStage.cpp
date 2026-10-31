@@ -79,8 +79,9 @@ RejectReason apply (const LockState& lock, FillPlan& plan, const GapContext& ctx
                                           | FillRecipe::flagFromLock);
 
     // A fresh seed per fill keeps repeats from being literal loops.
-    plan.recipe.seed = (std::uint32_t) hashCombine (hashCombine (ctx.key, kSalt_Lock),
-                                                    (std::uint64_t) (locked.algo + 1));
+    if (lock.extras.harmonic.version == 0)
+        plan.recipe.seed = (std::uint32_t) hashCombine (hashCombine (ctx.key, kSalt_Lock),
+                                                        (std::uint64_t) (locked.algo + 1));
 
     plan.algoIndex = locked.algo;
     plan.band = band;

@@ -321,3 +321,24 @@ compatibility, sanitizers, performance and soak results. No worker's standalone
 component run closes the integrated rows above. The 8-hour/7-day process and seven
 consecutive nightly days, signing identities, supported desktop hosts/controllers,
 listening and owner visual approval remain distinct open acceptance gates.
+
+### Second integration checkpoint (source, pending native execution)
+
+The production adapters now connect Detailed Capture/Scan, source-coordinate
+pitch tracking, private-capture PSOLA and Tape Damage through natural and preview
+voices. Detailed replay retains optional decisions, respects the live combined
+FX send and band routing, and reserves Tape plus formant drain inside the original
+deadline. The default/absent-metadata paths retain their released dispatch. Added
+native tests exercise these adapters; compilation and execution are separate gates.
+Capture's six focused native cases passed before the final adapter changes. The
+export ownership component passed 13 native/TSan/bounds cases; immutable chooser
+audio/rate and generation/cancellation caller hooks are now integrated.
+
+L21EXT occupies286–294 and BATTLEV2 occupies295–297; the independent released
+216-ID order remains unchanged. These controls are contracts for ongoing Hit
+Reverb/Battle production work, not completed features. Host tail prediction now
+uses coherent prepared extents and current parameter atomics, including the full
+16-second Dub option; all-off remains exactly2.5 seconds. Native and platform
+acceptance of this newer source remains pending. Tape's strict four-instance CPU
+criterion remains open; the latest approved raw-control/live-send contract does
+not waive that criterion. All detailed-audit software packages remain in scope.

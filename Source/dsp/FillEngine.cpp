@@ -1,4 +1,6 @@
 #include "FillEngine.h"
+#include "../features/capture2/CaptureScan.h"
+#include "ScrambleTiming.h"
 #include "VisualisationRate.h"
 #include "../features/effective/Effective.h"
 #include "../features/sync/Sync.h"
@@ -91,6 +93,7 @@ void FillEngine::prepare (double sampleRate, int /*maxBlockSize*/, int numChanne
     holdVoices.prepare (sr, channels);     // F-M10
     spectral.prepare (sr, 2);
     formants.prepare (sr);
+    pitchMarks.prepare (sr);
 
     // Keep the visualiser feed at a roughly constant rate across sample rates.
     static_assert (AnalysisEngine::hopSize == visualisation::analysisHopSamples);
@@ -162,7 +165,7 @@ void FillEngine::panic() noexcept
 void FillEngine::sourceChanged() noexcept
 {
     for (auto& v : voices)
-        if (v.isActive() && v.getAlgo() == Algo::Granular)
+        if (v.isActive() && v.readsLiveHistory())
             v.requestStop (juce::jmax (16, (int) (sr * 0.010)));
 }
 
@@ -707,6 +710,9 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
     if (auto r = buildRecipe (ctx, rng, s, band, plan); r != RejectReason::None)
         return reject (r);
 
+    ctx.sourceAnchor = capture::scannedAnchor (ctx.sourceAnchor, history, s.perf.captureHeld,
+        s.perf.captureScan01, s.perf.captureWindowSamples, voiceTiming::maximumCaptureSamples (sr), ctx.key);
+
     if (auto r = adjustRecipe (plan, ctx, s); r != RejectReason::None)
         return reject (r);
 
@@ -1085,8 +1091,11 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     setup.intensity01  = s.intensity01;
     setup.complexity01 = s.complexity01;
     setup.chaos01      = s.chaos01;
-    setup.sourceAnchor = juce::jlimit ((std::int64_t) 0, history.getWritePosition(),
-                                       outputPos - s.historyOffset);
+    setup.sourceAnchor = ctx.sourceAnchor;
+    setup.sourceChannels = s.sourceChannels;
+    setup.minimumSourceSamples = (int) std::ceil (kProfiles[plan.algoIndex].minMs * 0.001 * sr);
+    setup.recipeSeed = plan.recipe.seed;
+    setup.recipeReplaySend01 = s.perf.fxSend01;
     setup.sinceEventSamples = (int) juce::jlimit ((std::int64_t) 0, (std::int64_t) (sr * 0.3),
                                                   outputPos - lastEventPos);
     setup.band = plan.band;
@@ -1140,6 +1149,18 @@ bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan
         plan.recipe.modifierMask = voice.getModifierMask();
         plan.recipe.pitchSemis = voice.getPitchSemis();
         plan.extras = voice.getRecipeExtras();
+        if (plan.extras.harmonic.version == 1)
+        {
+            plan.recipe.flags = (std::uint8_t) (plan.recipe.flags & ~FillRecipe::flagCloud);
+            if (fxMeters != nullptr)
+            {
+                const auto& h = plan.extras.harmonic;
+                fxMeters->hgF0.store (h.f0Hz, std::memory_order_relaxed);
+                fxMeters->hgConfidence.store (h.clarity, std::memory_order_relaxed);
+                fxMeters->hgState.store (h.outcome == harmonic::psola::Outcome::Bypassed ? 0 : (int) h.outcome,
+                    std::memory_order_relaxed);
+            }
+        }
     };
 
     auto requestFormant = [&]
@@ -1149,7 +1170,7 @@ bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan
     };
     auto* voiceFormant = requestFormant();
 
-    if (voice.start (setup, history, &spectral, voiceFormant))
+    if (voice.start (setup, history, &spectral, voiceFormant, &pitchMarks))
     {
         record();
         return true;
@@ -1164,9 +1185,12 @@ bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan
     if (plan.lengthMs < kProfiles[(int) Algo::Granular].minMs)
         setup.algo = Algo::Reverse;
 
+    setup.recipeExtras = normalizeRecipeExtrasForAlgorithm ((std::uint8_t) setup.algo, setup.recipeExtras);
+    setup.minimumSourceSamples = (int) std::ceil (kProfiles[(int) setup.algo].minMs * 0.001 * sr);
+
     voiceFormant = requestFormant();
 
-    if (! voice.start (setup, history, &spectral, voiceFormant))
+    if (! voice.start (setup, history, &spectral, voiceFormant, &pitchMarks))
     {
         if (voiceFormant != nullptr)
             voiceFormant->release();

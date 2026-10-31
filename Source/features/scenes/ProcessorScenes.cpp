@@ -27,6 +27,8 @@ int GapFillAudioProcessor::sceneSegmentLength (int startSample, int n) noexcept
     const auto prefix = liveControl.stageSceneChunk (transport);
     liveControl.preflightModulationInputs (hooks::gatherModulationInputs (params), pi (params.seed), transport);
     const auto sceneLength = prefix > 0 && prefix < n ? prefix : n;
-    return liveControl.modulationSegmentLength (samplesProcessed - (std::int64_t) segmentLatencySamples, sceneLength);
+    const auto bounded = pb (params.fm08_detail) && pb (params.capture)
+        ? juce::jmin (sceneLength, shaping.capture.maxDetailedChunkSamples()) : sceneLength;
+    return liveControl.modulationSegmentLength (samplesProcessed - (std::int64_t) segmentLatencySamples, bounded);
 }
 } // namespace gapfill

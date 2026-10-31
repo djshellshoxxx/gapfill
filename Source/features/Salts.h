@@ -52,5 +52,6 @@ inline constexpr std::uint64_t kSalt_Fsd        = 0xF5D00014ULL;
 
 inline constexpr std::uint64_t kSalt_LfoA       = 0x1F0A0015ULL;
 inline constexpr std::uint64_t kSalt_LfoB       = 0x1F0B0016ULL;
+inline constexpr std::uint64_t kSalt_Capture    = 0xCA970017ULL;
 
 } // namespace gapfill

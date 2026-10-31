@@ -31,6 +31,7 @@
 #include "features/transport/TransportTracker.h"
 #include "features/modelversions/ModelVersions.h"
 #include "features/wetbus/OutputRouting.h"
+#include "features/tail/TailPrediction.h"
 
 namespace gapfill
 {
@@ -65,7 +66,7 @@ public:
     bool acceptsMidi() const override                    { return true; }
     bool producesMidi() const override                   { return midiout::kDeclared; }
     bool isMidiEffect() const override                   { return false; }
-    double getTailLengthSeconds() const override         { return 2.5; }
+    double getTailLengthSeconds() const override;
 
     juce::AudioProcessorParameter* getBypassParameter() const override { return bypassParameter; }
 
@@ -311,6 +312,8 @@ private:
     std::atomic<int> appliedQuality { 0 };
     std::atomic<int> stateSaveFailure { 0 }; // 1: prior valid blob retained; 2: none available
     std::unique_ptr<state::SavedStateCache> savedStateCache;
+    std::unique_ptr<harmonic::psola::PitchSourceRouter> pitchSource;
+    tail::PublishedBounds preparedTailBounds;
     coop::CoopMember coopMember;                     // F-X06: claims a registry slot only while coopGroup != Off
 
     MeterState meters;

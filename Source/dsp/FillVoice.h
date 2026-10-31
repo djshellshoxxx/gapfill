@@ -13,6 +13,8 @@
 #include "../features/scale/VoiceQuantiser.h"
 #include "../features/swell/SwellMode.h"
 #include "../features/formant/FormantProcessor.h"
+#include "../features/harmonic/psola/Voice.h"
+#include "../features/tapedamage/TapeDamage.h"
 #include "RecipeExtras.h"
 
 namespace gapfill
@@ -98,6 +100,11 @@ struct VoiceSetup
 
     /** F-X01 Harmonic granular: the pitch step result for a Granular fill. Neutral = disabled. */
     harmonic::HarmonicSetup harmonicSetup;
+    harmonic::psola::Setup pitchSync;
+    int sourceChannels = 2;
+    int minimumSourceSamples = 0;
+    std::uint32_t recipeSeed = 0;
+    float recipeReplaySend01 = 1.0f;
     formant::FormantSetup formantSetup;
     RecipeExtras recipeExtras;
     bool replayRecipe = false;
@@ -123,7 +130,8 @@ public:
 
     /** Starts a fill. Returns false if the setup cannot be honoured. */
     bool start (const VoiceSetup& setup, const SourceHistory& history,
-                SpectralSmear* spectral, formant::FormantProcessor* formant = nullptr);
+                SpectralSmear* spectral, formant::FormantProcessor* formant = nullptr,
+                harmonic::psola::PitchMarks* pitchMarks = nullptr);
 
     /** Asks the voice to fade out over `fadeSamples` and finish. */
     void requestStop (int fadeSamples) noexcept;
@@ -138,6 +146,10 @@ public:
     int  getLengthSamples()    const noexcept { return totalLength; }
     int  getFormantInputSamples() const noexcept { return formantInputEnd; }
     const RecipeExtras& getRecipeExtras() const noexcept { return setupData.recipeExtras; }
+    bool readsLiveHistory() const noexcept
+    {
+        return setupData.algo == Algo::Granular && (! pitchVoice.active() || pitchVoice.mixWeight() < 1.0f);
+    }
     bool isExcludedFromBus() const noexcept { return setupData.excludeFromBus; }
 
     /** Effect-chain telemetry sink (owned by the processor's FxChain). */
@@ -151,7 +163,8 @@ public:
     std::size_t getBufferBytes() const noexcept
     {
         return (std::size_t) (capture.getNumChannels() * capture.getNumSamples()
-                              + combBuffer.getNumChannels() * combBuffer.getNumSamples()) * sizeof (float);
+                              + combBuffer.getNumChannels() * combBuffer.getNumSamples()) * sizeof (float)
+               + tapeDamage.bufferBytes();
     }
 
     /** The decisions the voice took at start(), for the FillRecipe (F0-3):
@@ -202,6 +215,7 @@ private:
     void genStutter (float& l, float& r) noexcept;
     void genDelay (float& l, float& r) noexcept;
     void genGranular (float& l, float& r, const SourceHistory& history) noexcept;
+    void genPlainGranular (float& l, float& r, const SourceHistory& history) noexcept;
     void genFreeze (float& l, float& r) noexcept;
     void genPitch (float& l, float& r) noexcept;
     void genFilter (float& l, float& r) noexcept;
@@ -218,6 +232,9 @@ private:
     bool   active = false;
     formant::FormantProcessor* formantProcessor = nullptr;
     int formantInputEnd = 0;
+    int tapeInputEnd = 0;
+    harmonic::psola::Voice pitchVoice;
+    tapedamage::TapeDamage tapeDamage;
     double sr = 48000.0;
     int    channels = 2;
 

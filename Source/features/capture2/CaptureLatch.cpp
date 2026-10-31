@@ -83,7 +83,7 @@ void CaptureLatch::requestRecapture() noexcept
 {
     if (detailed)
     {
-        if (pending) { detailNotice = Busy; publish(); return; }
+        if (pending || recaptureRequested) { detailNotice = Busy; publish(); return; }
         if (! wasHeld || suppressed) { detailNotice = NotHeld; publish(); return; }
         if (live.getWritePosition() < (std::int64_t) std::ceil (kMinSeconds * sr))
         { detailNotice = Short; publish(); return; }

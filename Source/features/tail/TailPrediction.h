@@ -18,7 +18,7 @@ inline constexpr double kInvalidHostBoundSeconds = 3600;
     Full-quality cards down to8kHz before prepare. No audio-owned idle state. */
 struct PreparedBounds
 {
-    std::array<double, kLegacyStages> legacySeconds { 0.5, 2.5, 4.5, 8.5, 2.0, 5.25 };
+    std::array<double, kLegacyStages> legacySeconds { 0.5, 2.5, 4.5, 16.5, 2.0, 5.25 };
     bool valid = true;
 };
 struct Activation

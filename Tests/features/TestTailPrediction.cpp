@@ -22,7 +22,7 @@ GF_TEST (TailPrediction, automation_before_the_first_callback_uses_prepared_caps
     PublishedBounds prepared;
     Activation snapshot;
     snapshot.legacy[(std::size_t) LegacyStage::Dub] = true;
-    GF_EXPECT (predictSeconds (prepared.load(), snapshot) == 11.0);
+    GF_EXPECT (predictSeconds (prepared.load(), snapshot) == 19.0);
     PreparedBounds configured;
     configured.legacySeconds[(std::size_t) LegacyStage::Dub] = 16.25 + 256.0 / 48000;
     GF_EXPECT (prepared.publish (configured));
