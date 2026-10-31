@@ -15,7 +15,7 @@ namespace
                                                 "Hollow markers carry the engine's skip reason. Preview fills use a separate hatch.");
         writer.entry ("Freeze and inspect", "FREEZE pauses the display while audio and recording continue. Drag the frozen view or use Left/Right "
                                            "to scrub 100 ms; hold Shift for one second. Home returns to live. Hover, or press I, to inspect a recorded outcome.");
-        writer.entry ("Event list", "EVENT LIST replaces the canvas with recent outcomes as text for keyboard and screen-reader use. "
+        writer.entry ("Event list", "EVENT LIST replaces the canvas with the last 16 gap outcomes at or before the inspected time as text for keyboard and screen-reader use. "
                                    "The inspector repeats the recorded reason and available/needed time; it does not guess why a fill was skipped.");
         writer.entry ("Keyboard", "With Keyboard Navigation enabled, F toggles Freeze, L toggles Event list, I toggles the inspector and Esc closes. "
                                  "Ctrl/Command/Alt shortcuts pass through to the host. With Reduced Motion, the display steps four times per second.");

@@ -36,7 +36,7 @@ namespace
                                "that rule off. Switch all suggestions off with Show suggestions.");
         w.entry ("Timeline", "the TIMELINE button above the visualiser opens a time axis of events, protected zones, "
                              "gaps, fills and skipped gaps. FREEZE pauses only the picture. EVENT LIST replaces the canvas "
-                             "with the last 20 events as text for keyboard and screen-reader use. See Detailed gap timeline for inspection keys.");
+                             "with the last 16 gap outcomes as text for keyboard and screen-reader use. See Detailed gap timeline for inspection keys.");
         w.entry ("Latency and CPU", "the latency GapFill reports to the host (PDC) and an ESTIMATE of how much of each "
                                     "audio block GapFill uses. It is not your DAW's CPU meter.");
         w.entry ("Diagnostics", "RECORD keeps the parameter changes, commands, transport position, block sizes and "
