@@ -1,0 +1,35 @@
+name: Consolidation source snapshot
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/consolidation-snapshot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Preserve repository objects and exact refs
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p consolidation-snapshot
+          git show-ref > consolidation-snapshot/refs.txt
+          git rev-parse HEAD > consolidation-snapshot/checked-out-sha.txt
+          git bundle create consolidation-snapshot/gapfill-all-refs.bundle --all
+          git bundle verify consolidation-snapshot/gapfill-all-refs.bundle
+          (cd consolidation-snapshot && sha256sum gapfill-all-refs.bundle refs.txt checked-out-sha.txt > SHA256SUMS)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gapfill-consolidation-source-${{ github.run_id }}
+          path: consolidation-snapshot/
+          retention-days: 30
+          if-no-files-found: error
