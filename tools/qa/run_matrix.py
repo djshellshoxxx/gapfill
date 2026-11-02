@@ -122,11 +122,18 @@ def run_step(spec: StepSpec, *, cwd: Path, log_dir: Path, runner=subprocess.run)
     return row
 
 
+def python_test_files() -> list[str]:
+    """tools/test_*.py as repository-relative paths, sorted, so the step is the same on every OS."""
+    return sorted(p.relative_to(REPO).as_posix() for p in (REPO / "tools").glob("test_*.py"))
+
+
 def default_steps(binary: list[str], tier: str, *, pluginval=None, vst3=None, clap_validator=None, clap=None) -> list[StepSpec]:
     py = sys.executable
     steps: list[StepSpec] = [
         StepSpec("preflight-validate-repo", [py, "-I", "tools/validate_repo.py"]),
-        StepSpec("preflight-python-tests", [py, "-I", "-m", "unittest", "discover", "-s", "tools", "-p", "test_*.py"]),
+        # Not `-I` and not `discover -s tools`: the tests do `from tools import ...`, which needs the repository root on
+        # sys.path (what `-m` provides) and a file list (tools/ is a namespace package, which discover refuses).
+        StepSpec("preflight-python-tests", [py, "-m", "unittest", *python_test_files()]),
         StepSpec("unit", binary + ["-Perf"], min_tests=100, tiers=("fast",)),
         StepSpec("unit-all", binary, min_tests=100, tiers=("full",)),
         StepSpec("bad-filter-must-fail", binary + ["nonexistent_filter_should_fail"], expect_nonzero=True),
@@ -156,6 +163,16 @@ def default_steps(binary: list[str], tier: str, *, pluginval=None, vst3=None, cl
         steps.append(StepSpec("auval", None, tiers=("full",), unverified_reason="auval runs on macOS only"))
 
     return [s for s in steps if tier in s.tiers]
+
+
+def apply_skips(steps: list[StepSpec], skip: list[str], reason: str) -> list[StepSpec]:
+    """Replaces the named steps with `unverified` rows carrying `reason`: a skipped step stays visible in the evidence
+    and is never reported as a pass. An unknown name raises ValueError so a typo cannot silently skip nothing."""
+    known = {s.name for s in steps}
+    unknown = sorted(set(skip) - known)
+    if unknown:
+        raise ValueError("--skip names no step in this tier: " + ", ".join(unknown))
+    return [StepSpec(s.name, None, tiers=s.tiers, unverified_reason=reason) if s.name in skip else s for s in steps]
 
 
 def git_sha(repo: Path = REPO) -> str:
@@ -202,6 +219,10 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--binary", required=True, help="path to GapFillTests (arguments allowed, shell-quoted)")
     ap.add_argument("--tier", choices=("fast", "full"), default="fast")
     ap.add_argument("--out", default="qa-evidence")
+    ap.add_argument("--skip", action="append", default=[], metavar="STEP",
+                    help="step already run elsewhere (repeatable); recorded as unverified, never as a pass")
+    ap.add_argument("--skip-reason", default="skipped on request: run by another job",
+                    help="text recorded for every --skip step")
     ap.add_argument("--pluginval")
     ap.add_argument("--vst3")
     ap.add_argument("--clap-validator")
@@ -214,6 +235,7 @@ def main(argv: list[str] | None = None) -> int:
     log_dir = out / f"{sha}-{os_name}-logs"
     steps = default_steps(shlex.split(args.binary), args.tier, pluginval=args.pluginval, vst3=args.vst3,
                           clap_validator=args.clap_validator, clap=args.clap)
+    steps = apply_skips(steps, args.skip, args.skip_reason)
     rows = [run_step(s, cwd=REPO, log_dir=log_dir) for s in steps]
 
     evidence = make_evidence(rows, sha=sha, os_name=os_name, command_line=" ".join(shlex.quote(a) for a in sys.argv), tier=args.tier)
