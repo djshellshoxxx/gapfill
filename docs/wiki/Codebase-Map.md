@@ -14,5 +14,5 @@
 | Waveform/gap visualiser | `Source/gui/WaveformGapView.*`, `Source/dsp/VisualisationState.h` |
 | Help and options | `Source/gui/HelpView.*`, `Source/gui/OptionsView.*` |
 | Tests | `Tests/` |
-| Build | `CMakeLists.txt`, `.github/workflows/ci.yml`, `publish-win-linux.yml`, `macos-release.yml` |
+| Build | `CMakeLists.txt`, `cmake/sources/`, `cmake/tests/`, `.github/workflows/ci.yml`, `.github/workflows/release-beta.yml` |
 | Module ownership rules | `docs/architecture/MODULES.md` |

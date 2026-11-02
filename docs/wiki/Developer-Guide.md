@@ -3,7 +3,7 @@
 ## Build
 
 Requires CMake 3.22+ and a C++20 compiler (MSVC 2022 on Windows). JUCE 8.0.15 and optionally
-`clap-juce-extensions` are checked out beside the source (not vendored). The README "Building" section has the exact commands;
+`clap-juce-extensions` are checked out into `JUCE/` and `clap-juce-extensions/` at the repository root (not vendored). The README "Building" section has the exact commands;
 `docs/DEV-SETUP.md` covers platforms. The build was not run in this docs pass.
 
 ## Test
@@ -22,5 +22,5 @@ Test traceability: `docs/TEST-TRACEABILITY.md`.
 1. DSP must not depend on GUI classes.
 2. Audio callback: no locks, allocations, file I/O or logging; capacity fixed after `prepareToPlay`.
 3. Parameter IDs are public compatibility data: append new IDs, never repurpose one.
-4. Add every new source and test file explicitly to CMake; no broad globs.
+4. Add every new source and test file explicitly to its `cmake/sources/` or `cmake/tests/` fragment; no broad source globs.
 5. Establish behaviour with a focused test before moving code.
