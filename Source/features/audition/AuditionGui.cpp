@@ -16,6 +16,8 @@
 #include "../../gui/LookAndFeel.h"
 #include "../../gui/SlotHost.h"
 #include "../../PluginProcessor.h"
+#include "../i18n/Strings.h"
+#include "../i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -34,7 +36,7 @@ namespace
         return juce::MidiMessage::getMidiNoteName (n, true, true, 3) + " (" + juce::String (n) + ")";
     }
 
-    juce::String channelName (int c)   { return c == 0 ? juce::String ("Any") : juce::String (c); }
+    juce::String channelName (int c)   { return c == 0 ? i18n::text ("Any") : juce::String (c); }
 }
 
 //==============================================================================
@@ -86,7 +88,7 @@ public:
                                                highlighted, down);
 
         g.setColour (getToggleState() ? colours::accentGreen : colours::textMuted);
-        g.setFont (fonts::label (10.0f));
+        g.setFont (i18n::fontForText (fonts::label (10.0f), getButtonText()));
         g.drawFittedText (getButtonText(), getLocalBounds().reduced (2, 0), juce::Justification::centred, 1, 0.5f);
     }
 
@@ -129,7 +131,7 @@ private:
         menu.addItem (kMenuLearnCC, trig.getLearn() == Learn::CC ? "Cancel CC learn" : "MIDI Learn CC...");
 
         if (trig.getCC() >= 0)
-            menu.addItem (kMenuClearCC, "Clear CC " + juce::String (trig.getCC()));
+            menu.addItem (kMenuClearCC, i18n::format ("Clear CC {0}", { juce::String (trig.getCC()) }));
 
         menu.addSeparator();
         menu.addItem (kMenuLearnNote, trig.getLearn() == Learn::Note ? "Cancel note learn" : "Learn trigger note...");
@@ -144,10 +146,10 @@ private:
                 oct.addItem (kMenuNoteBase + n, noteName (n), true, n == trig.getNote());
 
             if (oct.getNumItems() > 0)
-                notes.addSubMenu ("Octave " + juce::String (octave), oct);
+                notes.addSubMenu (i18n::format ("Octave {0}", { juce::String (octave) }), oct);
         }
 
-        menu.addSubMenu ("Trigger note: " + (trig.getNote() < 0 ? juce::String ("Off") : noteName (trig.getNote())), notes);
+        menu.addSubMenu (i18n::format ("Trigger note: {0}", { trig.getNote() < 0 ? i18n::text ("Off") : noteName (trig.getNote()) }), notes);
 
         if (trig.getNote() >= 0)
             menu.addItem (kMenuNoteOff, "Trigger note off");
@@ -157,10 +159,11 @@ private:
         for (int c = 0; c <= 16; ++c)
             channels.addItem (kMenuChannelBase + c, channelName (c), true, c == trig.getChannel());
 
-        menu.addSubMenu ("Channel: " + channelName (trig.getChannel()), channels);
+        menu.addSubMenu (i18n::format ("Channel: {0}", { channelName (trig.getChannel()) }), channels);
         menu.addSeparator();
         menu.addItem (kMenuMatch, "Match levels (header A/B)", true, proc.getRecipes().match.isEnabled());
 
+        i18n::translateMenu (menu, [] (int id) { return id >= kMenuNoteBase; }); // MIDI note/channel identities stay exact
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (this),
                             [safe = juce::Component::SafePointer<AuditionButton> (this)] (int result)
         {

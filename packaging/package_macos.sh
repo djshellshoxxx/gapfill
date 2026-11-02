@@ -60,7 +60,7 @@ Copy VST3/GapFill.vst3 to ~/Library/Audio/Plug-Ins/VST3/
 Copy AU/GapFill.component to ~/Library/Audio/Plug-Ins/Components/
 Copy CLAP/GapFill.clap to ~/Library/Audio/Plug-Ins/CLAP/
 Copy Standalone/GapFill.app to /Applications/
-Packages are not Apple-notarized. This is a pre-release beta.
+${GAPFILL_MACOS_SIGNING_STATUS:-Signing and Apple notarization are unverified. This is a pre-release beta.}
 DOC
 
 ARCHIVE="$OUT/GapFill-$TAG-macOS-$ARCH.zip"

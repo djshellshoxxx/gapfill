@@ -1,5 +1,6 @@
 #include "LookAndFeel.h"
 #include "Knob.h"   // FlashButton::flashProperty - the momentary flash flag
+#include "../features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -439,7 +440,7 @@ void GapFillLookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& 
 void GapFillLookAndFeel::drawButtonText (juce::Graphics& g, juce::TextButton& button,
                                          bool highlighted, bool)
 {
-    g.setFont (getTextButtonFont (button, button.getHeight()));
+    g.setFont (i18n::fontForText (getTextButtonFont (button, button.getHeight()), button.getButtonText()));
 
     auto colour = button.findColour (button.getToggleState() ? juce::TextButton::textColourOnId
                                                              : juce::TextButton::textColourOffId);
@@ -491,9 +492,9 @@ juce::Font GapFillLookAndFeel::getLabelFont (juce::Label& label)
     return fonts::ui (juce::jlimit (10.0f, 18.0f, (float) label.getHeight() * 0.72f));
 }
 
-juce::Font GapFillLookAndFeel::getComboBoxFont (juce::ComboBox&)
+juce::Font GapFillLookAndFeel::getComboBoxFont (juce::ComboBox& box)
 {
-    return fonts::ui (13.0f);
+    return i18n::fontForText (fonts::ui (13.0f), box.getText());
 }
 
 juce::Font GapFillLookAndFeel::getTextButtonFont (juce::TextButton&, int buttonHeight)

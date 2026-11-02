@@ -25,6 +25,9 @@
 #include "../../gui/LookAndFeel.h"
 #include "../../gui/SlotHost.h"
 #include "../../PluginProcessor.h"
+#include "../i18n/Strings.h"
+#include "../i18n/ComponentTranslator.h"
+#include "../i18n/RecipePresentation.h"
 
 namespace gapfill
 {
@@ -63,12 +66,12 @@ namespace
             recipe = r;
             selected = isSelected;
             locked = isLocked;
-            const auto text = history::describeRecipe (r, 0.0);
+            const auto text = i18n::describeRecipe (r);
             setButtonText (text);
-            setTitle ("Recipe: " + text);
-            setTooltip (text + (locked ? " (locked)" : "")
-                        + ". Click to select, right-click for actions.");
-            setDescription ("Fill recipe " + text);
+            setTitle (i18n::format ("Recipe: {0}", { text }));
+            setTooltip (locked ? i18n::format ("{0} (locked). Click to select, right-click for actions.", { text })
+                               : i18n::format ("{0}. Click to select, right-click for actions.", { text }));
+            setDescription (i18n::format ("Fill recipe {0}", { text }));
             repaint();
         }
 
@@ -265,8 +268,9 @@ namespace
             if (proc.getRecipeHistory().size() == 0)
             {
                 g.setColour (colours::textMuted);
-                g.setFont (fonts::ui (11.0f));
-                g.drawText ("No fills yet. The last eight fills appear here as soon as GapFill plays one.",
+                const auto hint = i18n::text ("No fills yet. The last eight fills appear here as soon as GapFill plays one.");
+                g.setFont (i18n::fontForText (fonts::ui (11.0f), hint));
+                g.drawText (hint,
                             chipRow.toNearestInt(), juce::Justification::centred, true);
             }
         }
@@ -277,7 +281,7 @@ namespace
                 return;
 
             // One live message next to the handle (the footer belongs to the WP3 status component).
-            const auto font = fonts::mono (9.5f);
+            const auto font = i18n::fontForText (fonts::mono (9.5f), statusLine.text);
             juce::GlyphArrangement glyphs;
             glyphs.addLineOfText (font, statusLine.text, 0.0f, 0.0f);
             const auto textWidth = glyphs.getBoundingBox (0, -1, false).getWidth();
@@ -411,6 +415,12 @@ namespace
             return i >= 0 ? proc.getRecipeHistory().get (i) : FillRecipe {};
         }
 
+        RecipeExtras selectedExtras() const
+        {
+            const auto index = selectedIndex();
+            return index >= 0 ? proc.getRecipeHistory().getExtras (index) : RecipeExtras {};
+        }
+
         void timerCallback() override
         {
             heartbeat.poll (proc.getMeterState());
@@ -437,15 +447,17 @@ namespace
             const auto lockKey = (int) proc.getRecipes().lockMirror.valid * 2
                                + (int) (proc.getValueTreeState().getRawParameterValue ("fl01_lock")->load() > 0.5f);
 
-            handle.setButtonText ("RECIPES " + juce::String (h.size()));
+            const auto languageGeneration = i18n::languageGeneration();
+            handle.setButtonText (i18n::format ("RECIPES {0}", { juce::String (h.size()) }));
 
             const auto abText = abSummary();
 
-            if (! force && generation == lastGeneration && like == lastLike && lockKey == lastLockKey
+            if (! force && languageGeneration == lastLanguageGeneration && generation == lastGeneration && like == lastLike && lockKey == lastLockKey
                   && summary == lastSummary && open == lastOpen && abText == lastAbText)
                 return;
 
             lastAbText = abText;
+            lastLanguageGeneration = languageGeneration;
 
             lastGeneration = generation;
             lastLike = like;
@@ -482,7 +494,7 @@ namespace
             abBtn.setEnabled (proc.getRecipes().recipeAB.isReady());
             matchBtn.setToggleState (proc.getRecipes().match.isEnabled(), juce::dontSendNotification);
             abLabel.setText (abSummary(), juce::dontSendNotification);
-            likeBtn.setButtonText (like > 0 ? "LIKED x" + juce::String (like) : juce::String ("MORE LIKE"));
+            likeBtn.setButtonText (like > 0 ? i18n::format ("LIKED x{0}", { juce::String (like) }) : i18n::text ("MORE LIKE"));
             repaint();
         }
 
@@ -495,14 +507,14 @@ namespace
             for (int slot = 0; slot < 2; ++slot)
             {
                 if (ab.hasSlot (slot))
-                    text << (slot == 0 ? "A: " : "   B: ") << history::describeRecipe (ab.getSlot (slot), 0.0);
+                    text << (text.isEmpty() ? "" : "   ") << i18n::format (slot == 0 ? "A: {0}" : "B: {0}", { i18n::describeRecipe (ab.getSlot (slot)) });
             }
 
             if (services.match.isEnabled())
             {
-                const auto trim = abcompare::trimText (services.match.getTrimDb());
+                const auto trim = i18n::matchTrim (services.match.getTrimDb());
                 const auto have = juce::jmin (services.match.getSideSeconds (0), services.match.getSideSeconds (1));
-                text << "   " << (trim.isNotEmpty() ? trim : have < abcompare::kMinDataSeconds ? juce::String ("matching: measuring") : juce::String ("0.0 dB match"));
+                text << "   " << (trim.isNotEmpty() ? trim : have < abcompare::kMinDataSeconds ? i18n::text ("matching: measuring") : i18n::text ("0.0 dB match"));
             }
 
             return text.trim();
@@ -512,21 +524,19 @@ namespace
         {
             const auto lockOn = proc.getValueTreeState().getRawParameterValue ("fl01_lock")->load() > 0.5f;
             const auto& mirror = proc.getRecipes().lockMirror;
-            const auto& t = history::strings();
-
             if (! lockOn)
-                return mirror.valid ? "Lock off - kept: " + history::describeRecipe (mirror.recipe, 0.0) : juce::String();
+                return mirror.valid ? i18n::format ("Lock off - kept: {0}", { i18n::describeRecipe (mirror.recipe) }) : juce::String();
 
             if (mirror.valid && ! proc.getRecipes().lockArmed.load (std::memory_order_relaxed))
-                return juce::String (t.locked) + ": " + history::describeRecipe (mirror.recipe, 0.0);
+                return i18n::format ("Locked: {0}", { i18n::describeRecipe (mirror.recipe) });
 
-            return juce::String (t.armed) + ": the next fill will be locked";
+            return i18n::text ("Lock armed: the next fill will be locked");
         }
 
         //======================================================================
         // Actions
 
-        void stampedCommand (CommandType type, const FillRecipe* recipe)
+        void stampedCommand (CommandType type, const FillRecipe* recipe, const RecipeExtras& extras = {})
         {
             Command c;
             c.type = type;
@@ -534,7 +544,10 @@ namespace
             c.issuedMs = juce::jmax<std::uint32_t> (1u, juce::Time::getMillisecondCounter());
 
             if (recipe != nullptr)
+            {
                 c.recipe = *recipe;
+                c.extras = extras;
+            }
 
             proc.postCommand (c);
         }
@@ -552,7 +565,7 @@ namespace
             if (hasSelection())
             {
                 const auto r = selectedRecipe();
-                stampedCommand (CommandType::PreviewRecipe, &r);
+                stampedCommand (CommandType::PreviewRecipe, &r, selectedExtras());
             }
             else
             {
@@ -566,14 +579,14 @@ namespace
                 return;
 
             const auto r = selectedRecipe();
-            stampedCommand (CommandType::LockRecipe, &r);
+            stampedCommand (CommandType::LockRecipe, &r, selectedExtras());
 
             // The command is drained before the next block reads fl01_lock, so the explicit
             // recipe is in place when the parameter engages.
             if (auto* p = proc.getValueTreeState().getParameter ("fl01_lock"))
                 p->setValueNotifyingHost (1.0f);
 
-            proc.getRecipes().postMessage ("Locked: " + history::describeRecipe (r, 0.0));
+            proc.getRecipes().postMessage (i18n::format ("Locked: {0}", { i18n::describeRecipe (r) }));
         }
 
         void likeSelected()
@@ -581,7 +594,7 @@ namespace
             if (hasSelection())
             {
                 const auto r = selectedRecipe();
-                stampedCommand (CommandType::LikeRecipe, &r);
+                stampedCommand (CommandType::LikeRecipe, &r, selectedExtras());
             }
             else
             {
@@ -603,7 +616,7 @@ namespace
             if (hasSelection())
             {
                 const auto r = selectedRecipe();
-                stampedCommand (CommandType::SkipRecipe, &r);
+                stampedCommand (CommandType::SkipRecipe, &r, selectedExtras());
             }
             else
             {
@@ -619,14 +632,15 @@ namespace
                 return;
 
             const auto r = selectedRecipe();
+            const auto extras = selectedExtras();
             auto dir = history::defaultRecipeDirectory();
             dir.createDirectory();
             const auto name = history::sanitiseRecipeName (history::describeRecipe (r, 0.0));
 
-            chooser = std::make_unique<juce::FileChooser> ("Save recipe", dir.getChildFile (name + ".gfrecipe"), "*.gfrecipe");
+            chooser = std::make_unique<juce::FileChooser> (i18n::text ("Save recipe"), dir.getChildFile (name + ".gfrecipe"), "*.gfrecipe");
             chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
                                     | juce::FileBrowserComponent::warnAboutOverwriting,
-                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this), r, name] (const juce::FileChooser& fc)
+                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this), r, extras, name] (const juce::FileChooser& fc)
             {
                 auto file = fc.getResult();
 
@@ -636,10 +650,10 @@ namespace
                 file = file.withFileExtension ("gfrecipe");
                 juce::String error;
 
-                if (history::writeRecipeFile (file, r, name, error))
-                    safe->proc.getRecipes().postMessage ("Saved " + file.getFileName(), 3000);
+                if (history::writeRecipeFile (file, r, name, error, extras))
+                    safe->proc.getRecipes().postMessage (i18n::format ("Saved {0}", { file.getFileName() }), 3000);
                 else
-                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", error);
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", i18n::errorText (error));
             });
         }
 
@@ -648,7 +662,7 @@ namespace
             auto dir = history::defaultRecipeDirectory();
             dir.createDirectory();
 
-            chooser = std::make_unique<juce::FileChooser> ("Load recipe", dir, "*.gfrecipe");
+            chooser = std::make_unique<juce::FileChooser> (i18n::text ("Load recipe"), dir, "*.gfrecipe");
             chooser->launchAsync (juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
                                   [safe = juce::Component::SafePointer<RecipeDrawer> (this)] (const juce::FileChooser& fc)
             {
@@ -661,7 +675,7 @@ namespace
 
                 if (! loaded.ok)
                 {
-                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", loaded.error);
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", i18n::errorText (loaded.error));
                     return;
                 }
 
@@ -669,7 +683,7 @@ namespace
                 if (auto* p = safe->proc.getValueTreeState().getParameter ("fl01_lock"))
                     p->setValueNotifyingHost (0.0f);
 
-                safe->stampedCommand (CommandType::LockRecipe, &loaded.recipe);
+                safe->stampedCommand (CommandType::LockRecipe, &loaded.recipe, loaded.extras);
                 safe->proc.getRecipes().postMessage ("Recipe loaded - switch LOCK on to use it", 3500);
             });
         }
@@ -680,8 +694,8 @@ namespace
                 return;
 
             const auto r = selectedRecipe();
-            proc.getRecipes().recipeAB.setSlot (slot, r);
-            proc.getRecipes().postMessage (juce::String (slot == 0 ? "A: " : "B: ") + history::describeRecipe (r, 0.0), 2500);
+            proc.getRecipes().recipeAB.setSlot (slot, r, selectedExtras());
+            proc.getRecipes().postMessage (i18n::format (slot == 0 ? "A: {0}" : "B: {0}", { i18n::describeRecipe (r) }), 2500);
             refresh (true);
         }
 
@@ -729,6 +743,7 @@ namespace
             menu.addItem (6, "Set as A");
             menu.addItem (7, "Set as B");
 
+            i18n::translateMenu (menu);
             menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&chips[(size_t) sel]),
                                 [safe = juce::Component::SafePointer<RecipeDrawer> (this)] (int result)
             {
@@ -757,6 +772,7 @@ namespace
             bool active = false;
             ExportPurpose purpose = ExportPurpose::File;
             std::uint32_t deadlineMs = 0;
+            std::uint64_t generation = 0;
             juce::String algo;
         };
 
@@ -816,6 +832,7 @@ namespace
             }
 
             pending.active = true;
+            pending.generation = services.exportService.getGeneration();
             pending.purpose = purpose;
             pending.algo = algo;
             pending.deadlineMs = juce::Time::getMillisecondCounter()
@@ -830,10 +847,19 @@ namespace
             auto& service = proc.getRecipes().exportService;
             exporting::Failure why = exporting::Failure::None;
 
-            if (service.take (exported, why))
+            if (service.getGeneration() != pending.generation)
             {
                 pending.active = false;
-                finishExport();
+                proc.getRecipes().postMessage (exporting::failureText (exporting::Failure::Cancelled), 3500);
+                return;
+            }
+
+            exporting::ResultInfo completed;
+            if (service.take (exported, why, completed))
+            {
+                pending.active = false;
+                if (completed.generation == pending.generation)
+                    finishExport (completed.sampleRate);
             }
             else if (why != exporting::Failure::None)
             {
@@ -842,16 +868,15 @@ namespace
             }
             else if ((std::int32_t) (juce::Time::getMillisecondCounter() - pending.deadlineMs) > 0)
             {
-                service.cancelPending();
+                service.cancel();
                 pending.active = false;
                 proc.getRecipes().postMessage ("Export timed out - is audio playing?", 3500);
             }
         }
 
-        void finishExport()
+        void finishExport (double sr)
         {
             auto& services = proc.getRecipes();
-            const auto sr = services.exportService.getSampleRate();
             const auto name = exporting::defaultFileName (pending.algo, services.exportService.bpm.load(), juce::Time::getCurrentTime());
 
             if (pending.purpose == ExportPurpose::Drag)
@@ -871,10 +896,13 @@ namespace
             auto dir = juce::File::getSpecialLocation (juce::File::userDocumentsDirectory).getChildFile ("GapFill").getChildFile ("Exports");
             dir.createDirectory();
 
-            chooser = std::make_unique<juce::FileChooser> ("Export fill", dir.getChildFile (name), "*.wav");
+            chooser = std::make_unique<juce::FileChooser> (i18n::text ("Export fill"), dir.getChildFile (name), "*.wav");
+            // The chooser may stay open while another export completes. Its
+            // audio and rate belong to this result, independent of the drawer.
+            auto completedAudio = std::make_shared<juce::AudioBuffer<float>> (exported);
             chooser->launchAsync (juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
                                     | juce::FileBrowserComponent::warnAboutOverwriting,
-                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this), sr] (const juce::FileChooser& fc)
+                                  [safe = juce::Component::SafePointer<RecipeDrawer> (this), sr, completedAudio] (const juce::FileChooser& fc)
             {
                 auto file = fc.getResult();
 
@@ -884,10 +912,10 @@ namespace
                 file = file.withFileExtension ("wav");
                 juce::String error;
 
-                if (exporting::writeWav24 (file, safe->exported, sr, error))
-                    safe->proc.getRecipes().postMessage ("Exported " + file.getFileName(), 3500);
+                if (exporting::writeWav24 (file, *completedAudio, sr, error))
+                    safe->proc.getRecipes().postMessage (i18n::format ("Exported {0}", { file.getFileName() }), 3500);
                 else
-                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", error);
+                    juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon, "GapFill", i18n::errorText (error));
             });
         }
 
@@ -919,6 +947,7 @@ namespace
         std::uint32_t selectedSeed = 0;
 
         std::uint32_t lastGeneration = 0;
+        std::uint64_t lastLanguageGeneration = 0;
         int lastLike = -1, lastLockKey = -1;
         juce::String lastSummary, lastAbText;
         bool lastOpen = false;

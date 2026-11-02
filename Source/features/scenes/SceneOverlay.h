@@ -21,8 +21,11 @@
 #include <atomic>
 #include <cstdint>
 
+namespace gapfill { struct AnalysisSettings; namespace Effective { struct ModulationInputs; } }
+
 namespace gapfill::scenes
 {
+enum ModelDomain : std::uint8_t { ModelCloud = 1, ModelGroove = 2 };
 
 inline constexpr int kMaxOverlayEntries = kMaxSceneParams;
 
@@ -39,6 +42,14 @@ struct Overlay
     std::uint16_t n = 0;
     std::uint16_t idx[kMaxOverlayEntries] {};
     float real[kMaxOverlayEntries] {};
+    std::uint8_t fixedBoundary = 0;                         ///< group recall: preserve the published PPQ
+    double targetPpq = 0.0;
+    std::uint8_t scopeVersion = 2;                          ///< v1 retains released target dispatch
+    std::uint8_t externalGroup = 0;                        ///< 0: local request; else coherent co-op guard
+    std::uint64_t externalCancelEpoch = 0;
+    std::uint8_t modelDomains = 0;
+    std::uint8_t cloudModelVersion = 1;
+    std::uint8_t grooveModelVersion = 1;
 };
 
 /** What the scheduler sees. Owned by the audio thread (stable address). */
@@ -50,16 +61,33 @@ struct OverlayView
     int n = 0;
     targets::Ref refs[kMaxOverlayEntries] {};
     float real[kMaxOverlayEntries] {};
+    std::uint8_t modelDomains = 0;
+    std::uint8_t cloudModelVersion = 1;
+    std::uint8_t grooveModelVersion = 1;
+    std::uint8_t scopeVersion = 2;
 
     /** True when the overlay governs a decision taken at `ppq`. */
     bool appliesAt (double ppq, bool ppqValid) const noexcept
     {
-        return active && n > 0 && (immediate || (ppqValid && ppq >= boundaryPpq));
+        return active && (n > 0 || modelDomains != 0) && (immediate || (ppqValid && ppq >= boundaryPpq));
     }
 
     void applyTo (EngineSettings&) const noexcept;
 
-    void clear() noexcept { active = false; immediate = false; boundaryPpq = 0.0; n = 0; }
+    /** Apply effect-card/voice-effect settings and coherent model metadata. Caller first checks
+        appliesAt() at the segment start, before effect-chain preparation. */
+    void applyFxTo (EngineSettings&) const noexcept;
+    /** New scenes project raw base/modulation values before Effective::applyBlock.
+        Caller gates appliesAt() for this segment. Legacy raw targets are unchanged;
+        their model selectors still apply at the boundary. */
+    void applyBaseTo (EngineSettings&, Effective::ModulationInputs&) const noexcept;
+    /** Preflight-only projection into the pinned macro/source snapshot. Caller
+        gates appliesAt(); this never mutates engine settings or consumes publication. */
+    void applyModulationTo (Effective::ModulationInputs&) const noexcept;
+    /** Opt-in detector/crossover projection before this segment's analysis. */
+    void applyAnalysisTo (AnalysisSettings&) const noexcept;
+
+    void clear() noexcept { active = false; immediate = false; boundaryPpq = 0.0; n = 0; modelDomains = 0; cloudModelVersion = 1; grooveModelVersion = 1; }
 };
 
 //==============================================================================
@@ -98,10 +126,21 @@ public:
     {
         std::uint32_t appliedId = 0;       ///< non-zero: the boundary was reached in this chunk
         bool usedTransportFallback = false;
+        std::uint32_t missedDeadlineId = 0; ///< fixed group recall was cancelled, never applied late
     };
 
     /** Audio thread, once per processed chunk (before the engine runs). */
     Result beginChunk (TripleBuffer<Overlay>& pub, const TransportSnap&) noexcept;
+
+    /** Preflight before history/analysis processing: consumes and arms the
+        latest request without applying it or advancing the audio timeline.
+        The caller must forward any missedDeadlineId to the message thread. */
+    Result stagePublished (TripleBuffer<Overlay>& pub, const TransportSnap&) noexcept;
+
+    /** Number of old-setting samples before a pending boundary, clamped to
+        0..numSamples. Zero means apply at the start; numSamples means no split
+        within this chunk. Pure query, with no queue or timeline side effects. */
+    int samplesUntilBoundary (const TransportSnap&) const noexcept;
 
     /** Drops a not-yet-applied request (panic, SceneCancel). An applied overlay
         stays until the message thread clears it. */
@@ -111,6 +150,8 @@ public:
     bool hasPending() const noexcept                    { return phase == Phase::Pending; }
     bool isApplied() const noexcept                     { return phase == Phase::Applied; }
     std::uint32_t activeId() const noexcept             { return phase == Phase::None ? 0u : active.id; }
+    std::uint8_t pendingGroup() const noexcept         { return phase == Phase::Pending ? active.externalGroup : 0; }
+    std::uint64_t pendingCancelEpoch() const noexcept   { return phase == Phase::Pending ? active.externalCancelEpoch : 0; }
 
     /** For the UI countdown (any thread). boundary < 0: none. */
     double getBoundaryPpqForUi() const noexcept         { return uiBoundary.load (std::memory_order_relaxed); }
@@ -121,12 +162,14 @@ private:
 
     void load (const Overlay&) noexcept;
     void arm (const TransportSnap&, Result&) noexcept;
+    Result adoptPublished (TripleBuffer<Overlay>&, const TransportSnap&) noexcept;
 
     Overlay incoming, active;
     OverlayView currentView;
     Phase phase = Phase::None;
     double lastEndPpq = -1.0;
     bool lastValid = false;
+    bool boundaryPreflight = false;
     std::atomic<double> uiBoundary { -1.0 };
     std::atomic<std::uint32_t> uiPending { 0 };
 };

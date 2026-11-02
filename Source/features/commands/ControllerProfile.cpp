@@ -1,4 +1,5 @@
 #include "ControllerProfile.h"
+#include "../controller/FeedbackAdapter.h"
 
 #include <cmath>
 #include <map>
@@ -14,7 +15,8 @@ namespace
         "ReleaseCapture", "Panic", "Recover", "SceneGoto", "SceneNext", "ScenePrev", "SceneCancel",
         "PresetNext", "PresetPrev", "StutterStorm", "Roulette", "FillNow", "MomentaryStutter",
         "MomentaryFreeze", "MomentaryReverse", "MomentaryTape", "SpectralCapture", "SpectralRelease",
-        "GrooveLearn", "GrooveReset", "AbSwap", "EventRecordToggle", "PreviewRecipe"
+        "GrooveLearn", "GrooveReset", "AbSwap", "EventRecordToggle", "PreviewRecipe",
+        "SkipLatest", "SkipRecipe", "PresetGoto"
     };
 
     const char* typeKey (MsgType t)
@@ -29,7 +31,17 @@ namespace
 
     const char* sourceKey (FeedbackSource s)
     {
-        return s == FeedbackSource::Panic ? "panic" : s == FeedbackSource::SceneCurrent ? "scene.current" : "scene.pending";
+        switch (s)
+        {
+            case FeedbackSource::Panic: return "panic";
+            case FeedbackSource::SceneCurrent: return "scene.current";
+            case FeedbackSource::ScenePending: return "scene.pending";
+            case FeedbackSource::Bypass: return "bypass";
+            case FeedbackSource::Capture: return "capture";
+            case FeedbackSource::Hold: return "hold";
+            case FeedbackSource::Safe: return "safe";
+        }
+        return "panic";
     }
 
     bool isNumber (const juce::var& v)
@@ -164,8 +176,53 @@ ProfileParse parseProfile (const juce::String& json)
 
     int version = 0;
 
-    if (! readInt (root, "version", 1, 1, version, true))
-        return fail ("\"version\" must be 1.");
+    if (! readInt (root, "version", 1, 3, version, true))
+        return fail ("\"version\" must be 1, 2 or 3.");
+
+    profile.extended = version == 3;
+    const auto params = root.getProperty ("params", juce::var());
+    if (version < 3 && (! params.isVoid() || root.hasProperty ("parameterFeedback") || root.hasProperty ("txChannel") || root.hasProperty ("momentaryTimeoutMs")))
+        return fail ("Parameter mappings and feedback configuration require version 3.");
+    if (! params.isVoid() && ! params.isArray())
+        return fail ("\"params\" must be a list.");
+    if (version == 3)
+    {
+        const auto enabled = root.getProperty ("parameterFeedback", false);
+        if (! enabled.isBool()) return fail ("\"parameterFeedback\" must be true or false.");
+        profile.parameterFeedback = (bool) enabled;
+        int channel = 1;
+        if (! readInt (root, "txChannel", 1, 16, channel, false, 1))
+            return fail ("\"txChannel\" must be 1 to 16.");
+        profile.txChannel = (std::uint8_t) channel;
+        if (! readInt (root, "momentaryTimeoutMs", 1000, 30000, profile.momentaryTimeoutMs, false, 8000))
+            return fail ("Momentary timeout must be 1000 to 30000 milliseconds.");
+    }
+    if (auto* arr = params.getArray())
+    {
+        if (arr->size() > controller::kMaxParameterBindings)
+            return fail ("A profile can hold at most 64 parameter mappings.");
+        for (const auto& item : *arr)
+        {
+            if (item.getDynamicObject() == nullptr) return fail ("Each parameter mapping must be an object.");
+            const auto idValue = item.getProperty ("id", juce::var());
+            const auto id = idValue.toString();
+            if (! idValue.isString() || id.isEmpty() || id.length() > 32
+                || ! id.containsOnly ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"))
+                return fail ("Parameter id must be 1 to 32 identifier characters.");
+            int cc = 0, channel = 0;
+            if (! readInt (item, "cc", 0, 127, cc, true) || ! readInt (item, "channel", 0, 16, channel, false))
+                return fail ("Parameter CC must be 0 to 127 and channel 0 to 16.");
+            const auto modeValue = item.getProperty ("takeover", "jump");
+            const auto mode = modeValue.toString();
+            if (! modeValue.isString() || (mode != "jump" && mode != "pickup"))
+                return fail ("Parameter takeover must be jump or pickup.");
+            for (const auto& other : profile.params)
+                if (other.id == id.toStdString() || other.cc == cc)
+                    return fail ("Parameter mappings repeat an id or CC.");
+            profile.params.push_back ({ id.toStdString(), (std::uint8_t) cc, (std::uint8_t) channel,
+                mode == "pickup" ? controller::TakeoverMode::Pickup : controller::TakeoverMode::Jump });
+        }
+    }
 
     const auto bindings = root.getProperty ("bindings", juce::var());
     const auto feedback = root.getProperty ("feedback", juce::var());
@@ -194,7 +251,7 @@ ProfileParse parseProfile (const juce::String& json)
             const auto cmdName = item.getProperty ("command", juce::var()).toString();
             int cmdIndex = -1;
 
-            for (int i = 1; i <= 30; ++i)
+            for (int i = 1; i <= (version == 1 ? 30 : 33); ++i)
                 if (cmdName == kCommandKeys[i])
                     cmdIndex = i;
 
@@ -270,7 +327,11 @@ ProfileParse parseProfile (const juce::String& json)
             if (source == "panic")               r.source = FeedbackSource::Panic;
             else if (source == "scene.current")  r.source = FeedbackSource::SceneCurrent;
             else if (source == "scene.pending")  r.source = FeedbackSource::ScenePending;
-            else return fail (where + "\"source\" must be panic, scene.current or scene.pending.");
+            else if (version == 3 && source == "bypass") r.source = FeedbackSource::Bypass;
+            else if (version == 3 && source == "capture") r.source = FeedbackSource::Capture;
+            else if (version == 3 && source == "hold") r.source = FeedbackSource::Hold;
+            else if (version == 3 && source == "safe") r.source = FeedbackSource::Safe;
+            else return fail (where + "unknown feedback source for this profile version.");
 
             int v = 0;
 
@@ -308,6 +369,30 @@ ProfileParse parseProfile (const juce::String& json)
         }
     }
 
+    for (const auto& parameter : profile.params)
+        for (const auto& binding : profile.bindings)
+            if (binding.type == MsgType::CC && binding.number == parameter.cc
+                && (binding.channel == 0 || parameter.channel == 0 || binding.channel == parameter.channel))
+                return fail ("A CC cannot control both a parameter and a command on overlapping channels.");
+
+    if (version == 3)
+    {
+        int unique = 0;
+        for (std::size_t i = 0; i < profile.feedback.size(); ++i)
+        {
+            const auto& rule = profile.feedback[i];
+            bool earlier = false;
+            for (std::size_t j = 0; j < i; ++j)
+            { const auto& prior = profile.feedback[j]; earlier = earlier || (prior.type == rule.type && prior.channel == rule.channel && prior.number == rule.number); }
+            if (! earlier && ++unique > controller::kMaxIndicators) return fail ("A schema 3 profile can drive at most 16 distinct indicators.");
+        }
+    }
+    if (profile.parameterFeedback)
+        for (const auto& parameter : profile.params)
+            for (const auto& indicator : profile.feedback)
+                if (indicator.type == MsgType::CC && indicator.number == parameter.cc && indicator.channel == profile.txChannel)
+                    return fail ("A feedback CC cannot carry both a parameter value and an indicator.");
+
     ProfileParse out;
     out.ok = true;
     out.profile = std::move (profile);
@@ -318,7 +403,28 @@ juce::String profileToJson (const Profile& p)
 {
     auto* root = new juce::DynamicObject();
     root->setProperty ("name", p.name);
-    root->setProperty ("version", 1);
+    bool extended = false;
+    for (const auto& b : p.bindings)
+        extended = extended || (int) b.cmd > 30;
+    const bool schema3 = p.extended || ! p.params.empty() || p.parameterFeedback || p.txChannel != 1 || p.momentaryTimeoutMs != 8000;
+    root->setProperty ("version", schema3 ? 3 : extended ? 2 : 1);
+    if (schema3)
+    {
+        juce::Array<juce::var> params;
+        for (const auto& binding : p.params)
+        {
+            auto* item = new juce::DynamicObject();
+            item->setProperty ("id", juce::String (binding.id));
+            item->setProperty ("cc", (int) binding.cc);
+            item->setProperty ("channel", (int) binding.channel);
+            item->setProperty ("takeover", binding.takeover == controller::TakeoverMode::Pickup ? "pickup" : "jump");
+            params.add (juce::var (item));
+        }
+        root->setProperty ("params", params);
+        root->setProperty ("parameterFeedback", p.parameterFeedback);
+        root->setProperty ("txChannel", (int) p.txChannel);
+        root->setProperty ("momentaryTimeoutMs", p.momentaryTimeoutMs);
+    }
 
     juce::Array<juce::var> bindings, feedback;
 
@@ -359,7 +465,7 @@ juce::String profileToJson (const Profile& p)
 
     root->setProperty ("bindings", bindings);
     root->setProperty ("feedback", feedback);
-    return juce::JSON::toString (juce::var (root));
+    return juce::JSON::toString (juce::var (root), schema3);
 }
 
 //==============================================================================
@@ -512,6 +618,9 @@ std::unique_ptr<MidiSink> makeDeviceSink (const juce::String& deviceName, juce::
 }
 
 //==============================================================================
+FeedbackEngine::FeedbackEngine() : extended (std::make_unique<controller::FeedbackAdapter> (*this)) {}
+FeedbackEngine::~FeedbackEngine() = default;
+
 void FeedbackEngine::setRules (std::vector<FeedbackRule> r)
 {
     rules = std::move (r);
@@ -523,6 +632,7 @@ void FeedbackEngine::setSink (std::unique_ptr<MidiSink> s)
     sink = std::move (s);
     connected = sink == nullptr || sink->isConnected();
     std::fill (lastValue.begin(), lastValue.end(), -1);
+    extended->sinkChanged();
 }
 
 bool FeedbackEngine::isOn (const FeedbackRule& r, const FeedbackState& s) noexcept
@@ -532,6 +642,10 @@ bool FeedbackEngine::isOn (const FeedbackRule& r, const FeedbackState& s) noexce
         case FeedbackSource::Panic:        return s.panicked;
         case FeedbackSource::SceneCurrent: return s.currentScene == r.arg;
         case FeedbackSource::ScenePending: return s.pendingScene == r.arg;
+        case FeedbackSource::Bypass: return s.bypassed;
+        case FeedbackSource::Capture: return s.captured;
+        case FeedbackSource::Hold: return s.holding;
+        case FeedbackSource::Safe: return s.safe;
     }
 
     return false;
@@ -596,6 +710,7 @@ int FeedbackEngine::sendAll (const FeedbackState& state, bool onlyChanged)
 
 int FeedbackEngine::update (const FeedbackState& state)
 {
+    if (isExtended()) return 0;
     if (sink == nullptr)
         return 0;
 
@@ -607,6 +722,7 @@ int FeedbackEngine::update (const FeedbackState& state)
 
 int FeedbackEngine::pollConnection (const FeedbackState& state)
 {
+    if (isExtended()) return 0;
     if (sink == nullptr)
         return 0;
 
@@ -624,5 +740,17 @@ int FeedbackEngine::pollConnection (const FeedbackState& state)
 
     return 0;
 }
+
+bool FeedbackEngine::configureExtended (const Profile& p, juce::AudioProcessorValueTreeState& state,
+                                         MidiLearnManager* learn, std::function<FeedbackState()> source)
+{ return extended->configure (p, state, learn, std::move (source)); }
+void FeedbackEngine::disableExtended() { extended->disable(); }
+bool FeedbackEngine::isExtended() const noexcept { return extended->isConfigured(); }
+const Profile& FeedbackEngine::extendedProfile() const noexcept { return extended->profile(); }
+void FeedbackEngine::requestResync() { extended->resync(); }
+void FeedbackEngine::setHostOutputEnabled (bool enabled) { extended->enableHostOutput (enabled); }
+int FeedbackEngine::popOutput (controller::OutEvent* events, int maximum) noexcept { return extended->pop (events, maximum); }
+bool FeedbackEngine::takeDeviceLost() noexcept { return extended->takeDeviceLost(); }
+void FeedbackEngine::tickExtendedForTests (double nowMs) { extended->tick (nowMs); }
 
 } // namespace gapfill::commands

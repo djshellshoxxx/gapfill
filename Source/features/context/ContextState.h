@@ -77,9 +77,10 @@ private:
     taste::TasteService taste;
     tension::TensionService tensionSvc;
     arrangement::SectionTracker section;
+    double rate = 48000.0;
     bool arrRunning = false;
 
-    void publishArrangement() noexcept;
+    void publishArrangement (const arrangement::ArrangementState* view = nullptr) noexcept;
     std::atomic<std::uint64_t> arrWord0 { 0 }, arrWord1 { 0 };
     std::atomic<int> arrFrames { 0 };
     bool energyRunning = false;

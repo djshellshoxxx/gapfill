@@ -4,6 +4,7 @@
 #include "../../Presets.h"
 #include "../../gui/HelpRegistry.h"
 #include "../../gui/SlotHost.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::shapegui
 {
@@ -33,9 +34,9 @@ namespace
     {
         switch (c.getStatus())
         {
-            case CaptureLatch::Held:    return "Capture: held (" + juce::String (c.getHeldMs() / 1000.0, 1) + " s)";
-            case CaptureLatch::Pending: return "Capture: pending " + juce::String (juce::roundToInt (c.getProgress() * 100.0f)) + " %";
-            default:                    return "Capture: off";
+            case CaptureLatch::Held:    return i18n::format ("Capture: held ({0} s)", { juce::String (c.getHeldMs() / 1000.0, 1) });
+            case CaptureLatch::Pending: return i18n::format ("Capture: pending {0} %", { juce::String (juce::roundToInt (c.getProgress() * 100.0f)) });
+            default:                    return i18n::text ("Capture: off");
         }
     }
 }
@@ -196,6 +197,7 @@ ShapePanel::ShapePanel (GapFillAudioProcessor& p) : proc (p), preview (p.getValu
 
     advanced = proc.getUiState().getViewMode() == ui::ViewMode::Advanced;
     applyViewMode();
+    translator = std::make_unique<i18n::ComponentTranslator> (*this);
     timerCallback();
     startTimerHz (10);
 }
@@ -214,8 +216,8 @@ void ShapePanel::timerCallback()
 
     const auto profile = proc.getFillEngine().getDecisionTelemetry().evolveProfile.load();
     const auto evolveOn = (int) std::lround (proc.getValueTreeState().getRawParameterValue ("evolve")->load()) > 0;
-    const juce::String text = evolveOn ? (profile >= 0 ? juce::String ("-> ") + surpriseTargets (profile).name
-                                                       : juce::String ("needs a playing transport"))
+    const juce::String text = evolveOn ? (profile >= 0 ? i18n::format ("-> {0}", { surpriseTargets (profile).name })
+                                                       : i18n::text ("needs a playing transport"))
                                        : juce::String();
 
     if (evolveLabel.getText() != text)
@@ -353,7 +355,11 @@ void ShapePanel::paint (juce::Graphics& g)
             continue;
 
         if (n < titleY.size())
-            g.drawText (pl.group->title, kPad, titleY[n], kContentWidth - 2 * kPad, kTitleHeight, juce::Justification::centredLeft);
+        {
+            const auto heading = i18n::text (pl.group->title);
+            g.setFont (i18n::fontForText (fonts::sectionHeader (11.0f), heading));
+            g.drawText (heading, kPad, titleY[n], kContentWidth - 2 * kPad, kTitleHeight, juce::Justification::centredLeft);
+        }
 
         ++n;
     }
@@ -444,9 +450,9 @@ namespace
             const bool standalone = juce::JUCEApplicationBase::isStandaloneApp();
             const bool hostTempo = proc.getShaping().tempo.hostTempoSeenRecently (juce::jmax (8000.0, proc.getSampleRate()));
             slider.setEnabled (standalone || ! hostTempo);
-            hint.setText (standalone ? "Standalone has no host tempo, so synced lengths use this."
+            hint.setText (i18n::text (standalone ? "Standalone has no host tempo, so synced lengths use this."
                                      : (hostTempo ? "Your host provides the tempo; this is only a fallback."
-                                                  : "No host tempo seen recently: synced lengths use this."),
+                                                  : "No host tempo seen recently: synced lengths use this.")),
                           juce::dontSendNotification);
         }
 

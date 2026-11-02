@@ -20,6 +20,7 @@ bool HoldController::levelOr (int e) const noexcept
 void HoldController::pushStack (int e) noexcept
 {
     removeStack (e);
+    legacyOrder[e] = ++order;
 
     if (stackSize < kNumEffects)
         stack[stackSize++] = (std::uint8_t) e;
@@ -94,6 +95,33 @@ void HoldController::setLevel (Effect effect, Source source, bool down) noexcept
         removeStack (e);
 }
 
+void HoldController::setControllerLevel (Effect effect, bool down, bool timeout, int slot) noexcept
+{
+    const int e = (int) effect;
+    if (slot < 0) slot = e;
+    if (e < 0 || e >= kNumEffects || slot < 0 || slot >= controllerSlots) return;
+    auto& entry = controllerLevels[slot];
+    if (! down && entry.effect != e) return;
+    entry.effect = (std::uint8_t) e;
+    if (down) entry.activationOrder = ++order;
+    entry.active = down;
+    entry.timeout = timeout;
+    controllerTimedOut = 0;
+    for (const auto& levelState : controllerLevels)
+        if (levelState.timeout) controllerTimedOut |= (std::uint8_t) (1u << levelState.effect);
+}
+bool HoldController::controllerLevelActive (Effect effect, int slot) const noexcept
+{
+    if (slot < 0) slot = (int) effect;
+    return slot >= 0 && slot < controllerSlots && controllerLevels[slot].active
+        && controllerLevels[slot].effect == (int) effect;
+}
+void HoldController::clearControllerLevels() noexcept
+{
+    for (auto& entry : controllerLevels) entry = {};
+    controllerTimedOut = 0;
+}
+
 void HoldController::toggle (Effect effect) noexcept
 {
     if (! latchMode)
@@ -130,6 +158,9 @@ void HoldController::tick (std::int64_t samples, std::int64_t timeoutSamples) no
 
 void HoldController::panic() noexcept
 {
+    clearControllerLevels();
+    order = 0;
+    for (int e = 0; e < kNumEffects; ++e) legacyOrder[e] = 0;
     for (int e = 0; e < kNumEffects; ++e)
     {
         for (auto& l : level[e])
@@ -157,16 +188,33 @@ std::uint8_t HoldController::engagedMask() const noexcept
             mask |= (std::uint8_t) (1u << e);
     }
 
+    for (const auto& entry : controllerLevels)
+        if (entry.active) mask |= (std::uint8_t) (1u << entry.effect);
     return mask;
 }
 
 int HoldController::topEffect() const noexcept
 {
-    for (int i = stackSize - 1; i >= 0; --i)
-        if (! engagePending[stack[i]])
-            return stack[i];
-
-    return -1;
+    bool haveController = false;
+    for (const auto& entry : controllerLevels) haveController = haveController || entry.active;
+    if (! haveController)
+    {
+        for (int i = stackSize - 1; i >= 0; --i)
+            if (! engagePending[stack[i]]) return stack[i];
+        return -1;
+    }
+    int newest = -1;
+    std::uint64_t newestOrder = 0;
+    for (int i = 0; i < stackSize; ++i)
+    {
+        const int effect = stack[i];
+        if (! engagePending[effect] && legacyOrder[effect] >= newestOrder)
+        { newest = effect; newestOrder = legacyOrder[effect]; }
+    }
+    for (const auto& entry : controllerLevels)
+        if (entry.active && entry.activationOrder >= newestOrder)
+        { newest = entry.effect; newestOrder = entry.activationOrder; }
+    return newest;
 }
 
 void HoldController::engageAt (Effect effect, std::int64_t samplePos) noexcept

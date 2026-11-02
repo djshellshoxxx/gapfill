@@ -239,8 +239,17 @@ void TapeDestrCard::processVoice (float* l, float* r, int n, const VoiceFxContex
         dcYl = std::isfinite (yl) ? yl : 0.0f;
         dcYr = std::isfinite (yr) ? yr : 0.0f;
 
-        l[i] = inL * (1.0f - depth) + dcYl * depth;
-        r[i] = inR * (1.0f - depth) + dcYr * depth;
+        if (s.mixOverride01 >= 0.0f && std::isfinite (s.mixOverride01))
+        {
+            const auto mix = juce::jlimit (0.0f, 1.0f, s.mixOverride01);
+            l[i] = inL * (1.0f - mix) + dcYl * mix;
+            r[i] = inR * (1.0f - mix) + dcYr * mix;
+        }
+        else
+        {
+            l[i] = inL * (1.0f - depth) + dcYl * depth;
+            r[i] = inR * (1.0f - depth) + dcYr * depth;
+        }
     }
 }
 

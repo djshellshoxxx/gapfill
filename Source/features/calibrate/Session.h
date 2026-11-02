@@ -54,6 +54,8 @@ public:
     double getSecondsLeft() const noexcept;
     const juce::String& getMessage() const noexcept { return message; }   ///< status / result / refusal text
     const CalibResult& getResult() const noexcept   { return result; }
+    int getInitialSensitivity() const noexcept     { return lastInput.currentSensitivity; }
+    int getInitialGapThreshold() const noexcept    { return lastInput.currentGapThresh; }
     bool hasResult() const noexcept             { return phase == Phase::Result || phase == Phase::Applied; }
 
     /** Warning shown when the detector source is not Main ("Calibrated from the main input only"). */

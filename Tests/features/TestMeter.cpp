@@ -5,12 +5,66 @@
 
 #include "gui/MeterMath.h"
 #include "gui/WaveformGapView.h"
+#include "features/access/Access.h"
 
 using namespace gapfill;
 using namespace gapfill::meter;
 
 namespace
 {
+    juce::uint32 meterClockMs = 0;
+    juce::uint32 testMeterClock() { return meterClockMs; }
+
+    struct ScopedMeterClock
+    {
+        ScopedMeterClock() { LevelMeter::setClockForTests (&testMeterClock); }
+        ~ScopedMeterClock() { LevelMeter::setClockForTests (nullptr); }
+    };
+
+    struct ScopedStandardPalette
+    {
+        ScopedStandardPalette()
+        {
+            for (const auto contrast : { access::Contrast::Standard, access::Contrast::High, access::Contrast::DimVenue })
+                if (access::paletteFor (contrast).background == colours::background
+                     && access::paletteFor (contrast).text == colours::text)
+                    previous = contrast;
+            access::applyPalette (access::Contrast::Standard);
+        }
+        ~ScopedStandardPalette() { access::applyPalette (previous); }
+        access::Contrast previous = access::Contrast::Standard;
+    };
+
+    juce::Image meterImage (LevelMeter& meter, int width)
+    {
+        meter.setSize (width, 100);
+        return meter.createComponentSnapshot (meter.getLocalBounds());
+    }
+
+    int readoutPixels (const juce::Image& image)
+    {
+        int count = 0;
+
+        for (int y = 2; y < 10; ++y)
+            for (int x = 3; x < image.getWidth() - 3; ++x)
+                count += image.getPixelAt (x, y) != colours::panelRaised;
+
+        return count;
+    }
+
+    bool samePixels (const juce::Image& a, const juce::Image& b)
+    {
+        if (a.getBounds() != b.getBounds())
+            return false;
+
+        for (int y = 0; y < a.getHeight(); ++y)
+            for (int x = 0; x < a.getWidth(); ++x)
+                if (a.getPixelAt (x, y) != b.getPixelAt (x, y))
+                    return false;
+
+        return true;
+    }
+
     // 8-bit channel equality within one step (interpolation rounding may differ per toolchain).
     bool sameColour (juce::Colour a, juce::Colour b)
     {
@@ -66,6 +120,16 @@ GF_TEST (Meter, peak_does_not_fall_during_hold)
         GF_EXPECT (p.tick (t) == PeakHold::Tick::Held);
 
     GF_EXPECT (p.peakDb == -12.0f);
+}
+
+GF_TEST (Meter, peak_hold_survives_millisecond_counter_wrap)
+{
+    PeakHold p;
+    const auto start = std::numeric_limits<juce::uint32>::max() - 500u;
+    p.push (-12.0f, start);
+    GF_EXPECT (p.tick (start + 100u) == PeakHold::Tick::Held);
+    GF_EXPECT (p.tick (start + 1499u) == PeakHold::Tick::Held);
+    GF_EXPECT (p.tick (start + 1500u) == PeakHold::Tick::Falling);
 }
 
 GF_TEST (Meter, peak_falls_20_dB_per_second)
@@ -161,3 +225,67 @@ GF_TEST (Meter, level_meter_component_reports_silence_and_clears)
     PeakHold q;
     GF_EXPECT (q.peakDb == kFloorDb);
 }
+
+GF_TEST (Meter, readout_hidden_below_26px)
+{
+    ScopedMeterClock clock;
+    meterClockMs = 1000;
+    LevelMeter m;
+    m.setLevel (0.0f);
+    m.resetPeak();
+
+    GF_EXPECT (readoutPixels (meterImage (m, 25)) == 0);
+    GF_EXPECT (readoutPixels (meterImage (m, 26)) > 0);
+}
+
+GF_TEST (Meter, component_clock_controls_hold_and_decay)
+{
+    ScopedMeterClock clock;
+    meterClockMs = 1000;
+    LevelMeter m;
+    m.setSize (30, 100);
+    m.setLevel (juce::Decibels::decibelsToGain (-6.0f));
+    m.setLevel (0.0f);
+    const auto held = meterImage (m, 30);
+
+    meterClockMs = 2499;
+    m.tickForTests();
+    const auto stillHeld = meterImage (m, 30);
+    GF_EXPECT (samePixels (held, stillHeld));
+    GF_EXPECT_NEAR (m.peakDbForTests(), -6.0, 1.0e-4);
+
+    meterClockMs = 2500;
+    m.tickForTests();
+    GF_EXPECT_NEAR (m.peakDbForTests(), -6.0 - 20.0 / 30.0, 1.0e-4);
+}
+
+#if JUCE_LINUX
+GF_TEST (MeterPixelsLinux, meter_pixels_unchanged_golden)
+{
+    ScopedMeterClock clock;
+    ScopedStandardPalette palette;
+    meterClockMs = 1000;
+
+    // Width 25 is the complete meter without the optional font-dependent
+    // readout. The separate raster boundary test exercises its 26 px threshold.
+    for (const auto db : { -100, -18, -6, 0 })
+    {
+        const auto file = gftest::goldenPath ("meter/meter-25x100-" + juce::String (db) + "dB.png");
+        const auto expected = juce::ImageFileFormat::loadFrom (file);
+        GF_EXPECT_MSG (expected.isValid(), "Missing reviewed meter reference: " + file.getFileName());
+        LevelMeter meter;
+        meter.setLevel (db == -100 ? 0.0f : juce::Decibels::decibelsToGain ((float) db));
+        const auto actual = meterImage (meter, 25);
+        GF_EXPECT (expected.getBounds() == actual.getBounds());
+
+        int changed = 0;
+        for (int y = 0; y < actual.getHeight(); ++y)
+            for (int x = 0; x < actual.getWidth(); ++x)
+            {
+                const auto a = actual.getPixelAt (x, y), b = expected.getPixelAt (x, y);
+                changed += ! sameColour (a, b) || std::abs ((int) a.getAlpha() - (int) b.getAlpha()) > 1;
+            }
+        GF_EXPECT_MSG (changed == 0, juce::String (changed) + " meter pixels differ beyond one channel step at " + juce::String (db) + " dB");
+    }
+}
+#endif

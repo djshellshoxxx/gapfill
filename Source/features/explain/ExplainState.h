@@ -109,6 +109,8 @@ public:
     std::atomic<std::uint32_t> mutedHealth { 0 };      ///< bit per health::HealthCode
     std::atomic<std::uint32_t> mutedFixit { 0 };       ///< bit per fixit::RuleId
     std::atomic<int> timelineZoomSeconds { 8 };        ///< 4, 8 or 16
+    std::atomic<bool> timelineExpanded { false };
+    std::atomic<bool> timelineList { false };
 
     //--- owned parts -----------------------------------------------------------
     telemetry::CpuMeter cpu;                           // audio writes
@@ -140,6 +142,8 @@ private:
     int fixitDivider = 0;
     std::uint32_t lastDroppedOutcomes = 0, lastDroppedOptional = 0;
     std::int64_t newestEventPos = 0;
+    std::uint32_t newestEventEpoch = 0;
+    bool haveNewestEvent = false;
 };
 
 /** RAII wrapper for the CPU estimate: two clock reads per processBlock. */

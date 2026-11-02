@@ -18,7 +18,7 @@ namespace
     struct BusRender
     {
         juce::AudioBuffer<float> main;      // 2 ch
-        juce::AudioBuffer<float> wet;       // 2 ch (empty when the bus is disabled)
+        juce::AudioBuffer<float> wet;       // mono/stereo (empty when the bus is disabled)
         int latency = 0;
     };
 
@@ -26,9 +26,17 @@ namespace
         wet bus out 2-3 (aliasing the sidechain, exactly as JUCE hands it to a plug-in). */
     BusRender renderBus (GapFillAudioProcessor& proc, const juce::AudioBuffer<float>& in, int block,
                          bool wetBus, const juce::AudioBuffer<float>* sidechain, TestPlayHead* ph = nullptr,
-                         const std::function<void (int)>& onBlock = {})
+                         const std::function<void (int)>& onBlock = {}, int wetChannels = 2)
     {
         prepareProcessor (proc, kSr, block, sidechain != nullptr, false, wetBus);
+        if (wetBus && wetChannels == 1)
+        {
+            proc.releaseResources();
+            auto layout = proc.getBusesLayout();
+            layout.outputBuses.set (wetbus::kWetBusIndex, juce::AudioChannelSet::mono());
+            GF_EXPECT (proc.setBusesLayout (layout));
+            proc.prepareToPlay (kSr, block);
+        }
         TestPlayHead local;
         local.bpm = 150.0;
         proc.setPlayHead (ph != nullptr ? ph : &local);
@@ -36,7 +44,7 @@ namespace
         const auto total = juce::jmax (proc.getTotalNumInputChannels(), proc.getTotalNumOutputChannels());
         BusRender r;
         r.main.setSize (2, in.getNumSamples());
-        r.wet.setSize (wetBus ? 2 : 0, in.getNumSamples());
+        r.wet.setSize (wetBus ? wetChannels : 0, in.getNumSamples());
         r.main.clear();
         r.wet.clear();
 
@@ -67,7 +75,7 @@ namespace
             {
                 r.main.copyFrom (ch, pos, work, ch, 0, n);
 
-                if (wetBus)
+                if (wetBus && ch < wetChannels)
                     r.wet.copyFrom (ch, pos, work, 2 + ch, 0, n);
             }
 
@@ -147,14 +155,13 @@ GF_TEST (WetBus, layout_matrix)
     const auto mo = juce::AudioChannelSet::mono();
     const auto off = juce::AudioChannelSet::disabled();
 
-    // accepted: main mono / stereo, sidechain off / mono / stereo, wet off / stereo
+    // accepted: main mono / stereo, sidechain off / mono / stereo, wet off / mono / stereo
     for (auto main : { mo, st })
         for (auto side : { off, mo, st })
-            for (auto wet : { off, st })
+            for (auto wet : { off, mo, st })
                 GF_EXPECT (proc.checkBusesLayoutSupported (layoutOf (main, main, side, wet)));
 
-    // refused: wet bus mono or surround, main in != main out, surround main, surround sidechain
-    GF_EXPECT (! proc.checkBusesLayoutSupported (layoutOf (st, st, off, mo)));
+    // refused: surround wet bus, main in != main out, surround main, surround sidechain
     GF_EXPECT (! proc.checkBusesLayoutSupported (layoutOf (st, st, off, juce::AudioChannelSet::create5point1())));
     GF_EXPECT (! proc.checkBusesLayoutSupported (layoutOf (st, mo, off, off)));
     GF_EXPECT (! proc.checkBusesLayoutSupported (layoutOf (juce::AudioChannelSet::create5point1(), juce::AudioChannelSet::create5point1(), off, off)));
@@ -224,38 +231,45 @@ GF_TEST (WetBus, wet_bus_overwrites_the_sidechain_aliased_channels)
 
 GF_TEST (WetBus, bypass_silences_the_wet_bus)
 {
-    GapFillAudioProcessor proc;
-    setParams (proc, { { "fill", 100.0f }, { "density", 100.0f }, { "bypass", 1.0f } });
-    const auto r = renderBus (proc, drumLoop (kSr, 150.0, 3), 512, true, nullptr);
-    GF_EXPECT (peak (r.wet) == 0.0f);
-    GF_EXPECT (peak (r.main) > 0.1f);                        // the dry still passes
+    for (const int channels : { 1, 2 })
+    {
+        GapFillAudioProcessor proc;
+        setParams (proc, { { "fill", 100.0f }, { "density", 100.0f }, { "bypass", 1.0f },
+                          { "wetBusMainMode", 1.0f }, { "wetBusLevel", 12.0f } });
+        const auto r = renderBus (proc, drumLoop (kSr, 150.0, 3), 512, true, nullptr, nullptr, {}, channels);
+        GF_EXPECT (peak (r.wet) == 0.0f);
+        GF_EXPECT (peak (r.main) > 0.1f);                    // the dry still passes
+    }
 }
 
 GF_TEST (WetBus, panic_silences_the_wet_bus)
 {
-    GapFillAudioProcessor proc;
-    setParams (proc, kBusy);
-    const int block = 512;
-    const auto r = renderBus (proc, drumLoop (kSr, 150.0, 4), block, true, nullptr, nullptr, [&] (int idx)
+    for (const int channels : { 1, 2 })
     {
-        if (idx == 100)
+        GapFillAudioProcessor proc;
+        setParams (proc, { { "fill", 100.0f }, { "density", 100.0f }, { "wetBusLevel", 12.0f } });
+        const int block = 512;
+        const auto r = renderBus (proc, drumLoop (kSr, 150.0, 4), block, true, nullptr, nullptr, [&] (int idx)
         {
-            Command c;
-            c.type = CommandType::Panic;
-            proc.postCommand (c);
+            if (idx == 100)
+            {
+                Command c;
+                c.type = CommandType::Panic;
+                proc.postCommand (c);
+            }
+        }, channels);
+
+        juce::AudioBuffer<float> before (channels, 100 * block), after (channels, r.wet.getNumSamples() - 102 * block);
+
+        for (int ch = 0; ch < channels; ++ch)
+        {
+            before.copyFrom (ch, 0, r.wet, ch, 0, before.getNumSamples());
+            after.copyFrom (ch, 0, r.wet, ch, 102 * block, after.getNumSamples());
         }
-    });
 
-    juce::AudioBuffer<float> before (2, 100 * block), after (2, r.wet.getNumSamples() - 102 * block);
-
-    for (int ch = 0; ch < 2; ++ch)
-    {
-        before.copyFrom (ch, 0, r.wet, ch, 0, before.getNumSamples());
-        after.copyFrom (ch, 0, r.wet, ch, 102 * block, after.getNumSamples());
+        GF_EXPECT (peak (before) > 0.01f);
+        GF_EXPECT (peak (after) == 0.0f);
     }
-
-    GF_EXPECT (peak (before) > 0.01f);
-    GF_EXPECT (peak (after) == 0.0f);
 }
 
 GF_TEST (WetBus, latency_is_aligned_and_unchanged)
@@ -324,4 +338,115 @@ GF_TEST (WetBus, the_audio_path_does_not_allocate_with_the_bus_enabled)
 
     GF_EXPECT (guard.count() == 0);
     proc.setPlayHead (nullptr);
+}
+
+GF_TEST (WetBus, dry_only_matches_the_dry_path_over_sixty_seconds)
+{
+    auto in = drumLoop (kSr, 150.0, 38);
+    in.setSize (2, (int) (60.0 * kSr), true);
+    GapFillAudioProcessor dry, routed;
+    setParams (dry, { { "fill", 0.0f }, { "dry", 73.0f }, { "output", -3.0f } });
+    setParams (routed, { { "fill", 100.0f }, { "density", 100.0f }, { "dry", 73.0f },
+                        { "output", -3.0f }, { "wetBusMainMode", 1.0f } });
+    const auto reference = renderBus (dry, in, 512, true, nullptr);
+    const auto actual = renderBus (routed, in, 512, true, nullptr);
+    const auto diff = compareBuffers (reference.main, actual.main, 1.0e-7);
+    GF_EXPECT_MSG (! diff.shapeMismatch && diff.firstBad < 0, "Dry-only max error " + juce::String (diff.maxAbs, 9));
+    GF_EXPECT (peak (actual.wet) > 0.01f);
+    GF_EXPECT (reference.latency == actual.latency);
+}
+
+GF_TEST (WetBus, disabled_bus_keeps_fills_in_main_even_with_dry_only_selected)
+{
+    const auto in = drumLoop (kSr, 150.0, 3);
+    GapFillAudioProcessor baseline, routed;
+    setParams (baseline, kBusy);
+    setParams (routed, { { "fill", 100.0f }, { "density", 100.0f }, { "wetBusMainMode", 1.0f }, { "wetBusLevel", 12.0f } });
+    const auto before = renderBus (baseline, in, 512, false, nullptr);
+    const auto after = renderBus (routed, in, 512, false, nullptr);
+    GF_EXPECT (sameValues (before.main, after.main));
+    GF_EXPECT (routed.getFillEngine().getFillsStarted() > 0);
+}
+
+GF_TEST (WetBus, level_changes_only_the_wet_bus)
+{
+    const auto in = drumLoop (kSr, 150.0, 3);
+    GapFillAudioProcessor baseline;
+    setParams (baseline, kBusy);
+    const auto reference = renderBus (baseline, in, 512, true, nullptr);
+    GF_EXPECT (peak (reference.wet) > 0.01f);
+    for (const float db : { -24.0f, -6.0f, 12.0f })
+    {
+        GapFillAudioProcessor routed;
+        setParams (routed, { { "fill", 100.0f }, { "density", 100.0f }, { "wetBusLevel", db } });
+        const auto actual = renderBus (routed, in, 512, true, nullptr);
+        GF_EXPECT (sameValues (reference.main, actual.main));
+        const auto gain = juce::Decibels::decibelsToGain (db);
+        for (int ch = 0; ch < 2; ++ch)
+            for (int i = 0; i < in.getNumSamples(); ++i)
+                GF_EXPECT_NEAR (actual.wet.getSample (ch, i), reference.wet.getSample (ch, i) * gain, 1.0e-6);
+        GF_EXPECT (reference.latency == actual.latency);
+    }
+}
+
+GF_TEST (WetBus, mono_is_the_stereo_half_sum_and_overwrites_aliased_sidechain_storage)
+{
+    const auto in = drumLoop (kSr, 150.0, 3);
+    auto sidechain = makeNoise (kSr, 6.0, 0.8f);
+    GapFillAudioProcessor stereo, mono, silent;
+    setParams (stereo, kBusy);
+    setParams (mono, kBusy);
+    setParams (silent, { { "fill", 0.0f }, { "detSource", 1.0f } });
+    const auto reference = renderBus (stereo, in, 512, true, &sidechain);
+    const auto actual = renderBus (mono, in, 512, true, &sidechain, nullptr, {}, 1);
+    const auto noFill = renderBus (silent, in, 512, true, &sidechain, nullptr, {}, 1);
+    GF_EXPECT (actual.wet.getNumChannels() == 1);
+    GF_EXPECT (sameValues (reference.main, actual.main));
+    GF_EXPECT (peak (actual.wet) > 0.001f);
+    for (int i = 0; i < in.getNumSamples(); ++i)
+        GF_EXPECT_NEAR (actual.wet.getSample (0, i), 0.5f * (reference.wet.getSample (0, i) + reference.wet.getSample (1, i)), 1.0e-7);
+    GF_EXPECT (peak (noFill.wet) == 0.0f);
+    GF_EXPECT (silent.getMeterState().sidechainConnected.load());
+    GF_EXPECT (reference.latency == actual.latency);
+}
+
+GF_TEST (WetBus, wetSolo_overrides_dry_only_main_mode)
+{
+    const auto in = drumLoop (kSr, 150.0, 3);
+    GapFillAudioProcessor solo, routed;
+    setParams (solo, { { "fill", 100.0f }, { "density", 100.0f }, { "wetSolo", 1.0f } });
+    setParams (routed, { { "fill", 100.0f }, { "density", 100.0f }, { "wetSolo", 1.0f }, { "wetBusMainMode", 1.0f } });
+    const auto reference = renderBus (solo, in, 512, true, nullptr);
+    const auto actual = renderBus (routed, in, 512, true, nullptr);
+    GF_EXPECT (sameValues (reference.main, actual.main));
+    GF_EXPECT (peak (actual.main) > 0.01f);
+}
+
+GF_TEST (WetBus, routing_parameters_are_project_performance_state_and_old_states_default_to_neutral)
+{
+    GapFillAudioProcessor proc;
+    for (const auto* id : { "wetBusMainMode", "wetBusLevel" })
+    {
+        GF_EXPECT (proc.getValueTreeState().getParameter (id) != nullptr);
+        GF_EXPECT (performanceParameterIDs().contains (id));
+        GF_EXPECT (! randomisableParameterIDs().contains (id));
+    }
+    setParams (proc, { { "wetBusMainMode", 1.0f }, { "wetBusLevel", -12.0f } });
+    juce::MemoryBlock state;
+    proc.getStateInformation (state);
+    GapFillAudioProcessor restored;
+    restored.setStateInformation (state.getData(), (int) state.getSize());
+    GF_EXPECT (restored.getValueTreeState().getRawParameterValue ("wetBusMainMode")->load() == 1.0f);
+    GF_EXPECT (restored.getValueTreeState().getRawParameterValue ("wetBusLevel")->load() == -12.0f);
+    auto old = proc.getValueTreeState().copyState();
+    for (const auto* id : { "wetBusMainMode", "wetBusLevel" })
+    {
+        const auto child = old.getChildWithProperty ("id", id);
+        GF_EXPECT (child.isValid());
+        old.removeChild (child, nullptr);
+    }
+    GapFillAudioProcessor legacy;
+    GF_EXPECT (legacy.applyParameterState (old));
+    GF_EXPECT (legacy.getValueTreeState().getRawParameterValue ("wetBusMainMode")->load() == 0.0f);
+    GF_EXPECT (legacy.getValueTreeState().getRawParameterValue ("wetBusLevel")->load() == 0.0f);
 }

@@ -50,6 +50,7 @@ void TasteService::publish()
 
     pubReady.store (profile.ready, std::memory_order_relaxed);
     seq.fetch_add (1, std::memory_order_release);
+    ++publicationRevision;
 }
 
 void TasteService::apply (EngineSettings& s) const noexcept
@@ -110,9 +111,9 @@ void TasteService::recompute (bool slew)
     }
 
     displayCounts = library.counts();
-    auto bias = biasFrom (displayCounts, lastStrength);
+    auto bias = biasFrom (displayCounts, lastStrength, modelVersion);
 
-    if (slew)
+    if (slew && modelVersion == 1)
     {
         // One rating moves a published multiplier by at most 0.06 (F-X05 M4): the profile eases towards the model.
         const auto old = dequantise (profile.q, true);
@@ -133,12 +134,18 @@ void TasteService::recompute (bool slew)
     profile.likes = displayCounts.likes;
     profile.skips = displayCounts.skips;
     profile.ready = bias.ready;
-    quantise (bias, profile.q);
+    if (slew && modelVersion == 2)
+        quantiseRatingUpdate (bias, profile.q, profile.q);
+    else
+        quantise (bias, profile.q);
     publish();
 }
 
 void TasteService::rate (const FillRecipe& r, int rating)
 {
+    if ((rating != 1 && rating != -1) || ! isValid (r))
+        return; // an unrated or invalid fill supplies no preference signal
+
     if (! libraryLoaded)
     {
         library.load();

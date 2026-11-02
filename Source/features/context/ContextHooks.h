@@ -12,7 +12,7 @@ namespace gapfill::context
 {
 
 /** N-MUS Scale Lock (scale for the voice, recipe pitch override), F-X01 harmonic pitch step, then F-L09
-    Groove shifts for Stutter repeats and Delay taps. Neutral settings write nothing. */
+    Groove shifts for Stutter repeats, Delay taps and opt-in model2 Scramble slices. Neutral settings write nothing. */
 void prepareVoiceSetup (VoiceSetup& setup, const FillPlan& plan, const GapContext& ctx,
                         const EngineSettings& s, const SourceHistory& history, fx::FxMeters* meters) noexcept;
 

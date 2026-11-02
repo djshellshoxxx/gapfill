@@ -1,4 +1,7 @@
 #include "FillEngine.h"
+#include "../features/capture2/CaptureScan.h"
+#include "ScrambleTiming.h"
+#include "VisualisationRate.h"
 #include "../features/effective/Effective.h"
 #include "../features/sync/Sync.h"
 #include "../features/breathing/Breathing.h"
@@ -89,9 +92,12 @@ void FillEngine::prepare (double sampleRate, int /*maxBlockSize*/, int numChanne
     scrub.prepare (sr, channels);
     holdVoices.prepare (sr, channels);     // F-M10
     spectral.prepare (sr, 2);
+    formants.prepare (sr);
+    pitchMarks.prepare (sr);
 
     // Keep the visualiser feed at a roughly constant rate across sample rates.
-    vizDecim = juce::jmax (1, (int) std::round (sr / (double) AnalysisEngine::hopSize / 700.0));
+    static_assert (AnalysisEngine::hopSize == visualisation::analysisHopSamples);
+    vizDecim = visualisation::decimationForRate (sr);
 
     reset();
 }
@@ -110,8 +116,11 @@ void FillEngine::reset()
 
     spectral.reset();
     spectral.release();
+    formants.reset();
 
     inGap = false;
+    midiConfidenceValid = false;
+    vizDiscontinuityPending = true;
     gapEvaluated = false;
     gapStartPos = 0;
     lastFillStartPos = -1000000;
@@ -156,7 +165,7 @@ void FillEngine::panic() noexcept
 void FillEngine::sourceChanged() noexcept
 {
     for (auto& v : voices)
-        if (v.isActive() && v.getAlgo() == Algo::Granular)
+        if (v.isActive() && v.readsLiveHistory())
             v.requestStop (juce::jmax (16, (int) (sr * 0.010)));
 }
 
@@ -307,6 +316,23 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
                                 FillEventQueue* events) noexcept
 {
     const auto& frame = analysis.frameAt (outputPos);
+    if (midiEventBuffer != nullptr)
+    {
+        if (midiConfidenceCC > 0)
+        {
+            const auto value = juce::jlimit (0, 127, (int) std::lround (frame.conf * 127.0f));
+            if (! midiConfidenceValid || (outputPos - lastMidiConfidencePos >= (std::int64_t) std::ceil (sr / 66.0)
+                                           && std::abs (value - lastMidiConfidenceValue) >= 2))
+            {
+                midiEventBuffer->push ({ midiout::OutEvent::Confidence, outputPos, frame.conf });
+                lastMidiConfidenceValue = value;
+                lastMidiConfidencePos = outputPos;
+                midiConfidenceValid = true;
+            }
+        }
+        if (midiHitEnabled && analysis.nextDetectionEvent (outputPos) == outputPos)
+            midiEventBuffer->push ({ midiout::OutEvent::Hit, outputPos, frame.transient });
+    }
 
     // F-D03: the spectral smear changes its FFT order only while no spectral voice holds it.
     {
@@ -420,6 +446,8 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             FillEvent e = makeEvent (forcedResult.started ? FillEventType::Started : FillEventType::Rejected);
             e.reason = forcedResult.reason;
             e.recipe = forcedResult.recipe;
+            e.extras = forcedResult.extras;
+            e.lengthSamples = (std::int32_t) forcedResult.lengthSamples;
             e.availMs = forcedResult.availableMs;
             e.needMs = forcedResult.neededMs;
             events->push (e);
@@ -438,6 +466,8 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             snapChecked = false;
             ++gapIndex;
             transitions.push (Transition::GapOpen, outputPos, makeEvent (FillEventType::GapOpen).conf8);
+            if (midiEventBuffer != nullptr)
+                midiEventBuffer->push ({ midiout::OutEvent::GapOpen, outputPos, frame.conf });
 
             if (wantTimeline)
                 events->pushOptional (makeEvent (FillEventType::GapOpen));
@@ -447,6 +477,8 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
     {
         inGap = false;
         transitions.push (Transition::GapClose, outputPos);
+        if (midiEventBuffer != nullptr)
+            midiEventBuffer->push ({ midiout::OutEvent::GapClose, outputPos });
     }
 
     bool startedFill = false;
@@ -463,6 +495,7 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             FillEvent e = makeEvent (result.started ? FillEventType::Started : FillEventType::Rejected);
             e.reason = result.reason;
             e.recipe = result.recipe;
+            e.extras = result.extras;
             e.availMs = result.availableMs;
             e.needMs = result.neededMs;
             e.lengthSamples = (std::int32_t) result.lengthSamples;     // U-2 export span
@@ -488,7 +521,11 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
             activeNow += v.isActive() ? 1 : 0;
 
         for (int i = activeNow; i < prevActiveVoices; ++i)
+        {
             transitions.push (Transition::FillEnd, outputPos);          // WP10 (MIDI out, co-op)
+            if (midiEventBuffer != nullptr)
+                midiEventBuffer->push ({ midiout::OutEvent::FillEnd, outputPos });
+        }
 
         if (wantTimeline)
             for (int i = activeNow; i < prevActiveVoices; ++i)
@@ -500,6 +537,35 @@ void FillEngine::controlUpdate (std::int64_t outputPos, std::int64_t blockStartP
     // ---- visualiser feed -------------------------------------------------
     if (viz != nullptr && viz->isEnabled())
     {
+        if (vizCounter == 0)
+        {
+            vizAccum.posLo = (std::uint32_t) outputPos;
+            vizAccum.periodSamples = (std::uint32_t) (AnalysisEngine::hopSize * vizDecim);
+            vizAccum.sampleRateHz = (std::uint32_t) std::lround (sr);
+            vizAccum.timelineEpoch = events != nullptr ? events->getTimelineEpoch() : 0;
+            vizAccum.ppqTick = INT32_MIN;
+            if (s.transportValid && s.samplesPerBeat > 1.0)
+            {
+                const auto ppq = s.ppqAtBlockStart + (double) (outputPos - blockStartPos) / s.samplesPerBeat;
+                const auto tick = ppq * 96.0;
+                if (std::isfinite (tick) && tick > (double) INT32_MIN && tick <= (double) INT32_MAX)
+                    vizAccum.ppqTick = (std::int32_t) std::llround (tick);
+            }
+            const bool knownMeter = s.perf.tsNum > 0 && s.perf.tsNum <= 255 && s.perf.tsDen > 0 && s.perf.tsDen <= 255;
+            vizAccum.timeSigNumerator = knownMeter ? (std::uint8_t) s.perf.tsNum : 0;
+            vizAccum.timeSigDenominator = knownMeter ? (std::uint8_t) s.perf.tsDen : 0;
+            if (vizDiscontinuityPending)
+            {
+                vizAccum.flags |= VizFrame::flagDiscontinuity;
+                vizDiscontinuityPending = false;
+            }
+        }
+        if ((s.protTrans01 > 0.0f && transEnv > 0.0f) || (s.sidechainActive && s.protSC01 > 0.0f && scEnv > 0.0f))
+            vizAccum.protectionKinds |= VizFrame::protectionHit;
+        if (nextDuck < 1.0f)
+            vizAccum.protectionKinds |= VizFrame::protectionNext;
+        if (distanceToNext >= 0 && distanceToNext <= lookaheadSamples)
+            vizAccum.protectionKinds |= VizFrame::protectionLookahead;
         vizAccum.peak = juce::jmax (vizAccum.peak, frame.peak);
         vizAccum.conf = juce::jmax (vizAccum.conf, frame.conf);
         vizAccum.energy = juce::jmax (vizAccum.energy, frame.energy);
@@ -592,8 +658,15 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
 
     EngineSettings s = base;
     const Effective::TransportInfo transport { havePpq, ppq, base.perf.tsNum, base.perf.tsDen,
-                                               havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0 };
+                                               havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0,
+                                               outputPos, sr, frame.energy };
     Effective::applyAtDecision (s, ppq, transport);
+    if (! forced && s.perf.coop.view != nullptr && s.perf.coop.view->mode == coop::Deterministic)
+    {
+        const auto scale = coop::yieldScale (*s.perf.coop.view, havePpq, ppq);
+        s.density01 *= scale.density;
+        s.fill01 *= scale.fill;
+    }
     publishDecisionTelemetry (base, s, ppq, transport);
 
     GapContext ctx;
@@ -637,6 +710,9 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
     if (auto r = buildRecipe (ctx, rng, s, band, plan); r != RejectReason::None)
         return reject (r);
 
+    ctx.sourceAnchor = capture::scannedAnchor (ctx.sourceAnchor, history, s.perf.captureHeld,
+        s.perf.captureScan01, s.perf.captureWindowSamples, voiceTiming::maximumCaptureSamples (sr), ctx.key);
+
     if (auto r = adjustRecipe (plan, ctx, s); r != RejectReason::None)
         return reject (r);
 
@@ -654,6 +730,10 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
         return reject (RejectReason::SourceUnavailable);
 
     noteFillStarted (plan, outputPos);
+    if (midiEventBuffer != nullptr)
+        midiEventBuffer->push ({ midiout::OutEvent::FillStart, outputPos,
+            (float) juce::jlimit (1, 127, (int) std::lround (1.0f + 126.0f * s.intensity01)) / 127.0f,
+            (std::int32_t) plan.lengthSamples });
 
     if (havePpq)
         recentFills.push (budget::tickFor (ppq));       // F-D01 bar counting (every started fill counts)
@@ -665,6 +745,7 @@ ScheduleResult FillEngine::trySchedule (std::int64_t outputPos, std::int64_t blo
 
     result.started = true;
     result.recipe = plan.recipe;
+    result.extras = plan.extras;
     result.lengthSamples = plan.lengthSamples;
     return result;
 }
@@ -1000,6 +1081,8 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     const auto& frame = *ctx.frame;
 
     VoiceSetup setup;
+    setup.recipeExtras = plan.extras;
+    setup.replayRecipe = (plan.recipe.flags & FillRecipe::flagFromLock) != 0;
     setup.algo = (Algo) plan.algoIndex;
     setup.sampleRate = sr;
     setup.lengthSamples = (int) juce::jlimit ((std::int64_t) 32, (std::int64_t) (sr * 3.0), plan.lengthSamples);
@@ -1008,8 +1091,11 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
     setup.intensity01  = s.intensity01;
     setup.complexity01 = s.complexity01;
     setup.chaos01      = s.chaos01;
-    setup.sourceAnchor = juce::jlimit ((std::int64_t) 0, history.getWritePosition(),
-                                       outputPos - s.historyOffset);
+    setup.sourceAnchor = ctx.sourceAnchor;
+    setup.sourceChannels = s.sourceChannels;
+    setup.minimumSourceSamples = (int) std::ceil (kProfiles[plan.algoIndex].minMs * 0.001 * sr);
+    setup.recipeSeed = plan.recipe.seed;
+    setup.recipeReplaySend01 = s.perf.fxSend01;
     setup.sinceEventSamples = (int) juce::jlimit ((std::int64_t) 0, (std::int64_t) (sr * 0.3),
                                                   outputPos - lastEventPos);
     setup.band = plan.band;
@@ -1048,6 +1134,9 @@ VoiceSetup FillEngine::toVoiceSetup (const FillPlan& plan, const GapContext& ctx
 
     fx::prepareVoiceSetup (setup, plan, ctx, s, fxMeters);      // WP8: effect cards, swell landing, band routing
     context::prepareVoiceSetup (setup, plan, ctx, s, history, fxMeters);           // WP7: Scale Lock (N-MUS) voice setup, groove shifts (F-L09)
+    setup.formantSetup = s.voiceFormant;
+    if (setup.fxStart.skipVoiceFx)
+        setup.formantSetup = {};
     return setup;
 }
 
@@ -1059,13 +1148,36 @@ bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan
     {
         plan.recipe.modifierMask = voice.getModifierMask();
         plan.recipe.pitchSemis = voice.getPitchSemis();
+        plan.extras = voice.getRecipeExtras();
+        if (plan.extras.harmonic.version == 1)
+        {
+            plan.recipe.flags = (std::uint8_t) (plan.recipe.flags & ~FillRecipe::flagCloud);
+            if (fxMeters != nullptr)
+            {
+                const auto& h = plan.extras.harmonic;
+                fxMeters->hgF0.store (h.f0Hz, std::memory_order_relaxed);
+                fxMeters->hgConfidence.store (h.clarity, std::memory_order_relaxed);
+                fxMeters->hgState.store (h.outcome == harmonic::psola::Outcome::Bypassed ? 0 : (int) h.outcome,
+                    std::memory_order_relaxed);
+            }
+        }
     };
 
-    if (voice.start (setup, history, &spectral))
+    auto requestFormant = [&]
+    {
+        const auto minimum = (int) std::ceil (kProfiles[(int) setup.algo].minMs * 0.001 * sr);
+        return formants.request (setup.formantSetup, setup.lengthSamples, minimum);
+    };
+    auto* voiceFormant = requestFormant();
+
+    if (voice.start (setup, history, &spectral, voiceFormant, &pitchMarks))
     {
         record();
         return true;
     }
+
+    if (voiceFormant != nullptr)
+        voiceFormant->release();
 
     // Spectral processor busy - fall back to a simpler algorithm.
     setup.algo = Algo::Granular;
@@ -1073,8 +1185,17 @@ bool FillEngine::startVoice (FillVoice& voice, VoiceSetup& setup, FillPlan& plan
     if (plan.lengthMs < kProfiles[(int) Algo::Granular].minMs)
         setup.algo = Algo::Reverse;
 
-    if (! voice.start (setup, history, &spectral))
+    setup.recipeExtras = normalizeRecipeExtrasForAlgorithm ((std::uint8_t) setup.algo, setup.recipeExtras);
+    setup.minimumSourceSamples = (int) std::ceil (kProfiles[(int) setup.algo].minMs * 0.001 * sr);
+
+    voiceFormant = requestFormant();
+
+    if (! voice.start (setup, history, &spectral, voiceFormant, &pitchMarks))
+    {
+        if (voiceFormant != nullptr)
+            voiceFormant->release();
         return false;
+    }
 
     plan.algoIndex = (int) setup.algo;
     plan.recipe.algo = (std::uint8_t) plan.algoIndex;
@@ -1089,7 +1210,7 @@ void FillEngine::noteFillStarted (const FillPlan& plan, std::int64_t outputPos) 
     lastFillStartPos = outputPos;
     ++fillsStarted;
 
-    lockState.noteStarted (plan.recipe);        // C-5: latest natural recipe (previews never get here)
+    lockState.noteStarted (plan.recipe, plan.extras); // C-5: previews never get here
 
     if ((plan.recipe.flags & FillRecipe::flagFromLock) == 0)
         like.noteStarted();                     // C-11: only started, unlocked, natural fills count

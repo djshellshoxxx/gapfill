@@ -6,5 +6,6 @@ list(APPEND GAPFILL_TEST_SOURCES
     Tests/features/TestFixit.cpp
     Tests/features/TestTimeline.cpp
     Tests/features/TestEvents.cpp
+    Tests/features/TestEventsCodec.cpp
     Tests/features/TestExplainGui.cpp
 )

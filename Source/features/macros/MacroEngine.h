@@ -38,6 +38,10 @@ struct TargetInfo
 /** The persisted, append-only target table. */
 const TargetInfo& targetInfo (int index) noexcept;
 
+/** Actual parameter used to check availability; two shipped target IDs are
+    virtual aliases and retain their persisted target-table identities. */
+const char* targetParameterId (int index) noexcept;
+
 /** Start-up: resolves each target to its EngineSettings field (message thread). */
 void initTargets();
 
@@ -68,6 +72,8 @@ struct MacroConfig
     std::uint8_t count[kNumMacros] {};
     Mapping map[kNumMacros][kMaxMappings] {};
     LfoSettings lfo[kNumMacros] {};
+    std::uint8_t targetSchemaVersion = 2; ///< v1 preserves released advanced NOOPs; v2 enables all 36 targets
+    std::uint8_t reserved[3] {};
 };
 
 static_assert (std::is_trivially_copyable_v<MacroConfig>);
@@ -104,6 +110,7 @@ struct MacroRuntime
     bool  active[kNumTargets] {};                  ///< claimed by a mapping this block
     float width01 = 1.0f;
     bool  widthOn = false;
+    float tensionBaseDepth[tension::kLanes] {};     ///< nominal gathered depths, before the virtual amount
 
     /** Block stage: knob values (or LFO at the free-run clock) -> EngineSettings. */
     void evaluateBlock (EngineSettings&, const float knob01In[kNumMacros], std::uint32_t& ownedMask) noexcept;

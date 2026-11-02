@@ -91,14 +91,14 @@ GF_TEST (SceneBank, export_of_a_selection_and_no_paths_or_host_info)
     const auto home = juce::File::getSpecialLocation (juce::File::userHomeDirectory).getFullPathName();
     GF_EXPECT (! text.contains (home) && ! text.contains ("\\") && ! text.contains ("/home"));
     GF_EXPECT (! text.contains (juce::SystemStats::getComputerName()) || juce::SystemStats::getComputerName().isEmpty());
-    GF_EXPECT (text.contains ("formatVersion=\"1\"") && text.contains ("stateVersion=\"3\""));
+    GF_EXPECT (text.contains ("formatVersion=\"2\"") && text.contains ("stateVersion=\"2\""));
 }
 
 GF_TEST (SceneBank, import_rejects_oversize_malformed_and_newer_versions)
 {
     juce::String huge = "<GapBank formatVersion=\"1\">";
 
-    while (huge.length() < 300 * 1024)
+    while (huge.length() < (int) kMaxFileBytes + 1)
         huge << "<Scene name=\"x\"/>";
 
     huge << "</GapBank>";
@@ -110,7 +110,7 @@ GF_TEST (SceneBank, import_rejects_oversize_malformed_and_newer_versions)
     GF_EXPECT (parseString ("<GapBank/>").status == ParseStatus::Malformed);                          // no version
     GF_EXPECT (parseString ("<GapBank formatVersion=\"0\"/>").status == ParseStatus::Malformed);
 
-    const auto newer = parseString (wrap ("", "formatVersion=\"2\""));
+    const auto newer = parseString (wrap ("", "formatVersion=\"3\""));
     GF_EXPECT (newer.status == ParseStatus::NewerVersion && newer.message.contains ("newer GapFill"));
 
     GF_EXPECT (parseString (wrap ("")).status == ParseStatus::Empty);
@@ -168,11 +168,15 @@ GF_TEST (SceneBank, more_than_128_parameters_or_64_scenes_are_refused)
 
 GF_TEST (SceneBank, digest_mismatch_is_reported_as_a_warning_but_the_bank_is_usable)
 {
-    auto text = exportToString (sampleBank(), {}, "0.0.1 beta", kCreated);
-    text = text.replace ("v=\"0.550000\"", "v=\"0.560000\"");
-    const auto r = parseString (text);
+    auto xml = juce::XmlDocument::parse (exportToString (sampleBank(), {}, "0.0.1 beta", kCreated));
+    GF_EXPECT (xml != nullptr && xml->getChildByName ("Scene") != nullptr);
+    auto* value = xml->getChildByName ("Scene")->getChildByName ("P");
+    GF_EXPECT (value != nullptr);
+    value->setAttribute ("v", "0.56");  // semantic corruption; independent of float text encoding
+    const auto r = parseString (xml->toString (juce::XmlElement::TextFormat().withoutHeader()));
     GF_EXPECT (r.status == ParseStatus::Ok && r.digestMismatch);
     GF_EXPECT (r.message.contains ("integrity"));
+    GF_EXPECT_NEAR (r.accepted[0].params[0].value01, .56, 1e-6);
 }
 
 GF_TEST (SceneBank, replace_append_and_merge_are_atomic_and_undoable)
@@ -372,4 +376,60 @@ GF_TEST (SceneBank, command_bindings_drive_next_prev_and_cancel_through_the_proc
     press (12);
     GF_EXPECT (live.scenes().getPendingIndex() == -1);
     proc.setPlayHead (nullptr);
+}
+
+GF_TEST (SceneBank, editor_reordering_cancels_stale_requests_and_tracks_last_good)
+{
+    GapFillAudioProcessor p;
+    auto& controller = p.getLiveControl().scenes();
+    for (int i = 0; i < 3; ++i) GF_EXPECT (controller.saveCurrent (i, "Scene " + juce::String (i + 1)));
+    GF_EXPECT (controller.gotoScene (1));
+    controller.onApplied (controller.getPendingId());
+    GF_EXPECT (controller.getLastGoodIndex() == 1);
+    GF_EXPECT (controller.gotoScene (2));
+    GF_EXPECT (controller.moveScene (1, 2));
+    GF_EXPECT (controller.getPendingIndex() == -1 && controller.getLastGoodIndex() == 2);
+    GF_EXPECT (controller.duplicateScene (0));
+    GF_EXPECT (controller.getLastGoodIndex() == 3);
+    GF_EXPECT (controller.removeScene (3));
+    GF_EXPECT (controller.getLastGoodIndex() == -1 && controller.getCurrentIndex() == -1);
+    GF_EXPECT (controller.renameScene (0, "Renamed"));
+    GF_EXPECT (controller.getBank().at (0).name == "Renamed");
+    GF_EXPECT (controller.gotoScene (0));
+    GF_EXPECT (controller.setSceneQuant (0, Quant::Phrase) && controller.getPendingIndex() == -1);
+    GF_EXPECT (controller.saveCurrent (0, "Overwritten", ScopeBands));
+    GF_EXPECT (controller.getBank().at (0).quant == Quant::Phrase && controller.getBank().at (0).scope == ScopeBands);
+}
+
+GF_TEST (SceneBank, import_sidecar_undo_is_exactly_once_and_new_import_or_reset_discards_it)
+{
+    GapFillAudioProcessor p;
+    auto& controller = p.getLiveControl().scenes();
+    int restored = 0;
+    controller.rememberForUndo();
+    controller.setImportUndoAction ([&] { ++restored; });
+    GF_EXPECT (controller.undoImport());
+    GF_EXPECT (restored == 1 && ! controller.undoImport());
+    controller.rememberForUndo();
+    controller.setImportUndoAction ([&] { ++restored; });
+    controller.rememberForUndo();
+    GF_EXPECT (controller.undoImport() && restored == 1);
+    controller.rememberForUndo();
+    controller.setImportUndoAction ([&] { ++restored; });
+    controller.reset();
+    GF_EXPECT (! controller.undoImport() && restored == 1);
+}
+
+GF_TEST (SceneBank, import_undo_can_restore_the_exact_versioned_macro_snapshot)
+{
+    GapFillAudioProcessor p;
+    auto& controller = p.getLiveControl().scenes();
+    auto& mappings = p.getLiveControl().macroMappings();
+    mappings.rename (0, "Before import");
+    const auto before = mappings.toValueTree();
+    controller.rememberForUndo();
+    mappings.rename (0, "After import");
+    controller.setImportUndoAction ([&mappings, before] { mappings.restore (before); });
+    GF_EXPECT (controller.undoImport());
+    GF_EXPECT (mappings.toValueTree().isEquivalentTo (before));
 }

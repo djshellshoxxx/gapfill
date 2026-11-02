@@ -1,4 +1,7 @@
 #include "SceneModel.h"
+#include "../modelversions/State.h"
+#include "SceneCodec.h"
+#include "LegacySceneScope.h"
 
 #include "../../Parameters.h"
 
@@ -18,8 +21,9 @@ namespace
     {
         std::vector<juce::String> ids;
         std::unordered_map<std::string, int> index;
-        std::map<std::uint16_t, std::vector<juce::String>> scopeCache;
+        std::map<std::uint32_t, std::vector<juce::String>> scopeCache;
         std::vector<juce::String> byScope[8];     // one list per scope bit
+        std::vector<juce::String> legacyByScope[8];
     };
 
     Tables& tables()
@@ -47,8 +51,14 @@ namespace
         GAPFILL_PARAMS_SPFREEZE (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_CONVO (GAPFILL_SCENE_ADD)
         GAPFILL_PARAMS_SCRUB (GAPFILL_SCENE_ADD)
-        // hgran (F-X01, 4 ids) is not scene-recallable: the default scope is already at the 128-id file cap.
+        GAPFILL_PARAMS_HGRAN (GAPFILL_SCENE_ADD)
+        GAPFILL_PARAMS_FL20 (GAPFILL_SCENE_ADD)
+        for (const auto* id : { "fx01_mode", "fx01_intervals", "fx01_voices", "fx01_motion", "fx01_scatter", "fx01_tone", "fx01_snap" })
+            out.emplace_back (id);
         GAPFILL_PARAMS_BANDFX (GAPFILL_SCENE_ADD)
+        // Optional append-only detailed Tape controls become visible when registered.
+        for (const auto* id : { "fm20_amount", "fm20_wow", "fm20_flutter", "fm20_sat", "fm20_dropDensity",
+                               "fm20_dropDepth", "fm20_splice", "fm20_instab", "fm20_mix" }) out.emplace_back (id);
     }
 
     void groupMusical (std::vector<juce::String>& out)
@@ -70,6 +80,10 @@ namespace
     {
         juce::ignoreUnused (out);
         GAPFILL_PARAMS_MACROS (GAPFILL_SCENE_ADD)
+        for (const auto* id : { "fm23_macro5", "fm23_macro6", "fm23_macro7", "fm23_macro8",
+                               "fm23_src1", "fm23_src2", "fm23_src3", "fm23_src4", "fm23_src5", "fm23_src6", "fm23_src7", "fm23_src8",
+                               "fm23_depth1", "fm23_depth2", "fm23_depth3", "fm23_depth4", "fm23_depth5", "fm23_depth6", "fm23_depth7", "fm23_depth8",
+                               "fm23_lfoAShape", "fm23_lfoBShape", "fm23_lfoADiv", "fm23_lfoBDiv", "fm23_lfoAHz", "fm23_lfoBHz" }) out.emplace_back (id);
     }
    #undef GAPFILL_SCENE_ADD
 
@@ -87,6 +101,8 @@ namespace
         std::vector<juce::String> raw[8];
 
         for (const char* id : { "fill", "intensity", "complexity", "chaos", "density", "fillType" })
+            raw[0].emplace_back (id);
+        for (const char* id : { "pingPong", "fl01_lock", "personality", "mistakes", "fillShape", "fillShapeAmount", "evolve" })
             raw[0].emplace_back (id);
 
         for (int a = 0; a < numAlgos; ++a)
@@ -107,11 +123,18 @@ namespace
                                 "bandLowAmt", "bandMidAmt", "bandHighAmt", "bandLowInt", "bandMidInt",
                                 "bandHighInt", "bandLowProb", "bandMidProb", "bandHighProb" })
             raw[7].emplace_back (id);
+        for (const char* id : { "bandLowType", "bandMidType", "bandHighType" })
+            raw[7].emplace_back (id);
 
         for (int b = 0; b < 8; ++b)
+        {
             for (const auto& id : raw[b])
                 if (! isNeverId (id) && t.index.count (id.toStdString()) > 0)
                     t.byScope[b].push_back (id);
+            for (const auto& id : juce::StringArray::fromTokens (legacy::scopeIds[b], ",", ""))
+                if (! isNeverId (id) && t.index.count (id.toStdString()) > 0)
+                    t.legacyByScope[b].push_back (id);
+        }
     }
 }
 
@@ -129,15 +152,22 @@ bool isNeverId (const juce::String& id)
         if (id == n)
             return true;
 
-    return id.startsWith ("coop") || id.startsWith ("midiOut");
+    return id.startsWith ("coop") || id.startsWith ("midiOut") || id.startsWith ("fl11_")
+        || id.startsWith ("wetBus") || id.startsWith ("fm08_");
 }
 
 const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask)
 {
+    return idsForScope (scopeMask, 2);
+}
+
+const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask, std::uint8_t scopeVersion)
+{
     initTables();
     auto& t = tables();
 
-    if (const auto it = t.scopeCache.find (scopeMask); it != t.scopeCache.end())
+    const auto cacheKey = (std::uint32_t) scopeMask | (scopeVersion == 1 ? 0x10000u : 0u);
+    if (const auto it = t.scopeCache.find (cacheKey); it != t.scopeCache.end())
         return it->second;
 
     // Parameter order, no duplicates.
@@ -145,7 +175,7 @@ const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask)
 
     for (int b = 0; b < 8; ++b)
         if ((scopeMask & (1u << b)) != 0)
-            for (const auto& id : t.byScope[b])
+            for (const auto& id : scopeVersion == 1 ? t.legacyByScope[b] : t.byScope[b])
                 picked.push_back (t.index[id.toStdString()]);
 
     std::sort (picked.begin(), picked.end());
@@ -156,7 +186,7 @@ const std::vector<juce::String>& idsForScope (std::uint16_t scopeMask)
     for (const auto i : picked)
         out.push_back (t.ids[(size_t) i]);
 
-    return t.scopeCache.emplace (scopeMask, std::move (out)).first->second;
+    return t.scopeCache.emplace (cacheKey, std::move (out)).first->second;
 }
 
 int paramIndexOf (const juce::String& id)
@@ -184,7 +214,8 @@ int numParams()
 //==============================================================================
 bool Scene::operator== (const Scene& o) const noexcept
 {
-    if (name != o.name || scope != o.scope || quant != o.quant || params.size() != o.params.size())
+    if (name != o.name || scope != o.scope || quant != o.quant || scopeVersion != o.scopeVersion
+        || cloudModelVersion != o.cloudModelVersion || grooveModelVersion != o.grooveModelVersion || params.size() != o.params.size())
         return false;
 
     for (size_t i = 0; i < params.size(); ++i)
@@ -199,6 +230,9 @@ Scene captureScene (juce::AudioProcessorValueTreeState& apvts, const juce::Strin
     Scene s;
     s.name = name.substring (0, kMaxSceneNameLen);
     s.scope = scope;
+    const auto versions = models::fromParameterState (apvts.state);
+    if ((scope & ScopeFx) != 0) s.cloudModelVersion = versions.cloud;
+    if ((scope & ScopeMusical) != 0) s.grooveModelVersion = versions.groove;
 
     for (const auto& id : idsForScope (scope))
     {
@@ -216,6 +250,14 @@ Scene captureScene (juce::AudioProcessorValueTreeState& apvts, const juce::Strin
 
 bool isSceneValid (const Scene& scene, juce::String& why)
 {
+    if (scene.scopeVersion < 1 || scene.scopeVersion > 2 || scene.cloudModelVersion < 1 || scene.cloudModelVersion > 2
+        || scene.grooveModelVersion < 1 || scene.grooveModelVersion > 2
+        || scene.scope > kAllScopes || (int) scene.quant > (int) Quant::Phrase)
+    {
+        why = "unsupported scene scope or quantise version";
+        return false;
+    }
+
     if (scene.params.size() > (size_t) kMaxSceneParams)
     {
         why = "too many parameters";
@@ -227,6 +269,9 @@ bool isSceneValid (const Scene& scene, juce::String& why)
         why = "name too long";
         return false;
     }
+
+    std::vector<std::uint16_t> seen;
+    seen.reserve (scene.params.size());
 
     for (const auto& p : scene.params)
     {
@@ -247,6 +292,14 @@ bool isSceneValid (const Scene& scene, juce::String& why)
             why = "value out of range";
             return false;
         }
+
+        if (std::find (seen.begin(), seen.end(), p.index) != seen.end())
+        {
+            why = "duplicate parameter";
+            return false;
+        }
+
+        seen.push_back (p.index);
     }
 
     return true;
@@ -265,7 +318,7 @@ bool resolveScene (juce::AudioProcessorValueTreeState& apvts, const Scene& scene
     for (const auto& p : scene.params)
         stored[p.index] = p.value01;
 
-    for (const auto& id : idsForScope (scene.scope))
+    for (const auto& id : idsForScope (scene.scope, scene.scopeVersion))
     {
         auto* p = apvts.getParameter (id);
 
@@ -292,6 +345,11 @@ bool resolveScene (juce::AudioProcessorValueTreeState& apvts, const Scene& scene
 bool SceneBank::store (int index, Scene s)
 {
     if (index < 0 || index > size() || index >= kMaxScenes)
+        return false;
+
+    juce::String why;
+
+    if (! isSceneValid (s, why))
         return false;
 
     if (index == size())
@@ -386,19 +444,23 @@ namespace
 
         for (size_t i = 0; i < params.size(); ++i)
         {
-            std::memcpy (d + i * 6, &params[i].index, 2);
-            std::memcpy (d + i * 6 + 2, &params[i].value01, 4);
+            codec::writeLittleEndian (d + i * 6, params[i].index, params[i].value01);
         }
 
         return juce::Base64::toBase64 (mb.getData(), mb.getSize());
     }
 
-    bool decodeParams (const juce::String& text, std::vector<SceneParam>& out)
+    bool decodeParams (const juce::String& text, std::vector<SceneParam>& out, int schemaVersion)
     {
         out.clear();
 
         if (text.isEmpty())
             return true;
+
+        const auto maxParams = schemaVersion == 1 ? kLegacyMaxSceneParams : kMaxSceneParams;
+
+        if (text.getNumBytesAsUTF8() > (size_t) ((maxParams * 6 + 2) / 3 * 4))
+            return false;
 
         juce::MemoryOutputStream mos;
 
@@ -407,7 +469,7 @@ namespace
 
         const auto size = mos.getDataSize();
 
-        if (size % 6 != 0 || size / 6 > (size_t) kMaxSceneParams)
+        if (size % 6 != 0 || size / 6 > (size_t) maxParams)
             return false;
 
         const auto* d = static_cast<const std::uint8_t*> (mos.getData());
@@ -415,8 +477,15 @@ namespace
         for (size_t i = 0; i < size / 6; ++i)
         {
             SceneParam p;
-            std::memcpy (&p.index, d + i * 6, 2);
-            std::memcpy (&p.value01, d + i * 6 + 2, 4);
+            if (schemaVersion == 1)
+            {
+                std::memcpy (&p.index, d + i * 6, 2);
+                std::memcpy (&p.value01, d + i * 6 + 2, 4);
+            }
+            else
+            {
+                codec::readLittleEndian (d + i * 6, p.index, p.value01);
+            }
             out.push_back (p);
         }
 
@@ -424,41 +493,52 @@ namespace
     }
 }
 
-juce::ValueTree SceneBank::toValueTree (std::size_t maxBytes, bool* truncated) const
+juce::ValueTree SceneBank::toValueTree (std::size_t maxBytes, bool* failed, juce::String* why) const
 {
     juce::ValueTree t (subtreeName);
-    t.setProperty ("v", 1, nullptr);
+    t.setProperty ("v", kSceneSchemaVersion, nullptr);
     t.setProperty ("name", name, nullptr);
     t.setProperty ("cur", current, nullptr);
     t.setProperty ("wrap", options.wrap ? 1 : 0, nullptr);
     t.setProperty ("q", (int) options.quant, nullptr);
     t.setProperty ("nt", options.immediateWithoutTransport ? 1 : 0, nullptr);
 
-    if (truncated != nullptr)
-        *truncated = false;
-
-    std::size_t used = (std::size_t) t.toXmlString().getNumBytesAsUTF8();
+    if (failed != nullptr)
+        *failed = false;
+    if (why != nullptr)
+        why->clear();
 
     for (const auto& s : scenes)
     {
+        juce::String error;
+
+        if (! isSceneValid (s, error))
+        {
+            if (failed != nullptr)
+                *failed = true;
+            if (why != nullptr)
+                *why = "Scene \"" + s.name + "\" is invalid: " + error;
+            return {};
+        }
+
         juce::ValueTree n ("S");
         n.setProperty ("n", s.name, nullptr);
         n.setProperty ("sc", (int) s.scope, nullptr);
         n.setProperty ("q", (int) s.quant, nullptr);
+        n.setProperty ("sv", (int) s.scopeVersion, nullptr);
+        n.setProperty ("cm", (int) s.cloudModelVersion, nullptr);
+        n.setProperty ("gm", (int) s.grooveModelVersion, nullptr);
         n.setProperty ("d", encodeParams (s.params), nullptr);
-
-        const auto cost = (std::size_t) n.toXmlString().getNumBytesAsUTF8() + 2;
-
-        if (used + cost > maxBytes)
-        {
-            if (truncated != nullptr)
-                *truncated = true;
-
-            break;
-        }
-
-        used += cost;
         t.appendChild (n, nullptr);
+    }
+
+    if ((std::size_t) t.toXmlString().getNumBytesAsUTF8() > std::min (maxBytes, kMaxSceneStateBytes))
+    {
+        if (failed != nullptr)
+            *failed = true;
+        if (why != nullptr)
+            *why = "The scene bank exceeds its project-state limit; no scenes were saved.";
+        return {};
     }
 
     return t;
@@ -466,7 +546,19 @@ juce::ValueTree SceneBank::toValueTree (std::size_t maxBytes, bool* truncated) c
 
 bool SceneBank::validateTree (const juce::ValueTree& t)
 {
-    if (! t.hasType (subtreeName) || t.getNumChildren() > kMaxScenes)
+    if ((! t.hasType (subtreeName) && ! t.hasType (legacySubtreeName)) || t.getNumChildren() > kMaxScenes)
+        return false;
+
+    const auto versionText = t.getProperty ("v").toString();
+    if (versionText != "1" && versionText != "2")
+        return false;
+    const auto version = versionText.getIntValue();
+
+    if ((t.hasType (legacySubtreeName) && version != 1) || (t.hasType (subtreeName) && version != kSceneSchemaVersion))
+        return false;
+
+    const auto maxBytes = version == 1 ? (std::size_t) (24 * 1024) : kMaxSceneStateBytes;
+    if ((std::size_t) t.toXmlString().getNumBytesAsUTF8() > maxBytes)
         return false;
 
     if ((int) t.getProperty ("q", 3) < 1 || (int) t.getProperty ("q", 3) > 4)
@@ -490,8 +582,18 @@ bool SceneBank::validateTree (const juce::ValueTree& t)
 
         s.scope = (std::uint16_t) sc;
         s.quant = (Quant) q;
+        const auto scopeVersion = version == 1 ? juce::String ("1") : n.getProperty ("sv").toString();
+        if (scopeVersion != "1" && scopeVersion != "2")
+            return false;
+        s.scopeVersion = (std::uint8_t) scopeVersion.getIntValue();
+        const auto cloudVersion = version == 1 ? juce::String ("1") : n.getProperty ("cm", 1).toString();
+        if (cloudVersion != "1" && cloudVersion != "2") return false;
+        s.cloudModelVersion = (std::uint8_t) cloudVersion.getIntValue();
+        const auto grooveVersion = version == 1 ? juce::String ("1") : n.getProperty ("gm", 1).toString();
+        if (grooveVersion != "1" && grooveVersion != "2") return false;
+        s.grooveModelVersion = (std::uint8_t) grooveVersion.getIntValue();
 
-        if (! decodeParams (n.getProperty ("d").toString(), s.params))
+        if (! decodeParams (n.getProperty ("d").toString(), s.params, version))
             return false;
 
         juce::String why;
@@ -505,16 +607,23 @@ bool SceneBank::validateTree (const juce::ValueTree& t)
 
 void SceneBank::restore (const juce::ValueTree& t)
 {
-    clear();
+    if (! t.isValid())
+    {
+        clear();
+        return;
+    }
 
-    if (! t.hasType (subtreeName))
+    if (! validateTree (t))
         return;
 
-    name = t.getProperty ("name").toString().substring (0, kMaxBankNameLen);
-    current = (int) t.getProperty ("cur", -1);
-    options.wrap = (int) t.getProperty ("wrap", 0) != 0;
-    options.quant = (Quant) juce::jlimit (1, 4, (int) t.getProperty ("q", (int) Quant::Bar));
-    options.immediateWithoutTransport = (int) t.getProperty ("nt", 1) != 0;
+    SceneBank next;
+    const auto version = (int) t.getProperty ("v");
+
+    next.name = t.getProperty ("name").toString();
+    next.current = (int) t.getProperty ("cur", -1);
+    next.options.wrap = (int) t.getProperty ("wrap", 0) != 0;
+    next.options.quant = (Quant) (int) t.getProperty ("q", (int) Quant::Bar);
+    next.options.immediateWithoutTransport = (int) t.getProperty ("nt", 1) != 0;
 
     for (const auto& n : t)
     {
@@ -522,12 +631,17 @@ void SceneBank::restore (const juce::ValueTree& t)
         s.name = n.getProperty ("n").toString();
         s.scope = (std::uint16_t) juce::jlimit (0, 255, (int) n.getProperty ("sc", kDefaultScope));
         s.quant = (Quant) juce::jlimit (0, 4, (int) n.getProperty ("q", 0));
-        decodeParams (n.getProperty ("d").toString(), s.params);
-        scenes.push_back (std::move (s));
+        s.scopeVersion = (std::uint8_t) (version == 1 ? 1 : (int) n.getProperty ("sv"));
+        s.cloudModelVersion = (std::uint8_t) (version == 1 ? 1 : (int) n.getProperty ("cm", 1));
+        s.grooveModelVersion = (std::uint8_t) (version == 1 ? 1 : (int) n.getProperty ("gm", 1));
+        decodeParams (n.getProperty ("d").toString(), s.params, version);
+        next.scenes.push_back (std::move (s));
     }
 
-    if (current >= size())
-        current = -1;
+    if (next.current < -1 || next.current >= next.size())
+        next.current = -1;
+
+    assign (next);
 }
 
 juce::String SceneBank::canonicalPayload() const
@@ -536,7 +650,8 @@ juce::String SceneBank::canonicalPayload() const
 
     for (const auto& s : scenes)
     {
-        out << s.name << '|' << (int) s.scope << '|' << (int) s.quant << '|';
+        out << s.name << '|' << (int) s.scope << '|' << (int) s.quant << '|' << (int) s.scopeVersion
+            << '|' << (int) s.cloudModelVersion << '|' << (int) s.grooveModelVersion << '|';
 
         for (const auto& p : s.params)
             out << paramIdAt (p.index) << '=' << juce::String (p.value01, 6) << ';';

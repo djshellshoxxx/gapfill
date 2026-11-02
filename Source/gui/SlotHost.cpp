@@ -215,6 +215,21 @@ void SlotHost::layout (Slot slot)
         return;
     }
 
+    if (slot == Slot::CreativeExtra)
+    {
+        constexpr int rowHeight = 24;
+        const auto columns = juce::jmax (1, (n + 1) / 2);
+        const auto cellWidth = juce::jmax (0, (area.getWidth() - spacing * (columns - 1)) / columns);
+        for (int index = 0; index < n; ++index)
+        {
+            auto* component = comps[(size_t) index];
+            component->setVisible (show);
+            component->setBounds (area.getX() + (index % columns) * (cellWidth + spacing),
+                                  area.getY() + (index / columns) * (rowHeight + spacing), cellWidth, rowHeight);
+        }
+        return;
+    }
+
     const auto total = vertical ? area.getHeight() : area.getWidth();
     const auto each = juce::jmax (0, (total - spacing * (n - 1)) / n);
     auto pos = vertical ? area.getY() : area.getX();

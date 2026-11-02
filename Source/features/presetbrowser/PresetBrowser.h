@@ -9,6 +9,7 @@
 #include "PresetCatalog.h"
 #include "PresetFiles.h"
 #include "../suggest/Gui.h"
+#include "../i18n/ComponentTranslator.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -26,6 +27,7 @@ namespace gapfill::presets
 class PresetBrowser : public juce::Component,
                       private juce::ListBoxModel,
                       private juce::TextEditor::Listener,
+                      private juce::ChangeListener,
                       private juce::Timer
 {
 public:
@@ -87,6 +89,7 @@ private:
     void showRowMenu (int row);
     void buildChips();
     void updateChipStates();
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     GapFillAudioProcessor& proc;
     std::shared_ptr<settings::GlobalSettings> settingsFile;
@@ -108,6 +111,7 @@ private:
 
     std::unique_ptr<Scan> scan;
     juce::Rectangle<int> suggestionBounds;
+    std::unique_ptr<i18n::ComponentTranslator> translator;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PresetBrowser)
 };

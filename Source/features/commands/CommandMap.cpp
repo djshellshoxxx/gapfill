@@ -7,7 +7,7 @@ namespace gapfill::commands
 bool isKnownCommand (CommandType c) noexcept
 {
     const auto v = (int) c;
-    return v >= 1 && v <= 30;
+    return v >= 1 && v <= 33;
 }
 
 const char* commandName (CommandType c) noexcept
@@ -18,7 +18,8 @@ const char* commandName (CommandType c) noexcept
         "Release capture", "Panic", "Recover", "Go to scene", "Next scene", "Previous scene", "Cancel scene change",
         "Next preset", "Previous preset", "Stutter Storm", "Glitch Roulette", "Fill Now", "Momentary stutter",
         "Momentary freeze", "Momentary reverse", "Momentary tape stop", "Spectral capture", "Spectral release",
-        "Groove learn", "Groove reset", "A/B swap", "Event recording", "Preview recipe"
+        "Groove learn", "Groove reset", "A/B swap", "Event recording", "Preview recipe",
+        "Skip latest", "Skip recipe", "Go to factory preset"
     };
 
     return isKnownCommand (c) ? names[(int) c] : "Unknown";
@@ -104,27 +105,42 @@ void BindingModel::clear()
 {
     const auto pcOn = table.pcSceneEnabled;
     const auto pcCh = table.pcSceneChannel;
+    const auto pcPreset = table.pcPresetEnabled;
     profileName.clear();
     table = BindingTable {};
     table.pcSceneEnabled = pcOn;
     table.pcSceneChannel = pcCh;
+    table.pcPresetEnabled = pcPreset;
     publish();
 }
 
 void BindingModel::setProgramChangeScenes (bool enabled, int channel) noexcept
 {
-    table.pcSceneEnabled = enabled ? 1 : 0;
+    setProgramChangeTarget (enabled ? ProgramChangeTarget::Scenes : ProgramChangeTarget::Off, channel);
+}
+
+void BindingModel::setProgramChangeTarget (ProgramChangeTarget target, int channel) noexcept
+{
+    table.pcSceneEnabled = target == ProgramChangeTarget::Scenes ? 1 : 0;
+    table.pcPresetEnabled = target == ProgramChangeTarget::FactoryPresets ? 1 : 0;
     table.pcSceneChannel = (std::uint8_t) juce::jlimit (0, 16, channel);
     publish();
+}
+
+ProgramChangeTarget BindingModel::getProgramChangeTarget() const noexcept
+{
+    return table.pcPresetEnabled != 0 ? ProgramChangeTarget::FactoryPresets
+         : table.pcSceneEnabled != 0 ? ProgramChangeTarget::Scenes : ProgramChangeTarget::Off;
 }
 
 //------------------------------------------------------------------------------
 juce::ValueTree BindingModel::toValueTree() const
 {
     juce::ValueTree t (subtreeName);
-    t.setProperty ("v", 1, nullptr);
+    t.setProperty ("v", 2, nullptr);
     t.setProperty ("pcScene", (int) table.pcSceneEnabled, nullptr);
     t.setProperty ("pcCh", (int) table.pcSceneChannel, nullptr);
+    t.setProperty ("pcTarget", (int) getProgramChangeTarget(), nullptr);
 
     if (! feedbackDevice.empty())
         t.setProperty ("dev", juce::String (feedbackDevice), nullptr);
@@ -153,17 +169,24 @@ bool BindingModel::validateTree (const juce::ValueTree& t)
 {
     // Per-binding problems are handled by dropping the binding alone; the
     // subtree is only rejected when it is not ours or absurdly large.
-    return t.hasType (subtreeName) && t.getNumChildren() <= 4 * kMaxBindings;
+    const auto version = (int) t.getProperty ("v", 1);
+    return t.hasType (subtreeName) && t.getNumChildren() <= 4 * kMaxBindings && (version == 1 || version == 2);
 }
 
 void BindingModel::restore (const juce::ValueTree& t)
 {
     BindingTable fresh;
 
-    if (t.hasType (subtreeName))
+    if (validateTree (t))
     {
         fresh.pcSceneEnabled = (std::uint8_t) (((int) t.getProperty ("pcScene", 0)) != 0 ? 1 : 0);
         fresh.pcSceneChannel = (std::uint8_t) juce::jlimit (0, 16, (int) t.getProperty ("pcCh", 0));
+        if ((int) t.getProperty ("v", 1) == 2)
+        {
+            const auto target = (int) t.getProperty ("pcTarget", 0);
+            fresh.pcSceneEnabled = target == (int) ProgramChangeTarget::Scenes ? 1 : 0;
+            fresh.pcPresetEnabled = target == (int) ProgramChangeTarget::FactoryPresets ? 1 : 0;
+        }
         feedbackDevice = t.getProperty ("dev", "").toString().substring (0, 96).toStdString();
         profileName = t.getProperty ("profile", "").toString().substring (0, 48).toStdString();
 
@@ -312,14 +335,20 @@ int Scanner::process (const juce::MidiBuffer& midi, Event* out, int maxOut) noex
             continue;
         }
 
-        // Program Change -> scene n (N-VAL).
-        if (isPC && table.pcSceneEnabled != 0 && number < 64
+        // Explicit bindings win. A single Program Change must not recall both a scene and a preset/command.
+        bool explicitProgram = false;
+        if (isPC)
+            for (int i = 0; i < table.count; ++i)
+                explicitProgram = explicitProgram || (table.bindings[i].type == MsgType::ProgramChange
+                    && table.bindings[i].number == number && (table.bindings[i].channel == 0 || table.bindings[i].channel == channel));
+
+        if (isPC && ! explicitProgram && ((table.pcSceneEnabled != 0 && number < 64) || table.pcPresetEnabled != 0)
             && (table.pcSceneChannel == 0 || table.pcSceneChannel == channel))
         {
             if (n < maxOut)
             {
                 auto& e = out[n++];
-                e.type = CommandType::SceneGoto;
+                e.type = table.pcPresetEnabled != 0 ? CommandType::PresetGoto : CommandType::SceneGoto;
                 e.arg = (std::int16_t) number;
                 e.on = true;
                 e.sampleOffset = offset;

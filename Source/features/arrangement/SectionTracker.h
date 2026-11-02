@@ -41,6 +41,11 @@ class SectionTracker
 public:
     void reset() noexcept;
 
+    /** Version 1 preserves released boundary/prediction behavior. Changing the
+        version discards derived history; this state is never persistent. */
+    void setModelVersion (int version) noexcept;
+    int modelVersion() const noexcept { return version; }
+
     /** One frame of F-L22 features (call exactly once per 0.5 s frame). `sensitivity01` 0..1. */
     void pushFrame (const context::FrameFeatures&, float sensitivity01) noexcept;
 
@@ -79,6 +84,8 @@ private:
     std::array<float, kMaxSections> sectionMeans {};
     std::array<int, kMaxSections> sectionLengths {};
     int completed = 0;
+
+    int version = 1;
 
     ArrangementState st;
 };

@@ -8,10 +8,12 @@
 #include "../features/arrangement/Modulators.h"
 #include "../features/groove/GrooveSettings.h"
 #include "../features/harmonic/HarmonicSettings.h"
+#include "../features/harmonic/psola/Settings.h"
 #include "../features/keydetect/KeySettings.h"
 #include "../features/scale/ScaleLock.h"
 #include "../features/coop/CoopFwd.h"
 #include "../features/scdrive/ScSettings.h"
+#include "../features/formant/FormantSetup.h"
 
 #include <cstdint>
 
@@ -19,8 +21,10 @@ namespace gapfill
 {
 
 namespace scenes { struct OverlayView; }    // F-L07 (features/scenes/SceneOverlay.h)
+namespace modulation { struct Runtime; }
 namespace macros { struct MacroRuntime; }   // C-2 / F-M23 (features/macros/MacroEngine.h)
 namespace battle { struct BattleRuntime; }  // F-M18 (features/battle/Battle.h)
+namespace harmonic::psola { class PitchSourceRouter; }
 
 //==============================================================================
 // Performance / creative settings (docs/dev/02-FOUNDATIONS.md F0-5). Every
@@ -50,7 +54,13 @@ struct PerformanceSettings
     tension::TensionSettings tension;       // F-M21
     arrangement::Fx04Settings arr;          // F-X04
     harmonic::HarmonicParams harmonic;      // F-X01
+    harmonic::psola::Settings pitchSync;    // opt-in detailed F-X01; released hg* remains independent
+    const harmonic::psola::PitchSourceRouter* pitchTracker = nullptr;
+    bool captureHeld = false;
+    float captureScan01 = 0.0f;
+    int captureWindowSamples = 0;
     float fxSend01 = 1.0f;                  // F-M21 output: effect amount scale (1 = neutral); read by the effect cards that honour it
+    float previewTensionSend01 = 1.0f;      // V3 preview keeps live controls; no Battle/decision stages
     BudgetSettings budget;            // F-D01
     bool  likeActive = false;         // C-11
     int   quantDivision = -1;         // E-2 fill-length quantise, -1 off
@@ -62,8 +72,14 @@ struct PerformanceSettings
     // WP6 live control. Neutral at their defaults (null / false / 0).
     bool  panicked = false;           // N-USE-a: no new natural fills while set
     const scenes::OverlayView* sceneView = nullptr;   // F-L07: audio-thread-owned overlay
+    const modulation::Runtime* extendedMacroRuntime = nullptr; ///< Explicit V3 path; null preserves legacy.
+    float macroFxSend01 = 1.0f; ///< V3 virtual send, combined after Tension on a local decision copy.
     const macros::MacroRuntime* macroRuntime = nullptr;   // F-M23: LFO macros re-evaluated per decision
     std::uint32_t macroOwnedMask = 0; // C-2: macro target bits claimed by macros (scenes skip them)
+    std::uint32_t advancedMacroOwnedMask = 0; // Versioned targets 21..47; original core21 mask remains separate
+    bool sceneBaseApplied = false;       // v2 raw scene projected before personality/macros this segment
+    int sceneMaxFillSync = -1, sceneMaxFillDivision = -1; // -1: retain parameter-derived tempo controls
+    float sceneProtectLowHz = -1.0f, sceneProtectCenter01 = -1.0f; // -1: retain post-wet controls
     std::uint32_t fillNowId = 0;      // F-P02: a new id requests one forced fill at fillNowPos (output timeline)
     std::int64_t fillNowPos = 0;
     bool  fillNowOverSustained = false;
@@ -89,6 +105,7 @@ struct PerformanceSettings
     and the host playhead. */
 struct EngineSettings
 {
+    formant::FormantSetup voiceFormant;   // F-L20: amount zero never claims a processor or changes RNG.
     DetMode mode = DetMode::Transient;
 
     float fill01       = 0.35f;
@@ -134,6 +151,7 @@ struct EngineSettings
         follows the input; it grows while Capture holds the history frozen so
         fills keep reading the latched material. */
     std::int64_t historyOffset = 0;
+    int sourceChannels = 2; // actual main input, independent of a stereo Wet bus
 
     /** Creative / performance settings owned by the feature tickets. */
     PerformanceSettings perf;

@@ -9,6 +9,8 @@
 #include "../SlotHost.h"
 #include "../HelpRegistry.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
+#include "../../features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -59,14 +61,11 @@ namespace
         juce::String wetOnlyText() const
         {
             auto& v = proc.getValueTreeState();
-            juce::String text = "WET ONLY";
-
             if (v.getRawParameterValue ("bypass")->load() > 0.5f)
-                text += " (bypassed)";
-            else if (v.getRawParameterValue ("bandSolo")->load() > 0.5f)
-                text += " - monitor aid active";
-
-            return text;
+                return i18n::text ("WET ONLY (bypassed)");
+            if (v.getRawParameterValue ("bandSolo")->load() > 0.5f)
+                return i18n::text ("WET ONLY - monitor aid active");
+            return i18n::text ("WET ONLY");
         }
 
         void paint (juce::Graphics& g) override
@@ -78,9 +77,10 @@ namespace
             g.fillRoundedRectangle (area, metrics::controlRadius);
             g.setColour (panicked ? colours::text : colours::clip);
             g.drawRoundedRectangle (area, metrics::controlRadius, 1.0f);
-            g.setFont (fonts::label (10.0f));
-            g.drawText (panicked ? "RECOVER (wet silenced)" : "PANIC  Ctrl+.", area.toNearestInt(),
-                        juce::Justification::centred, false);
+            const auto label = i18n::text (panicked ? "RECOVER (wet silenced)" : "PANIC  Ctrl+.");
+            g.setFont (i18n::fontForText (fonts::label (10.0f), label));
+            g.drawFittedText (label, area.toNearestInt(),
+                        juce::Justification::centred, 1, 0.8f);
 
             if (wetOnlyChipShown())
             {
@@ -89,7 +89,9 @@ namespace
                 g.fillRoundedRectangle (wetArea, metrics::controlRadius);
                 g.setColour (colours::accentWarm);                      // the text says it too: colour is never alone
                 g.drawRoundedRectangle (wetArea, metrics::controlRadius, 1.0f);
-                g.drawText (wetOnlyText(), wetArea.toNearestInt(), juce::Justification::centred, false);
+                const auto wet = wetOnlyText();
+                g.setFont (i18n::fontForText (fonts::label (10.0f), wet));
+                g.drawFittedText (wet, wetArea.toNearestInt(), juce::Justification::centred, 1, 0.8f);
             }
         }
 
@@ -116,12 +118,12 @@ namespace
 
         static juce::String panicTooltip()
         {
-            return "Panic: silence the wet signal now (Ctrl/Cmd + .). Dry audio is untouched.";
+            return i18n::text ("Panic: silence the wet signal now (Ctrl/Cmd + .). Dry audio is untouched.");
         }
 
         static juce::String wetOnlyTooltip()
         {
-            return "Wet only: the main output carries only what GapFill generates. Dry and Wet are ignored. Switch it off in the Mix panel.";
+            return i18n::text ("Wet only: the main output carries only what GapFill generates. Dry and Wet are ignored. Switch it off in the Mix panel.");
         }
 
         void trigger()
@@ -155,16 +157,16 @@ namespace
             if (wetText != lastWetText)
             {
                 lastWetText = wetText;
-                setDescription (juce::String ("Silences the wet signal within 5 milliseconds. The dry signal is not affected. "
-                                              "Press again, or use Recover, to bring the effects back.")
-                                + (wetText.isEmpty() ? juce::String() : " Output mode: " + wetText.toLowerCase() + "."));
+                setDescription (wetText.isEmpty()
+                    ? i18n::text ("Silences the wet signal within 5 milliseconds. The dry signal is not affected. Press again, or use Recover, to bring the effects back.")
+                    : i18n::format ("Silences the wet signal within 5 milliseconds. The dry signal is not affected. Press again, or use Recover, to bring the effects back. Output mode: {0}.", { wetText }));
                 repaint();
             }
 
             if (panicked != lastShown)
             {
                 lastShown = panicked;
-                setTitle (panicked ? "Recover: bring GapFill effects back" : "Panic: silence GapFill effects now");
+                setTitle (i18n::text (panicked ? "Recover: bring GapFill effects back" : "Panic: silence GapFill effects now"));
                 repaint();
             }
         }

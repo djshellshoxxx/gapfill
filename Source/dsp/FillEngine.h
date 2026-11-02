@@ -1,5 +1,8 @@
 #pragma once
 
+#include "../features/midiout/EngineEvents.h"
+#include "../features/formant/FormantPool.h"
+
 #include "EngineEvents.h"
 #include "EngineTransitions.h"
 #include "EngineSettings.h"
@@ -23,6 +26,8 @@
 
 namespace gapfill
 {
+
+namespace lock { class LockPublication; }
 
 /** Gap confidence at which a region becomes an eligible gap. Exported so the
     visualiser (E-3 threshold line) draws the engine's own number. */
@@ -56,7 +61,11 @@ public:
 
     /** Forgets the deterministic gap counter, used when the transport jumps. A jump
         also ends a More Like That bias (C-11) and the F-D01 bar count. */
-    void noteTransportJump() noexcept { gapIndex = 0; like.cancel(); recentFills.clear(); responder.reset(); }
+    void noteTransportJump() noexcept
+    {
+        gapIndex = 0; like.cancel(); recentFills.clear(); responder.reset(); midiConfidenceValid = false;
+        vizCounter = 0; vizAccum = {}; vizDiscontinuityPending = true;
+    }
 
     /** Renders into `wet` (which must already be cleared) and returns the
         protection duck that the processor should apply to the wet bus. */
@@ -71,6 +80,15 @@ public:
 
     /** Effect telemetry sink shared with the voices (owned by the processor's FxChain). */
     void setFxMeters (fx::FxMeters* meters) noexcept;
+    /** Audio-thread sink, owned/preallocated by the processor; null is neutral. */
+    void setMidiEventBuffer (midiout::EngineEventBuffer* events, bool hit, int cc) noexcept
+    {
+        if (events != midiEventBuffer || cc != midiConfidenceCC)
+            midiConfidenceValid = false;
+        midiEventBuffer = events;
+        midiHitEnabled = hit;
+        midiConfidenceCC = cc;
+    }
 
     //--------------------------------------------------------------------------
     // E-1 Fill Audition (audio thread; implemented in features/audition/AuditionEngine.cpp).
@@ -78,7 +96,8 @@ public:
     // to the last one. It is served at the start of the next process() call.
 
     void requestPreview (std::uint8_t velocity) noexcept;
-    void requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb = 0) noexcept;
+    void requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb = 0,
+                               const RecipeExtras& extras = {}) noexcept;
 
     /** PreviewChannel::code(): status, algorithm and sequence number. */
     std::uint32_t getPreviewStatusCode() const noexcept   { return preview.code(); }
@@ -96,8 +115,11 @@ public:
     // LikeLatest and LikeRecipe.
 
     void lockLatest() noexcept;
-    void lockRecipe (const FillRecipe&) noexcept;
+    void lockRecipe (const FillRecipe&, const RecipeExtras& extras = {}) noexcept;
     void unlockRecipe() noexcept;
+    void setLockPublication (lock::LockPublication*) noexcept;
+    bool adoptLockRestore (Command& acceptedRestore) noexcept;
+    bool acceptsLockCommand (const Command&) const noexcept;
     void likeLatest() noexcept;
     void likeRecipe (const FillRecipe&) noexcept;
 
@@ -149,6 +171,7 @@ public:
 
     /** Total number of fills started since the last reset (used by tests). */
     int  getFillsStarted() const noexcept { return fillsStarted; }
+    const formant::FormantPool& getFormantPool() const noexcept { return formants; }
 
     /** Number of eligible gaps rejected because they were shorter than the
         Minimum Gap setting (used by tests). */
@@ -227,7 +250,8 @@ private:
         instead of choosing one. Sets the preview status. */
     bool startPreview (std::uint8_t velocity, std::int64_t outputPos,
                        const AnalysisEngine&, const SourceHistory&, const EngineSettings&,
-                       const FillRecipe* recipe, int gainCentiDb, FillEventQueue* events) noexcept;
+                       const FillRecipe* recipe, int gainCentiDb, FillEventQueue* events,
+                       const RecipeExtras& extras = {}) noexcept;
     /** C-11: the bias is ignored while Fill Lock is on. */
     bool likeApplies (const EngineSettings& s) const noexcept   { return like.active() && ! s.perf.lockOn; }
 
@@ -239,9 +263,13 @@ private:
     double sr = 48000.0;
     int channels = 2;
 
+    // Must outlive every voice: their destructors release any outstanding claim.
+    formant::FormantPool formants;
     FillVoice voices[numVoices];
     PreviewChannel preview;        // E-1: dedicated voice outside the pool of numVoices
     LockState lockState;           // C-5
+    lock::LockPublication* lockPublication = nullptr; // non-owning, RecipeServices outlives audio use
+    std::uint64_t lockRestoreEpoch = 1;              // audio-owned accepted restore generation
     LikeState like;                // C-11
     callresponse::Responder responder;   // F-L10
     bool decisionPpqValid = false;
@@ -249,6 +277,7 @@ private:
     fx::ScrubVoice scrub;                     // F-M19 performance voice (independent of the scheduler)
     momentary::HoldVoices holdVoices;         // F-M10 / F-S07 hold voices (outside the pool and the preview)
     SpectralSmear spectral;
+    harmonic::psola::PitchMarks pitchMarks;
     fx::FxMeters* fxMeters = nullptr;
     fx::EngineBlockIO* blockIO = nullptr;     ///< valid only inside process()
 
@@ -292,6 +321,11 @@ private:
     int vizDecim = 2;
     int vizCounter = 0;
     VizFrame vizAccum;
+    bool vizDiscontinuityPending = true;
+    midiout::EngineEventBuffer* midiEventBuffer = nullptr;
+    bool midiHitEnabled = false, midiConfidenceValid = false;
+    int midiConfidenceCC = 0, lastMidiConfidenceValue = 0;
+    std::int64_t lastMidiConfidencePos = 0;
 };
 
 } // namespace gapfill

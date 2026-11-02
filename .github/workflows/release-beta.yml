@@ -2,8 +2,9 @@ name: Release beta
 
 # Publishes a GitHub PRERELEASE from the verified per-platform artifacts of a
 # successful CI run for the EXACT commit this workflow is dispatched on. Nothing
-# is rebuilt or re-tested here; binaries are only re-inspected, packaged,
-# checksummed and uploaded. See docs/dev/07-QA-AND-RELEASE.md section 5b.
+# is rebuilt here. Packaged binaries are revalidated before publication and
+# after downloading the published assets. Signing uses provisioned identities
+# only; unsigned betas keep signing acceptance explicitly unverified.
 #
 #   verify -> package-desktop (Windows + Linux, incl. NSIS installer)
 #          -> package-macos   (arm64, x86_64; lipo + codesign re-check)
@@ -19,6 +20,26 @@ on:
         description: 'CI run id to take artifacts from (optional; default = successful CI run for this SHA)'
         required: false
         type: string
+      require_signing:
+        description: 'Require provisioned Authenticode, Developer ID, notarization and trusted detached checksum signatures'
+        type: boolean
+        default: false
+      windows_runner:
+        description: 'Windows runner label; use a provisioned runner for certificate-store signing'
+        type: string
+        default: windows-2022
+      macos_arm64_runner:
+        description: 'Apple Silicon runner label; signing uses its existing keychain identities/profile'
+        type: string
+        default: macos-15
+      macos_x86_64_runner:
+        description: 'Intel macOS runner label; signing uses its existing keychain identities/profile'
+        type: string
+        default: macos-15-intel
+      checksum_runner:
+        description: 'Linux runner label; signed releases need an already provisioned GPG key'
+        type: string
+        default: ubuntu-22.04
 
 concurrency:
   group: release-beta
@@ -87,9 +108,52 @@ jobs:
           } >> "$GITHUB_OUTPUT"
           echo "Releasing $tag from CI run $run_id at $GITHUB_SHA"
 
+  sign-windows-inputs:
+    name: Prepare Windows signatures before packaging
+    needs: verify
+    runs-on: ${{ inputs.windows_runner }}
+    timeout-minutes: 20
+    env:
+      GAPFILL_WINDOWS_CERT_SHA1: ${{ vars.GAPFILL_WINDOWS_CERT_SHA1 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ needs.verify.outputs.run_id }}
+          github-token: ${{ github.token }}
+          name: gapfill-windows-x64
+          path: raw/windows
+      - name: Sign staged copies or retain explicit unsigned beta evidence
+        shell: bash
+        env:
+          REQUIRE_SIGNING: ${{ inputs.require_signing }}
+          ASSET_TAG: ${{ needs.verify.outputs.asset_tag }}
+        run: |
+          set -euo pipefail
+          flags=()
+          if [ "$REQUIRE_SIGNING" = true ]; then flags+=(--require-signing); fi
+          python packaging/release_pipeline.py windows-raw --directory raw/windows \
+            --asset-tag "$ASSET_TAG" --out "$RUNNER_TEMP/assurance/windows-inputs" "${flags[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prepared-windows-inputs
+          path: raw/windows/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: assurance-windows-inputs
+          path: ${{ runner.temp }}/assurance/
+          if-no-files-found: error
+          retention-days: 30
+
   package-desktop:
     name: Package Windows and Linux (installer, zips)
-    needs: verify
+    needs: [verify, sign-windows-inputs]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -102,9 +166,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          run-id: ${{ needs.verify.outputs.run_id }}
-          github-token: ${{ github.token }}
-          name: gapfill-windows-x64
+          name: prepared-windows-inputs
           path: raw/windows
 
       - uses: actions/download-artifact@v4
@@ -132,10 +194,57 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: release-desktop
+          name: release-linux
+          path: dist/*-Linux-*
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: packaged-windows
+          path: dist/*-Windows-*
+          if-no-files-found: error
+          retention-days: 7
+
+  sign-windows-installer:
+    name: Verify Windows installer signatures
+    needs: [verify, package-desktop]
+    runs-on: ${{ inputs.windows_runner }}
+    timeout-minutes: 20
+    env:
+      GAPFILL_WINDOWS_CERT_SHA1: ${{ vars.GAPFILL_WINDOWS_CERT_SHA1 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: packaged-windows
+          path: dist
+      - name: Sign the finished NSIS executable
+        shell: bash
+        env:
+          REQUIRE_SIGNING: ${{ inputs.require_signing }}
+          ASSET_TAG: ${{ needs.verify.outputs.asset_tag }}
+        run: |
+          set -euo pipefail
+          flags=()
+          if [ "$REQUIRE_SIGNING" = true ]; then flags+=(--require-signing); fi
+          python packaging/release_pipeline.py windows-installer --directory dist \
+            --asset-tag "$ASSET_TAG" --out "$RUNNER_TEMP/assurance/windows-installer" "${flags[@]}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
           path: dist/
           if-no-files-found: error
           retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: assurance-windows-installer
+          path: ${{ runner.temp }}/assurance/
+          if-no-files-found: error
+          retention-days: 30
 
   package-macos:
     name: Package macOS ${{ matrix.arch }}
@@ -143,12 +252,22 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        arch: [arm64, x86_64]
-    # lipo/codesign can inspect both architectures on either host.
-    runs-on: macos-15
-    timeout-minutes: 20
+        include:
+          - arch: arm64
+            runner: ${{ inputs.macos_arm64_runner }}
+          - arch: x86_64
+            runner: ${{ inputs.macos_x86_64_runner }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    env:
+      GAPFILL_APPLE_SIGN_IDENTITY: ${{ vars.GAPFILL_APPLE_SIGN_IDENTITY }}
+      GAPFILL_APPLE_INSTALLER_IDENTITY: ${{ vars.GAPFILL_APPLE_INSTALLER_IDENTITY }}
+      GAPFILL_NOTARY_PROFILE: ${{ vars.GAPFILL_NOTARY_PROFILE }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
       - uses: actions/download-artifact@v4
         with:
@@ -161,12 +280,17 @@ jobs:
         env:
           GAPFILL_ASSET_TAG: ${{ needs.verify.outputs.asset_tag }}
           GAPFILL_DISPLAY_VERSION: ${{ needs.verify.outputs.display }}
+          REQUIRE_SIGNING: ${{ inputs.require_signing }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p stage dist
           tar -xf "raw/gapfill-macos-${{ matrix.arch }}.tar" -C stage
-          bash packaging/package_macos.sh stage "${{ matrix.arch }}" dist
+          flags=()
+          if [ "$REQUIRE_SIGNING" = true ]; then flags+=(--require-signing); fi
+          python packaging/release_pipeline.py macos --directory stage --dist dist \
+            --arch "${{ matrix.arch }}" --asset-tag "$GAPFILL_ASSET_TAG" \
+            --out "$RUNNER_TEMP/assurance/macos" "${flags[@]}"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -175,9 +299,71 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: assurance-macos-${{ matrix.arch }}
+          path: ${{ runner.temp }}/assurance/
+          if-no-files-found: error
+          retention-days: 30
+
+  candidate:
+    name: Final bytes and detached checksum signature
+    needs: [verify, sign-windows-installer, package-macos]
+    runs-on: ${{ inputs.checksum_runner }}
+    timeout-minutes: 15
+    env:
+      GAPFILL_RELEASE_GPG_KEY: ${{ vars.GAPFILL_RELEASE_GPG_KEY }}
+      ASSET_TAG: ${{ needs.verify.outputs.asset_tag }}
+      REQUIRE_SIGNING: ${{ inputs.require_signing }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: release
+      - name: Sign final checksums after all signing stapling and packaging
+        shell: bash
+        run: |
+          set -euo pipefail
+          flags=()
+          if [ "$REQUIRE_SIGNING" = true ]; then flags+=(--require-signing); fi
+          python packaging/release_pipeline.py manifest --directory release \
+            --asset-tag "$ASSET_TAG" --out "$RUNNER_TEMP/assurance/checksums" "${flags[@]}"
+          python packaging/verify_release.py checksums --manifest "release/GapFill-${ASSET_TAG}-SHA256SUMS.txt"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: candidate-assets
+          path: release/
+          if-no-files-found: error
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: assurance-checksums
+          path: ${{ runner.temp }}/assurance/
+          if-no-files-found: error
+          retention-days: 30
+
+  validate-candidate:
+    name: Validate packaged candidate on all native targets
+    needs: [verify, candidate]
+    uses: ./.github/workflows/package-validation.yml
+    with:
+      asset_tag: ${{ needs.verify.outputs.asset_tag }}
+      require_signing: ${{ inputs.require_signing }}
+      windows_runner: ${{ inputs.windows_runner }}
+      linux_runner: ${{ inputs.checksum_runner }}
+      macos_arm64_runner: ${{ inputs.macos_arm64_runner }}
+      macos_x86_64_runner: ${{ inputs.macos_x86_64_runner }}
+
   publish:
     name: Checksum and publish prerelease
-    needs: [verify, package-desktop, package-macos]
+    needs: [verify, candidate, validate-candidate]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -194,8 +380,7 @@ jobs:
 
       - uses: actions/download-artifact@v4
         with:
-          pattern: release-*
-          merge-multiple: true
+          name: candidate-assets
           path: release
 
       - name: Combined SHA-256 checksums
@@ -206,7 +391,6 @@ jobs:
           for need in Windows-x64-Setup.exe Windows-x64-Portable.zip Linux-x64-Portable.zip macOS-arm64.zip macOS-x86_64.zip; do
             test -s "GapFill-${ASSET_TAG}-${need}" || { echo "::error::missing asset GapFill-${ASSET_TAG}-${need}"; exit 1; }
           done
-          sha256sum GapFill-"${ASSET_TAG}"-* > "GapFill-${ASSET_TAG}-SHA256SUMS.txt"
           sha256sum -c "GapFill-${ASSET_TAG}-SHA256SUMS.txt"
 
       - name: Publish prerelease (draft=false, prerelease=true)
@@ -219,10 +403,14 @@ jobs:
           Formats: VST3, CLAP and Standalone everywhere; Audio Unit on macOS; NSIS installer on Windows.
           Built once and validated in CI run ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}
           at commit ${GITHUB_SHA}: full unit/golden/combinatorial suite (Linux), pluginval strictness 10,
-          clap-validator, auval (macOS) and standalone smoke launches. This release only repackages those
-          verified binaries; verify downloads with GapFill-${ASSET_TAG}-SHA256SUMS.txt.
+          clap-validator, auval (macOS) and standalone smoke launches. Packaged candidate binaries are
+          revalidated before publication; verify downloads with GapFill-${ASSET_TAG}-SHA256SUMS.txt.
 
-          Not Apple-notarized and not Authenticode-signed. Real-DAW and hardware acceptance
+          Signing required for this release: ${{ inputs.require_signing }}. When false, signing acceptance
+          remains unverified even if a provisioned runner produced some signatures. A detached manifest
+          signature must be checked against an independently trusted release key; the bundled public key
+          alone does not establish trust. Native package checks run again after publication.
+          Real-DAW and hardware acceptance
           (docs/VALIDATION.md) is separate and is not implied by this pre-release.
           NOTES
           gh release create "$TAG" release/* \
@@ -240,3 +428,16 @@ jobs:
           (cd "$RUNNER_TEMP/release-check" && sha256sum -c "GapFill-${ASSET_TAG}-SHA256SUMS.txt")
           test "$(gh release view "$TAG" --json isDraft,isPrerelease --jq '[.isDraft, .isPrerelease] | @csv')" = "false,true"
           gh release view "$TAG" --json url,assets --jq '{url: .url, assets: [.assets[].name]}'
+
+  validate-published:
+    name: Validate all downloaded published packages
+    needs: [verify, publish]
+    uses: ./.github/workflows/package-validation.yml
+    with:
+      asset_tag: ${{ needs.verify.outputs.asset_tag }}
+      release_tag: ${{ inputs.tag }}
+      require_signing: ${{ inputs.require_signing }}
+      windows_runner: ${{ inputs.windows_runner }}
+      linux_runner: ${{ inputs.checksum_runner }}
+      macos_arm64_runner: ${{ inputs.macos_arm64_runner }}
+      macos_x86_64_runner: ${{ inputs.macos_x86_64_runner }}

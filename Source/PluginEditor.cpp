@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 #include "PluginEditor.h"
+#include "features/explain/OverlaySlot.h"
 #include "features/info/ParamInfo.h"
 #include "features/mutation/Gui.h"
 #include "features/uiscale/UiScale.h"
@@ -187,19 +188,19 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     randomButton.onClick = [this]
     {
         proc.randomise (false);
-        setPresetDisplay ("Random");
+        setPresetDisplay (i18n::text ("Random"));
     };
 
     randomAllButton.onClick = [this]
     {
         proc.randomise (true);
-        setPresetDisplay ("Random All");
+        setPresetDisplay (i18n::text ("Random All"));
     };
 
     surpriseButton.onClick = [this]
     {
         const auto name = proc.surprise();
-        setPresetDisplay ("Surprise: " + name);
+        setPresetDisplay (i18n::format ("Surprise: {0}", { name }));
     };
 
     undoButton.onClick = [this]
@@ -209,7 +210,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
         if (proc.getCurrentPresetName() == "Custom")
         {
-            setPresetDisplay ("Custom");
+            setPresetDisplay (i18n::text ("Custom"));
         }
         else
         {
@@ -273,6 +274,11 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     addAndMakeVisible (mixPanel);
 
     slots = std::make_unique<SlotHost> (proc, *this);
+    for (auto* component : getChildren())
+    {
+        if (auto* overlay = dynamic_cast<explain::VisualiserOverlayComponent*> (component))
+            overlay->onExpansionChanged = [this] { resized(); };
+    }
 
     // U-6 Auto-Calibrate: the LEARN button is in the Detection panel header; the card floats over the visualiser.
     calibration = std::make_unique<calibrate::CalibrationSession> (proc);
@@ -358,8 +364,11 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     applyKeyboardNavigationSetting();
 
     // ---- A/B snapshots -----------------------------------------------------
-    slotA = proc.getValueTreeState().copyState().createCopy();
-    slotB = slotA.createCopy();
+    auto& headerAb = proc.getUiState().headerAb;
+    headerAb.synchronize (proc.getValueTreeState().copyState());
+    displayedAbSide = headerAb.isUsingB();
+    abButton.setButtonText (displayedAbSide ? "B" : "A");
+    currentPresetFile = proc.getUiState().presetNavigation.currentFile();
     proc.getUiState().editorActions.battleFromHeaderAb = [this] { return feedBattleFromHeaderAb(); };
 
     // Start every editor session with a clean visual history. Drain through
@@ -378,11 +387,11 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     const auto saved = proc.getSavedEditorSize();
     setResizable (true, true);
     setResizeLimits (kMinWidth, kMinHeight, 2600, 1800);
-    setSize (juce::jmax (kMinWidth, saved.x), juce::jmax (kMinHeight, saved.y));
+    setSize (juce::jlimit (kMinWidth, 2600, saved.x), juce::jlimit (kMinHeight, 1800, saved.y));
 
     if (proc.getCurrentPresetName() == "Custom")
     {
-        setPresetDisplay ("Custom");
+        setPresetDisplay (i18n::text ("Custom"));
     }
     else
     {
@@ -391,6 +400,9 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     applyViewMode();
     applyScale();
+    i18n::markUserContent (presetBox);
+    translatedPresentation = std::make_unique<i18n::ComponentTranslator> (*this);
+    translatedPresentation->refresh();
 
     if (tourAutoShowEnabled())
         juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this)]
@@ -405,6 +417,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 GapFillAudioProcessorEditor::~GapFillAudioProcessorEditor()
 {
     stopTimer();
+    translatedPresentation.reset();
     calibrateCard.reset();
     calibration.reset();                // cancels the recording and stops the analysis thread
     removeMouseListener (&hoverStatus);
@@ -608,7 +621,7 @@ juce::File GapFillAudioProcessorEditor::userPresetDirectory()
 void GapFillAudioProcessorEditor::setPresetDisplay (const juce::String& text)
 {
     presetBox.setButtonText (text);
-    presetBox.setTitle ("Preset: " + text);
+    presetBox.setTitle (i18n::format ("Preset: {0}", { text }));
     presetBox.repaint();
 }
 
@@ -638,45 +651,23 @@ int GapFillAudioProcessorEditor::currentPresetIndex() const
 
 void GapFillAudioProcessorEditor::stepPreset (int delta)
 {
-    refreshPresetList();
+    auto& navigation = proc.getUiState().presetNavigation;
+    navigation.requestStep (delta);
+    navigation.pump (proc);
+    synchronizePresetNavigation();
+}
 
-    // F-S11: "Favourites only" steps through the starred presets; with none saved it falls back to all of them.
-    int index;
-    bool fellBack = false;
-
-    if (settingsFile->getInt (presets::kKeyStepScope, 0) == 1)
-    {
-        const auto pool = navCatalog.favouriteIndices (settingsFile->getFavourites());
-        fellBack = pool.empty();
-        index = fellBack ? navCatalog.step (currentPresetIndex(), delta)
-                         : presets::PresetCatalog::stepWithin (pool, currentPresetIndex(), delta);
-    }
-    else
-    {
-        index = navCatalog.step (currentPresetIndex(), delta);
-    }
-
-    if (index < 0)
+void GapFillAudioProcessorEditor::synchronizePresetNavigation()
+{
+    auto& navigation = proc.getUiState().presetNavigation;
+    if (navigationRevision == navigation.revision())
         return;
-
-    // Undo coalescing: a burst of steps (each within 3 s of the previous, nothing else pushed an Undo entry in between)
-    // keeps only the snapshot from before the burst, so browsing 20 presets does not push real work out of the 32 steps.
-    const auto now = juce::Time::getMillisecondCounter();
-    const bool inBurst = stepBurst.isContinuation (now, proc.getUndoPushCount());
-    const auto pushesBefore = proc.getUndoPushCount();
-
-    if (! loadCatalogEntry (navCatalog.entries()[(size_t) index]))
-        return;
-
-    if (inBurst && proc.getUndoPushCount() > pushesBefore)
-        proc.discardNewestUndoSnapshot();
-
-    stepBurst.record (now, proc.getUndoPushCount());
-
-    const auto total = (int) navCatalog.entries().size();
-    showPresetStatus (fellBack ? juce::String ("No favourites yet - stepping all presets")
-                               : "Preset " + juce::String (index + 1) + "/" + juce::String (total) + ": "
-                                     + navCatalog.entries()[(size_t) index].name);
+    navigationRevision = navigation.revision();
+    currentPresetFile = navigation.currentFile();
+    if (navigation.displayName().isNotEmpty())
+        setPresetDisplay (navigation.displayName());
+    if (navigation.status().isNotEmpty())
+        showPresetStatus (navigation.status());
 }
 
 void GapFillAudioProcessorEditor::showPresetStatus (const juce::String& text)
@@ -741,7 +732,8 @@ bool GapFillAudioProcessorEditor::loadCatalogEntry (const presets::PresetEntry& 
         return false;
     }
 
-    currentPresetFile = entry.origin == presets::PresetEntry::Origin::User ? entry.file : juce::File();
+    proc.getUiState().presetNavigation.noteLoaded (entry);
+    currentPresetFile = proc.getUiState().presetNavigation.currentFile();
     setPresetDisplay (entry.name);
     return true;
 }
@@ -755,20 +747,26 @@ void GapFillAudioProcessorEditor::showMutationLab()
 void GapFillAudioProcessorEditor::showPresetBrowser()
 {
     auto browser = std::make_unique<presets::PresetBrowser> (proc, settings::GlobalSettings::shared());
-    browser->onLoaded = [this] (const presets::PresetEntry& entry)
+    const juce::Component::SafePointer<GapFillAudioProcessorEditor> safe (this);
+    browser->onLoaded = [safe] (const presets::PresetEntry& entry)
     {
-        currentPresetFile = entry.origin == presets::PresetEntry::Origin::User ? entry.file : juce::File();
-        setPresetDisplay (entry.name);
+        if (auto* editor = safe.getComponent())
+        {
+            editor->proc.getUiState().presetNavigation.noteLoaded (entry);
+            editor->currentPresetFile = editor->proc.getUiState().presetNavigation.currentFile();
+            editor->setPresetDisplay (entry.name);
+        }
     };
     // The call-out box is created after the browser, so the callbacks reach it through a shared handle.
     auto boxHandle = std::make_shared<juce::Component::SafePointer<juce::CallOutBox>>();
     browser->onCloseRequested = [boxHandle] { if (auto* box = boxHandle->getComponent()) box->dismiss(); };
-    browser->onSaveRequested = [this, boxHandle]
+    browser->onSaveRequested = [safe, boxHandle]
     {
         if (auto* box = boxHandle->getComponent())
             box->dismiss();
 
-        saveUserPreset();
+        if (auto* editor = safe.getComponent())
+            editor->saveUserPreset();
     };
 
     auto& box = juce::CallOutBox::launchAsynchronously (std::move (browser), presetBox.getScreenBounds(), this);
@@ -778,26 +776,34 @@ void GapFillAudioProcessorEditor::showPresetBrowser()
 
 void GapFillAudioProcessorEditor::saveUserPreset()
 {
-    auto* window = new juce::AlertWindow ("Save user preset",
-                                          "Name, category and an optional description:",
+    auto* window = new juce::AlertWindow (i18n::text ("Save user preset"),
+                                          i18n::text ("Name, category and an optional description:"),
                                           juce::MessageBoxIconType::NoIcon);
     gapfill::applyPaletteTo (*window);
-    window->addTextEditor ("name", "My GapFill", "Name");
-    window->addComboBox ("category", [] { auto c = presets::presetCategories(); c.add (presets::kUncategorised); return c; }(), "Category");
-    window->addTextEditor ("description", {}, "Description");
-    window->addButton ("Save", 1);
-    window->addButton ("Cancel", 0);
+    auto categories = presets::presetCategories();
+    categories.add (presets::kUncategorised);
+    juce::StringArray categoryLabels;
+    for (const auto& category : categories)
+        categoryLabels.add (i18n::text (category));
+    window->addTextEditor ("name", "My GapFill", i18n::text ("Name"));
+    window->addComboBox ("category", categoryLabels, i18n::text ("Category"));
+    window->addTextEditor ("description", {}, i18n::text ("Description"));
+    window->addButton (i18n::text ("Save"), 1);
+    window->addButton (i18n::text ("Cancel"), 0);
 
     window->enterModalState (true, juce::ModalCallbackFunction::create (
-        [this, window] (int result)
+        [safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this), window, categories] (int result)
         {
             presets::PresetMeta meta;
             meta.name = window->getTextEditorContents ("name");
-            meta.category = window->getComboBoxComponent ("category")->getText();
+            const auto categoryIndex = window->getComboBoxComponent ("category")->getSelectedItemIndex();
+            meta.category = categoryIndex >= 0 && categoryIndex < categories.size()
+                                ? categories[categoryIndex] : presets::kUncategorised;
             meta.description = window->getTextEditorContents ("description");
             delete window;
 
-            if (result != 1)
+            auto* editor = safe.getComponent();
+            if (result != 1 || editor == nullptr)
                 return;
 
             const auto name = presets::sanitisePresetName (meta.name);
@@ -805,36 +811,40 @@ void GapFillAudioProcessorEditor::saveUserPreset()
             if (name.isEmpty())
             {
                 juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
-                                                        "Could not save preset",
-                                                        "Please choose a preset name that contains valid filename characters.",
-                                                        "OK", this);
+                                                        i18n::text ("Could not save preset"),
+                                                        i18n::text ("Please choose a preset name that contains valid filename characters."),
+                                                        i18n::text ("OK"), editor);
                 return;
             }
 
             meta.name = name;
             const auto file = presets::presetPathFor (presets::userPresetRoot(), meta.category, name);
 
-            const auto write = [this, file, meta]
+            const auto write = [safe, file, meta]
             {
+                auto* owner = safe.getComponent();
+                if (owner == nullptr)
+                    return;
                 juce::String error;
 
-                if (! presets::writeUserPreset (proc, file, meta, error))
+                if (! presets::writeUserPreset (owner->proc, file, meta, error))
                 {
                     juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
-                                                            "Could not save preset", error, "OK", this);
+                                                            i18n::text ("Could not save preset"), i18n::errorText (error), i18n::text ("OK"), owner);
                     return;
                 }
 
-                currentPresetFile = file;
-                refreshPresetList();
-                setPresetDisplay (meta.name);
+                owner->proc.getUiState().presetNavigation.noteFile (file);
+                owner->currentPresetFile = file;
+                owner->refreshPresetList();
+                owner->setPresetDisplay (meta.name);
             };
 
             if (file.existsAsFile())
             {
-                juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, "Replace preset?",
-                                                    "A preset called \"" + name + "\" already exists in that category. Replace it?",
-                                                    "Replace", "Cancel", this,
+                juce::AlertWindow::showOkCancelBox (juce::MessageBoxIconType::QuestionIcon, i18n::text ("Replace preset?"),
+                                                    i18n::format ("A preset called \"{0}\" already exists in that category. Replace it?", { name }),
+                                                    i18n::text ("Replace"), i18n::text ("Cancel"), editor,
                                                     juce::ModalCallbackFunction::create ([write] (int r) { if (r == 1) write(); }));
                 return;
             }
@@ -853,8 +863,8 @@ void GapFillAudioProcessorEditor::showFileMenu()
 
     // "Save" only means something once there is a file to save over.
     menu.addItem (kSave, currentPresetFile != juce::File()
-                             ? "Save (" + currentPresetFile.getFileName() + ")"
-                             : juce::String ("Save"),
+                             ? i18n::format ("Save ({0})", { currentPresetFile.getFileName() })
+                             : i18n::text ("Save"),
                   currentPresetFile != juce::File());
     menu.addItem (kSaveAs, "Save As...");
     menu.addItem (kOpen, "Open...");
@@ -886,26 +896,30 @@ void GapFillAudioProcessorEditor::showFileMenu()
     if (performancePanel != nullptr && ! performanceAsTab)
         menu.addItem (kPerformance, "Performance...");
 
+    i18n::translateMenu (menu);
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&fileButton),
-                        [this] (int result)
+                        [safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this)] (int result)
     {
+        auto* editor = safe.getComponent();
+        if (editor == nullptr)
+            return;
         switch (result)
         {
-            case kSave:       doSave(); break;
-            case kSaveAs:     doSaveAs(); break;
-            case kOpen:       doOpen(); break;
-            case kSavePreset: saveUserPreset(); break;
-            case kBrowse:     showPresetBrowser(); break;
-            case kFavourite:  toggleCurrentFavourite(); break;
-            case kStepScope:  settingsFile->setInt (presets::kKeyStepScope, settingsFile->getInt (presets::kKeyStepScope, 0) == 1 ? 0 : 1);
+            case kSave:       editor->doSave(); break;
+            case kSaveAs:     editor->doSaveAs(); break;
+            case kOpen:       editor->doOpen(); break;
+            case kSavePreset: editor->saveUserPreset(); break;
+            case kBrowse:     editor->showPresetBrowser(); break;
+            case kFavourite:  editor->toggleCurrentFavourite(); break;
+            case kStepScope:  editor->settingsFile->setInt (presets::kKeyStepScope, editor->settingsFile->getInt (presets::kKeyStepScope, 0) == 1 ? 0 : 1);
                               break;
-            case kTour:       showTour (true); break;
-            case kLab:        showMutationLab(); break;
-            case kAudition:   if (auto f = proc.getUiState().editorActions.auditionNow) f(); break;
-            case kHistory:    if (auto f = proc.getUiState().editorActions.openHistory) f(); break;
-            case kExportFill: if (auto f = proc.getUiState().editorActions.exportLatestFill) f(); break;
-            case kOptions:    showOptions(); break;
-            case kPerformance: setTab (Tab::Performance); break;
+            case kTour:       editor->showTour (true); break;
+            case kLab:        editor->showMutationLab(); break;
+            case kAudition:   if (auto f = editor->proc.getUiState().editorActions.auditionNow) f(); break;
+            case kHistory:    if (auto f = editor->proc.getUiState().editorActions.openHistory) f(); break;
+            case kExportFill: if (auto f = editor->proc.getUiState().editorActions.exportLatestFill) f(); break;
+            case kOptions:    editor->showOptions(); break;
+            case kPerformance: editor->setTab (Tab::Performance); break;
             default: break;
         }
     });
@@ -921,13 +935,14 @@ bool GapFillAudioProcessorEditor::savePresetToFile (const juce::File& file)
     if (! proc.saveParameterStateToFile (file, error))
     {
         juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
-                                                "Could not save preset",
-                                                error,
-                                                "OK",
+                                                i18n::text ("Could not save preset"),
+                                                i18n::errorText (error),
+                                                i18n::text ("OK"),
                                                 this);
         return false;
     }
 
+    proc.getUiState().presetNavigation.noteFile (file);
     currentPresetFile = file;
 
     // A file saved into the user preset folder should show up in the dropdown
@@ -943,9 +958,9 @@ void GapFillAudioProcessorEditor::loadPresetFromFile (const juce::File& file)
     if (! proc.loadParameterStateFromFile (file, error))
     {
         juce::AlertWindow::showMessageBoxAsync (juce::MessageBoxIconType::WarningIcon,
-                                                "Could not open preset",
-                                                error,
-                                                "OK",
+                                                i18n::text ("Could not open preset"),
+                                                i18n::errorText (error),
+                                                i18n::text ("OK"),
                                                 this);
 
         // The current sound was deliberately left untouched, so do not leave
@@ -954,6 +969,7 @@ void GapFillAudioProcessorEditor::loadPresetFromFile (const juce::File& file)
         return;
     }
 
+    proc.getUiState().presetNavigation.noteFile (file);
     currentPresetFile = file;
     setPresetDisplay (file.getFileNameWithoutExtension());
 }
@@ -974,19 +990,19 @@ void GapFillAudioProcessorEditor::doSaveAs()
     auto start = currentPresetFile != juce::File() ? currentPresetFile
                                                    : userPresetDirectory().getChildFile ("My GapFill.gapfill");
 
-    chooser = std::make_unique<juce::FileChooser> ("Save GapFill settings", start, "*.gapfill");
+    chooser = std::make_unique<juce::FileChooser> (i18n::text ("Save GapFill settings"), start, "*.gapfill");
 
     chooser->launchAsync (juce::FileBrowserComponent::saveMode
                             | juce::FileBrowserComponent::canSelectFiles
                             | juce::FileBrowserComponent::warnAboutOverwriting,
-                          [this] (const juce::FileChooser& fc)
+                          [safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this)] (const juce::FileChooser& fc)
     {
         const auto file = fc.getResult();
 
-        if (file == juce::File())
+        if (file == juce::File() || safe == nullptr)
             return;
 
-        savePresetToFile (file.hasFileExtension ("gapfill") ? file
+        safe->savePresetToFile (file.hasFileExtension ("gapfill") ? file
                                                             : file.withFileExtension ("gapfill"));
     });
 }
@@ -996,14 +1012,14 @@ void GapFillAudioProcessorEditor::doOpen()
     auto start = currentPresetFile != juce::File() ? currentPresetFile.getParentDirectory()
                                                    : userPresetDirectory();
 
-    chooser = std::make_unique<juce::FileChooser> ("Open GapFill settings", start, "*.gapfill");
+    chooser = std::make_unique<juce::FileChooser> (i18n::text ("Open GapFill settings"), start, "*.gapfill");
 
     chooser->launchAsync (juce::FileBrowserComponent::openMode
                             | juce::FileBrowserComponent::canSelectFiles,
-                          [this] (const juce::FileChooser& fc)
+                          [safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this)] (const juce::FileChooser& fc)
     {
-        if (fc.getResult() != juce::File())
-            loadPresetFromFile (fc.getResult());
+        if (safe != nullptr && fc.getResult() != juce::File())
+            safe->loadPresetFromFile (fc.getResult());
     });
 }
 
@@ -1065,44 +1081,47 @@ int GapFillAudioProcessorEditor::getUnnamedKeyboardFocusableControlCountForTests
 //==============================================================================
 void GapFillAudioProcessorEditor::toggleAB()
 {
-    auto& state = proc.getValueTreeState();
-
-    // Store what is on screen into the slot we are leaving, then load the other.
-    (usingSlotB ? slotB : slotA) = state.copyState().createCopy();
-    usingSlotB = ! usingSlotB;
-
-    auto& target = usingSlotB ? slotB : slotA;
-
+    auto& ab = proc.getUiState().headerAb;
+    const auto target = ab.swap (proc.getValueTreeState().copyState());
     if (target.isValid())
-        proc.replaceParameterStateKeepingPerformance (target);      // A/B never flips performance state (docs/dev/02 F0-1)
-
-    proc.getRecipes().noteHeaderAbSide (usingSlotB);        // F-S06: level matching follows the sounding side
-    abButton.setButtonText (usingSlotB ? "B" : "A");
-    setPresetDisplay (usingSlotB ? "B" : "A");
+    {
+        proc.replaceParameterStateKeepingPerformance (target);
+        proc.syncModelVersions();
+    }
+    displayedAbSide = ab.isUsingB();
+    proc.getRecipes().noteHeaderAbSide (displayedAbSide);
+    abButton.setButtonText (displayedAbSide ? "B" : "A");
+    setPresetDisplay (displayedAbSide ? "B" : "A");
 }
 
-/** F-M18: the header A/B snapshots become Beat Battle styles A and B (the side on screen is captured first). */
 bool GapFillAudioProcessorEditor::feedBattleFromHeaderAb()
 {
     auto& state = proc.getValueTreeState();
-    (usingSlotB ? slotB : slotA) = state.copyState().createCopy();
-
+    auto& ab = proc.getUiState().headerAb;
+    ab.captureActive (state.copyState());
     auto& battles = proc.getLiveControl().battles();
-    const bool a = battles.setStyleFromState (0, state, slotA);
-    const bool b = battles.setStyleFromState (1, state, slotB);
+    const bool a = battles.setStyleFromState (0, state, ab.snapshot (false));
+    const bool b = battles.setStyleFromState (1, state, ab.snapshot (true));
     return a && b;
 }
 
 void GapFillAudioProcessorEditor::copyToOtherSlot()
 {
-    auto current = proc.getValueTreeState().copyState().createCopy();
-    (usingSlotB ? slotA : slotB) = current;
-    (usingSlotB ? slotB : slotA) = current.createCopy();
+    proc.getUiState().headerAb.copyToOther (proc.getValueTreeState().copyState());
 }
 
 //==============================================================================
 void GapFillAudioProcessorEditor::timerCallback()
 {
+    synchronizePresetNavigation();
+    auto& ab = proc.getUiState().headerAb;
+    ab.synchronize (proc.getValueTreeState().copyState());
+    if (displayedAbSide != ab.isUsingB())
+    {
+        displayedAbSide = ab.isUsingB();
+        abButton.setButtonText (displayedAbSide ? "B" : "A");
+        setPresetDisplay (displayedAbSide ? "B" : "A");
+    }
     auto& meters = proc.getMeterState();
 
     mixPanel.setLevels (meters.inputLevel.load(), meters.outputLevel.load(), meters.wetLevel.load());
@@ -1119,7 +1138,7 @@ void GapFillAudioProcessorEditor::timerCallback()
     visualiser.setLookaheadMs (state.getRawParameterValue ("lookahead")->load());
 
     const auto latency = meters.latencySamples.load();
-    latencyLabel.setText ("latency " + juce::String (latency) + " smp", juce::dontSendNotification);
+    latencyLabel.setText (i18n::format ("latency {0} smp", { juce::String (latency) }), juce::dontSendNotification);
 
     // Status line: MIDI learn takes priority while armed so the user always
     // knows the plugin is waiting for a controller, even after the popup closes.
@@ -1177,11 +1196,6 @@ void GapFillAudioProcessorEditor::timerCallback()
     if (proc.getUiState().getViewMode() != appliedView)
         applyViewMode();
 
-    // U-4: previous / next preset requests from MIDI commands (X-1) or other threads.
-    if (const auto step = proc.getUiState().takePresetStep(); step != 0)
-        for (int i = 0; i < juce::jmin (8, std::abs (step)); ++i)
-            stepPreset (step > 0 ? 1 : -1);
-
     // U-9: the footer shows the highest-priority message (learn > ... > capture here).
     auto& board = proc.getUiState().status;
 
@@ -1200,6 +1214,8 @@ void GapFillAudioProcessorEditor::timerCallback()
     // that may occur while this editor is already open.
     gapfill::setReducedMotionEnabled (proc.isReducedMotionEnabled());
     applyKeyboardNavigationSetting();
+    if (translatedPresentation != nullptr)
+        translatedPresentation->refresh();
 }
 
 //==============================================================================
@@ -1361,6 +1377,11 @@ void GapFillAudioProcessorEditor::resized()
 
     visualiser.setBounds (b);
     slots->setSlotBounds (Slot::VisualiserOverlay, b);
+    for (auto* component : getChildren())
+    {
+        if (auto* overlay = dynamic_cast<explain::VisualiserOverlayComponent*> (component))
+            overlay->setExpansionBounds ({ b.getX(), b.getY(), b.getWidth(), mixPanel.getY() - 8 - b.getY() });
+    }
 
     if (calibrateCard != nullptr)
     {

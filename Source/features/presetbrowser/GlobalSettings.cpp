@@ -93,6 +93,17 @@ void GlobalSettings::setBool (const juce::String& key, bool value)
     props->setValue (key, value);
 }
 
+juce::String GlobalSettings::getString (const juce::String& key, const juce::String& fallback) const
+{
+    return props->getValue (key, fallback);
+}
+
+void GlobalSettings::setString (const juce::String& key, const juce::String& value)
+{
+    if (value.length() <= 128)
+        props->setValue (key, value);
+}
+
 juce::StringArray GlobalSettings::getFavourites() const
 {
     auto list = juce::StringArray::fromLines (props->getValue (favouritesKey, {}));

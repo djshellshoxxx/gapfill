@@ -8,6 +8,9 @@
 
 #include "../../dsp/FillEngine.h"
 #include "../Salts.h"
+#include "../capture2/CaptureScan.h"
+#include "../../dsp/ScrambleTiming.h"
+#include "../modulation/Runtime.h"
 
 namespace gapfill
 {
@@ -19,13 +22,15 @@ void FillEngine::requestPreview (std::uint8_t velocity) noexcept
     preview.request.velocity = velocity;
 }
 
-void FillEngine::requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb) noexcept
+void FillEngine::requestPreviewRecipe (const FillRecipe& recipe, std::uint8_t velocity, int gainCentiDb,
+                                      const RecipeExtras& extras) noexcept
 {
     preview.request = {};
     preview.request.pending = true;
     preview.request.velocity = velocity;
     preview.request.hasRecipe = true;
     preview.request.recipe = recipe;
+    preview.request.extras = extras;
     preview.request.gainCentiDb = juce::jlimit (-600, 600, gainCentiDb);
 }
 
@@ -70,14 +75,26 @@ void FillEngine::servePendingPreview (std::int64_t outputPos, const AnalysisEngi
     preview.request = {};
 
     startPreview (request.velocity, outputPos, analysis, history, s,
-                  request.hasRecipe ? &request.recipe : nullptr, request.gainCentiDb, events);
+                  request.hasRecipe ? &request.recipe : nullptr, request.gainCentiDb, events, request.extras);
 }
 
 bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
                                const AnalysisEngine& analysis, const SourceHistory& history,
-                               const EngineSettings& s, const FillRecipe* recipeIn,
-                               int gainCentiDb, FillEventQueue* events) noexcept
+                               const EngineSettings& base, const FillRecipe* recipeIn,
+                               int gainCentiDb, FillEventQueue* events, const RecipeExtras& extras) noexcept
 {
+    auto effective = base;
+    effective.perf.fxSend01 = base.perf.previewTensionSend01;
+    if (base.perf.extendedMacroRuntime != nullptr)
+    {
+        const bool havePpq = base.transportValid && base.samplesPerBeat > 1.0;
+        Effective::applyMacroLfos (effective, base.ppqAtBlockStart,
+            { havePpq, base.ppqAtBlockStart, base.perf.tsNum, base.perf.tsDen,
+              havePpq ? 60.0 * sr / base.samplesPerBeat : 0.0, outputPos, sr, analysis.frameAt (outputPos).energy });
+        effective.perf.fxSend01 = effective.perf.macroFxSend01 * base.perf.previewTensionSend01;
+        modulation::applyCombinedEffectSend (effective, effective.perf.fxSend01);
+    }
+    const auto& s = effective;
     auto fail = [this] (PreviewStatus why)
     {
         preview.status = why;
@@ -122,17 +139,19 @@ bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
     if (recipeIn != nullptr)
     {
         // E-1 addendum (U-1): replay that recipe, skipping algorithm / band / length selection.
-        if (! isValid (*recipeIn))
+        if (! isValid (*recipeIn) || ! isValid (extras))
             return fail (PreviewStatus::RejectedBuild);
 
         const auto lengthMs = juce::jmin ((float) recipeIn->lengthMs, (float) (kPreviewMaxSeconds * 1000.0));
         plan.recipe = *recipeIn;
+        plan.extras = extras;
         plan.algoIndex = recipeIn->algo;
         plan.band = recipeIn->band;
         plan.lengthSamples = juce::jmin (cap, (std::int64_t) ((double) juce::jmax (20.0f, lengthMs) * 0.001 * sr));
         plan.lengthMs = (float) (1000.0 * (double) plan.lengthSamples / sr);
         plan.recipe.lengthMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (plan.lengthMs));
-        plan.recipe.seed = (std::uint32_t) hashCombine (ctx.key, (std::uint64_t) (plan.algoIndex + 1) * 0x27D4EB2FULL);
+        if (extras.harmonic.version == 0)
+            plan.recipe.seed = (std::uint32_t) hashCombine (ctx.key, (std::uint64_t) (plan.algoIndex + 1) * 0x27D4EB2FULL);
         plan.recipe.flags = (std::uint8_t) (plan.recipe.flags | FillRecipe::flagFromLock);   // force modifiers / pitch
     }
     else
@@ -184,6 +203,9 @@ bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
             return fail (PreviewStatus::RejectedBuild);
     }
 
+    ctx.sourceAnchor = juce::jlimit ((std::int64_t) 0, history.getWritePosition(), outputPos - s.historyOffset);
+    ctx.sourceAnchor = capture::scannedAnchor (ctx.sourceAnchor, history, s.perf.captureHeld,
+        s.perf.captureScan01, s.perf.captureWindowSamples, voiceTiming::maximumCaptureSamples (sr), ctx.key);
     auto setup = toVoiceSetup (plan, ctx, s, history);
     plan.recipe.flags = (std::uint8_t) ((plan.recipe.flags & ~FillRecipe::flagFromLock) | FillRecipe::flagPreview);
 
@@ -211,6 +233,7 @@ bool FillEngine::startPreview (std::uint8_t velocity, std::int64_t outputPos,
         FillEvent e;
         e.type = FillEventType::Preview;
         e.recipe = plan.recipe;
+        e.extras = plan.extras;
         e.pos = outputPos;
         e.lengthSamples = (std::int32_t) plan.lengthSamples;
         events->push (e);

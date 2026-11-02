@@ -48,28 +48,7 @@ namespace
         int tsNum = 0, tsDen = 0;
         juce::int64 timeInSamples = 0;
     };
-}
 
-std::vector<OutcomeKey> outcomesOf (const ReplayData& d)
-{
-    std::vector<OutcomeKey> out;
-
-    for (const auto& r : d.records)
-        if (r.type == (std::uint8_t) RecType::Outcome)
-            out.push_back ({ (r.flags & 1) != 0, (std::uint8_t) (r.index & 0xFF), r.pos });
-
-    return out;
-}
-
-int findFirstDivergence (const std::vector<OutcomeKey>& a, const std::vector<OutcomeKey>& b) noexcept
-{
-    const auto n = std::min (a.size(), b.size());
-
-    for (size_t i = 0; i < n; ++i)
-        if (! (a[i] == b[i]))
-            return (int) i;
-
-    return a.size() == b.size() ? -1 : (int) n;
 }
 
 ReplayReport replay (const ReplayData& d, const juce::AudioBuffer<float>& audio)
@@ -135,9 +114,12 @@ ReplayReport replay (const ReplayData& d, const juce::AudioBuffer<float>& audio)
                 case RecType::Command:
                 {
                     Command c;
-                    c.type = (CommandType) r.flags;
-                    c.index = (std::int16_t) r.index;
-                    c.velocity = (std::uint8_t) r.p0;
+                    if (! commandAt (d, next - 1, c))
+                    {
+                        report.error = "The recording contains an invalid command payload";
+                        proc->setPlayHead (nullptr);
+                        return report;
+                    }
                     proc->postCommand (c);
                     break;
                 }
@@ -155,6 +137,9 @@ ReplayReport replay (const ReplayData& d, const juce::AudioBuffer<float>& audio)
                     break;
 
                 case RecType::Outcome:
+                case RecType::RecipePayload:
+                case RecType::RecipeExtras:
+                case RecType::OutcomeRecipe:
                 case RecType::None:
                     break;
             }
@@ -185,9 +170,9 @@ ReplayReport replay (const ReplayData& d, const juce::AudioBuffer<float>& audio)
     int limitBlock = report.blocksReplayed;
     std::vector<OutcomeKey> expectedReached;
 
-    for (const auto& r : d.records)
-        if (r.type == (std::uint8_t) RecType::Outcome && (int) r.block < limitBlock)
-            expectedReached.push_back ({ (r.flags & 1) != 0, (std::uint8_t) (r.index & 0xFF), r.pos });
+    for (size_t i = 0; i < d.records.size(); ++i)
+        if (d.records[i].type == (std::uint8_t) RecType::Outcome && (int) d.records[i].block < limitBlock)
+            expectedReached.push_back (detail::outcomeKeyAt (d, i));
 
     report.firstDivergence = findFirstDivergence (expectedReached, report.outcomes);
 

@@ -5,6 +5,7 @@
 // the processor's ui::UiState, so favourites and settings survive the editor.
 
 #include "MutationLab.h"
+#include "../i18n/ComponentTranslator.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -66,6 +67,8 @@ private:
     juce::OwnedArray<juce::ToggleButton> pinToggles;
     juce::String parentText;
     bool refreshing = false;
+    std::uint64_t lastLanguageGeneration = 0;
+    std::unique_ptr<i18n::ComponentTranslator> translator;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (LabPanel)
 };

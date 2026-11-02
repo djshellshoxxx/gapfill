@@ -15,11 +15,18 @@ on:
   push:
     branches:
       - master
+      - 'integration/**'
   pull_request:
   workflow_dispatch:
+    inputs:
+      full_assurance:
+        description: 'Also run native full QA, separate sanitizers, performance and a 300-second continuous soak'
+        required: false
+        default: false
+        type: boolean
 
 concurrency:
-  # Superseded PR runs are cancelled. Pushes to master and manual runs are keyed
+  # Superseded PR runs are cancelled. Branch pushes and manual runs are keyed
   # by SHA so a release candidate's artifacts are never cancelled by a later push.
   group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('sha-{0}', github.sha) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -68,7 +75,16 @@ jobs:
       - name: Repository preflight
         run: python tools/validate_repo.py
       - name: Preflight unit tests
-        run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py
+        run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py tools/test_x11_test_session.py
+
+      - name: Release assurance tool regressions
+        run: python -m unittest tools.qa.nightly_test tools.test_release_pipeline tools.test_i18n_catalog
+
+      - name: Transport trace analysis and bounded callback queue
+        run: |
+          python -m unittest tools.test_transport_jitter
+          c++ -std=c++20 -Wall -Wextra -Werror -pthread tools/transport_probe/TestTraceQueue.cpp -o "$RUNNER_TEMP/transport-trace-queue"
+          "$RUNNER_TEMP/transport-trace-queue"
 
       - name: Completeness audit and layout-literal ratchet
         run: |
@@ -150,11 +166,13 @@ jobs:
           ccache -s
 
       - name: Run full unit, golden and combinatorial suite
+        env:
+          GF_SCREENSHOT_DIR: ${{ runner.temp }}/gui-screenshots
         run: |
           set -o pipefail
           mkdir -p test-results
           set +e
-          xvfb-run -a build-ci/artefacts/GapFillTests 2>&1 | tee test-results/GapFillTests-linux-full.log
+          xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py build-ci/artefacts/GapFillTests 2>&1 | tee test-results/GapFillTests-linux-full.log
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -165,6 +183,14 @@ jobs:
           fi
           exit "$status"
 
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gui-screenshots-linux-${{ github.sha }}
+          path: ${{ runner.temp }}/gui-screenshots/
+          if-no-files-found: warn
+          retention-days: 30
+
       # Q-01: fast tier of the QA matrix harness (docs/dev/features/Q-01-release-qa-matrix-harness.md). The full suite
       # just ran above, so its step is recorded as unverified-by-skip rather than executed twice; every other fast step
       # (preflight, bad-filter guard, block / rate sweeps, determinism, state fixtures, GUI lifecycle) really runs here.
@@ -172,7 +198,7 @@ jobs:
       - name: QA matrix, fast tier (Q-01)
         run: |
           mkdir -p test-results
-          xvfb-run -a python3 tools/qa/run_matrix.py --binary build-ci/artefacts/GapFillTests --tier fast \
+          xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py python3 tools/qa/run_matrix.py --binary build-ci/artefacts/GapFillTests --tier fast \
             --out test-results/qa-evidence --skip unit \
             --skip-reason "full suite ran in the previous CI step (GapFillTests-linux-full.log)" \
             2>&1 | tee test-results/qa-matrix-fast.log
@@ -182,7 +208,7 @@ jobs:
         run: |
           lscpu | grep -E 'Model name|Flags' | cut -c1-400 || true
           mkdir -p golden-actual
-          xvfb-run -a build-ci/artefacts/GapFillTests --write-golden Golden > golden-actual/write.log 2>&1 || true
+          xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py build-ci/artefacts/GapFillTests --write-golden Golden > golden-actual/write.log 2>&1 || true
           cp -r Tests/golden/linux golden-actual/ || true
 
       - name: Upload golden diagnostics
@@ -281,7 +307,7 @@ jobs:
           chmod +x "$PLUGINVAL"
           VST3=$(find build-ci -type d -name 'GapFill.vst3' | head -n 1)
           test -n "$VST3"
-          xvfb-run -a "$PLUGINVAL" --strictness-level 10 --validate "$VST3"
+          xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py "$PLUGINVAL" --strictness-level 10 --validate "$VST3"
 
       - name: Validate CLAP with clap-validator
         run: |
@@ -298,7 +324,7 @@ jobs:
           STANDALONE=$(find build-ci/artefacts -type f -name 'GapFill' -perm -111 | head -n 1)
           test -n "$STANDALONE"
           set +e
-          timeout 5s xvfb-run -a "$STANDALONE"
+          timeout 5s xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py "$STANDALONE"
           code=$?
           set -e
           if [ "$code" -ne 124 ]; then
@@ -355,6 +381,19 @@ jobs:
         run: |
           .\build-ci\artefacts\Release\GapFillTests.exe $env:SMOKE_FILTER
           if ($LASTEXITCODE -ne 0) { throw "GapFillTests ($env:SMOKE_FILTER) failed with exit code $LASTEXITCODE" }
+
+      - name: Native continuous-soak smoke with executed-test evidence
+        shell: pwsh
+        run: |
+          python tools/qa/nightly_run.py --binary build-ci/artefacts/Release/GapFillTests.exe --filter Soak --label windows-soak-smoke --out test-results/release-assurance --build-dir build-ci
+          if ($LASTEXITCODE -ne 0) { throw "Native soak smoke failed" }
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows-release-assurance-${{ github.sha }}
+          path: test-results/release-assurance/
+          if-no-files-found: warn
 
       - name: Validator cache key (refreshed monthly)
         id: month
@@ -562,6 +601,19 @@ jobs:
           test -n "$tests"
           "$tests" "$SMOKE_FILTER"
 
+      - name: Native continuous-soak smoke with executed-test evidence
+        shell: bash
+        run: |
+          tests="$(find build-ci/artefacts -type f -name GapFillTests -perm -111 | head -n 1)"
+          python3 tools/qa/nightly_run.py --binary "$tests" --filter Soak --label macos-soak-smoke --out test-results/release-assurance --build-dir build-ci
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-${{ matrix.arch }}-release-assurance-${{ github.sha }}
+          path: test-results/release-assurance/
+          if-no-files-found: warn
+
       - name: Verify native bundles and architecture
         shell: bash
         run: |
@@ -725,11 +777,19 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  full-assurance:
+    name: Candidate native and sanitizer assurance
+    needs: preflight
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.full_assurance) || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/integration/')) }}
+    uses: ./.github/workflows/nightly.yml
+    with:
+      soak_seconds: '300'
+
   # Single required status check: green when every job that had to run passed.
   # Native jobs are legitimately skipped for docs-only changes.
   ci-gate:
     name: CI gate
-    needs: [changes, preflight, unit-tests, build-linux-x64, build-windows-x64, package-windows, build-macos]
+    needs: [changes, preflight, unit-tests, build-linux-x64, build-windows-x64, package-windows, build-macos, full-assurance]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -744,6 +804,9 @@ jobs:
             results="$results ${{ needs.unit-tests.result }} ${{ needs.build-linux-x64.result }} ${{ needs.build-windows-x64.result }} ${{ needs.package-windows.result }} ${{ needs.build-macos.result }}"
           else
             echo "Docs-only change: native jobs skipped"
+          fi
+          if [ '${{ (github.event_name == 'workflow_dispatch' && inputs.full_assurance) || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/integration/')) }}' = true ]; then
+            results="$results ${{ needs.full-assurance.result }}"
           fi
           echo "results: $results"
           for r in $results; do

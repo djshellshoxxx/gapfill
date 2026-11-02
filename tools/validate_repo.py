@@ -17,6 +17,7 @@ PARAM_RE = re.compile(r'X\s*\([^,]+,\s*"([^"]+)"\s*\)')
 PARAM_ID_RE = re.compile(r"^[a-z][A-Za-z0-9_]*$")
 GROUP_CHAIN_RE = re.compile(r"GAPFILL_PARAMS_([A-Z0-9_]+)\(X\)")
 GROUP_ORDER_FILE = "GROUP_ORDER"
+HOST_ORDER_FILE = "HOST_ORDER"
 
 PRESET_PARAM_RE = re.compile(r'\{\s*"([A-Za-z][A-Za-z0-9]*)"\s*,\s*([^"\s])')
 
@@ -169,6 +170,23 @@ def validate(root: Path) -> list[str]:
         if chain[: len(locked)] != locked:
             errors.append("GAPFILL_PARAMS group order changed (it is permanent and append-only): "
                           f"expected prefix {locked}, found {chain[: len(locked)]}")
+
+    # Per-group append-only checks cannot protect host indices: adding an ID to
+    # an earlier group shifts every later group, even when GROUP_ORDER is intact.
+    # This release manifest therefore locks the complete flattened prefix. New
+    # groups/IDs may follow it; released indices must never move.
+    host_order = read_lock(_read(root, f"tools/param_ids/{HOST_ORDER_FILE}", errors))
+    if not host_order:
+        errors.append("tools/param_ids/HOST_ORDER is empty (released host indices must be locked)")
+    for duplicate in duplicates(host_order):
+        errors.append(f"tools/param_ids/HOST_ORDER has duplicate ID: {duplicate}")
+    actual_order = [parameter_id for group in chain for parameter_id in groups.get(group.lower(), [])]
+    for index, expected in enumerate(host_order):
+        actual = actual_order[index] if index < len(actual_order) else "<missing>"
+        if actual != expected:
+            errors.append(f"released host parameter index {index} changed: expected '{expected}', found '{actual}'; "
+                          "append new parameter groups after the released tail, never inside earlier groups")
+            break
 
     known = set(parameter_ids)
     for preset_id in sorted(set(extract_preset_parameter_ids(presets))):

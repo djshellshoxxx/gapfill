@@ -15,6 +15,7 @@
 //  * No allocation, no locks. Everything is plain data.
 
 #include "../../dsp/FillRecipe.h"
+#include "../../dsp/RecipeExtras.h"
 
 namespace gapfill
 {
@@ -30,6 +31,7 @@ struct LockState
 
     FillRecipe lastNatural;            ///< latest started natural fill (previews excluded)
     bool haveLast = false;
+    RecipeExtras extras, lastNaturalExtras;
 
     /** True while fills must be replaced by `recipe`. */
     bool substituting() const noexcept     { return engaged && valid && ! armed; }
@@ -44,6 +46,7 @@ struct LockState
             if (! explicitSet && haveLast)
             {
                 recipe = lastNatural;
+                extras = lastNaturalExtras;
                 valid = true;
                 armed = false;
                 dirty = true;
@@ -62,15 +65,17 @@ struct LockState
     }
 
     /** A natural fill started (called from noteFillStarted, never for previews). */
-    void noteStarted (const FillRecipe& r) noexcept
+    void noteStarted (const FillRecipe& r, const RecipeExtras& extra = {}) noexcept
     {
         lastNatural = r;
+        lastNaturalExtras = normalizeRecipeExtrasForAlgorithm (r.algo, extra);
         lastNatural.flags = (std::uint8_t) (lastNatural.flags & ~(FillRecipe::flagFromLock | FillRecipe::flagPreview));
         haveLast = true;
 
         if (engaged && armed)
         {
             recipe = lastNatural;
+            extras = lastNaturalExtras;
             valid = true;
             armed = false;
             dirty = true;
@@ -78,12 +83,13 @@ struct LockState
     }
 
     /** LockRecipe command (History "Lock this", state restore). Invalid recipes are ignored. */
-    void setExplicit (const FillRecipe& r) noexcept
+    void setExplicit (const FillRecipe& r, const RecipeExtras& extra = {}) noexcept
     {
-        if (! isValid (r))
+        if (! isValid (r) || ! isValid (extra))
             return;
 
         recipe = r;
+        extras = normalizeRecipeExtrasForAlgorithm (r.algo, extra);
         recipe.flags = (std::uint8_t) (recipe.flags & ~(FillRecipe::flagFromLock | FillRecipe::flagPreview));
         valid = true;
         explicitSet = true;
@@ -97,6 +103,7 @@ struct LockState
         if (haveLast)
         {
             recipe = lastNatural;
+            extras = lastNaturalExtras;
             valid = true;
             explicitSet = true;
             armed = false;
@@ -112,6 +119,7 @@ struct LockState
     void clear() noexcept
     {
         valid = false;
+        extras = {};
         explicitSet = false;
         armed = engaged;
         dirty = true;
@@ -121,6 +129,7 @@ struct LockState
     void resetRuntime() noexcept
     {
         haveLast = false;
+        lastNaturalExtras = {};
         engaged = false;
         armed = false;
     }

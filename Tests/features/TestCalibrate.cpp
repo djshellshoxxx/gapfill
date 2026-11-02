@@ -10,6 +10,9 @@
 #include "features/calibrate/Session.h"
 
 #include <iostream>
+#include <array>
+#include <barrier>
+#include <thread>
 
 using namespace gapfill;
 using namespace gapfill::calibrate;
@@ -18,6 +21,18 @@ using namespace gftest;
 namespace
 {
     constexpr double kSr = 48000.0;
+
+    struct PausedTapWrite
+    {
+        std::barrier<> entered { 2 }, resume { 2 };
+
+        static void pause (void* context)
+        {
+            auto& self = *static_cast<PausedTapWrite*> (context);
+            self.entered.arrive_and_wait();
+            self.resume.arrive_and_wait();
+        }
+    };
 
     std::vector<float> mono (const juce::AudioBuffer<float>& b)
     {
@@ -237,6 +252,57 @@ GF_TEST (Calibrate, tap_records_exact_length_and_never_allocates_on_the_audio_th
     tap.cancel();
     tap.write (block.data(), 512);
     GF_EXPECT (tap.getState() == RecordTap::State::Cancelled && tap.getFramesWritten() == 0);
+}
+
+GF_TEST (Calibrate, cancelled_tap_refuses_reallocation_until_entered_writer_returns)
+{
+    RecordTap tap;
+    GF_EXPECT (tap.allocate (kSr) && tap.start (4, kSr));
+    PausedTapWrite paused;
+    tap.setBeforeWriteForTests (&PausedTapWrite::pause, &paused);
+    std::array<float, 512> input {};
+    std::jthread audio ([&] { tap.write (input.data(), (int) input.size()); });
+    paused.entered.arrive_and_wait();
+
+    tap.cancel();
+    const bool reallocated = tap.allocate (96000.0);
+    const auto rateWhileWriting = tap.getAllocatedRate();
+    paused.resume.arrive_and_wait();
+    audio.join();
+    tap.setBeforeWriteForTests (nullptr, nullptr);
+
+    GF_EXPECT (! reallocated);
+    GF_EXPECT (rateWhileWriting == kSr);
+    GF_EXPECT (tap.getState() == RecordTap::State::Cancelled);
+    GF_EXPECT (tap.allocate (96000.0) && tap.start (4, 96000.0));
+    GF_EXPECT (tap.getFramesWritten() == 0);
+    tap.write (input.data(), (int) input.size());
+    GF_EXPECT (tap.getFramesWritten() == (std::int64_t) input.size());
+}
+
+GF_TEST (Calibrate, cancelled_tap_refuses_restart_until_entered_writer_returns)
+{
+    RecordTap tap;
+    GF_EXPECT (tap.allocate (kSr) && tap.start (4, kSr));
+    PausedTapWrite paused;
+    tap.setBeforeWriteForTests (&PausedTapWrite::pause, &paused);
+    std::array<float, 512> input {};
+    std::jthread audio ([&] { tap.write (input.data(), (int) input.size()); });
+    paused.entered.arrive_and_wait();
+
+    tap.cancel();
+    tap.reset();
+    const bool restarted = tap.start (4, kSr);
+    paused.resume.arrive_and_wait();
+    audio.join();
+    tap.setBeforeWriteForTests (nullptr, nullptr);
+
+    GF_EXPECT (! restarted);
+    GF_EXPECT (tap.getState() == RecordTap::State::Idle);
+    GF_EXPECT (tap.start (4, kSr));
+    GF_EXPECT (tap.getFramesWritten() == 0);
+    tap.write (input.data(), (int) input.size());
+    GF_EXPECT (tap.getFramesWritten() == (std::int64_t) input.size());
 }
 
 GF_TEST (Calibrate, session_records_analyses_applies_and_reverts)

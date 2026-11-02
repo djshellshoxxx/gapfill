@@ -1,5 +1,7 @@
 #include "Panels.h"
 #include "../features/info/ParamInfo.h"
+#include "../features/i18n/Strings.h"
+#include "../features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -176,11 +178,8 @@ void CreativePanel::resized()
 
     if (simpleView)
     {
-        // Simple: the five macros on top, Fill Type underneath; the CreativeExtra cell (Capture) keeps a spot.
-        auto row = b.removeFromBottom (24);
-        constexpr int gap = 6;
-        const auto cell = juce::jmax (190, (row.getWidth() - gap * 3) / 4);   // CAPTURE + AUDITION + SHAPE share this cell (>= 3 x 60 px so no label is cut)
-        extraSlotBounds = row.removeFromLeft (cell);
+        // Feature launchers share two full-width rows so translated captions fit.
+        extraSlotBounds = b.removeFromBottom (56);
         b.removeFromBottom (5);
         fillType.setBounds (b.removeFromBottom (34).withWidth (juce::jmax (140, b.getWidth() / 3)));
         b.removeFromBottom (6);
@@ -188,15 +187,7 @@ void CreativePanel::resized()
         return;
     }
 
-    {
-        // Four equal cells; the fourth is reserved for Slot::CreativeExtra.
-        auto row = b.removeFromBottom (24);
-        constexpr int gap = 6;
-        const auto w = juce::jmax (190, (row.getWidth() - gap * 3) / 4);   // CAPTURE + AUDITION + SHAPE share this cell (>= 3 x 60 px so no label is cut)
-        layoutRow (row.removeFromLeft (row.getWidth() - w - gap), { &sync, &pingPong, &monoWet });
-        row.removeFromLeft (gap);
-        extraSlotBounds = row.withWidth (w);
-    }
+    extraSlotBounds = b.removeFromBottom (56);
     b.removeFromBottom (5);
 
     layoutRow (b.removeFromBottom (34), { &fillType, &stutterDiv, &delayDiv });
@@ -205,8 +196,16 @@ void CreativePanel::resized()
     auto smallRow = b.removeFromBottom (juce::jlimit (46, 62, b.getHeight() / 3));
     b.removeFromBottom (6);
 
-    // Seed and width sit beside each other, leaving the macros the whole top.
-    layoutRow (smallRow, { &seed, &width });
+    // Keep the timing/routing switches beside Seed and Width; feature launchers
+    // get their own full-width area below without changing the outer editor.
+    auto settingsRow = smallRow;
+    const auto widthPerSetting = (settingsRow.getWidth() - 4 * 8) / 5;
+    for (auto* control : std::initializer_list<juce::Component*> { &seed, &width, &sync, &pingPong, &monoWet })
+    {
+        auto cell = settingsRow.removeFromLeft (widthPerSetting);
+        control->setBounds (control == &seed || control == &width ? cell : cell.withSizeKeepingCentre (cell.getWidth(), 24));
+        settingsRow.removeFromLeft (8);
+    }
     layoutRow (b, { &fill, &intensity, &complexity, &chaos, &density }, 8);
 }
 
@@ -456,8 +455,9 @@ void SpectralPanel::paint (juce::Graphics& g)
         g.fillRoundedRectangle (filled, 3.0f);
 
         g.setColour (colours::textDim);
-        g.setFont (juce::Font (juce::FontOptions (9.5f)));
-        g.drawText (lanes[i].confidence > 0.55f ? "SPACE AVAILABLE" : "BUSY",
+        const auto status = i18n::text (lanes[i].confidence > 0.55f ? "SPACE AVAILABLE" : "BUSY");
+        g.setFont (i18n::fontForText (juce::Font (juce::FontOptions (9.5f)), status));
+        g.drawText (status,
                     bounds.reduced (5.0f, 0.0f).toNearestInt(), juce::Justification::centredLeft);
     }
 }

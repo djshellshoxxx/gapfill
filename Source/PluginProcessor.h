@@ -25,11 +25,18 @@
 #include "features/ui/UiState.h"
 #include "features/scdrive/ScDrive.h"
 #include "features/midiout/MidiOut.h"
+#include "features/midiout/MidiScheduler.h"
 #include "features/quality/Quality.h"
 #include "features/coop/Coop.h"
+#include "features/transport/TransportTracker.h"
+#include "features/modelversions/ModelVersions.h"
+#include "features/wetbus/OutputRouting.h"
+#include "features/tail/TailPrediction.h"
 
 namespace gapfill
 {
+
+namespace state { class SavedStateCache; }
 
 //==============================================================================
 class GapFillAudioProcessor  : public juce::AudioProcessor,
@@ -59,7 +66,7 @@ public:
     bool acceptsMidi() const override                    { return true; }
     bool producesMidi() const override                   { return midiout::kDeclared; }
     bool isMidiEffect() const override                   { return false; }
-    double getTailLengthSeconds() const override         { return 2.5; }
+    double getTailLengthSeconds() const override;
 
     juce::AudioProcessorParameter* getBypassParameter() const override { return bypassParameter; }
 
@@ -121,12 +128,20 @@ public:
     /** WP10 routing & system. */
     const scdrive::SidechainOnsetTracker& getScTracker() const noexcept   { return scTracker; }       // F-L13
     midiout::MidiOutEmitter& getMidiOut() noexcept                         { return midiOut; }         // F-L11
+    const midiout::MidiScheduler& getExtendedMidiOut() const noexcept { return extendedMidiOut; }
     /** F-L11 Options value: shifts the note time-stamps by -100..+100 ms (hosts that do not delay MIDI by PDC). */
     void setMidiOutOffsetMs (double ms) noexcept    { midiOutOffsetMs.store (juce::jlimit (-(double) midiout::kMaxOffsetMs, (double) midiout::kMaxOffsetMs, ms), std::memory_order_relaxed); }
     double getMidiOutOffsetMs() const noexcept      { return midiOutOffsetMs.load (std::memory_order_relaxed); }
     const quality::QualityController& getQualityController() const noexcept { return qualityCtl; }    // F-D03
     int getAppliedQualityLevel() const noexcept     { return appliedQuality.load (std::memory_order_relaxed); }
     const coop::CoopMember& getCoop() const noexcept                       { return coopMember; }      // F-X06
+    coop::CoopMember& getCoop() noexcept                                   { return coopMember; }
+
+    /** Message-thread version selection; the getter is an atomic audio-safe snapshot. */
+    models::ModelVersions getModelVersions() const noexcept;
+    void setModelVersions (models::ModelVersions, bool notifyHost);
+    void syncModelVersions();
+    void upgradeModels();
 
     /** WP11 UI shell state: status board, Simple/Advanced view mode (message thread). */
     ui::UiState& getUiState() noexcept                              { return uiState; }
@@ -136,7 +151,8 @@ public:
     // Cross-thread queues (docs/dev/02 F0-4)
 
     /** Message thread only (single producer). Returns false if the queue is full. */
-    bool postCommand (const Command& command) noexcept   { return commands.push (command); }
+    bool postCommand (const Command& command) noexcept;
+    std::uint32_t getRejectedLockCommands() const noexcept { return rejectedLockCommands.load (std::memory_order_relaxed); }
 
     /** Message thread. Moves audio-thread fill events into the history and the
         outcome log; also called by the 15 Hz timer. Returns how many were drained. */
@@ -230,6 +246,7 @@ public:
     const AnalysisEngine& getAnalysis() const noexcept { return analysis; }
     int getActiveLatencySamples() const noexcept { return meters.latencySamples.load(); }
     std::int64_t getSourceHistoryWritePosition() const noexcept { return history.getWritePosition(); }
+    std::int64_t getTimelinePosition() const noexcept { return publishedOutputPosition.load (std::memory_order_acquire); }
    #ifdef GAPFILL_UNIT_TESTS
     void flushLatencyReportForTests() { timerCallback(); }
     int getTransportJumpCountForTests() const noexcept { return transportJumpCountForTests; }
@@ -238,19 +255,36 @@ public:
 private:
     void timerCallback() override;
     void drainCommands() noexcept;
+    void dispatchFeatureCommand (const gapfill::Command&) noexcept;
+    void publishRecipeTargets() noexcept;
+    void startTimelineEpoch() noexcept;
     void parameterChanged (const juce::String& parameterID, float newValue) override;
     void processChunk (juce::AudioBuffer<float>& buffer, int startSample, int numSamples, bool bypassed);
-    EngineSettings gatherEngineSettings();
-    AnalysisSettings gatherAnalysisSettings (bool sidechainActive) const;
+    EngineSettings gatherEngineSettings (int startSample);
+    AnalysisSettings gatherAnalysisSettings (bool sidechainActive, int startSample) const;
     void updateTempoInfo (EngineSettings& settings, int startSample, int numSamples);
+    void beginHostCallbackTiming();
+    scenes::TransportSnap sceneTransportAt (int startSample, int numSamples) const noexcept;
+    int sceneSegmentLength (int startSample, int numSamples) noexcept;
+    coop::DeterministicConfig gatherCoopConfig() const noexcept;
+    void pumpCoop();
     bool isParameterStateValid (const juce::ValueTree& state) const;
     void snapParametersToState();
-    void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); midiOut.requestFlush(); }
+    void panicWet() noexcept { engine.panic(); fxChain.fadeOut ((int) (currentSampleRate * 0.004)); midiOut.requestFlush(); extendedMidiOut.requestFlush(); }
     void clearWetBus (juce::AudioBuffer<float>&) noexcept;          // F-L12
     /** Input, Output, Sidechain, plus the optional "Wet" output (F-L12; not for Audio Unit, see wetbus::isDeclared).
         A static member because BusesProperties is protected in juce::AudioProcessor. */
     static BusesProperties makeBuses();
     midiout::Settings gatherMidiOutSettings() const noexcept;       // F-L11
+    modulation::DecisionInputs modulationPosition (const EngineSettings&, std::int64_t outputPos,
+                                                    bool canonical) const noexcept;
+    void updateContextForChunk (EngineSettings&, int numSamples) noexcept;
+    void prepareModulatedBus (EngineSettings& bus, const EngineSettings& raw, int numSamples) const noexcept;
+    midiout::MidiOutSettings gatherExtendedMidiOutSettings() const noexcept;
+    void beginMidiOutput (juce::MidiBuffer&, int numSamples, bool bypassed) noexcept;
+    void adoptPendingLockRestore() noexcept;
+    void finishMidiOutput (juce::MidiBuffer&) noexcept;
+    void collectEarlyMidiHits (std::int64_t start, int numSamples) noexcept;
 
     //==========================================================================
     juce::AudioProcessorValueTreeState apvts;
@@ -270,16 +304,25 @@ private:
     // WP10 routing & system (docs/architecture/MODULES.md)
     scdrive::SidechainOnsetTracker scTracker;        // F-L13: fed only while a gate / snap is set and the sidechain is connected
     midiout::MidiOutEmitter midiOut;                 // F-L11
+    midiout::MidiScheduler extendedMidiOut;
+    midiout::EngineEventBuffer extendedMidiEvents, earlyMidiEvents;
+    bool extendedMidiOwner = false;
     std::atomic<double> midiOutOffsetMs { 0.0 };
     quality::QualityController qualityCtl;           // F-D03
     std::atomic<int> appliedQuality { 0 };
+    std::atomic<int> stateSaveFailure { 0 }; // 1: prior valid blob retained; 2: none available
+    std::unique_ptr<state::SavedStateCache> savedStateCache;
+    std::unique_ptr<harmonic::psola::PitchSourceRouter> pitchSource;
+    tail::PublishedBounds preparedTailBounds;
     coop::CoopMember coopMember;                     // F-X06: claims a registry slot only while coopGroup != Off
 
     MeterState meters;
     VisualisationFifo viz;
+    std::uint32_t timelineEpoch = 0; // one audio/prepare owner; stamped into both timeline streams
     ShapingRuntime shaping;
 
     CommandQueue    commands;        // message -> audio, drained once per block
+    std::atomic<std::uint32_t> rejectedLockCommands { 0 };
     FillEventQueue  fillEvents;      // audio -> message, drained by the timer
     RecipeHistory   recipeHistory;   // message thread only (survives the editor)
     GapOutcomeLog   outcomeLog;      // message thread only
@@ -297,6 +340,7 @@ private:
     int   delayWrite = 0;
     int   currentLatency = 0;
     int   targetLatency = 0;
+    int   segmentLatencySamples = 0; // pinned before the modulation grid split
     int   latencyCrossfade = 0;
     int   latencyCrossfadeLength = 0;
     int   pendingLatencyFrom = 0;
@@ -307,6 +351,7 @@ private:
     int   mainChannels = 2;
 
     std::int64_t samplesProcessed = 0;
+    std::atomic<std::int64_t> publishedOutputPosition { 0 };
     int hostBlockSamples = 0; // total frames in the current DAW callback (not its current chunk)
 
     HighPass2 lowProtect[2];
@@ -315,10 +360,11 @@ private:
     BandSplitter soloSplitter;
 
     juce::SmoothedValue<float> dryGain, wetGain, outGain, centreProtect, widthAmount, bypassMix;
+    wetbus::LevelSmoother wetBusLevel;
 
-    double lastPpqPosition = 0.0; // projected PPQ at the next DAW callback
-    bool   lastTransportPlaying = false;
-    bool   lastTransportPositionValid = false;
+    transport::TransportTracker transportTracker;
+    transport::HostTiming hostTiming;
+    std::atomic<std::uint32_t> modelVersionsPacked { 0x02020202u };
    #ifdef GAPFILL_UNIT_TESTS
     int transportJumpCountForTests = 0;
    #endif

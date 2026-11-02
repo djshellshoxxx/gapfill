@@ -80,7 +80,7 @@ GF_TEST (State, reserved_subtree_caps_fit_the_total_budget)
         sum += d.maxBytes;
 
     GF_EXPECT (sum <= state::kTotalSubtreeBudget);
-    GF_EXPECT (state::reservedSubtrees().size() == 14);   // 11 reserved + Mutation (F-L17, WP11) + <Key> (F-X03) + <Taste> (F-X05, WP7)
+    GF_EXPECT (state::reservedSubtrees().size() == 17);   // existing owners + ScenesV2/MacrosV2/V3; legacy rows stay read-only
 }
 
 GF_TEST (State, bad_oversized_and_absent_subtrees_fail_soft)
@@ -114,11 +114,15 @@ GF_TEST (State, total_budget_drops_later_subtrees)
     table[0].maxBytes = table[2].maxBytes = state::kTotalSubtreeBudget;
 
     juce::ValueTree root ("GAPFILL_STATE");
-    root.appendChild (makeTree ("Good", true, 40000), nullptr);
-    root.appendChild (makeTree ("Wide", true, 40000), nullptr);       // would exceed 64 KiB in total
+    const auto each = (int) (state::kTotalSubtreeBudget * 3 / 4);
+    root.appendChild (makeTree ("Good", true, each), nullptr);
+    root.appendChild (makeTree ("Wide", true, each), nullptr);
+    GF_EXPECT (state::serialisedSize (root.getChild (0)) <= state::kTotalSubtreeBudget);
+    GF_EXPECT (state::serialisedSize (root.getChild (0)) + state::serialisedSize (root.getChild (1)) > state::kTotalSubtreeBudget);
 
     const auto plan = state::planSubtrees (root, table);
     GF_EXPECT (plan.toApply.size() == 1 && plan.dropped.size() == 1);
+    GF_EXPECT (juce::String (plan.toApply[0].first->name) == "Good" && juce::String (plan.dropped[0]->name) == "Wide");
 }
 
 GF_TEST (State, corrupt_optional_subtree_never_blocks_the_parameters)
@@ -162,4 +166,27 @@ GF_TEST (State, bad_parameter_value_still_rejects_the_whole_state)
     juce::AudioProcessor::copyXmlToBinary (*root.createXml(), damaged);
     b.setStateInformation (damaged.getData(), (int) damaged.getSize());
     GF_EXPECT_NEAR (b.getValueTreeState().getRawParameterValue ("wet")->load(), 12.0, 1.0e-3);
+}
+
+GF_TEST (State, three_schema_supersession_prefers_valid_newest_and_falls_back_without_double_apply)
+{
+    GapFillAudioProcessor processor;
+    const std::vector<state::SubtreeDesc> descriptors {
+        { "Old", 256, validateKeepsFlag, applyRecord, nullptr, resetRecord },
+        { "Middle", 256, validateKeepsFlag, applyRecord, nullptr, resetRecord, "Old" },
+        { "Newest", 256, validateKeepsFlag, applyRecord, nullptr, resetRecord, "Middle", "Old" }
+    };
+    juce::ValueTree root ("Root");
+    root.appendChild (makeTree ("Old", true), nullptr);
+    root.appendChild (makeTree ("Middle", true), nullptr);
+    root.appendChild (makeTree ("Newest", true), nullptr);
+    for (const auto* expected : { "Newest", "Middle", "Old" })
+    {
+        appliedCount = resetCount = 0;
+        const auto plan = state::planSubtrees (root, descriptors);
+        GF_EXPECT (plan.toApply.size() == 1);
+        state::applyPlan (processor, plan);
+        GF_EXPECT (appliedCount == 1 && lastApplied == expected);
+        root.getChildWithName (expected).setProperty ("ok", false, nullptr);
+    }
 }

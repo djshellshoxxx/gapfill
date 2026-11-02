@@ -8,6 +8,7 @@
 // independent of host block size. Every field is NEUTRAL at its default.
 
 #include <cstdint>
+#include "../tapedamage/TapeSettings.h"
 
 namespace gapfill::fx
 {
@@ -30,6 +31,7 @@ struct CloudSettings
     float pitchCents = 100.0f;
     float spread01 = 0.6f;
     int   maxGrains = 48;       ///< F-D03 quality cap (Full 48, Balanced 32, Lite 16)
+    std::uint8_t modelVersion = 2; ///< Explicit metadata: old saved states select 1.
 };
 
 struct RatchetSettings
@@ -54,6 +56,7 @@ struct TapeSettings
 {
     float amount01 = 0.0f;      ///< master depth
     float wow01 = 0.3f, flutter01 = 0.3f, sat01 = 0.2f, dropout01 = 0.2f, splice01 = 0.0f;
+    float mixOverride01 = -1.0f; ///< MacroV3 only; negative retains released amount-as-wet behavior.
 };
 
 struct ScrubSettings
@@ -80,6 +83,7 @@ struct ResonatorSettings
     int   note = 60;            ///< MIDI note 24-96
     int   mode = 0;             ///< 0 Manual, 1 Scale degrees
     float decay01 = 0.5f, damp01 = 0.4f, spread01 = 0.3f;
+    float decaySeconds = -1.0f; ///< MacroV3 physical decay; negative retains released percent formula.
 };
 
 struct FsDelaySettings
@@ -150,6 +154,8 @@ struct FxSettings
 
     /** F-D03: multiplier on every bus-effect tail cap (Full 1.0, Balanced 0.5, Lite 0.25). */
     float tailCapScale = 1.0f;
+
+    TapeExtraSettings tapeExtra; ///< Explicit opt-in detailed Tape path; amount0 is exact legacy identity.
 
     /** True when any VoiceFx card could be active for a new fill. */
     bool anyVoiceFx() const noexcept

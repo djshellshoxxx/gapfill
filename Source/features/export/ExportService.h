@@ -14,10 +14,11 @@
 //    editor arms it (arm()) and keeps re-arming while a recipe drawer exists; it
 //    disarms itself 60 s after the last arm(). Disarmed means zero extra work.
 //  * A request {startPos, lengthSamples} (absolute output positions, as reported by
-//    FillEvent) goes through a one-slot mailbox: Idle -> Requested -> Copying ->
+//    FillEvent) goes through a one-slot mailbox: Idle -> Requested -> Claimed -> Copying ->
 //    Ready (or Failed). One request at a time: a second one while busy is Busy.
 //    The audio thread copies at most 4096 samples per block; the message thread
-//    reads the buffer only when Ready and then sets Idle.
+//    reads the buffer only when Ready and then sets Idle. Cancellation never
+//    releases Claimed/Copying storage before an audio acknowledgement.
 //  * The WAV is written on the message thread (WavExport.h); file I/O never happens
 //    on the audio thread. Errors are returned, never swallowed.
 //  * A sample-rate change (prepare) cancels any request and clears the ring.
@@ -30,6 +31,7 @@
 
 #include <atomic>
 #include <cstdint>
+#include <mutex>
 
 namespace gapfill::exporting
 {
@@ -41,11 +43,17 @@ inline constexpr double kMaxSegmentSeconds = 3.2;     ///< voice cap 3 s + lead-
 inline constexpr int    kCopyPerBlock      = 4096;
 inline constexpr std::uint32_t kDisarmAfterMs = 60000;
 
-enum class ExportState : int { Idle = 0, Requested, Copying, Ready, Failed };
+enum class ExportState : int { Idle = 0, Requested, Copying, Ready, Failed, Claimed };
 
 enum class RequestResult { Accepted, Busy, NoSpan, NotPrepared };
 
-enum class Failure : int { None = 0, TooOld, NotRecorded, TooLong };
+enum class Failure : int { None = 0, TooOld, NotRecorded, TooLong, Cancelled };
+
+struct ResultInfo
+{
+    double sampleRate = 0.0;
+    std::uint64_t generation = 0;
+};
 
 class ExportService
 {
@@ -65,8 +73,17 @@ public:
     /** Asks for a segment. Never blocks. */
     RequestResult request (const FillSpan& span) noexcept;
 
-    /** Cancels a request the audio thread has not started copying. */
+    /** Cancels only a request the audio thread has not claimed. */
     bool cancelPending() noexcept;
+
+    /** Logically cancels the current request. Requested/Ready can be released
+        immediately. Claimed/Copying remain audio-owned until its next callback
+        acknowledges cancellation; UI must never reuse their storage. */
+    bool cancel() noexcept;
+
+    /** Changes on prepare and each accepted request. UI can reject a pending
+        operation whose processor preparation was replaced. */
+    std::uint64_t getGeneration() const noexcept { return activeGeneration.load (std::memory_order_acquire); }
 
     ExportState getState() const noexcept       { return (ExportState) state.load (std::memory_order_acquire); }
 
@@ -74,8 +91,11 @@ public:
         goes back to Idle. When Failed: returns false, fills `why`, goes back to Idle.
         Returns false with `why == None` while still waiting. */
     bool take (juce::AudioBuffer<float>& out, Failure& why);
+    /** Captures result metadata in the same ownership transfer as its audio;
+        a later prepare cannot relabel an already completed result. */
+    bool take (juce::AudioBuffer<float>& out, Failure& why, ResultInfo&);
 
-    double getSampleRate() const noexcept       { return sr; }
+    double getSampleRate() const noexcept       { return publishedRate.load (std::memory_order_acquire); }
 
     std::atomic<float> bpm { 0.0f };            ///< published by the processor, for file names
 
@@ -94,8 +114,23 @@ public:
     long getSamplesWritten() const noexcept     { return samplesWritten.load (std::memory_order_relaxed); }
     int getMaxCopyPerBlock() const noexcept     { return maxCopyObserved.load (std::memory_order_relaxed); }
 
+   #ifdef GAPFILL_UNIT_TESTS
+    enum class ProbePoint { BeforeClaim, AfterClaim, BeforePublish, BeforeReadyStore, BeforePrepare };
+    using Probe = void (*) (void*, ProbePoint) noexcept;
+    /** Install before starting the audio worker; tests may gate one exact
+        ownership transition. Compiled out of production builds. */
+    void setProbeForTests (Probe callback, void* context) noexcept { probe = callback; probeContext = context; }
+   #endif
+
 private:
+    void retireCancelledResult() noexcept;    // message thread; terminal storage only
+    void failCopy (Failure) noexcept;         // audio thread
+    bool takeResult (juce::AudioBuffer<float>&, Failure&, ResultInfo*);
+    // Never touched by process(). Preparation is off-audio with callbacks
+    // stopped; UI operations try-lock and return immediately during reprepare.
+    std::mutex configuration;
     double sr = 0.0;
+    std::atomic<double> publishedRate { 0.0 };
     int ringSize = 0;
     int segmentCapacity = 0;
     juce::AudioBuffer<float> ring;
@@ -107,6 +142,8 @@ private:
     bool tapActive = false;             ///< was armed at the last block
     int copyCursor = 0, copyTotal = 0;
     std::int64_t copyStart = 0;
+    std::uint64_t tapGeneration = 0, copyTapGeneration = 0, copyGeneration = 0;
+    bool copyStarted = false;
 
     // message -> audio
     std::atomic<bool> armed { false };
@@ -114,11 +151,17 @@ private:
     std::atomic<int> state { (int) ExportState::Idle };
     std::int64_t reqStart = 0;          ///< published by state = Requested (release)
     int reqLength = 0;
+    std::uint64_t reqGeneration = 0, nextGeneration = 0; // message writes only while Idle
+    std::atomic<std::uint64_t> activeGeneration { 0 }, cancelledGeneration { 0 };
 
     std::atomic<int> failure { 0 };
     std::atomic<int> resultSamples { 0 };
     std::atomic<long> samplesWritten { 0 };
     std::atomic<int> maxCopyObserved { 0 };
+   #ifdef GAPFILL_UNIT_TESTS
+    Probe probe = nullptr;
+    void* probeContext = nullptr;
+   #endif
 };
 
 } // namespace gapfill::exporting

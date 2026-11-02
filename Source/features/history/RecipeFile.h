@@ -10,6 +10,7 @@
 // touches the current sound. Message thread only (file I/O).
 
 #include "../../dsp/FillRecipe.h"
+#include "../../dsp/RecipeExtras.h"
 
 #include <juce_core/juce_core.h>
 
@@ -25,6 +26,7 @@ struct RecipeFile
     juce::String error;          ///< user-facing reason when !ok
     FillRecipe recipe;
     juce::String name;
+    RecipeExtras extras {};
 };
 
 /** Printable, length-capped, no path separators (safe as a file name and a label). */
@@ -34,10 +36,11 @@ juce::String sanitiseRecipeName (const juce::String& name);
 juce::File defaultRecipeDirectory();
 
 /** The XML text for `recipe`. */
-juce::String recipeFileText (const FillRecipe& recipe, const juce::String& name);
+juce::String recipeFileText (const FillRecipe& recipe, const juce::String& name, const RecipeExtras& extras = {});
 
 /** Writes the file (creating the parent directory). False + `error` on failure. */
-bool writeRecipeFile (const juce::File&, const FillRecipe&, const juce::String& name, juce::String& error);
+bool writeRecipeFile (const juce::File&, const FillRecipe&, const juce::String& name, juce::String& error,
+                      const RecipeExtras& extras = {});
 
 RecipeFile parseRecipeText (const juce::String& text);
 RecipeFile readRecipeFile (const juce::File&);

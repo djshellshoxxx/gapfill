@@ -52,6 +52,9 @@ struct FxMeters
         cloudGrains.store (0, std::memory_order_relaxed);
         cloudLimited.store (false, std::memory_order_relaxed);
         cloudDropped.store (0, std::memory_order_relaxed);
+        hgF0.store (0.0f, std::memory_order_relaxed);
+        hgConfidence.store (0.0f, std::memory_order_relaxed);
+        hgState.store (0, std::memory_order_relaxed);
         tempoFallback.store (false, std::memory_order_relaxed);
     }
 };

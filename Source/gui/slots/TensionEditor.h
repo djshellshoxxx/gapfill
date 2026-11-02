@@ -12,6 +12,7 @@
 
 #include "../../features/tension/CurveEdit.h"
 #include "../../features/tension/Tension.h"
+#include "../../features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -66,6 +67,8 @@ private:
     juce::OwnedArray<juce::TextButton> laneButtons, shapeButtons;
     juce::TextButton resetButton { "RESET LANE" };
     juce::Label status;
+    std::uint64_t languageGeneration = 0;
+    std::unique_ptr<i18n::ComponentTranslator> translator;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TensionCurveEditor)
 };

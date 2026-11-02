@@ -4,6 +4,7 @@
 
 #include "PluginEditor.h"
 #include "features/tour/Tour.h"
+#include "features/i18n/Strings.h"
 
 using namespace gapfill;
 using namespace gftest;
@@ -108,6 +109,7 @@ GF_TEST (Tour, step3_falls_back_without_audition)
 
 GF_TEST (Tour, overlay_accessible_names_and_keyboard_walkthrough)
 {
+    i18n::ScopedLanguage language ("en");
     TempSettings t;
     settings::GlobalSettings s (t.file);
     tour::TourModel m (s, 3);
@@ -128,6 +130,28 @@ GF_TEST (Tour, overlay_accessible_names_and_keyboard_walkthrough)
     GF_EXPECT (overlay.getStepIndex() == 2 && ! closed);
     overlay.keyPressed (juce::KeyPress (juce::KeyPress::rightKey));      // DONE
     GF_EXPECT (closed && s.getInt (tour::kKeyDoneVersion, 0) == tour::kTourVersion);
+}
+
+GF_TEST (Tour, language_changes_reword_the_open_step_without_changing_tour_identity_or_progress)
+{
+    i18n::ScopedLanguage english ("en");
+    TempSettings temporary;
+    settings::GlobalSettings preferences (temporary.file);
+    tour::TourModel model (preferences, 3);
+    tour::TourOverlay overlay (tour::defaultSteps (false), model);
+    overlay.setSize (1020, 620);
+    overlay.pressNext();
+    const auto englishTitle = overlay.getCardTitle();
+    {
+        i18n::ScopedLanguage pseudo ("pseudo");
+        i18n::languageChanges().sendSynchronousChangeMessage();
+        GF_EXPECT (overlay.getCardTitle() != englishTitle);
+        GF_EXPECT (overlay.getCardTitle().contains ("2") && overlay.getCardTitle().contains ("3"));
+        GF_EXPECT (overlay.getStepIndex() == 1 && overlay.getStep().id == "fill");
+        GF_EXPECT (preferences.getInt (tour::kKeyDoneVersion, 0) == 0);
+    }
+    i18n::languageChanges().sendSynchronousChangeMessage();
+    GF_EXPECT (overlay.getCardTitle() == englishTitle);
 }
 
 GF_TEST (Tour, esc_counts_as_skip)

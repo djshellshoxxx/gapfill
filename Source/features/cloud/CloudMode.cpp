@@ -7,6 +7,19 @@
 
 namespace gapfill::fx
 {
+namespace
+{
+    constexpr int kEnergyProbes = 256;
+    float probePhase (int index) noexcept
+    {
+        // Fixed stratification breaks periodic-tone aliasing on a uniform
+        // probe grid, without consuming any random stream.
+        const auto bits = (std::uint32_t) (index + 1) * 0x9e3779b9u;
+        const auto fraction = ((float) (bits >> 8u) + 0.5f) / 16777216.0f;
+        return ((float) index + 0.25f + 0.5f * fraction) / kEnergyProbes;
+    }
+}
+
 
 CloudDensity limitCloudDensity (float densityHz, float sizeMs) noexcept
 {
@@ -38,6 +51,8 @@ bool CloudMode::configure (bool requested, const CloudSettings& settings, float 
 {
     reset();
     dropped = 0;
+    sourceRmsReady = false;
+    sourceRms = 0.0f;
 
     if (! requested)
         return false;
@@ -73,7 +88,7 @@ CloudGrain CloudMode::drawGrain (std::int64_t oldest) noexcept
 
     const auto sizeScale = 1.0f + 0.4f * (rng.nextFloat() - 0.5f);                 // +-20 %
     g.dur = std::max (16, (int) std::lround (sr * 0.001 * (double) s.sizeMs * (double) sizeScale));
-    g.tukey = s.sizeMs < 20.0f;
+    g.tukey = s.modelVersion == 2 || s.sizeMs < 20.0f;
 
     // Pitch: triangular within +-cents, optionally snapped to the scale.
     auto cents = (rng.nextFloat() + rng.nextFloat() - 1.0f) * s.pitchCents;
@@ -123,7 +138,44 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
     if (--countdown <= 0)
     {
         const auto oldest = history.getWritePosition() - (std::int64_t) history.getSize() + 2;
-        const auto g = drawGrain (std::max ((std::int64_t) 0, oldest));
+        auto g = drawGrain (std::max ((std::int64_t) 0, oldest));
+        if (s.modelVersion == 2)
+        {
+            constexpr int probes = kEnergyProbes;
+            if (! sourceRmsReady)
+            {
+                const auto start = std::max ((double) std::max ((std::int64_t) 0, oldest),
+                                             (double) anchor - (double) s.spanMs * 0.001 * sr);
+                double energy = 0.0;
+                for (int i = 0; i < probes; ++i)
+                {
+                    const auto position = start + ((double) anchor - start) * (double) probePhase (i);
+                    const auto a = history.read (0, position), b = history.read (channels > 1 ? 1 : 0, position);
+                    energy += 0.5 * ((double) a * a + (double) b * b);
+                }
+                sourceRms = (float) std::sqrt (energy / probes);
+                sourceRmsReady = true;
+            }
+            double energy = 0.0, weight = 0.0;
+            for (int i = 0; i < probes; ++i)
+            {
+                const auto phase = probePhase (i);
+                constexpr float edge = 0.125f; // model2 Tukey plateau75%
+                const auto w = phase < edge ? hann (0.5f * phase / edge)
+                             : (phase > 1.0f - edge ? hann (0.5f * (1.0f - phase) / edge) : 1.0f);
+                const auto position = g.pos + (double) phase * g.dur * g.rate;
+                const auto a = history.read (0, position), b = history.read (channels > 1 ? 1 : 0, position);
+                energy += 0.5 * ((double) a * a + (double) b * b) * w * w;
+                weight += (double) w * w;
+            }
+            const auto grainRms = (float) std::sqrt (energy / std::max (1.0, weight));
+            if (! std::isfinite (grainRms) || ! std::isfinite (sourceRms))
+                g.active = false;
+            else if (sourceRms < 1.0e-5f || grainRms < std::max (1.0e-5f, sourceRms * 0.01f))
+                g.sourceGain = 1.0f; // uncertain estimate: preserve narrow material without boosting it
+            else
+                g.sourceGain = std::clamp (sourceRms / grainRms, 0.25f, 4.0f);
+        }
         bool placed = false;
 
         for (int i = 0; i < grainCap; ++i)
@@ -142,11 +194,12 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
             ++dropped;
 
         const auto mean = sr / (double) dens.effective;
-        const auto jitter = 1.0 + 0.5 * (2.0 * (double) rng.nextFloat() - 1.0);     // +-50 %
+        const auto onsetSpread = s.modelVersion == 2 ? 0.05 : 0.5;
+        const auto jitter = 1.0 + onsetSpread * (2.0 * (double) rng.nextFloat() - 1.0);
         countdown = std::max (1, (int) std::lround (mean * jitter));
     }
 
-    float accL = 0.0f, accR = 0.0f;
+    float accL = 0.0f, accR = 0.0f, windowEnergy = 0.0f;
 
     for (auto& g : grains)
     {
@@ -158,7 +211,9 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
 
         if (g.tukey)
         {
-            constexpr float alpha = 0.5f;
+            // Model 2 keeps 75% of each grain flat. The shorter, still-smooth
+            // edges and actual-overlap gain avoid default-density holes.
+            const auto alpha = s.modelVersion == 2 ? 0.25f : 0.5f;
             const auto edge = alpha * 0.5f;
             w = phase < edge ? hann (0.5f * phase / edge)
                              : (phase > 1.0f - edge ? hann (0.5f * (1.0f - phase) / edge) : 1.0f);
@@ -171,8 +226,19 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
         const auto s0 = history.read (0, g.pos);
         const auto s1 = history.read (channels > 1 ? 1 : 0, g.pos);
 
-        accL += s0 * w * g.amp * g.panL;
-        accR += s1 * w * g.amp * g.panR;
+        if (s.modelVersion == 2)
+            windowEnergy += w * w * g.amp * g.amp;
+
+        if (s.modelVersion == 2)
+        {
+            accL += s0 * g.sourceGain * w * g.amp * g.panL;
+            accR += s1 * g.sourceGain * w * g.amp * g.panR;
+        }
+        else
+        {
+            accL += s0 * w * g.amp * g.panL;
+            accR += s1 * w * g.amp * g.panR;
+        }
 
         g.pos += g.rate;
 
@@ -180,8 +246,12 @@ bool CloudMode::generate (float& l, float& r, const SourceHistory& history, int 
             g.active = false;
     }
 
-    l = accL * norm;
-    r = accR * norm;
+    // Equal-power normalisation follows the actual overlap, including pan's
+    // fixed two-channel energy. The floor limits gain to 2 when a grain edge
+    // fades in/out; it never fills silence or changes source material.
+    const auto gain = s.modelVersion == 2 ? 0.5f / std::sqrt (std::max (0.0625f, windowEnergy)) : norm;
+    l = accL * gain;
+    r = accR * gain;
     return true;
 }
 

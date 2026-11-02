@@ -71,6 +71,7 @@ RejectReason apply (const LockState& lock, FillPlan& plan, const GapContext& ctx
 
     // ---- the plan ---------------------------------------------------------
     plan.recipe = locked;
+    plan.extras = lock.extras;
     plan.recipe.band = (std::int8_t) band;
     plan.recipe.lengthMs = (std::uint16_t) juce::jlimit (0, 65535, (int) std::lround (lengthMs));
     plan.recipe.lengthClass = lengthClassFor (lengthMs, s.maxFillMs);
@@ -78,8 +79,9 @@ RejectReason apply (const LockState& lock, FillPlan& plan, const GapContext& ctx
                                           | FillRecipe::flagFromLock);
 
     // A fresh seed per fill keeps repeats from being literal loops.
-    plan.recipe.seed = (std::uint32_t) hashCombine (hashCombine (ctx.key, kSalt_Lock),
-                                                    (std::uint64_t) (locked.algo + 1));
+    if (lock.extras.harmonic.version == 0)
+        plan.recipe.seed = (std::uint32_t) hashCombine (hashCombine (ctx.key, kSalt_Lock),
+                                                        (std::uint64_t) (locked.algo + 1));
 
     plan.algoIndex = locked.algo;
     plan.band = band;

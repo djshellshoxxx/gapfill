@@ -1,4 +1,5 @@
 #include "SceneController.h"
+#include "../modelversions/State.h"
 
 #include <cmath>
 
@@ -20,8 +21,14 @@ void SceneController::publishOverlay (Overlay::Kind kind)
     pub.publish (o);
 }
 
-bool SceneController::request (int index)
+bool SceneController::request (int index, bool fixedBoundary, double targetPpq, std::uint8_t group, std::uint64_t cancelEpoch)
 {
+    if (fixedBoundary && ! std::isfinite (targetPpq))
+    {
+        status = "The group scene boundary is invalid";
+        return false;
+    }
+
     if (index < 0 || index >= bank.size())
     {
         status = "Scene " + juce::String (index + 1) + " does not exist";
@@ -53,6 +60,26 @@ bool SceneController::request (int index)
     o.waitForTransport = bank.options.immediateWithoutTransport ? 0 : 1;
     pendingQuant = o.quant;
     pendingWait = o.waitForTransport;
+    o.fixedBoundary = fixedBoundary ? 1 : 0;
+    o.targetPpq = targetPpq;
+    pendingFixedBoundary = fixedBoundary;
+    pendingTargetPpq = targetPpq;
+    o.scopeVersion = scene.scopeVersion;
+    pendingScopeVersion = scene.scopeVersion;
+    o.externalGroup = group;
+    o.externalCancelEpoch = cancelEpoch;
+    pendingGroup = group;
+    pendingCancelEpoch = cancelEpoch;
+    o.modelDomains = (std::uint8_t) (((scene.scope & ScopeFx) != 0 ? ModelCloud : 0)
+        | ((scene.scope & ScopeMusical) != 0 ? ModelGroove : 0));
+    o.cloudModelVersion = scene.cloudModelVersion;
+    o.grooveModelVersion = scene.grooveModelVersion;
+    pendingModelDomains = o.modelDomains;
+    pendingCloudModelVersion = o.cloudModelVersion;
+    const auto versions = models::fromParameterState (apvts.state);
+    baselineCloudModelVersion = versions.cloud;
+    pendingGrooveModelVersion = o.grooveModelVersion;
+    baselineGrooveModelVersion = versions.groove;
     o.n = (std::uint16_t) resolved.size();
 
     for (size_t i = 0; i < resolved.size(); ++i)
@@ -72,6 +99,20 @@ bool SceneController::request (int index)
 bool SceneController::gotoScene (int index)
 {
     return request (index);
+}
+
+bool SceneController::gotoSceneAt (int index, double targetPpq, std::uint8_t group, std::uint64_t cancelEpoch)
+{
+    return request (index, true, targetPpq, group, cancelEpoch);
+}
+
+void SceneController::rejectPending (std::uint32_t requestId, const juce::String& reason)
+{
+    if (requestId != 0 && requestId == pendingId)
+    {
+        cancel();
+        status = reason;
+    }
 }
 
 int SceneController::clampStep (int from, int delta) const
@@ -146,7 +187,47 @@ bool SceneController::gotoLastGood()
 
 bool SceneController::saveCurrent (int index, const juce::String& name, std::uint16_t scope)
 {
-    return bank.store (index, captureScene (apvts, name, scope));
+    if (pendingIndex == index) cancel();
+    auto captured = captureScene (apvts, name, scope);
+    if (index >= 0 && index < bank.size()) captured.quant = bank.at (index).quant;
+    return bank.store (index, std::move (captured));
+}
+
+bool SceneController::renameScene (int index, const juce::String& name) { return bank.rename (index, name); }
+
+bool SceneController::setSceneQuant (int index, Quant quant)
+{
+    if (index < 0 || index >= bank.size() || (int) quant > (int) Quant::Phrase) return false;
+    if (pendingIndex == index) cancel();
+    bank.at (index).quant = quant;
+    return true;
+}
+
+bool SceneController::removeScene (int index)
+{
+    if (index < 0 || index >= bank.size()) return false;
+    cancel();
+    if (lastGood == index) lastGood = -1;
+    else if (lastGood > index) --lastGood;
+    return bank.remove (index);
+}
+
+bool SceneController::duplicateScene (int index)
+{
+    if (index < 0 || index >= bank.size() || bank.size() >= kMaxScenes) return false;
+    cancel();
+    if (lastGood > index) ++lastGood;
+    return bank.duplicate (index);
+}
+
+bool SceneController::moveScene (int from, int to)
+{
+    if (from < 0 || from >= bank.size() || to < 0 || to >= bank.size()) return false;
+    cancel();
+    if (lastGood == from) lastGood = to;
+    else if (from < lastGood && to >= lastGood) --lastGood;
+    else if (from > lastGood && to <= lastGood) ++lastGood;
+    return bank.move (from, to);
 }
 
 void SceneController::onApplied (std::uint32_t requestId)
@@ -175,6 +256,24 @@ void SceneController::onApplied (std::uint32_t requestId)
         }
     }
 
+    auto versions = models::fromParameterState (apvts.state);
+    bool modelCommitted = false;
+    if ((pendingModelDomains & ModelCloud) != 0 && versions.cloud == baselineCloudModelVersion)
+    {
+        versions.cloud = pendingCloudModelVersion;
+        modelCommitted = true;
+    }
+    if ((pendingModelDomains & ModelGroove) != 0 && versions.groove == baselineGrooveModelVersion)
+    {
+        versions.groove = pendingGrooveModelVersion;
+        modelCommitted = true;
+    }
+    if (modelCommitted)
+    {
+        models::writeToParameterState (apvts.state, versions);
+        if (modelVersionsCommitted) modelVersionsCommitted();
+    }
+
     committing = false;
 
     bank.current = pendingIndex;
@@ -195,10 +294,23 @@ void SceneController::onApplied (std::uint32_t requestId)
 
 void SceneController::poll()
 {
-    if (pendingId == 0 || committing || resolved.empty())
+    if (pendingId == 0 || committing)
         return;
 
     bool changed = false;
+    const auto versions = models::fromParameterState (apvts.state);
+    if ((pendingModelDomains & ModelCloud) != 0
+        && versions.cloud != baselineCloudModelVersion)
+    {
+        pendingModelDomains &= (std::uint8_t) ~ModelCloud;
+        changed = true;
+    }
+
+    if ((pendingModelDomains & ModelGroove) != 0 && versions.groove != baselineGrooveModelVersion)
+    {
+        pendingModelDomains &= (std::uint8_t) ~ModelGroove;
+        changed = true;
+    }
 
     for (size_t i = 0; i < resolved.size();)
     {
@@ -223,6 +335,14 @@ void SceneController::poll()
         o.id = pendingId;
         o.quant = pendingQuant;
         o.waitForTransport = pendingWait;
+        o.fixedBoundary = pendingFixedBoundary ? 1 : 0;
+        o.targetPpq = pendingTargetPpq;
+        o.scopeVersion = pendingScopeVersion;
+        o.externalGroup = pendingGroup;
+        o.externalCancelEpoch = pendingCancelEpoch;
+        o.modelDomains = pendingModelDomains;
+        o.cloudModelVersion = pendingCloudModelVersion;
+        o.grooveModelVersion = pendingGrooveModelVersion;
         o.n = (std::uint16_t) resolved.size();
 
         for (size_t i = 0; i < resolved.size(); ++i)
@@ -251,6 +371,7 @@ void SceneController::rememberForUndo()
 {
     undoBank.assign (bank);
     hasUndo = true;
+    importUndoAction = {};
 }
 
 bool SceneController::undoImport()
@@ -260,6 +381,9 @@ bool SceneController::undoImport()
 
     replaceBank (undoBank);
     hasUndo = false;
+    auto action = std::move (importUndoAction);
+    importUndoAction = {};
+    if (action) action();
     return true;
 }
 
@@ -269,6 +393,7 @@ void SceneController::reset()
     bank.clear();
     lastGood = -1;
     hasUndo = false;
+    importUndoAction = {};
     status = {};
 }
 

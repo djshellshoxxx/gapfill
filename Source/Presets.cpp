@@ -439,7 +439,10 @@ int randomiseParameters (juce::AudioProcessorValueTreeState& state,
                          bool everything,
                          juce::Random& random)
 {
-    const auto ids = everything ? randomisableParameterIDs() : creativeParameterIDs();
+    auto ids = everything ? randomisableParameterIDs() : creativeParameterIDs();
+    if (everything)
+        if (const auto* mode = state.getRawParameterValue ("fx01_mode"))
+            addHgextRandomAllIds (ids, mode->load (std::memory_order_relaxed) > 0.5f);
 
     for (const auto& id : ids)
     {

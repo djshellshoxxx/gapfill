@@ -26,6 +26,7 @@ bool validate (const juce::ValueTree& tree)
 void apply (GapFillAudioProcessor& proc, const juce::ValueTree& tree)
 {
     FillRecipe recipes[RecipeHistory::capacity];
+    RecipeExtras extras[RecipeHistory::capacity];
     int n = 0;
 
     for (int i = 0; i < tree.getNumChildren() && n < RecipeHistory::capacity; ++i)
@@ -33,10 +34,15 @@ void apply (GapFillAudioProcessor& proc, const juce::ValueTree& tree)
         FillRecipe r;
 
         if (recipecodec::decode (tree.getChild (i).getProperty ("b").toString(), r))
-            recipes[n++] = r;
+        {
+            recipes[n] = r;
+            recipecodec::decodeExtras (tree.getChild (i).getProperty ("x").toString(), extras[n]);
+            extras[n] = normalizeRecipeExtrasForAlgorithm (r.algo, extras[n]);
+            ++n;
+        }
     }
 
-    proc.getRecipeHistory().restore (recipes, n);
+    proc.getRecipeHistory().restore (recipes, n, extras);
 }
 
 juce::ValueTree serialise (const GapFillAudioProcessor& proc)
@@ -52,6 +58,9 @@ juce::ValueTree serialise (const GapFillAudioProcessor& proc)
     {
         juce::ValueTree entry ("R");
         entry.setProperty ("b", recipecodec::encode (h.get (i)), nullptr);
+        const auto extra = recipecodec::encodeExtras (h.getExtras (i));
+        if (extra.isNotEmpty())
+            entry.setProperty ("x", extra, nullptr);
         tree.appendChild (entry, nullptr);
     }
 

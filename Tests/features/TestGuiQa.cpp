@@ -13,6 +13,7 @@
 
 #include "PluginEditor.h"
 #include "features/presetbrowser/GlobalSettings.h"
+#include "features/i18n/Strings.h"
 
 #include <iostream>
 #include <set>
@@ -29,16 +30,22 @@ namespace
             file = juce::File::getSpecialLocation (juce::File::tempDirectory)
                      .getChildFile ("gapfill-guiqa-" + juce::String::toHexString (juce::Random::getSystemRandom().nextInt64()) + ".xml");
             settings::GlobalSettings::useFileForTests (file);
+            const auto wanted = juce::SystemStats::getEnvironmentVariable ("GF_GUI_LANGUAGE", "en");
+            language = std::make_unique<i18n::ScopedLanguage> (wanted);
+            GF_EXPECT_MSG (i18n::currentLanguage() == wanted, "Unknown GUI QA language: " + wanted);
+            settings::GlobalSettings::shared()->setString (settings::GlobalSettings::keyLanguage, wanted);
         }
 
         ~ScopedSettings()
         {
+            language.reset();
             settings::GlobalSettings::useFileForTests (juce::File::getSpecialLocation (juce::File::tempDirectory)
                                                          .getChildFile ("gapfill-guiqa-reset.xml"));
             file.deleteFile();
         }
 
         juce::File file;
+        std::unique_ptr<i18n::ScopedLanguage> language;
     };
 
     float textWidthOf (const juce::Font& font, const juce::String& text)
@@ -199,7 +206,7 @@ namespace
         bool scrub = false;      ///< Freeze & Scrub switched on (its Position / Width knobs show in the drawer)
     };
 
-    void maybeSnapshot (juce::Component& editor, const juce::String& file)
+    void maybeSnapshot (juce::Component& editor, const juce::String& file, float scale)
     {
         const auto dir = juce::SystemStats::getEnvironmentVariable ("GF_SCREENSHOT_DIR", {});
 
@@ -208,16 +215,13 @@ namespace
 
         juce::File target (dir);
         target.createDirectory();
-        auto image = editor.createComponentSnapshot (editor.getLocalBounds(), true, 1.0f);
+        auto image = editor.createComponentSnapshot (editor.getLocalBounds(), true, scale);
         juce::PNGImageFormat png;
         juce::FileOutputStream out (target.getChildFile (file + ".png"));
-
-        if (out.openedOk())
-        {
-            out.setPosition (0);
-            out.truncate();
-            png.writeImageToStream (image, out);
-        }
+        GF_EXPECT_MSG (out.openedOk(), "Cannot write screenshot " + file);
+        out.setPosition (0);
+        out.truncate();
+        GF_EXPECT_MSG (png.writeImageToStream (image, out), "Cannot encode screenshot " + file);
     }
 
     juce::StringArray runConfigs (const std::vector<Config>& configs, bool keyboard)
@@ -285,15 +289,12 @@ GF_TEST (GuiQa, layout_has_no_clipping_overlap_or_truncated_text_across_sizes_mo
     std::vector<Config> configs;
     const int sizes[][2] = { { 1020, 620 }, { 1100, 700 }, { 1800, 1000 } };
     const int scales[] = { 100, 125, 150, 200 };
-    int n = 0;
 
     for (const auto mode : { ui::ViewMode::Simple, ui::ViewMode::Advanced })
         for (int tab = 0; tab < 4; ++tab)
             for (const auto& sz : sizes)
-            {
-                const int scale = scales[n++ % 4];
-                configs.push_back ({ "matrix", mode, tab, sz[0], sz[1], scale, false });
-            }
+                for (const auto scale : scales)
+                    configs.push_back ({ "matrix", mode, tab, sz[0], sz[1], scale, false });
 
     for (const auto& sz : sizes)
     {
@@ -321,9 +322,7 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
 {
     // Only does something when GF_SCREENSHOT_DIR is set; always checks that a snapshot is non-empty and not flat.
     ScopedSettings scoped;
-    settings::GlobalSettings::shared()->setInt (settings::GlobalSettings::keyUiScale, 100);
-
-    struct Shot { const char* name; ui::ViewMode mode; int tab; int w, h; bool drawer; bool tour; bool scrub = false; };
+    struct Shot { const char* name; ui::ViewMode mode; int tab; int w, h; bool drawer; bool tour; bool scrub = false; int scale = 100; };
     const Shot shots[] = {
         { "main-simple-creative-1100x700", ui::ViewMode::Simple,   0, 1100, 700, false, false },
         { "main-advanced-creative-1100x700", ui::ViewMode::Advanced, 0, 1100, 700, false, false },
@@ -337,10 +336,17 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
         { "main-advanced-effects-drawer-scrub-min-1020x620", ui::ViewMode::Advanced, 0, 1020, 620, true, false, true },
         { "main-simple-effects-drawer-1100x700", ui::ViewMode::Simple, 0, 1100, 700, true, false, true },
         { "tour-1100x700", ui::ViewMode::Simple, 0, 1100, 700, false, true },
+        { "main-advanced-min-1020x620-scale150", ui::ViewMode::Advanced, 0, 1020, 620, false, false, false, 150 },
+        { "main-advanced-default-1100x700-scale150", ui::ViewMode::Advanced, 0, 1100, 700, false, false, false, 150 },
+        { "main-advanced-large-1800x1000-scale150", ui::ViewMode::Advanced, 0, 1800, 1000, false, false, false, 150 },
+        { "main-advanced-min-1020x620-scale200", ui::ViewMode::Advanced, 0, 1020, 620, false, false, false, 200 },
+        { "main-advanced-default-1100x700-scale200", ui::ViewMode::Advanced, 0, 1100, 700, false, false, false, 200 },
+        { "main-advanced-large-1800x1000-scale200", ui::ViewMode::Advanced, 0, 1800, 1000, false, false, false, 200 },
     };
 
     for (const auto& s : shots)
     {
+        settings::GlobalSettings::shared()->setInt (settings::GlobalSettings::keyUiScale, s.scale);
         GapFillAudioProcessor proc;
         prepareProcessor (proc, 48000.0, 512, false);
         proc.getUiState().setViewMode (s.mode);
@@ -357,6 +363,7 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
 
         GapFillAudioProcessorEditor editor (proc);
         editor.setSize (s.w, s.h);
+        editor.applyScaleForTests();
         editor.applyViewModeForTests();
         editor.selectTabForTests (s.tab);
 
@@ -381,8 +388,14 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
                               << " textColour=" << cb->findColour (juce::ComboBox::textColourId).toString() << std::endl;
         }
 
-        auto image = editor.createComponentSnapshot (editor.getLocalBounds(), true, 1.0f);
-        GF_EXPECT (image.getWidth() == s.w && image.getHeight() == s.h);
+        const auto applied = editor.getAppliedScalePercentForTests();
+        const auto rasterScale = (float) applied / 100.0f;
+        if (juce::SystemStats::getEnvironmentVariable ("GF_SCREENSHOT_DIR", {}).isNotEmpty())
+            GF_EXPECT_MSG (applied == s.scale, "Requested " + juce::String (s.scale) + " percent, but this display only permits "
+                           + juce::String (applied) + ". Capture with a 6000x4000 virtual display for the full matrix.");
+        auto image = editor.createComponentSnapshot (editor.getLocalBounds(), true, rasterScale);
+        GF_EXPECT (image.getWidth() == juce::roundToInt ((float) s.w * rasterScale)
+                    && image.getHeight() == juce::roundToInt ((float) s.h * rasterScale));
 
         // not a blank / single-colour page
         std::set<juce::uint32> colours;
@@ -392,6 +405,18 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
                 colours.insert (image.getPixelAt (x, y).getARGB());
 
         GF_EXPECT_MSG (colours.size() > 20, juce::String (s.name) + " renders nearly flat");
-        maybeSnapshot (editor, s.name);
+        maybeSnapshot (editor, s.name, rasterScale);
     }
+}
+
+GF_TEST (GuiQa, restored_size_is_clamped_before_the_first_layout)
+{
+    ScopedSettings settings;
+    GapFillAudioProcessor proc;
+    proc.setSavedEditorSize ({ 3200, 2200 });
+    GapFillAudioProcessorEditor editor (proc);
+    GF_EXPECT (editor.getWidth() <= 2600);
+    GF_EXPECT (editor.getHeight() <= 1800);
+    GF_EXPECT (proc.getSavedEditorSize().x == editor.getWidth());
+    GF_EXPECT (proc.getSavedEditorSize().y == editor.getHeight());
 }

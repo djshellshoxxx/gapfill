@@ -29,6 +29,7 @@ struct VizFrame
     // this header. flagRejected is set by E-3; flagPreview is E-1's.
     static constexpr std::uint8_t flagPreview     = 1 << 5;
     static constexpr std::uint8_t flagRejected    = 1 << 6;
+    static constexpr std::uint8_t flagDiscontinuity = 1 << 7;
 
     std::uint8_t flags = 0;
     std::uint8_t algo  = 0xFF;   // 0xFF = no fill
@@ -36,6 +37,13 @@ struct VizFrame
     std::uint8_t reason = 0;     // RejectReason when flagRejected is set (E-3)
     std::uint16_t availMs = 0;   // E-3: room that was available (whole ms, saturating)
     std::uint16_t needMs = 0;    // E-3: room that would have been needed (whole ms, saturating)
+    std::uint32_t posLo = 0;     // output sample position at the first accumulated hop
+    std::int32_t ppqTick = INT32_MIN; // PPQ * 96; invalid when the host supplied no position
+    std::uint32_t periodSamples = 64; // actual producer period, preserving compact decimation
+    std::uint8_t timeSigNumerator = 0, timeSigDenominator = 0; // 0 = unknown: show beats without guessed bar labels
+    static constexpr std::uint8_t protectionHit = 1, protectionNext = 2, protectionLookahead = 4;
+    std::uint8_t protectionKinds = 0; // classifications recorded by the engine, never inferred by the view
+    std::uint32_t timelineEpoch = 0, sampleRateHz = 0;
 };
 
 static_assert (std::is_trivially_copyable_v<VizFrame>, "VizFrame travels through a lock-free FIFO");
@@ -50,6 +58,25 @@ class VisualisationFifo
 {
 public:
     static constexpr int capacity = 4096;
+
+    using ReadObserver = void (*) (void*, const VizFrame*, int);
+
+    /** Message-thread only. Observes the existing consumer's drained frames;
+        it never creates a second FIFO consumer or calls GUI code from audio. */
+    void setReadObserver (void* context, ReadObserver callback) noexcept
+    {
+        observerContext = context;
+        observer = callback;
+    }
+
+    void clearReadObserver (void* context) noexcept
+    {
+        if (observerContext == context)
+        {
+            observer = nullptr;
+            observerContext = nullptr;
+        }
+    }
 
     void setEnabled (bool shouldBeEnabled) noexcept
     {
@@ -93,13 +120,18 @@ public:
         for (int i = 0; i < scope.blockSize2; ++i)
             dest[scope.blockSize1 + i] = data[(size_t) (scope.startIndex2 + i)];
 
-        return scope.blockSize1 + scope.blockSize2;
+        const auto copied = scope.blockSize1 + scope.blockSize2;
+        if (observer != nullptr)
+            observer (observerContext, dest, copied);
+        return copied;
     }
 
 private:
     juce::AbstractFifo fifo { capacity };
     std::vector<VizFrame> data = std::vector<VizFrame> ((size_t) capacity);   // heap: keeps the processor small on the stack
     std::atomic<bool> enabled { false };
+    void* observerContext = nullptr;
+    ReadObserver observer = nullptr;
 };
 
 //==============================================================================

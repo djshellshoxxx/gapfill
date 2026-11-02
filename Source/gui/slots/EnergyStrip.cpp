@@ -7,6 +7,7 @@
 #include "../SlotHost.h"
 #include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -64,9 +65,9 @@ namespace
             if (! on)
                 return;
 
-            static const char* names[] = { "Low", "Mid", "High" };
+            static const char* names[] = { "Energy: Low", "Energy: Mid", "Energy: High" };
             const auto lv = proc.getContextState().energyLevelForDisplay();
-            const juce::String text = lv >= 0 && lv <= 2 ? juce::String ("Energy: ") + names[lv] : juce::String ("Energy: learning...");
+            const juce::String text = i18n::text (lv >= 0 && lv <= 2 ? names[lv] : "Energy: learning...");
 
             if (badge.getText() != text)
                 badge.setText (text, juce::dontSendNotification);
