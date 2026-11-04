@@ -45,6 +45,9 @@ Read this before re-deriving anything. Newest first inside each section.
 - absorbed-branch check: merge-tree --write-tree <int-or-master> <branch> == that ref's tree.
 
 ## Pitfalls
+- Never put `git push` after `;` in a check chain: it runs even when the checks fail (pushed b95301f with a stale INVENTORY).
+- Any change to a Source/*.cpp string or line layout needs `python3 Source/features/i18n/build_catalog.py` (INVENTORY line numbers).
+- The i18n cap has three copies: Catalog.h, build_catalog.py, cmake/sources/i18n.cmake.
 - GuiQa needs a display: run the suite as `xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py <bin>`.
 - `pkill -f <pattern>` inside a bash -c whose command line contains the pattern kills itself (exit 144).
 - sizeof probe without linking: `template<size_t N,int T> struct Sz; Sz<sizeof(X),1> a;` + -fsyntax-only with the ninja command.
