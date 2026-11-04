@@ -177,7 +177,7 @@ GF_TEST (StateQa, populated_session_round_trip_is_byte_identical_and_stable)
     const auto before = saveState (a);
     renderOffline (a, drumLoop (48000.0, 150.0, 1), 300, 48000.0);
     const auto after = saveState (a);
-    GF_EXPECT_MSG (before == after, "processing audio changed the saved state");
+    GF_EXPECT_MSG (before == after, "processing audio changed the saved state; " + firstDifference (before, after));
 }
 
 GF_TEST (StateQa, garbage_truncated_and_flipped_blobs_never_crash_or_corrupt_parameters)

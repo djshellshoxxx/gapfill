@@ -498,25 +498,33 @@ GF_TEST (Audit, feature_parameters_are_never_randomised)
         if (harmonicRandomAll.contains (b.first))
             GF_EXPECT_MSG (p.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random Fill / Surprise");
 
-    // With the mode off, Random All leaves every feature parameter alone, the three included.
-    p.getValueTreeState().getParameter ("fx01_mode")->setValueNotifyingHost (0.0f);
+    // With the mode off (a fresh processor, so no mode switch is involved), Random All leaves every feature
+    // parameter alone, the three included.
+    GapFillAudioProcessor q;
+    std::vector<std::pair<juce::String, float>> offBefore;
 
-    for (const auto& b : before)
-        if (b.first != "fx01_mode")
-            p.getValueTreeState().getParameter (b.first)->setValueNotifyingHost (b.second);
+    for (int i = 66; i < ids.size(); ++i)
+    {
+        if (ids[i] == "fx01_mode")
+            continue;   // stays at its default, Off
+
+        auto* prm = q.getValueTreeState().getParameter (ids[i]);
+        const float v = prm->getDefaultValue() < 0.5f ? 0.8f : 0.2f;
+        prm->setValueNotifyingHost (v);
+        offBefore.emplace_back (ids[i], prm->getValue());
+    }
+
+    GF_EXPECT (q.getValueTreeState().getRawParameterValue ("fx01_mode")->load() < 0.5f);
 
     for (int round = 0; round < 3; ++round)
     {
-        p.randomise (true);
-        p.randomise (false);
-        p.surprise();
+        q.randomise (true);
+        q.randomise (false);
+        q.surprise();
     }
 
-    for (const auto& b : before)
-        if (b.first != "fx01_mode")
-            GF_EXPECT_MSG (p.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random / Surprise with Pitch Sync off");
-
-    GF_EXPECT (p.getValueTreeState().getRawParameterValue ("fx01_mode")->load() < 0.5f);
+    for (const auto& b : offBefore)
+        GF_EXPECT_MSG (q.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random / Surprise with Pitch Sync off");
 }
 
 //==============================================================================
