@@ -24,7 +24,7 @@ PROTECTED = {"GapFill", "Circuit Drift Labs", "VST3", "CLAP", "AU", "AAX", "MIDI
              "Hz", "kHz", "ms", "dB", "-inf", "+inf", "inf", "NaN", "nan",
              "UTF-8", "ASCII", "JSON", "XML", "true", "false", "yes", "no", "en", "pseudo"}
 ACCENTS = str.maketrans("AaEeIiOoUuCcNn", "ÁáËëÏïÖöÜüÇçÑñ")
-MAX_CATALOG_BYTES = 256 * 1024
+MAX_CATALOG_BYTES = 1024 * 1024  # mirrors Catalog.h maxCatalogBytes (owner decision 2026-11-04)
 
 
 def literals(source: str):
@@ -145,7 +145,7 @@ def catalog_text(catalog: dict[str, str], code: str = "language") -> str:
     """One canonical, compact JSON encoding; whitespace inside values is data."""
     encoded = json.dumps(catalog, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n"
     if len(encoded.encode("utf-8")) > MAX_CATALOG_BYTES:
-        raise ValueError(f"{code} catalog exceeds 256 KiB: {len(encoded.encode('utf-8'))} bytes; review protected/fragments first")
+        raise ValueError(f"{code} catalog exceeds 1 MiB: {len(encoded.encode('utf-8'))} bytes; review protected/fragments first")
     return encoded
 
 

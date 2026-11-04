@@ -5,7 +5,9 @@ never runs in DSP, host serialization, parameter identity or file protocols.
 Language is a per-user `GlobalSettings` preference, shared by editors in this
 loaded plug-in module; it is not project/preset data.
 
-`Resources/lang/<code>.json` is a flat UTF-8 dictionary, at most 256 KiB. The
+`Resources/lang/<code>.json` is a flat UTF-8 dictionary, at most 1 MiB (raised from 256 KiB by owner decision on
+2026-11-04: the +40% pseudo catalog of the 192 KB English text, and any full CJK
+translation, cannot fit 256 KiB). The
 source fragment embeds catalog bytes in a generated header used only by
 `Strings.cpp`, so adding a locale is a data-only change and does not change
 legacy/JUCE compiler flags. Catalogs validate completely before activation;
@@ -63,7 +65,7 @@ protocol IDs, structure tags, thread names and numeric character sets are pruned
 Plain HelpRegistrar bodies are cataloged at the actual split-paragraph sinks.
 Catalog JSON uses compact separators and one trailing newline; formatting
 whitespace is not part of a translation, while whitespace inside each value is
-preserved exactly. The generator and runtime retain the same strict 256 KiB
+preserved exactly. The generator and runtime retain the same strict 1 MiB
 UTF-8 byte cap. The inventory lexer skips C++ character literals and preserves
 digit separators, adjacent strings, comments and raw strings. XML keys, fixed
 directory names and character-validation alphabets remain inventoried as
