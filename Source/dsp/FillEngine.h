@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../features/midiout/EngineEvents.h"
+#include <memory>
 #include "../features/formant/FormantPool.h"
 
 #include "EngineEvents.h"
@@ -275,7 +276,10 @@ private:
     bool decisionPpqValid = false;
     double decisionPpq = 0.0;
     fx::ScrubVoice scrub;                     // F-M19 performance voice (independent of the scheduler)
-    momentary::HoldVoices holdVoices;         // F-M10 / F-S07 hold voices (outside the pool and the preview)
+    // F-M10 / F-S07 hold voices (outside the pool and the preview). Two full FillVoices (~28 KB): heap-owned,
+    // allocated in the constructor, so FillEngine stays inside the StackBudget guard; never reallocated.
+    std::unique_ptr<momentary::HoldVoices> holdVoicesStorage = std::make_unique<momentary::HoldVoices>();
+    momentary::HoldVoices& holdVoices = *holdVoicesStorage;
     SpectralSmear spectral;
     harmonic::psola::PitchMarks pitchMarks;
     fx::FxMeters* fxMeters = nullptr;

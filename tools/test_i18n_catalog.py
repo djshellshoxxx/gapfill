@@ -28,9 +28,10 @@ class CatalogTests(unittest.TestCase):
         self.assertIn("Français", encoded)
 
     def test_byte_cap_stays_strict_for_multibyte_utf8(self):
-        self.assertLessEqual(len(build_catalog.catalog_text({"s.ok": "é" * 8192}).encode("utf-8")), 256 * 1024)
-        with self.assertRaisesRegex(ValueError, "exceeds 256 KiB"):
-            build_catalog.catalog_text({"s.large": "é" * (128 * 1024)})
+        self.assertLessEqual(len(build_catalog.catalog_text({"s.ok": "é" * 8192}).encode("utf-8")), build_catalog.MAX_CATALOG_BYTES)
+        self.assertEqual(build_catalog.MAX_CATALOG_BYTES, 1024 * 1024)
+        with self.assertRaisesRegex(ValueError, "exceeds 1 MiB"):
+            build_catalog.catalog_text({"s.large": "é" * (512 * 1024)})
 
     def test_protocol_context_does_not_exclude_same_word_at_a_display_sink(self):
         cases = [
@@ -59,7 +60,7 @@ class CatalogTests(unittest.TestCase):
         pseudo = json.loads((build_catalog.LANG / "pseudo.json").read_text())
         for code in ("en", "pseudo"):
             data = (build_catalog.LANG / (code + ".json")).read_bytes()
-            self.assertLessEqual(len(data), 256 * 1024)
+            self.assertLessEqual(len(data), build_catalog.MAX_CATALOG_BYTES)
             data.decode("utf-8", errors="strict")
         for key, original in english.items():
             translated = pseudo[key]

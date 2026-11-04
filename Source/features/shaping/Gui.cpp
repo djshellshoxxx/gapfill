@@ -17,6 +17,7 @@ namespace
     constexpr int kKnobW = 72, kKnobH = 80;
     constexpr int kComboW = 132, kComboH = 40;
     constexpr int kToggleW = 120, kToggleH = 28;
+    constexpr int kCaptureStatusIndent = 120;   // clears the CAPTURE heading, also at +40% pseudo length
 
     juce::Rectangle<int> sizeOf (Cell::Kind k)
     {
@@ -298,13 +299,17 @@ int ShapePanel::layoutGroups (bool apply)
         {
             items.push_back ({ &recapture, 96, 26 });
             items.push_back ({ &release, 86, 26 });
-            items.push_back ({ &captureStatus, 200, 24 });
         }
 
         if (apply)
         {
             // The group title is painted at y; controls start below it.
             titleY.push_back (y);
+
+            // The capture status sits on the CAPTURE title line, right of the heading, so the Length / Detailed /
+            // Scan / Recapture / Release row stays one row inside kContentWidth.
+            if (title == "CAPTURE")
+                captureStatus.setBounds (kPad + kCaptureStatusIndent, y, right - kPad - kCaptureStatusIndent, kTitleHeight);
         }
 
         y += kTitleHeight;
