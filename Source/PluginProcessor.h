@@ -298,7 +298,10 @@ private:
     fx::FxUiState  fxUi;          // WP8: <Fx> state subtree (fold state, remembered amounts)
 
     MidiLearnManager midiLearn;
-    live::LiveControl liveControl { apvts };
+    // StackBudget (Tests/features/TestStackBudget.cpp): the ~53 KB live-control model lives on the heap,
+    // allocated here on the constructing (message) thread; the reference keeps every call site unchanged.
+    std::unique_ptr<live::LiveControl> liveControlStorage = std::make_unique<live::LiveControl> (apvts);
+    live::LiveControl& liveControl = *liveControlStorage;
     recipes::RecipeServices recipeServices;
 
     // WP10 routing & system (docs/architecture/MODULES.md)

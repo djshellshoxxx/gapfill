@@ -36,6 +36,9 @@ GF_TEST (ModulationPipeline, opt_in_decision_targets_precede_tension_and_send_sc
     GF_EXPECT_NEAR (decision.perf.fxSend01, .125f, 1e-6f);
     GF_EXPECT_NEAR (decision.fx.resonator.amount01, .1f, 1e-6f);
     GF_EXPECT_NEAR (decision.fx.tapeExtra.amount01, .5f, 1e-6f);
-    GF_EXPECT_NEAR (decision.fx.tapeExtra.mix01, .125f, 1e-6f);
+    // Since 042ccfe the detailed Tape mix is latched raw at the decision; the voice applies the combined
+    // send (perf.fxSend01 -> FillVoiceSetup::recipeReplaySend01, FillVoice.cpp) so a replayed recipe keeps
+    // its recorded mix. The send itself is asserted above (.125); DetailedVoice tests cover the voice side.
+    GF_EXPECT_NEAR (decision.fx.tapeExtra.mix01, 1.0f, 1e-6f);
     GF_EXPECT_NEAR (base.fx.resonator.amount01, .8f, 1e-6f);
 }
