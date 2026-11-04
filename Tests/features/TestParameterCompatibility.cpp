@@ -92,12 +92,14 @@ GF_TEST (ParameterCompatibility, detailed_feature_tail_order_and_neutral_default
 {
     GapFillAudioProcessor proc;
     const auto ids = allParameterIDs();
-    GF_EXPECT (ids.size() == 286);
+    GF_EXPECT (ids.size() == 298);   // + L21EXT 286..294 and BATTLEV2 295..297 (completion-plan reservations)
     GF_EXPECT (ids.indexOf ("fm23_macro5") == 242);
     GF_EXPECT (ids.indexOf ("fx01_mode") == 268);
     GF_EXPECT (ids.indexOf ("fm20_amount") == 275);
     GF_EXPECT (ids.indexOf ("fm20_mix") == 283);
     GF_EXPECT (ids.indexOf ("fm08_detail") == 284 && ids.indexOf ("fm08_scan") == 285);
+    GF_EXPECT (ids.indexOf ("fl21_mode") == 286 && ids.indexOf ("fl21_stereo") == 294);
+    GF_EXPECT (ids.indexOf ("fm18_on") == 295 && ids.indexOf ("fm18_first") == 297);
     GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fx01_mode")->load(), 0.0f, 0.0f);
     GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fm20_amount")->load(), 0.0f, 0.0f);
     GF_EXPECT_NEAR (proc.getValueTreeState().getRawParameterValue ("fm20_mix")->load(), 100.0f, 0.0f);

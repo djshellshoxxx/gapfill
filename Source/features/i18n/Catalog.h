@@ -7,7 +7,7 @@
 
 namespace gapfill::i18n
 {
-inline constexpr size_t maxCatalogBytes = 256 * 1024;
+inline constexpr size_t maxCatalogBytes = 1024 * 1024;   // owner decision 2026-11-04 (was 256 KiB)
 
 class Catalog
 {

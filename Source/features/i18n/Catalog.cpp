@@ -37,7 +37,7 @@ bool Catalog::load (const void* data, size_t bytes, juce::String& error, const C
     if (utf8 == nullptr || bytes == 0 || bytes > maxCatalogBytes || std::memchr (utf8, 0, bytes) != nullptr
         || ! juce::CharPointer_UTF8::isValidString (utf8, (int) bytes))
     {
-        error = "The language file must be valid UTF-8 and no larger than 256 KiB.";
+        error = "The language file must be valid UTF-8 and no larger than 1 MiB.";
         return false;
     }
     juce::var parsed;
@@ -77,7 +77,7 @@ bool Catalog::loadFile (const juce::File& file, juce::String& error, const Catal
 {
     if (! file.existsAsFile() || file.getSize() <= 0 || file.getSize() > (juce::int64) maxCatalogBytes)
     {
-        error = "The language file is missing or larger than 256 KiB.";
+        error = "The language file is missing or larger than 1 MiB.";
         return false;
     }
     juce::MemoryBlock bytes;

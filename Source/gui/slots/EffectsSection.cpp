@@ -139,7 +139,18 @@ const std::vector<CardDef>& cardDefinitions()
             { K::Button, "irAuto",    "Auto",       "Capture automatically on the first strong hit when no impulse is loaded.", true },
             { K::Button, "irSave",    "Save IR...", "Save the current impulse as a WAV file.", true },
             { K::Button, "irLoad",    "Load IR...", "Load a WAV impulse (1 second or shorter).", true },
-            { K::Button, "irClear",   "Clear IR",   "Forget the impulse; the card then passes the sound unchanged.", true } } },
+            { K::Button, "irClear",   "Clear IR",   "Forget the impulse; the card then passes the sound unchanged.", true },
+            // F-L21 detailed Hit Reverb (L21EXT): reserved host parameters, drawn disabled until the CV package
+            // wires the engine (docs/progress/F-L21-EXTENSION-CONTRACT-20261031.md). Flip `inactive` with it.
+            { K::Combo,  "fl21_mode",     "Mode",      "Detailed Hit Reverb (not active in this build yet).", true, true },
+            { K::Knob,   "fl21_mix",      "Mix",       "Detailed Hit Reverb return level (not active in this build yet).", true, true },
+            { K::Combo,  "fl21_source",   "Source",    "Detailed Hit Reverb impulse source (not active in this build yet).", true, true },
+            { K::Toggle, "fl21_hold",     "Hold",      "Keep the detailed impulse (not active in this build yet).", true, true },
+            { K::Knob,   "fl21_length",   "Length",    "Detailed impulse length (not active in this build yet).", true, true },
+            { K::Knob,   "fl21_preDelay", "Pre-delay", "Detailed impulse pre-delay (not active in this build yet).", true, true },
+            { K::Knob,   "fl21_damp",     "Damp",      "Detailed impulse damping (not active in this build yet).", true, true },
+            { K::Knob,   "fl21_decay",    "Decay",     "Detailed impulse decay (not active in this build yet).", true, true },
+            { K::Combo,  "fl21_stereo",   "Stereo",    "Detailed impulse stereo or mono (not active in this build yet).", true, true } } },
 
         { fx::CardId::SpFreeze, "Spectral Freeze", "sfzAmount",
           "Freezes the sound just before a gap into a sustained, evolving texture, optionally morphing between two captures.",
@@ -214,6 +225,7 @@ EffectCardView::EffectCardView (GapFillAudioProcessor& p, const CardDef& d)
             }
         }
 
+        comp->setEnabled (! c.inactive);
         addAndMakeVisible (*comp);
         controls.push_back (std::move (comp));
         haveAdvanced = haveAdvanced || c.advanced;

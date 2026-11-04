@@ -186,7 +186,8 @@ GF_TEST (MidiExtended, random_sequences_have_no_unpaired_notes_at_quiescent_poin
         account (block (scheduler, settings, events, start));
     }
     MidiOutSettings offSettings;
-    account (block (scheduler, offSettings, {}, 512000));
+    const EngineEventBuffer noEvents;   // named: GCC 13 rejects {} for this aggregate reference parameter
+    account (block (scheduler, offSettings, noEvents, 512000));
     for (const auto& channel : sounding)
         for (int count : channel)
             GF_EXPECT (count == 0);
@@ -202,7 +203,8 @@ GF_TEST (MidiExtended, identical_sample_retriggers_coalesce_without_extra_instru
     const auto result = block (scheduler, settings, events);
     GF_EXPECT (result.count == 1 && on (result.packets[0]));
     settings.on = false;
-    const auto ended = block (scheduler, settings, {}, 512);
+    const EngineEventBuffer noEvents;   // named: GCC 13 rejects {} for this aggregate reference parameter
+    const auto ended = block (scheduler, settings, noEvents, 512);
     GF_EXPECT (ended.count == 1 && off (ended.packets[0]));
 }
 
