@@ -37,7 +37,7 @@ preflight ┴─> unit-tests (Linux, FULL suite) ─┼─> build-windows-x64 (V
 | Job | Does | Does NOT |
 |---|---|---|
 | `changes` | `tools/ci_detect_native_changes.sh`: docs-only diff (`docs/`, `*.md`, `LICENSE`, `.gitignore`) => `native=false` | - |
-| `preflight` | `validate_repo.py`, `test_validate_repo.py`, `test_package_release.sh` (Win/Linux/mac fixtures), `test_ci_helpers.sh`, workflow YAML parse, `bash -n` on every script | build anything |
+| `preflight` | `validate_repo.py`, `test_validate_repo.py`, `test_package_release.sh` (Win/Linux/mac fixtures), `test_ci_helpers.sh`, `test_dev_build.sh` (build-target.sh mode/JOBS/target selection on a mock cmake), workflow YAML parse, `bash -n` on every script | build anything |
 | `unit-tests` | builds `GapFillTests` only; runs the **whole** suite (DSP, golden, state fixtures, Combinatorial) once; uploads `unit-test-results` | build plugin formats |
 | `build-*` | build the shipping formats for one platform, validate those exact binaries, upload a named artifact | run the full suite |
 
