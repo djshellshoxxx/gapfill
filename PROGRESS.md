@@ -43,8 +43,10 @@ Test counts in older session entries below (42, 48, 50, 87) are historical snaps
 - [ ] P4 capability packages (audit table order)
 - [ ] P5 assurance: FIN-2 fixtures, FIN-3 nightly, FIN-5 soak, PERF/ANALYSIS
 - [ ] P6 release: FIN-7 packaging/provenance, FIN-1/DOCS-RC truth pass, FIN-8 human acceptance pack
-- OWNER items open: doc 13 decisions 1-6; F-L20/F-X06/F-M03/Program Change scope conflict; i18n cap; merge #36/#32;
-  branch deletions; closing #27 #33 #11; permission to push more than one session branch
+- OWNER answered 2026-11-04: i18n cap 1 MiB; extra session branches allowed; F-L20/F-X06/F-M03/Program Change are
+  post-1.0; cleanup approved (#27 #33 #11 closed; the owner runs the 30 branch deletions).
+- OWNER items open: doc 13 decisions 1, 2, 3, 5; merge #36 -> integration, then #32 -> master (merge commit);
+  confirm the F-X01 Random All exception vs doc 12 C9
 
 ## Session log
 

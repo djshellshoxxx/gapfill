@@ -3,6 +3,10 @@
 Read this before re-deriving anything. Newest first inside each section.
 
 ## Decisions
+- OWNER 2026-11-04: (1) i18n cap -> 1 MiB (done on #36). (2) extra branches claude/stoic-brown-92wmta-<theme>
+  allowed. (3) F-L20 per-voice formant, F-X06 cross-process co-op, F-M03 editor growth, MIDI Program Change are
+  POST-1.0 (doc 13 governs; drop FORMANT/COOP cross-process/F-M03/PC rows from P4). (4) cleanup approved: #27 #33 #11
+  closed by the session; the 30 branch deletions must be run by the owner (session proxy: 403 on non-session refs).
 - 2026-11-04 P1: audit gaps closed on branch claude/stoic-brown-92wmta (based on integration 2c36731, master cea17ff merged).
   - TAPEXTRA lock = rename fm20.lock -> tapextra.lock (audit keys locks by macro suffix; validate_repo keys by
     header stem and only for headers whose stem == macro, so fm20.h is NOT checked by validate_repo; follow-up:
