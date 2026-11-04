@@ -43130,679 +43130,686 @@
     "english": "Capture: held ({0} s)",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.8a692a3925c0",
-    "line": 37,
+    "line": 38,
     "wiring": "explicit-translation"
   },
   {
     "english": "Capture: pending {0} %",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.bacbbcecf7ac",
-    "line": 38,
+    "line": 39,
     "wiring": "explicit-translation"
   },
   {
     "english": "Capture: off",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.100ffd81040a",
-    "line": 39,
+    "line": 40,
     "wiring": "explicit-translation"
   },
   {
     "english": "CHARACTER",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.19cd78f5eaf2",
-    "line": 50,
+    "line": 51,
     "wiring": "pending-sink-review"
   },
   {
     "english": "personality",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 51,
+    "line": 52,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Personality",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.95a295627e54",
-    "line": 51,
+    "line": 52,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Tilts which fills are chosen and nudges Density, Complexity, Chaos and Intensity.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.2a2068a9550e",
-    "line": 51,
+    "line": 52,
     "wiring": "pending-sink-review"
   },
   {
     "english": "evolve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 52,
+    "line": 53,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Evolve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.ebeb9bde8b6e",
-    "line": 52,
+    "line": 53,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Slowly drifts the fill character towards Surprise styles.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.3a5784a43b7a",
-    "line": 52,
+    "line": 53,
     "wiring": "pending-sink-review"
   },
   {
     "english": "FILL SHAPE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.a1b83df77c39",
-    "line": 54,
+    "line": 55,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fillShape",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 55,
+    "line": 56,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Shape",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.e0e492707f85",
-    "line": 55,
+    "line": 56,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How a fill develops over its own length.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.e2aa57b5f70d",
-    "line": 55,
+    "line": 56,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fillShapeAmount",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 56,
+    "line": 57,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Amount",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.49e96d7cdf58",
-    "line": 56,
+    "line": 57,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How strongly the shape is applied; 0 = off.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.d33b7a7d2055",
-    "line": 56,
+    "line": 57,
     "wiring": "pending-sink-review"
   },
   {
     "english": "mistakes",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 57,
+    "line": 58,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Mistakes",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.0079708aa0a9",
-    "line": 57,
+    "line": 58,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Chance of one small human flaw per fill.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.78f3b33f7122",
-    "line": 57,
+    "line": 58,
     "wiring": "pending-sink-review"
   },
   {
     "english": "DENSITY AND PHRASE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.d26ee95fd4d3",
-    "line": 59,
+    "line": 60,
     "wiring": "pending-sink-review"
   },
   {
     "english": "densityBreath",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 60,
+    "line": 61,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Breathing",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.762c550a6e42",
-    "line": 60,
+    "line": 61,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Swells Density up and down over a cycle of bars.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.747c625b93d1",
-    "line": 60,
+    "line": 61,
     "wiring": "pending-sink-review"
   },
   {
     "english": "densityBreathBars",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 61,
+    "line": 62,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Cycle",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.518653530449",
-    "line": 61,
+    "line": 62,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Length of one breathing cycle in bars.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.8973cdd07840",
-    "line": 61,
+    "line": 62,
     "wiring": "pending-sink-review"
   },
   {
     "english": "densityBreathDepth",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 62,
+    "line": 63,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Depth",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.f1dbc33978a9",
-    "line": 62,
+    "line": 63,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Size of the Density swing.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.9a57ca6cc7ce",
-    "line": 62,
+    "line": 63,
     "wiring": "pending-sink-review"
   },
   {
     "english": "densityBreathCurve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 63,
+    "line": 64,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Curve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.2a45c07314b2",
-    "line": 63,
+    "line": 64,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Shape of the swing.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.de7f5d00bc3b",
-    "line": 63,
+    "line": 64,
     "wiring": "pending-sink-review"
   },
   {
     "english": "phraseBars",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 64,
+    "line": 65,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phrase",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.159410b8c9be",
-    "line": 64,
+    "line": 65,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Length of your musical phrase; the last bar gets more fills.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.53a2a3c43016",
-    "line": 64,
+    "line": 65,
     "wiring": "pending-sink-review"
   },
   {
     "english": "phraseBias",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 65,
+    "line": 66,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Bias",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.5c2470002888",
-    "line": 65,
+    "line": 66,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How much more likely a fill is in the last bar of the phrase.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.1e33800852a2",
-    "line": 65,
+    "line": 66,
     "wiring": "pending-sink-review"
   },
   {
     "english": "phraseOffset",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 66,
+    "line": 67,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Offset",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.b1a1e8e3cf7c",
-    "line": 66,
+    "line": 67,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Shifts where the phrase starts, in bars.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.b4f16ab6b4c6",
-    "line": 66,
+    "line": 67,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fillBudget",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 67,
+    "line": 68,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Fills / bar",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.f4cbc9cc6dd0",
-    "line": 67,
+    "line": 68,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Most fills allowed to start in one bar.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.8668adcda170",
-    "line": 67,
+    "line": 68,
     "wiring": "pending-sink-review"
   },
   {
     "english": "quietZone",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 68,
+    "line": 69,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Quiet zone",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.14e9fd069e16",
-    "line": 68,
+    "line": 69,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Part of the bar where no fill may start.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.f3f856eddad3",
-    "line": 68,
+    "line": 69,
     "wiring": "pending-sink-review"
   },
   {
     "english": "TIMING",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.2b43838b89d0",
-    "line": 70,
+    "line": 71,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fillQuant",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 71,
+    "line": 72,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Quantise length",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.ea234098a7aa",
-    "line": 71,
+    "line": 72,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Rounds fill length down to whole note values while tempo is known.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.bcd7e1c48178",
-    "line": 71,
+    "line": 72,
     "wiring": "pending-sink-review"
   },
   {
     "english": "modSync",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 72,
+    "line": 73,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sync mods",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.1cbacdb8e1c7",
-    "line": 72,
+    "line": 73,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Locks tremolo, pan motion and scramble slices to the tempo.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.dd47046ce5e6",
-    "line": 72,
+    "line": 73,
     "wiring": "pending-sink-review"
   },
   {
     "english": "CAPTURE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.095cabdd9e60",
-    "line": 74,
+    "line": 75,
     "wiring": "pending-sink-review"
   },
   {
     "english": "captureLength",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 75,
+    "line": 76,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Length",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.adc95605a1b3",
-    "line": 75,
+    "line": 76,
     "wiring": "pending-sink-review"
   },
   {
     "english": "How much audio before the freeze point a latched Capture may use.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.a675dba8b909",
-    "line": 75,
+    "line": 76,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm08_detail",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 76,
+    "line": 77,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Detailed",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.6d46fcd50a63",
-    "line": 76,
+    "line": 77,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Record live input only while Capture is held; reports short, busy or cancelled recaptures.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.90ade1081ebf",
-    "line": 76,
+    "line": 77,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fm08_scan",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 77,
+    "line": 78,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Scan",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.ea1c510d1ddb",
-    "line": 77,
+    "line": 78,
     "wiring": "pending-sink-review"
   },
   {
     "english": "With Detailed on, varies each fill's start within the held material; 0 keeps the classic anchor.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.1bb323fe7a93",
-    "line": 77,
+    "line": 78,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Fill shape preview",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.2477a0c36455",
-    "line": 86,
+    "line": 87,
     "wiring": "component-adapter"
   },
   {
     "english": "Curve of level over the length of a fill for the selected Fill Shape.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.b4ae9b338dad",
-    "line": 87,
+    "line": 88,
     "wiring": "component-adapter"
   },
   {
     "english": "fillShape",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 96,
+    "line": 97,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "fillShapeAmount",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 97,
+    "line": 98,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Shaping controls",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.3db7bd9a83fb",
-    "line": 140,
+    "line": 141,
     "wiring": "component-adapter"
   },
   {
     "english": "Personality, evolve, fill shape, mistakes, breathing, phrase, fill budget, timing and capture controls.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.b152ca775c14",
-    "line": 141,
+    "line": 142,
     "wiring": "component-adapter"
   },
   {
     "english": "Evolve waypoint",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.aaa1877032a8",
-    "line": 172,
+    "line": 173,
     "wiring": "component-adapter"
   },
   {
     "english": "Capture status",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.c6f448a169c3",
-    "line": 177,
+    "line": 178,
     "wiring": "component-adapter"
   },
   {
     "english": "Recapture",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.ac0d69045f3d",
-    "line": 180,
+    "line": 181,
     "wiring": "component-adapter"
   },
   {
     "english": "Refreshes the frozen Capture material with the latest live audio while Capture stays on.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.9f6bb7f408ed",
-    "line": 181,
+    "line": 182,
     "wiring": "component-adapter"
   },
   {
     "english": "Release capture",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.c2af035a9489",
-    "line": 185,
+    "line": 186,
     "wiring": "component-adapter"
   },
   {
     "english": "Switches Capture off and returns to live audio; cancels a pending recapture.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.e473a16b02e7",
-    "line": 186,
+    "line": 187,
     "wiring": "component-adapter"
   },
   {
     "english": "capture",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 191,
+    "line": 192,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "evolve",
-    "file": "Source/features/shaping/Gui.cpp",
-    "key": null,
-    "line": 220,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "-> {0}",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
     "line": 221,
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "-> {0}",
+    "file": "Source/features/shaping/Gui.cpp",
+    "key": null,
+    "line": 222,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "needs a playing transport",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.245ee114071e",
-    "line": 222,
+    "line": 223,
     "wiring": "explicit-translation"
   },
   {
     "english": "evolve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 242,
+    "line": 243,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "evolve",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 282,
+    "line": 283,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "CHARACTER",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.19cd78f5eaf2",
-    "line": 293,
+    "line": 294,
     "wiring": "pending-sink-review"
   },
   {
     "english": "FILL SHAPE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.a1b83df77c39",
-    "line": 295,
+    "line": 296,
     "wiring": "pending-sink-review"
   },
   {
     "english": "CAPTURE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.095cabdd9e60",
-    "line": 297,
+    "line": 298,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "CAPTURE",
+    "file": "Source/features/shaping/Gui.cpp",
+    "key": "s.095cabdd9e60",
+    "line": 311,
     "wiring": "pending-sink-review"
   },
   {
     "english": "SHAPE",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.cfb25fc2ee2f",
-    "line": 376,
+    "line": 381,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Shaping controls",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.3db7bd9a83fb",
-    "line": 378,
+    "line": 383,
     "wiring": "component-adapter"
   },
   {
     "english": "Personality, evolve, fill shape, mistakes, breathing, phrase, fill budget, timing and capture length.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.9fb1e5de3ca5",
-    "line": 379,
+    "line": 384,
     "wiring": "component-adapter"
   },
   {
     "english": "Tempo when host provides none",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.108e1e09ac33",
-    "line": 411,
+    "line": 416,
     "wiring": "component-adapter"
   },
   {
     "english": "Tempo when host provides none",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.108e1e09ac33",
-    "line": 413,
+    "line": 418,
     "wiring": "component-adapter"
   },
   {
     "english": "Fallback tempo",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.6bbf138904ae",
-    "line": 421,
+    "line": 426,
     "wiring": "component-adapter"
   },
   {
     "english": "Tempo used for synced lengths when the host reports none (always in Standalone). A tempo the host reported earlier is used first.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.bab811ceba39",
-    "line": 422,
+    "line": 427,
     "wiring": "component-adapter"
   },
   {
     "english": " BPM",
     "file": "Source/features/shaping/Gui.cpp",
     "key": null,
-    "line": 424,
+    "line": 429,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "Standalone has no host tempo, so synced lengths use this.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.85e58d4cd083",
-    "line": 455,
+    "line": 460,
     "wiring": "component-adapter"
   },
   {
     "english": "Your host provides the tempo; this is only a fallback.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.bd93ec2c7279",
-    "line": 456,
+    "line": 461,
     "wiring": "component-adapter"
   },
   {
     "english": "No host tempo seen recently: synced lengths use this.",
     "file": "Source/features/shaping/Gui.cpp",
     "key": "s.2128a5c30a2c",
-    "line": 457,
+    "line": 462,
     "wiring": "pending-sink-review"
   },
   {
