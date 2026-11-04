@@ -5,7 +5,7 @@ name: CI
 #   changes ─┐
 #   preflight ┴─> unit-tests (Linux, full suite once) ─┬─> build-linux-x64
 #                                                      ├─> build-windows-x64
-#                                                      ├─> build-macos (arm64, x86_64)
+#                                                      ├─> build-macos (arm64, x86_64; push/dispatch only)
 #                                                      └─> ci-gate (single required check)
 #
 # Only unit-tests runs the full suite (including Combinatorial). Windows and
@@ -374,7 +374,7 @@ jobs:
 
       - name: Build smoke tests, VST3, CLAP and Standalone
         shell: pwsh
-        run: cmake --build build-ci --config Release --target GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone -- /m
+        run: cmake --build build-ci --config Release --parallel 4 --target GapFillTests GapFill_VST3 GapFill_CLAP GapFill_Standalone
 
       - name: Run smoke subset of tests (full suite runs once on Linux)
         shell: pwsh
@@ -531,15 +531,20 @@ jobs:
   build-macos:
     name: build-macos-${{ matrix.arch }} (VST3, AU, CLAP, Standalone)
     needs: [changes, unit-tests]
-    if: needs.changes.outputs.native == 'true'
+    # macOS is the slowest, longest-queued job (x86_64 build ~28 min). It runs on pushes to
+    # master / integration/** and on manual runs, not on every pull request (docs/dev/09).
+    if: needs.changes.outputs.native == 'true' && github.event_name != 'pull_request'
     strategy:
       fail-fast: false
       matrix:
         include:
+          # jobs = explicit build parallelism, about one compile per 2 GB of runner RAM.
           - runner: macos-15
             arch: arm64
+            jobs: 3
           - runner: macos-15-intel
             arch: x86_64
+            jobs: 4
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 65
     env:
@@ -590,7 +595,7 @@ jobs:
         shell: bash
         run: |
           ccache -z
-          cmake --build build-ci --target GapFillTests GapFill_VST3 GapFill_AU GapFill_CLAP GapFill_Standalone
+          cmake --build build-ci --parallel ${{ matrix.jobs }} --target GapFillTests GapFill_VST3 GapFill_AU GapFill_CLAP GapFill_Standalone
           ccache -s
 
       - name: Run smoke subset of tests (full suite runs once on Linux)
@@ -801,7 +806,12 @@ jobs:
           native='${{ needs.changes.outputs.native }}'
           results='${{ needs.changes.result }} ${{ needs.preflight.result }}'
           if [ "$native" = true ]; then
-            results="$results ${{ needs.unit-tests.result }} ${{ needs.build-linux-x64.result }} ${{ needs.build-windows-x64.result }} ${{ needs.package-windows.result }} ${{ needs.build-macos.result }}"
+            results="$results ${{ needs.unit-tests.result }} ${{ needs.build-linux-x64.result }} ${{ needs.build-windows-x64.result }} ${{ needs.package-windows.result }}"
+            if [ '${{ github.event_name }}' != pull_request ]; then
+              results="$results ${{ needs.build-macos.result }}"
+            else
+              echo "Pull request: macOS runs on push/dispatch only (result: ${{ needs.build-macos.result }})"
+            fi
           else
             echo "Docs-only change: native jobs skipped"
           fi

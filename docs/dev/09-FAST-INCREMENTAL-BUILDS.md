@@ -30,7 +30,7 @@ below weakens a validator (see `07-QA-AND-RELEASE.md` and `docs/VALIDATION.md`).
 ```
 changes ──┐                                   ┌─> build-linux-x64   (VST3 CLAP Standalone; pluginval, clap-validator, smoke)
 preflight ┴─> unit-tests (Linux, FULL suite) ─┼─> build-windows-x64 (VST3 CLAP Standalone; smoke tests, pluginval, clap-validator, smoke)
-                                              ├─> build-macos arm64 / x86_64 (VST3 AU CLAP Standalone; smoke tests, pluginval, auval, clap-validator, smoke)
+                                              ├─> build-macos arm64 / x86_64 (VST3 AU CLAP Standalone; smoke tests, pluginval, auval, clap-validator, smoke; push/dispatch only)
                                               └─> ci-gate (the one check to require in branch protection)
 ```
 
@@ -57,6 +57,14 @@ skipped, `ci-gate` is green. A workflow-level `paths-ignore` is deliberately not
 used: it would leave required checks pending forever. `workflow_dispatch` always
 builds natively, which is also how you get artifacts for a docs-only commit you
 want to release.
+
+macOS on pull requests: `build-macos` is skipped for `pull_request` events and runs on
+pushes to `master` / `integration/**` and on `workflow_dispatch` (measured on run 41530807124:
+the x86_64 build step alone took 28 min and was the critical path of a 53 min run). `ci-gate`
+ignores the skipped macOS result only for pull requests. Release (`release-beta.yml`) takes its
+artifacts from the push or dispatch run of the tagged commit, which always includes macOS, and
+refuses to publish when any platform artifact is missing. Build parallelism is explicit
+(`--parallel`: Linux `nproc`, Windows 4, macOS 3 arm64 / 4 x86_64, about one job per 2 GB RAM).
 
 Concurrency: PR runs are keyed by PR number and cancel superseded runs. Pushes
 and manual runs are keyed by SHA and never cancelled, so a release candidate's
