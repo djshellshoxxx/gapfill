@@ -32,6 +32,18 @@ Read this before re-deriving anything. Newest first inside each section.
   scenes/macros serialisers read live models). CORE-CALLBACK open (diagnostic note, reproducer outside the repo).
 - Session may push only claude/stoic-brown-92wmta; P2 (a)/(b) live on local branches p2/ci-speed, p2/build-target-tests.
 
+- 2026-11-04 head of #36 (b95301f, code == d430239): full suite 1674 passed, 0 failed (Xvfb). StateQa
+  populated_session_round_trip failed once in an earlier full run (passes alone/per group/full rerun); it now
+  prints firstDifference. Treat a recurrence as a real order-dependence bug.
+- P3 TAIL ready, unpushed (3-PR cap): local branch p3/tail cfa5422 = Tests/features/TestHostTail.cpp (5 tests,
+  all pass; impulse test mutation-checked: dub rings 8.3 s, reports 19 s) + cmake/tests/tailprediction.cmake.
+  Push as claude/stoic-brown-92wmta-tail once one of #36/#37/#38 merges. If the container was reclaimed,
+  rewrite it from this description.
+- Next P3 after TAIL: EVENT (recorder: host callback length + transport flags, versioned; replay > prepared
+  block; ReplayPlayHead noPPQ/invalid tempo; incomplete marker for ModelVersions/subtree changes), then
+  STATE-GRAPH (serialiser owner table, snapshots for scenes/macros, interleaving test into nightly TSan),
+  then CORE-CALLBACK (in-repo reproducer first).
+
 ## Working commands
 - deps: apt-get install ccache xvfb libasound2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev
   libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
