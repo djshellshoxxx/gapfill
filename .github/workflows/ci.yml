@@ -103,7 +103,9 @@ jobs:
         run: bash tools/test_package_release.sh
 
       - name: CI helper script regression
-        run: bash tools/test_ci_helpers.sh
+        run: |
+          bash tools/test_ci_helpers.sh
+          bash tools/test_dev_build.sh
 
       - name: Workflow YAML and shell syntax
         run: |
