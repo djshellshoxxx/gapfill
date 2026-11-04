@@ -466,6 +466,12 @@ GF_TEST (Audit, feature_parameters_are_never_randomised)
         before.emplace_back (ids[i], prm->getValue());
     }
 
+    // The one approved exception (docs/progress/F-X01-EXTENSION-CONTRACT-20261031.md): while Pitch Sync
+    // fx01_mode is on, Random All may also draw fx01_motion / fx01_scatter / fx01_tone. Random Fill and
+    // Surprise never touch them, and with the mode off nothing after index 66 moves (checked below).
+    const juce::StringArray harmonicRandomAll { "fx01_motion", "fx01_scatter", "fx01_tone" };
+    GF_EXPECT (p.getValueTreeState().getRawParameterValue ("fx01_mode")->load() > 0.5f);   // 0.8 above = Harmonic
+
     for (int round = 0; round < 3; ++round)
     {
         p.randomise (true);
@@ -474,7 +480,43 @@ GF_TEST (Audit, feature_parameters_are_never_randomised)
     }
 
     for (const auto& b : before)
-        GF_EXPECT_MSG (p.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random / Surprise");
+        if (! harmonicRandomAll.contains (b.first))
+            GF_EXPECT_MSG (p.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random / Surprise");
+
+    // Random Fill and Surprise never draw the three, even with the mode on.
+    for (const auto& b : before)
+        if (harmonicRandomAll.contains (b.first))
+            p.getValueTreeState().getParameter (b.first)->setValueNotifyingHost (b.second);
+
+    for (int round = 0; round < 3; ++round)
+    {
+        p.randomise (false);
+        p.surprise();
+    }
+
+    for (const auto& b : before)
+        if (harmonicRandomAll.contains (b.first))
+            GF_EXPECT_MSG (p.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random Fill / Surprise");
+
+    // With the mode off, Random All leaves every feature parameter alone, the three included.
+    p.getValueTreeState().getParameter ("fx01_mode")->setValueNotifyingHost (0.0f);
+
+    for (const auto& b : before)
+        if (b.first != "fx01_mode")
+            p.getValueTreeState().getParameter (b.first)->setValueNotifyingHost (b.second);
+
+    for (int round = 0; round < 3; ++round)
+    {
+        p.randomise (true);
+        p.randomise (false);
+        p.surprise();
+    }
+
+    for (const auto& b : before)
+        if (b.first != "fx01_mode")
+            GF_EXPECT_MSG (p.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random / Surprise with Pitch Sync off");
+
+    GF_EXPECT (p.getValueTreeState().getRawParameterValue ("fx01_mode")->load() < 0.5f);
 }
 
 //==============================================================================
