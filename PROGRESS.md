@@ -34,6 +34,18 @@ Test counts in older session entries below (42, 48, 50, 87) are historical snaps
 | Signature diagonal notch | **Done** — painted by `GapFillAudioProcessorEditor::paint()`. |
 | Version in 9px muted mono, bottom-right | **Done** — `footerBounds()` reserves a 12px strip. |
 
+## 1.0 RC consolidation checklist (from 2026-11-04; details in docs/progress/SESSION-NOTES.md)
+
+- [x] P0 verify: master cea17ff, integration 2c36731 (5 behind / 226 ahead, no merge-tree conflict); 17 absorbed branches confirmed
+- [ ] P1 land the baseline: audit gaps closed + master merged on PR #36 (into integration); GCC 13 test compile fix; i18n catalog cap needs an OWNER decision; then OWNER merges #36, then #32 (merge commit)
+- [ ] P2 salvage: dispositions in docs/progress/P2-branch-dispositions-20261104.md; (a) CI speed and (b) build-target tests prepared, waiting for branch permission; (c) none; (d) deferred to T-02
+- [ ] P3 correctness: TAIL, EVENT, STATE-GRAPH (TSan), CORE-CALLBACK
+- [ ] P4 capability packages (audit table order)
+- [ ] P5 assurance: FIN-2 fixtures, FIN-3 nightly, FIN-5 soak, PERF/ANALYSIS
+- [ ] P6 release: FIN-7 packaging/provenance, FIN-1/DOCS-RC truth pass, FIN-8 human acceptance pack
+- OWNER items open: doc 13 decisions 1-6; F-L20/F-X06/F-M03/Program Change scope conflict; i18n cap; merge #36/#32;
+  branch deletions; closing #27 #33 #11; permission to push more than one session branch
+
 ## Session log
 
 ### 2026-10-30 - autonomous pass: baseline, doc truth, Q-01 in CI, W-01 Linux test, one refactor seam
