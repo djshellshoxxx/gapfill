@@ -99,7 +99,7 @@ private:
 
 const SlotRegistrar eventOptions ({ Slot::OptionsExtra, 282,
     [] (GapFillAudioProcessor& proc) -> std::unique_ptr<juce::Component> { return std::make_unique<EventOptions> (proc); } });
-const HelpRegistrar eventMidiHelp (1230, "Detector MIDI output", [] (HelpWriter& writer)
+const HelpRegistrar eventMidiHelp (1235, "Detector MIDI output", [] (HelpWriter& writer)
 {
     writer.body ("Options > Detector MIDI enables Hit notes, held Gap and Fill notes, and a confidence CC. "
                  "MIDI OUT replaces the legacy gap/fill output while enabled. Output starts off. "

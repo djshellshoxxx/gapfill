@@ -72,7 +72,9 @@ const std::vector<Group>& groups()
             { K::Toggle, "modSync", "Sync mods", "Locks tremolo, pan motion and scramble slices to the tempo." } } },
 
         { "CAPTURE", true,
-          { { K::Knob, "captureLength", "Length", "How much audio before the freeze point a latched Capture may use." } } },
+          { { K::Knob,   "captureLength", "Length", "How much audio before the freeze point a latched Capture may use." },
+            { K::Toggle, "fm08_detail", "Detailed", "Record live input only while Capture is held; reports short, busy or cancelled recaptures." },
+            { K::Knob,   "fm08_scan", "Scan", "With Detailed on, varies each fill's start within the held material; 0 keeps the classic anchor." } } },
     };
 
     return table;

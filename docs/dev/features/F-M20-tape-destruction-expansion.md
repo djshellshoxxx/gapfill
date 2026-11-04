@@ -22,7 +22,7 @@ Wow/flutter depth matches settings (measured pitch deviation within 10 %); dropo
 * `minFillMs` 40 ms.
 
 ## 4. Parameters and state
-Group `fm20`, file `Source/params/fm20.h`, lock `tools/param_ids/fm20.lock`, appended to `GAPFILL_PARAMS_EXT`.
+Group `TAPEXTRA` (macro `GAPFILL_PARAMS_TAPEXTRA`), file `Source/params/fm20.h`, lock `tools/param_ids/tapextra.lock`, appended to `GAPFILL_PARAMS_EXT`.
 | ID | Type / range | Default | Unit |
 |---|---|---|---|
 | `fm20_amount` | float 0-100 | 0 | % chance per fill |
