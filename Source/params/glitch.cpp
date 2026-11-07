@@ -25,11 +25,13 @@ namespace
                                           { return juce::String (v, 0) + " %"; }));
     }
 
+    // Skewed ranges carry an interval: snapping makes save -> load -> save byte-stable
+    // (a continuous skewed range can drift by an ulp through the pow() round trip).
     std::unique_ptr<juce::AudioParameterFloat> ms (const char* id, const char* name, float lo, float hi, float def,
                                                    float centre)
     {
         using namespace builders;
-        juce::NormalisableRange<float> range (lo, hi);
+        juce::NormalisableRange<float> range (lo, hi, 0.01f);
         range.setSkewForCentre (centre);
         return std::make_unique<APF> (makeID (id, kHint), name, range, def,
                                       Attr().withLabel ("ms").withStringFromValueFunction ([] (float v, int)
@@ -40,7 +42,7 @@ namespace
                                                    float centre)
     {
         using namespace builders;
-        juce::NormalisableRange<float> range (lo, hi);
+        juce::NormalisableRange<float> range (lo, hi, hi <= 100.0f ? 0.001f : 0.1f);
         range.setSkewForCentre (centre);
         return std::make_unique<APF> (makeID (id, kHint), name, range, def,
                                       Attr().withLabel ("Hz").withStringFromValueFunction ([] (float v, int)

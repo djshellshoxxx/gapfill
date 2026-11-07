@@ -233,3 +233,28 @@ GF_TEST (GlitchPlugin, editor_reaches_the_glitch_tab_as_a_tab_or_from_the_file_m
     wide.setSize (1800, 900);
     GF_EXPECT (wide.isGlitchTabForTests());
 }
+
+GF_TEST (GlitchPlugin, every_glitch_value_resaves_byte_identically)
+{
+    // Defaults and 200 pseudo-random settings: save -> load -> save must not drift (skewed ranges snap to an interval).
+    for (int round = 0; round <= 200; ++round)
+    {
+        GapFillAudioProcessor proc;
+        juce::Random random (round);
+
+        if (round > 0)
+            for (const auto& id : lockIds())
+                if (auto* p = proc.getValueTreeState().getParameter (id))
+                    p->setValueNotifyingHost (random.nextFloat());
+
+        juce::MemoryBlock first, second, third;
+        proc.getStateInformation (first);
+        GapFillAudioProcessor restored;
+        restored.setStateInformation (first.getData(), (int) first.getSize());
+        restored.getStateInformation (second);
+        GapFillAudioProcessor again;
+        again.setStateInformation (second.getData(), (int) second.getSize());
+        again.getStateInformation (third);
+        GF_EXPECT_MSG (first == second && second == third, "round " + juce::String (round));
+    }
+}
