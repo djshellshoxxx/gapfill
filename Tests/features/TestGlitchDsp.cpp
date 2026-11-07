@@ -145,7 +145,8 @@ GF_TEST (GlitchDsp, grid_swing_moves_every_second_step_and_variation_stays_monot
     GF_EXPECT (swung.locate (1.4).step == 0 && swung.locate (1.6).step == 1);
     GF_EXPECT_NEAR (swung.locate (0.1).length, 1.5, 1e-12);
     GF_EXPECT_NEAR (swung.locate (1.6).length, 0.5, 1e-12);
-    GF_EXPECT (swung.locate (-0.6).step == -1);     // negative (pre-roll) positions
+    // Negative (pre-roll) positions: the pair [-2, 0) splits at -0.5 with 75 % swing.
+    GF_EXPECT (swung.locate (-0.6).step == -2 && swung.locate (-0.4).step == -1);
 
     const Grid varied (1.0, 1.0, 7, 3);
     for (std::int64_t k = -200; k < 200; ++k)
@@ -231,7 +232,7 @@ GF_TEST (GlitchDsp, processing_never_allocates)
     {
         s.stab = start > 10000 && start < 30000;     // STAB press and release inside the guarded section
         t.ppqAtStart = start / t.samplesPerBeat;
-        rack.process (x.l.data() + start, x.r.data() + start, 512, s, t);
+        rack.process (x.l.data() + start, x.r.data() + start, std::min (512, x.size() - start), s, t);
     }
 
     GF_EXPECT (guard.count() == 0);
