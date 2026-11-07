@@ -3,6 +3,9 @@
 Read this before re-deriving anything. Newest first inside each section.
 
 ## Decisions
+- OWNER 2026-11-07 (session prompt): F-G01 Glitch rack requested; freeze lifted for that package only (DECISIONS 19-21).
+- 2026-11-07: hosted-CI failures on #36 = FMA contraction (toolchain emits FMA); fixed by -ffp-contract=off (74bb8ac,
+  PR #39). Proof: v3 build of #36 head + fix, full suite 1674/0. See docs/development/STATUS.md and HANDOFF.md.
 - OWNER 2026-11-04: (1) i18n cap -> 1 MiB (done on #36). (2) extra branches claude/stoic-brown-92wmta-<theme>
   allowed. (3) F-L20 per-voice formant, F-X06 cross-process co-op, F-M03 editor growth, MIDI Program Change are
   POST-1.0 (doc 13 governs; drop FORMANT/COOP cross-process/F-M03/PC rows from P4). (4) cleanup approved: #27 #33 #11
@@ -57,6 +60,8 @@ Read this before re-deriving anything. Newest first inside each section.
 - absorbed-branch check: merge-tree --write-tree <int-or-master> <branch> == that ref's tree.
 
 ## Pitfalls
+- Never edit headers while a ninja build of the same tree runs (ODR-mixed objects segfault); use `git worktree add`.
+- Skewed continuous NormalisableRange values drift through save/load: give them an interval.
 - Never put `git push` after `;` in a check chain: it runs even when the checks fail (pushed b95301f with a stale INVENTORY).
 - Any change to a Source/*.cpp string or line layout needs `python3 Source/features/i18n/build_catalog.py` (INVENTORY line numbers).
 - The i18n cap has three copies: Catalog.h, build_catalog.py, cmake/sources/i18n.cmake.
