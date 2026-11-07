@@ -366,7 +366,7 @@ GF_TEST (GlitchDsp, stab_infinite_repeats_until_released_with_fixed_memory)
     GF_EXPECT (allocations == 0);
 
     // Still repeating the slice captured at 1024 nine seconds later.
-    const auto late = 1024 + 12000 * 39;
+    const auto late = 1024 + 12000 * 38;   // unit 38 ends at 468824, before the release at 480000
     bool repeating = true;
     for (int i = 200; i < 11800; ++i)
         repeating = repeating && out.l[(std::size_t) (late + i)] == in.l[(std::size_t) (1024 + i)];
