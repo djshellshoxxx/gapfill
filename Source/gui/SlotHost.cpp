@@ -39,6 +39,7 @@ SlotLayout defaultLayoutFor (Slot slot) noexcept
     {
         case Slot::OptionsExtra:   return SlotLayout::Stack;      // inside the Options page's scrolling area
         case Slot::PerformanceTab: return SlotLayout::Stack;
+        case Slot::GlitchTab:      return SlotLayout::Stack;
         default:                   return SlotLayout::Row;
     }
 }

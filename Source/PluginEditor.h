@@ -66,7 +66,7 @@ public:
     void applyViewModeForTests()                { applyViewMode(); }
     bool isTabVisibleForTests (int i) const     { return ! getTabBoundsForTests (i).isEmpty(); }
     DetectionPanel& getDetectionPanelForTests() { return detectionPanel; }
-    void selectTabForTests (int i)              { setTab ((Tab) juce::jlimit (0, 3, i)); }
+    void selectTabForTests (int i)              { setTab ((Tab) juce::jlimit (0, 4, i)); }
     bool isWeightsPanelShownForTests() const    { return weightsPanel.isVisible(); }
     bool isCreativePanelShownForTests() const   { return creativePanel.isVisible(); }
     juce::Rectangle<int> getViewToggleBoundsForTests() const { return slots->getSlotBounds (Slot::TopBarRight); }
@@ -86,18 +86,22 @@ public:
     bool isPerformanceTabForTests() const noexcept { return performanceAsTab; }
     bool isPerformanceShownForTests() const noexcept { return performancePanel != nullptr && performancePanel->isVisible(); }
     StackPanel* getPerformancePanelForTests() noexcept { return performancePanel.get(); }
+    void selectGlitchForTests()                 { setTab (Tab::Glitch); }
+    bool isGlitchTabForTests() const noexcept   { return glitchAsTab; }
+    bool isGlitchShownForTests() const noexcept { return glitchPanel != nullptr && glitchPanel->isVisible(); }
+    StackPanel* getGlitchPanelForTests() noexcept { return glitchPanel.get(); }
     EffectsDrawer* getEffectsDrawerForTests() noexcept { return effectsDrawer.get(); }
     juce::Rectangle<int> getVisualiserBoundsForTests() const { return visualiser.getBounds(); }
     juce::Rectangle<int> getTabBoundsForTests (int index) const
     {
-        const juce::Component* const tabs[] = { &tabCreative, &tabWeights, &tabSpectral, &tabPerformance };
-        return tabs[juce::jlimit (0, 3, index)]->isVisible() ? tabs[juce::jlimit (0, 3, index)]->getBounds()
+        const juce::Component* const tabs[] = { &tabCreative, &tabWeights, &tabSpectral, &tabPerformance, &tabGlitch };
+        return tabs[juce::jlimit (0, 4, index)]->isVisible() ? tabs[juce::jlimit (0, 4, index)]->getBounds()
                                                               : juce::Rectangle<int>();
     }
    #endif
 
 private:
-    enum class Tab { Creative = 0, Weights, Spectral, Performance };
+    enum class Tab { Creative = 0, Weights, Spectral, Performance, Glitch };
 
     void timerCallback() override;
     std::uint64_t navigationRevision = ~std::uint64_t { 0 };
@@ -172,7 +176,7 @@ private:
     MixPanel mixPanel;
 
     juce::TextButton tabCreative { "CREATIVE" }, tabWeights { "AUTO WEIGHTS" }, tabSpectral { "SPECTRAL" },
-                     tabPerformance { "PERFORMANCE" };
+                     tabPerformance { "PERFORMANCE" }, tabGlitch { "GLITCH" };
     Tab currentTab = Tab::Creative;
     float controlScaleFactor = 1.0f;     // F-D04 Large controls, composed into the scale path
     int accessSignature = -1;
@@ -181,6 +185,7 @@ private:
     ui::ViewMode appliedView = ui::ViewMode::Advanced;
     std::optional<Tab> tabBeforeSimple;
     bool performanceAsTab = false;      ///< else reached from the FILE menu (UI-0 tab plan)
+    bool glitchAsTab = false;           ///< F-G01: same rule for the GLITCH tab
 
     HelpView helpView;
     OptionsView optionsView;
@@ -191,6 +196,7 @@ private:
     // UI-0 containers for the Stack slots. Declared after `slots` so they are
     // destroyed first; null when no feature registered a component for the slot.
     std::unique_ptr<StackPanel> performancePanel;
+    std::unique_ptr<StackPanel> glitchPanel;       // F-G01
     std::unique_ptr<EffectsDrawer> effectsDrawer;
 
     // Presentation/favourites snapshot; the processor owns stepping and A/B.
