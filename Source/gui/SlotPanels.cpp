@@ -83,4 +83,13 @@ TabPlan planTabs (int availableWidth, bool performancePopulated) noexcept
     return plan;
 }
 
+TabPlan planTabs (int availableWidth, bool performancePopulated, bool glitchPopulated) noexcept
+{
+    auto plan = planTabs (availableWidth, performancePopulated);
+    const auto used = plan.tabWidth + plan.weightsTabWidth + plan.tabWidth
+                    + (plan.performanceAsTab ? plan.performanceTabWidth : 0);
+    plan.glitchAsTab = glitchPopulated && availableWidth >= used + plan.glitchTabWidth;
+    return plan;
+}
+
 } // namespace gapfill

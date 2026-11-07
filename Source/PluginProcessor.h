@@ -32,6 +32,7 @@
 #include "features/modelversions/ModelVersions.h"
 #include "features/wetbus/OutputRouting.h"
 #include "features/tail/TailPrediction.h"
+#include "features/glitch/GlitchRack.h"
 
 namespace gapfill
 {
@@ -241,6 +242,7 @@ public:
     const FillEngine& getFillEngine() const noexcept  { return engine; }
     fx::FxChain& getFxChain() noexcept { return fxChain; }
     const fx::FxMeters& getFxMeters() const noexcept { return fxChain.getMeters(); }
+    const glitch::Meters& getGlitchMeters() const noexcept { return glitchRack.getMeters(); }   // F-G01
     fx::FxUiState& getFxUiState() noexcept { return fxUi; }
     const fx::FxUiState& getFxUiState() const noexcept { return fxUi; }
     const AnalysisEngine& getAnalysis() const noexcept { return analysis; }
@@ -295,6 +297,7 @@ private:
     SourceHistory  history;
     FillEngine     engine;
     fx::FxChain    fxChain;       // WP8: bus effect chain (voice cards live in the voices)
+    glitch::GlitchRack glitchRack; // F-G01: GLITCH tab rack (fills bus or whole output; inert while off)
     fx::FxUiState  fxUi;          // WP8: <Fx> state subtree (fold state, remembered amounts)
 
     MidiLearnManager midiLearn;

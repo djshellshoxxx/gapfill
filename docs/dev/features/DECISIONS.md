@@ -20,3 +20,12 @@ Defaults chosen so implementation is unblocked. Owner may override; changes go t
 16. F-L15/F-L19 report extended tail only while active.
 17. F-L20 accepts ~10.7 ms onset for formant fills.
 18. IDs defined in docs/dev/12 (WP8 features) keep their descriptive names; all other new IDs use `<ticketlower>_<name>`.
+19. 2026-11-07, owner request (session prompt "GapFill autonomous development"): the 1.0 feature freeze of doc 13 is lifted
+    for one package, F-G01 Glitch rack (stutter, STAB with infinite mode, reverse, microgator, swing/timing, HP/LP auto-sweep,
+    phaser, phase/pan inversion on a GLITCH tab). No repository evidence of an earlier design for these existed on any
+    branch, so the spec `F-G01-glitch-rack.md` defines it. Everything else stays frozen.
+20. F-G01 defaults to Target = Fills only so the dry hits stay protected; Whole output is opt-in. Reverse adds no reported
+    latency (one-segment creative shift). fg01_* are never randomised; fg01_stab is performance state.
+21. Build: GCC/Clang compile with `-ffp-contract=off` (MSVC already uses /fp:precise). A toolchain that targets an FMA ISA
+    by default contracted a*b+c in juce::NormalisableRange snapping, which broke parameter round trips on the CI runners
+    (MacroExt, StateQa, WetBus, StateCompat002 on #36). Deterministic float results across machines also protect goldens.

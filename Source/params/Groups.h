@@ -56,3 +56,4 @@
 #include "captureext.h"
 #include "l21ext.h"
 #include "battlev2.h"
+#include "glitch.h"

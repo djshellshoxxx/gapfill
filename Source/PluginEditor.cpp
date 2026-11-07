@@ -294,6 +294,12 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
         addChildComponent (*performancePanel);
     }
 
+    if (slots->getNumComponents (Slot::GlitchTab) > 0)
+    {
+        glitchPanel = std::make_unique<StackPanel> (*slots, Slot::GlitchTab, "Glitch", colours::primary);
+        addChildComponent (*glitchPanel);
+    }
+
     if (slots->getNumComponents (Slot::EffectsSection) > 0)
     {
         effectsDrawer = std::make_unique<EffectsDrawer> (*slots);
@@ -303,7 +309,7 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
 
     appliedView = proc.getUiState().getViewMode();
 
-    for (auto* b : { &tabCreative, &tabWeights, &tabSpectral, &tabPerformance })
+    for (auto* b : { &tabCreative, &tabWeights, &tabSpectral, &tabPerformance, &tabGlitch })
     {
         b->setClickingTogglesState (true);
         b->setRadioGroupId (1001);
@@ -316,6 +322,8 @@ GapFillAudioProcessorEditor::GapFillAudioProcessorEditor (GapFillAudioProcessor&
     tabSpectral.onClick = [this] { setTab (Tab::Spectral); };
     tabPerformance.onClick = [this] { setTab (Tab::Performance); };
     tabPerformance.setVisible (false);      // shown by resized() when it fits and the slot is populated
+    tabGlitch.onClick = [this] { setTab (Tab::Glitch); };
+    tabGlitch.setVisible (false);           // F-G01: same rule as Performance
     tabCreative.setToggleState (true, juce::dontSendNotification);
 
     helpView.onClose = [this] { helpView.setVisible (false); };
@@ -598,6 +606,9 @@ void GapFillAudioProcessorEditor::setTab (Tab newTab)
     if (performancePanel != nullptr)
         performancePanel->setVisible (newTab == Tab::Performance);
 
+    if (glitchPanel != nullptr)
+        glitchPanel->setVisible (newTab == Tab::Glitch);
+
     if (effectsDrawer != nullptr)
         effectsDrawer->setVisible (newTab == Tab::Creative);
 
@@ -608,6 +619,7 @@ void GapFillAudioProcessorEditor::setTab (Tab newTab)
     tabWeights.setToggleState (newTab == Tab::Weights, juce::dontSendNotification);
     tabSpectral.setToggleState (newTab == Tab::Spectral, juce::dontSendNotification);
     tabPerformance.setToggleState (newTab == Tab::Performance, juce::dontSendNotification);
+    tabGlitch.setToggleState (newTab == Tab::Glitch, juce::dontSendNotification);
 
     resized();
 }
@@ -856,7 +868,7 @@ void GapFillAudioProcessorEditor::saveUserPreset()
 //==============================================================================
 void GapFillAudioProcessorEditor::showFileMenu()
 {
-    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance, kBrowse, kTour, kLab, kAudition, kHistory, kExportFill, kFavourite, kStepScope };
+    enum { kSave = 1, kSaveAs, kOpen, kSavePreset, kOptions, kPerformance, kBrowse, kTour, kLab, kAudition, kHistory, kExportFill, kFavourite, kStepScope, kGlitch };
 
     juce::PopupMenu menu;
     menu.setLookAndFeel (&lookAndFeel);
@@ -896,6 +908,9 @@ void GapFillAudioProcessorEditor::showFileMenu()
     if (performancePanel != nullptr && ! performanceAsTab)
         menu.addItem (kPerformance, "Performance...");
 
+    if (glitchPanel != nullptr && ! glitchAsTab)
+        menu.addItem (kGlitch, "Glitch...");
+
     i18n::translateMenu (menu);
     menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (&fileButton),
                         [safe = juce::Component::SafePointer<GapFillAudioProcessorEditor> (this)] (int result)
@@ -920,6 +935,7 @@ void GapFillAudioProcessorEditor::showFileMenu()
             case kExportFill: if (auto f = editor->proc.getUiState().editorActions.exportLatestFill) f(); break;
             case kOptions:    editor->showOptions(); break;
             case kPerformance: editor->setTab (Tab::Performance); break;
+            case kGlitch:      editor->setTab (Tab::Glitch); break;
             default: break;
         }
     });
@@ -1338,7 +1354,7 @@ void GapFillAudioProcessorEditor::resized()
     }
 
     const auto plan = planTabs (simple ? tabs.getWidth() + tabWidth + 2 * 130 + 20 : tabs.getWidth() + tabWidth * 2 + tabWidth + 20,
-                                performancePanel != nullptr);
+                                performancePanel != nullptr, glitchPanel != nullptr);
     performanceAsTab = plan.performanceAsTab;
     tabPerformance.setVisible (performanceAsTab);
 
@@ -1346,6 +1362,12 @@ void GapFillAudioProcessorEditor::resized()
         tabPerformance.setBounds (tabs.removeFromLeft (plan.performanceTabWidth).reduced (1));
     else if (currentTab == Tab::Performance && performancePanel == nullptr)
         setTab (Tab::Creative);              // the tab vanished (window narrowed): fall back safely
+
+    glitchAsTab = plan.glitchAsTab;
+    tabGlitch.setVisible (glitchAsTab);
+
+    if (glitchAsTab)
+        tabGlitch.setBounds (tabs.removeFromLeft (plan.glitchTabWidth).reduced (plan.tabInset));
 
     if (effectsDrawer != nullptr)
         effectsDrawer->setBounds (controls.removeFromBottom (effectsExtra));
@@ -1356,6 +1378,9 @@ void GapFillAudioProcessorEditor::resized()
 
     if (performancePanel != nullptr)
         performancePanel->setBounds (controls);
+
+    if (glitchPanel != nullptr)
+        glitchPanel->setBounds (controls);
 
     // One reserved rectangle per slot. Slots no feature has claimed yet stay
     // empty (their components are hidden); a feature reserves its rectangle
