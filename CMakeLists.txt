@@ -10,6 +10,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if (MSVC)
     # Static CRT keeps the VST3 free of runtime redistributable dependencies.
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+else()
+    # Never fuse a*b+c into one FMA. GCC/Clang contract by default whenever the
+    # target ISA has FMA (e.g. a toolchain defaulting to x86-64-v3), which changes
+    # float results in the last bit: parameter snapping (NormalisableRange) then no
+    # longer round-trips and saved states, defaults and goldens differ per machine.
+    # Matches the /fp:precise intent of the MSVC build. Applies to every target
+    # defined below, including the JUCE module sources compiled into them.
+    add_compile_options(-ffp-contract=off)
 endif()
 
 # Deterministic output location inside the build tree.

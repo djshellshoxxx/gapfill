@@ -239,6 +239,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     addCaptureextParameters (layout);
     addL21extParameters (layout);
     addBattlev2Parameters (layout);
+    addGlitchParameters (layout);
 
     return layout;
 }
@@ -339,6 +340,7 @@ juce::StringArray performanceParameterIDs()
     addCaptureextPerformanceIds (ids);
     addL21extPerformanceIds (ids);
     addBattlev2PerformanceIds (ids);
+    addGlitchPerformanceIds (ids);
     return ids;
 }
 

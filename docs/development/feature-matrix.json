@@ -1,0 +1,149 @@
+{
+ "generated_from": "FEATURE_MATRIX.md",
+ "date": "2026-11-07",
+ "rows": [
+  {
+   "feature": "A. Core engine (init/shutdown, buffers, SR/block independence, mono/stereo, smoothing, transport, state, presets, automation, denormals, bypass)",
+   "status": "Implemented (pre-existing)",
+   "completion": "90 %",
+   "priority": "Critical",
+   "owner": "core",
+   "tests": "Passing locally (full suite)",
+   "pr": "#32/#36",
+   "blocker": "Real-host validation",
+   "next_action": "FIN-8 human acceptance pack (doc 13)"
+  },
+  {
+   "feature": "A1. Cross-machine float determinism (FMA contraction)",
+   "status": "Implemented",
+   "completion": "100 % of the 4 CI failures",
+   "priority": "Critical",
+   "owner": "core",
+   "tests": "Repro + v3 build run (see SESSION-NOTES)",
+   "pr": "this PR",
+   "blocker": "none",
+   "next_action": "confirm on hosted CI"
+  },
+  {
+   "feature": "B. Glitch/stutter tab (GLITCH)",
+   "status": "Implemented",
+   "completion": "100 % of F-G01 checks 2, 4",
+   "priority": "High",
+   "owner": "glitch",
+   "tests": "TestGlitchDsp",
+   "pr": "this PR",
+   "blocker": "listening",
+   "next_action": "host + listening test"
+  },
+  {
+   "feature": "C. Swing and timing",
+   "status": "Implemented",
+   "completion": "100 %",
+   "priority": "High",
+   "owner": "glitch",
+   "tests": "grid + gator swing tests",
+   "pr": "this PR",
+   "blocker": "listening",
+   "next_action": "host test with a groove"
+  },
+  {
+   "feature": "D. Microgator",
+   "status": "Implemented",
+   "completion": "100 %",
+   "priority": "High",
+   "owner": "glitch",
+   "tests": "4 rates x 2 blocks, pattern/depth/stereo",
+   "pr": "this PR",
+   "blocker": "listening",
+   "next_action": "-"
+  },
+  {
+   "feature": "E. Phase and pan inversion",
+   "status": "Implemented",
+   "completion": "100 %",
+   "priority": "Medium",
+   "owner": "glitch",
+   "tests": "polarity, swap, mono fold, flip glide",
+   "pr": "this PR",
+   "blocker": "-",
+   "next_action": "-"
+  },
+  {
+   "feature": "F. HP/LP auto-sweep",
+   "status": "Implemented",
+   "completion": "100 %",
+   "priority": "High",
+   "owner": "glitch",
+   "tests": "responses at 4 rates, LFO range",
+   "pr": "this PR",
+   "blocker": "listening",
+   "next_action": "-"
+  },
+  {
+   "feature": "G. Phaser",
+   "status": "Implemented",
+   "completion": "100 %",
+   "priority": "Medium",
+   "owner": "glitch",
+   "tests": "notch position, feedback stability",
+   "pr": "this PR",
+   "blocker": "listening",
+   "next_action": "-"
+  },
+  {
+   "feature": "H. Reverse processing",
+   "status": "Implemented",
+   "completion": "100 %",
+   "priority": "High",
+   "owner": "glitch",
+   "tests": "sample-exact reversed segment, prob 0 identity",
+   "pr": "this PR",
+   "blocker": "listening",
+   "next_action": "-"
+  },
+  {
+   "feature": "I. STAB macro with infinite operation",
+   "status": "Implemented",
+   "completion": "100 %",
+   "priority": "High",
+   "owner": "glitch",
+   "tests": "finite/infinite/retrigger, zero allocations over 10 s",
+   "pr": "this PR",
+   "blocker": "listening",
+   "next_action": "MIDI-learn STAB in a host"
+  },
+  {
+   "feature": "J. GLITCH tab UI (labels, tooltips, layout, tab/menu reach)",
+   "status": "Implemented",
+   "completion": "80 %",
+   "priority": "Medium",
+   "owner": "gui",
+   "tests": "panel layout + editor reach tests",
+   "pr": "this PR",
+   "blocker": "T-02 screenshots, screen reader",
+   "next_action": "screenshots at 100/150/200 %"
+  },
+  {
+   "feature": "K. Previously tracked partial tickets (F-L20, F-M03, F-X05, F-X06, Q-01, T-01, T-02, W-03, W-01)",
+   "status": "Partial / No",
+   "completion": "see status file",
+   "priority": "Medium",
+   "owner": "various",
+   "tests": "see status file",
+   "pr": "#36",
+   "blocker": "owner decisions (doc 13), hosts",
+   "next_action": "per doc 13 / SESSION-NOTES P3"
+  },
+  {
+   "feature": "Release artifacts 0.0.3 / 1.0 RC",
+   "status": "Missing",
+   "completion": "0 %",
+   "priority": "High",
+   "owner": "release",
+   "tests": "-",
+   "pr": "-",
+   "blocker": "CI green on #36 + this PR; owner publish approval",
+   "next_action": "FIN-7 packaging"
+  }
+ ]
+}

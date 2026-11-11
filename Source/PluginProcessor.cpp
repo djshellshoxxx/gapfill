@@ -13,6 +13,7 @@
 #include "features/panic/WetSafety.h"
 #include "features/wetout/WetOut.h"
 #include "features/wetbus/WetBus.h"
+#include "features/glitch/GlitchHooks.h"
 #include "dsp/SoloLimit.h"
 
 namespace gapfill
@@ -165,6 +166,7 @@ void GapFillAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBloc
     extendedMidiOut.prepare (currentSampleRate);
     recipeServices.prepare (currentSampleRate);
     fxChain.prepare (currentSampleRate, preparedBlockSize, renderChannels);
+    glitchRack.prepare (currentSampleRate);                 // F-G01: allocates every glitch buffer here
     {
         tail::PreparedBounds bounds;
         const auto spectralSize = currentSampleRate <= 48000.0 ? 1024 : 2048;
@@ -950,6 +952,22 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
         }
     }
 
+    // F-G01: one settings snapshot per chunk. The grid follows the heard (latency-delayed) timeline.
+    auto glitchSettings = glitch::gatherSettings (params);
+    if (glitchSettings.target == glitch::Target::Output && pb (params.wetSafety))
+        glitchSettings.ceiling = 2.0f * panic::kWetSafetyCeiling;   // keep the +6 dBFS contract on the whole output
+    glitch::Timing glitchTiming;
+    {
+        const auto spb = engineSettings.samplesPerBeat > 1.0 ? engineSettings.samplesPerBeat : 0.5 * currentSampleRate;
+        glitchTiming.sampleRate = currentSampleRate;
+        glitchTiming.playing = engineSettings.transportValid;
+        glitchTiming.samplesPerBeat = spb;
+        glitchTiming.ppqAtStart = engineSettings.ppqAtBlockStart - (double) targetLatency / spb;
+        glitchTiming.tsNum = engineSettings.perf.tsNum;
+        glitchTiming.tsDen = engineSettings.perf.tsDen;
+        glitchTiming.bypassed = bypassed;
+    }
+
     // ---- wet post-processing --------------------------------------------
     {
         auto* wl = wetBuffer.getWritePointer (0);
@@ -1012,6 +1030,10 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
             wl[i] = sanitise (mid + side);
             wr[i] = sanitise (mid - side);
         }
+
+        // F-G01: the Glitch rack on the fill bus (Target = Fills only), before the safety limiter.
+        if (glitchSettings.target == glitch::Target::Fills)
+            glitchRack.process (wl, wr, numSamples, glitchSettings, glitchTiming);
 
         // F-L25: soft limiter on the wet bus only (last stage, stateless, off by default).
         if (pb (params.wetSafety))
@@ -1118,6 +1140,10 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
             peakOut = juce::jmax (peakOut, std::abs (l));
         }
     }
+
+    // F-G01: the Glitch rack on the whole output (Target = Whole output). Not while auditioning the detector.
+    if (glitchSettings.target == glitch::Target::Output && ! (audition && ! bypassed))
+        glitchRack.process (outL, outR, numSamples, glitchSettings, glitchTiming);
 
     // ---- band solo / audition of the spectral lanes ----------------------
     const auto solo = juce::jlimit (0, 3, pi (params.bandSolo));

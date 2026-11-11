@@ -248,6 +248,17 @@ No parameter id, preset format, state subtree or public API was added or changed
 | Layout ratchet | `tools/check_layout_literals.py`, `tools/layout_literals_baseline.json` | Fails when `PluginEditor.cpp` / `Panels.cpp` gain spacing literals that are not multiples of 4, or when the baseline is stale. |
 | Transport tracking | `PluginProcessor::updateTempoInfo` | A playing transport without a PPQ is one reset on the transition into that state, not one per callback (W-03). Seek threshold unchanged at 0.25 beat. |
 
+## Glitch rack (F-G01, 2026-11-07)
+
+| Module | Files | Contract | Invariants / errors |
+|---|---|---|---|
+| Portable core | `features/glitch/{GlitchTypes,GlitchClock,SliceRepeater,GlitchModules}.h`, `GlitchRack.*` | No JUCE dependency. `GlitchRack::prepare (sr)` allocates every buffer (bounded by `kMaxSliceSeconds` 2 s, `kMaxReverseSeconds` 4 s, `kMaxLookbackUnits` 4); `process (l, r or null, n, Settings, Timing)` works in place. Grid decisions are pure functions of the musical position (`Grid`, `hash01`). | Off and faded = untouched samples. No allocation/locks/IO in `process`. Finite, clamped to +-8. Block-size invariant. Mono = 0.5 (L + R) fold. |
+| Adapter | `features/glitch/GlitchHooks.*`, `params/glitch.*`, `tools/param_ids/glitch.lock` | `gatherSettings (ParamCache)` clamps every `fg01_*` value (relaxed atomic loads). GLITCH group is the registry tail after BATTLEV2. | Append-only IDs; `fg01_stab` performance state; nothing randomised. |
+| Processor hooks | `PluginProcessor.cpp` (`processChunk`: settings/timing snapshot, wet-bus call before the safety limiter, output call after the mix), `prepareToPlay` | Timing ppq is shifted by the reported latency so the grid matches the heard output. | Hot-file touch, three call sites; no change while `fg01_on` is off. |
+| GUI | `features/glitch/Gui.*` (`GlitchPanel`, `StabPad`, `sectionSpecs()`), `Slot::GlitchTab`, editor `Tab::Glitch`, `planTabs (w, perf, glitch)` | Table-driven panel in a StackPanel; GLITCH tab when it fits after PERFORMANCE, else FILE > Glitch... Status line reads `glitch::Meters` atomics at 15 Hz. | Message thread only. |
+
+Migration: sessions and presets saved before F-G01 load unchanged (absent IDs = defaults = rack off).
+
 ## Change checklist
 
 - [ ] Update the ownership table and flow diagram if a boundary moves.
