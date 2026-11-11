@@ -258,3 +258,51 @@ GF_TEST (GlitchPlugin, every_glitch_value_resaves_byte_identically)
         GF_EXPECT_MSG (first == second && second == third, "round " + juce::String (round));
     }
 }
+
+GF_TEST (GlitchPlugin, fresh_values_equal_their_file_round_trip_exactly)
+{
+    // The initial raw value of every glitch parameter must be exactly what a .gapfill file load
+    // produces (TestPlugin preset_files_round_trip_through_disk compares them at 1e-4).
+    GapFillAudioProcessor proc;
+    auto& state = proc.getValueTreeState();
+    juce::HashMap<juce::String, float> before;
+    for (const auto& id : lockIds())
+        before.set (id, state.getRawParameterValue (id)->load());
+
+    const auto xml = state.copyState().createXml();
+    proc.resetAllParameters();
+    state.replaceState (juce::ValueTree::fromXml (*juce::XmlDocument::parse (xml->toString())));
+
+    for (const auto& id : lockIds())
+    {
+        const auto after = state.getRawParameterValue (id)->load();
+        GF_EXPECT_MSG (after == before[id], id + ": " + juce::String (before[id], 6) + " -> " + juce::String (after, 6));
+    }
+}
+
+GF_TEST (GlitchPlugin, whole_output_keeps_the_plus_6_dbfs_contract_with_wet_safety_on)
+{
+    // Full-scale input, Output 0 dB, Wet Safety on, every boosting module at its extreme on the whole output.
+    for (const auto sr : { 22050.0, 48000.0, 192000.0 })
+    {
+        GapFillAudioProcessor proc;
+        setParams (proc, { { "wetSafety", 1.0f }, { "output", 0.0f }, { "fill", 100.0f }, { "wet", 100.0f },
+                           { "fg01_on", 1.0f }, { "fg01_target", 1.0f }, { "fg01_filtMode", 1.0f },
+                           { "fg01_filtRes", 100.0f }, { "fg01_filtSync", 0.0f }, { "fg01_filtHz", 20.0f },
+                           { "fg01_filtMin", 20.0f }, { "fg01_filtMax", 20000.0f }, { "fg01_phMix", 100.0f },
+                           { "fg01_phFb", 95.0f }, { "fg01_phStages", 4.0f }, { "fg01_stutMode", 1.0f },
+                           { "fg01_stutProb", 100.0f }, { "fg01_panInv", 50.0f } });
+        const auto n = (int) (sr * 3);
+        juce::AudioBuffer<float> in (2, n);
+        juce::Random random (7);
+        for (int ch = 0; ch < 2; ++ch)
+            for (int i = 0; i < n; ++i)
+                in.setSample (ch, i, (i / 4000) % 2 == 0 ? (random.nextBool() ? 1.0f : -1.0f)
+                                                       : (float) std::sin (0.05 * i));
+        const auto out = renderOffline (proc, in, 777, sr).out;
+        float peak = 0.0f;
+        for (int ch = 0; ch < 2; ++ch)
+            peak = std::max (peak, out.getMagnitude (ch, 0, n));
+        GF_EXPECT_MSG (peak < 2.0f, juce::String (sr) + " Hz peak " + juce::String (peak, 3));
+    }
+}

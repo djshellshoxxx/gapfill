@@ -25,14 +25,37 @@ namespace
                                           { return juce::String (v, 0) + " %"; }));
     }
 
-    // Skewed ranges carry an interval: snapping makes save -> load -> save byte-stable
-    // (a continuous skewed range can drift by an ulp through the pow() round trip).
+    /** Skewed range (centre at the knob's middle) whose every conversion ends on the interval grid.
+        juce's built-in skew snaps only inside convertTo0to1, so the initial value, a host restore and a
+        file load could land an ulp apart (e.g. 7999.9995 vs 8000) and resaves drifted. Here both
+        directions snap, which makes value -> normalised -> value exact for every grid value. */
+    juce::NormalisableRange<float> snappedSkew (float lo, float hi, float centre, float interval)
+    {
+        const auto skew = std::log (0.5f) / std::log ((centre - lo) / (hi - lo));
+        const auto snap = [interval] (float start, float end, float v)
+        {
+            return juce::jlimit (start, end, start + interval * std::round ((v - start) / interval));
+        };
+
+        return { lo, hi,
+                 [skew, snap] (float start, float end, float p)
+                 {
+                     p = juce::jlimit (0.0f, 1.0f, p);
+                     return snap (start, end, p <= 0.0f ? start : start + (end - start) * std::exp (std::log (p) / skew));
+                 },
+                 [skew, snap] (float start, float end, float v)
+                 {
+                     const auto q = (snap (start, end, v) - start) / (end - start);
+                     return q <= 0.0f ? 0.0f : std::pow (q, skew);
+                 },
+                 snap };
+    }
+
     std::unique_ptr<juce::AudioParameterFloat> ms (const char* id, const char* name, float lo, float hi, float def,
                                                    float centre)
     {
         using namespace builders;
-        juce::NormalisableRange<float> range (lo, hi, 0.01f);
-        range.setSkewForCentre (centre);
+        const auto range = snappedSkew (lo, hi, centre, 0.01f);
         return std::make_unique<APF> (makeID (id, kHint), name, range, def,
                                       Attr().withLabel ("ms").withStringFromValueFunction ([] (float v, int)
                                           { return juce::String (v, v < 10.0f ? 1 : 0) + " ms"; }));
@@ -42,8 +65,7 @@ namespace
                                                    float centre)
     {
         using namespace builders;
-        juce::NormalisableRange<float> range (lo, hi, hi <= 100.0f ? 0.001f : 0.1f);
-        range.setSkewForCentre (centre);
+        const auto range = snappedSkew (lo, hi, centre, hi <= 100.0f ? 0.001f : 0.1f);
         return std::make_unique<APF> (makeID (id, kHint), name, range, def,
                                       Attr().withLabel ("Hz").withStringFromValueFunction ([] (float v, int)
                                       {
