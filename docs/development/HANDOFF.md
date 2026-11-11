@@ -1,4 +1,19 @@
-# Handoff (2026-11-07)
+# Handoff (2026-11-07, updated 2026-11-11)
+
+## 2026-11-11 wind-down (GapFill paused by the owner, relayed by the coordinator session)
+
+- Fixed on this branch since 2026-11-07 (commits 8970449, a181043, 745fa96, 1b78831):
+  - `preset_files_round_trip_through_disk` / `fg01_filtMax`: juce's skew snaps only in convertTo0to1, so the
+    fresh raw value (7999.9995) and a file load (8000) differed; glitch ranges now snap in both directions.
+  - `IntegratedStress::soak_many_seeds` seed 5003 (22.05 kHz, random <= 8192, stereo+sc+wet) and seed 1016
+    (192 kHz, 8192, mono+sc+wet): Wet-bus output > +6 dBFS with the Glitch rack OFF and `wetBusLevel` fuzzed to
+    +9.9 / +10.6 dB (the F-L12 trim sits after the -1 dBFS Wet Safety limiter). The driver now caps
+    wetBusLevel at 0 dB like Output; the 2.0 bound is unchanged. 5/5 consecutive group runs pass.
+  - Rack gain staging (resonance/feedback compensation, soft ceiling; whole-output contract test).
+- Still open: the soak is not run-to-run deterministic (same binary: peak 2.43 then 1.00 for seed 5003);
+  likely wall-clock driven code (Quality Auto CPU governor or co-op timing) - unverified, not investigated.
+- Real hosts, listening, screenshots, release artefacts: not done.
+
 
 Read `docs/progress/SESSION-NOTES.md` first (decisions, working commands, pitfalls); this file adds the 2026-11-07 pass.
 
