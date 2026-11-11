@@ -71,6 +71,13 @@ namespace
                                       {
                                           if (v >= 1000.0f) return juce::String (v / 1000.0f, 2) + " kHz";
                                           return juce::String (v, v < 10.0f ? 2 : 0) + " Hz";
+                                      })
+                                      .withValueFromStringFunction ([] (const juce::String& text)
+                                      {
+                                          // Must invert the text above ("1.00 kHz" -> 1000; clap-validator param-conversions).
+                                          const auto t = text.trim();
+                                          const auto v = t.getFloatValue();
+                                          return t.containsIgnoreCase ("k") ? v * 1000.0f : v;
                                       }));
     }
 

@@ -306,3 +306,19 @@ GF_TEST (GlitchPlugin, whole_output_keeps_the_plus_6_dbfs_contract_with_wet_safe
         GF_EXPECT_MSG (peak < 2.0f, juce::String (sr) + " Hz peak " + juce::String (peak, 3));
     }
 }
+
+GF_TEST (GlitchPlugin, value_text_round_trips_for_every_glitch_parameter)
+{
+    // clap-validator param-conversions: value -> text -> value -> text must give the same text.
+    GapFillAudioProcessor proc;
+    for (const auto& id : lockIds())
+    {
+        auto* p = proc.getValueTreeState().getParameter (id);
+        for (const auto v : { 0.0f, 0.1f, 0.25f, 0.5454545f, 0.75f, 1.0f })
+        {
+            const auto text = p->getText (v, 64);
+            const auto again = p->getText (p->getValueForText (text), 64);
+            GF_EXPECT_MSG (text == again, id + ": '" + text + "' -> '" + again + "'");
+        }
+    }
+}
