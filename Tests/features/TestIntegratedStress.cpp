@@ -131,6 +131,9 @@ namespace
                         if (id == "bandSolo")
                             bandSolo = p;
 
+                        if (id == "wetBusLevel")
+                            wetBusLevel = dynamic_cast<juce::RangedAudioParameter*> (p);
+
                         all.push_back (p);
                     }
                 }
@@ -139,6 +142,7 @@ namespace
 
         std::vector<juce::AudioProcessorParameter*> all;
         juce::AudioProcessorParameter *bypass = nullptr, *output = nullptr, *wetSafety = nullptr, *bandSolo = nullptr;
+        juce::RangedAudioParameter* wetBusLevel = nullptr;   ///< fuzzed, but capped at 0 dB like Output
     };
 
     void setNormalised (juce::AudioProcessorParameter* p, float v01)
@@ -406,6 +410,12 @@ namespace
 
                 if (ps.output != nullptr && ps.output->getValue() > 24.0f / 36.0f)
                     setNormalised (ps.output, 24.0f / 36.0f);
+
+                // The Wet bus level (F-L12, -24..+12 dB) is the separate output's own Output trim and sits after
+                // the -1 dBFS Wet Safety limiter: above +7 dB it can exceed +6 dBFS on that bus by design, so it
+                // gets the same <= 0 dB rule as Output. The +6 dBFS bound itself is unchanged.
+                if (ps.wetBusLevel != nullptr && ps.wetBusLevel->getValue() > ps.wetBusLevel->convertTo0to1 (0.0f))
+                    setNormalised (ps.wetBusLevel, ps.wetBusLevel->convertTo0to1 (0.0f));
             }
 
             work.clear();
