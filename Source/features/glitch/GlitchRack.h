@@ -16,6 +16,11 @@
 //    (0.5 * (l + r)), which is what a mono listener hears. Note that inverting
 //    only one channel cancels in that fold.
 //  - No latency is added. Reverse is a creative one-segment time shift.
+//  - Level: the processed signal passes untouched up to ceiling / 2, then bends
+//    softly and never reaches Settings::ceiling; the
+//    dry/wet mix is convex, so |out| <= max (|in|, ceiling). The processor uses
+//    2 x the Wet Safety ceiling for Whole output while Wet Safety is on, which
+//    keeps the plug-in's +6 dBFS contract (dry <= 0 dBFS + wet <= -1 dBFS).
 
 #include "GlitchClock.h"
 #include "GlitchModules.h"

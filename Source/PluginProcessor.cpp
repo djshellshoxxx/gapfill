@@ -953,7 +953,9 @@ void GapFillAudioProcessor::processChunk (juce::AudioBuffer<float>& buffer,
     }
 
     // F-G01: one settings snapshot per chunk. The grid follows the heard (latency-delayed) timeline.
-    const auto glitchSettings = glitch::gatherSettings (params);
+    auto glitchSettings = glitch::gatherSettings (params);
+    if (glitchSettings.target == glitch::Target::Output && pb (params.wetSafety))
+        glitchSettings.ceiling = 2.0f * panic::kWetSafetyCeiling;   // keep the +6 dBFS contract on the whole output
     glitch::Timing glitchTiming;
     {
         const auto spb = engineSettings.samplesPerBeat > 1.0 ? engineSettings.samplesPerBeat : 0.5 * currentSampleRate;

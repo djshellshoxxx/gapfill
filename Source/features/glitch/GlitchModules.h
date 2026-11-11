@@ -448,6 +448,7 @@ struct Svf
 {
     float ic1 = 0.0f, ic2 = 0.0f;
     float a1 = 1.0f, a2 = 0.0f, a3 = 0.0f, k = 2.0f;
+    float makeup = 1.0f;     ///< LP/HP resonance compensation: the peak grows as sqrt (Q) instead of Q
 
     void reset() noexcept { ic1 = ic2 = 0.0f; }
 
@@ -455,6 +456,7 @@ struct Svf
     {
         const auto g = std::tan (kPi * std::clamp (hz, 10.0, 0.45 * sr) / sr);
         k = (float) (1.0 / std::max (0.5, q));
+        makeup = (float) (1.0 / std::sqrt (std::max (1.0, q)));
         a1 = (float) (1.0 / (1.0 + g * (g + k)));
         a2 = (float) g * a1;
         a3 = (float) g * a2;
@@ -470,8 +472,8 @@ struct Svf
 
         switch (mode)
         {
-            case FilterMode::LowPass:  return v2;
-            case FilterMode::HighPass: return v0 - k * v1 - v2;
+            case FilterMode::LowPass:  return v2 * makeup;
+            case FilterMode::HighPass: return (v0 - k * v1 - v2) * makeup;
             case FilterMode::BandPass: return k * v1;      // unity gain at the centre
             case FilterMode::Off:      break;
         }
@@ -526,7 +528,7 @@ public:
             const auto offset = s.filtStereoDeg / 360.0;
             cutoffL = cutoffFor (s, lfoFor (s, phase, smoothL));
             cutoffR = cutoffFor (s, lfoFor (s, phase + offset, smoothR));
-            const auto q = 0.5 + (double) s.filtRes01 * (double) s.filtRes01 * 11.5;
+            const auto q = 0.5 + (double) s.filtRes01 * (double) s.filtRes01 * 7.5;   // Q 0.5 .. 8
             filters[0].set (sampleRate, cutoffL, q);
             filters[1].set (sampleRate, cutoffR, q);
         }
@@ -608,8 +610,11 @@ public:
         // tanh keeps the feedback path bounded whatever the input level.
         feedbackL = flushTiny (std::tanh (apL));
         feedbackR = flushTiny (std::tanh (apR));
-        l = l * (1.0f - 0.5f * m) + apL * 0.5f * m;
-        r = r * (1.0f - 0.5f * m) + apR * 0.5f * m;
+        // Feedback raises the all-pass loop peaks towards 1 / (1 - |fb|); scale the wet part back so the
+        // resonant peaks stay a few dB above the dry level instead of +26 dB at 95 %.
+        const auto wet = 0.5f * m * (1.0f - 0.75f * std::abs (fb));
+        l = l * (1.0f - 0.5f * m) + apL * wet;
+        r = r * (1.0f - 0.5f * m) + apR * wet;
     }
 
 private:

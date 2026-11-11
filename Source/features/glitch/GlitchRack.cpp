@@ -4,6 +4,22 @@
 
 namespace gapfill::glitch
 {
+namespace
+{
+    /** Exactly the identity up to the knee c / 2, then a tanh shoulder with slope 1 at the knee
+        (C1-continuous) that never reaches c: |y| < c for every finite x. */
+    inline float softCeiling (float x, float c) noexcept
+    {
+        const auto knee = 0.5f * std::max (0.1f, c);
+        const auto a = std::abs (x);
+
+        if (a <= knee)
+            return x;
+
+        const auto y = knee + knee * std::tanh ((a - knee) / knee);
+        return x < 0.0f ? -y : y;
+    }
+}
 
 void GlitchRack::prepare (double newSampleRate)
 {
@@ -80,9 +96,11 @@ void GlitchRack::process (float* left, float* right, int numSamples, const Setti
         auto l = inL, r = inR;
         processSample (l, r, s, t);
 
-        // The rack is a sound-design stage: keep it finite and inside +-8 even with feedback.
-        l = std::isfinite (l) ? std::clamp (l, -8.0f, 8.0f) : 0.0f;
-        r = std::isfinite (r) ? std::clamp (r, -8.0f, 8.0f) : 0.0f;
+        // Soft ceiling on the processed signal (the Wet Safety curve, scaled): resonance, feedback or a
+        // stacked chain can never push the rack above `ceiling`, and the mix below is a convex blend, so
+        // the rack output never exceeds max (|input|, ceiling).
+        l = std::isfinite (l) ? softCeiling (l, s.ceiling) : 0.0f;
+        r = std::isfinite (r) ? softCeiling (r, s.ceiling) : 0.0f;
 
         // Exact at the ends of the ramp: mix 1 is the rack output, mix 0 the untouched input.
         const auto outL = mix >= 1.0f ? l : inL + (l - inL) * mix;

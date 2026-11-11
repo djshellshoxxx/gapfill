@@ -65,6 +65,7 @@ struct Settings
     Target target = Target::Fills;
     float  mix01 = 1.0f;
     int    seed = 1;
+    float  ceiling = 4.0f;          ///< soft-limit ceiling of the processed signal (|y| < ceiling); see GlitchRack.h
 
     // Timing shared by the grid modules (C: swing and timing).
     float swing01 = 0.0f;           ///< 0 = straight, 1 = 75 % swing (the second step of a pair starts at 3/4)
