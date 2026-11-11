@@ -3531,266 +3531,266 @@
     "english": "Custom",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.494ca78f7374",
-    "line": 1266,
+    "line": 1268,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GAPFILL_STATE",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1337,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "version",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1338,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "stateVersion",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 1339,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "program",
+    "english": "version",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 1340,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "editorWidth",
+    "english": "stateVersion",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 1341,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "editorHeight",
+    "english": "program",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 1342,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "tooltips",
+    "english": "editorWidth",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 1343,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "reducedMotion",
+    "english": "editorHeight",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 1344,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "keyboardNavigation",
+    "english": "tooltips",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 1345,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "id",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1384,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1397,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1402,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "id",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1471,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1473,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "id",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1508,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "id",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1509,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1515,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1515,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "id",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1542,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "id",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1543,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1546,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1546,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "The selected preset destination is not a writable file.",
-    "file": "Source/PluginProcessor.cpp",
-    "key": "s.2fc673ae06cf",
-    "line": 1569,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "GapFill could not create preset data.",
-    "file": "Source/PluginProcessor.cpp",
-    "key": "s.fc8327ad4a75",
-    "line": 1579,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "GapFill could not write the preset file. Check the folder permissions and available disk space.",
-    "file": "Source/PluginProcessor.cpp",
-    "key": "s.4c3cc02c1899",
-    "line": 1585,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "The selected preset file does not exist.",
-    "file": "Source/PluginProcessor.cpp",
-    "key": "s.09808bbd9e1a",
-    "line": 1598,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "The selected preset file is empty.",
-    "file": "Source/PluginProcessor.cpp",
-    "key": "s.fb498034e025",
-    "line": 1606,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "The selected preset file is too large. GapFill preset files must be 1 MB or smaller.",
-    "file": "Source/PluginProcessor.cpp",
-    "key": "s.8ad083a6ca28",
-    "line": 1612,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "The selected file is not valid GapFill XML.",
-    "file": "Source/PluginProcessor.cpp",
-    "key": "s.19107d4c26a5",
-    "line": 1620,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "The selected file is not a valid GapFill preset or contains invalid parameter values.",
-    "file": "Source/PluginProcessor.cpp",
-    "key": "s.fd8893569425",
-    "line": 1631,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "GAPFILL_STATE",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1666,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "program",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1670,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "editorWidth",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1673,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "editorHeight",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1674,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "tooltips",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1675,
-    "wiring": "protected-or-nonprose"
-  },
-  {
     "english": "reducedMotion",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1676,
+    "line": 1346,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "keyboardNavigation",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
+    "line": 1347,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "id",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1386,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1399,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1404,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "id",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1473,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1475,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "id",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1510,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "id",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1511,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1517,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1517,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "id",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1544,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "id",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1545,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1548,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1548,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "The selected preset destination is not a writable file.",
+    "file": "Source/PluginProcessor.cpp",
+    "key": "s.2fc673ae06cf",
+    "line": 1571,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "GapFill could not create preset data.",
+    "file": "Source/PluginProcessor.cpp",
+    "key": "s.fc8327ad4a75",
+    "line": 1581,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "GapFill could not write the preset file. Check the folder permissions and available disk space.",
+    "file": "Source/PluginProcessor.cpp",
+    "key": "s.4c3cc02c1899",
+    "line": 1587,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "The selected preset file does not exist.",
+    "file": "Source/PluginProcessor.cpp",
+    "key": "s.09808bbd9e1a",
+    "line": 1600,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "The selected preset file is empty.",
+    "file": "Source/PluginProcessor.cpp",
+    "key": "s.fb498034e025",
+    "line": 1608,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "The selected preset file is too large. GapFill preset files must be 1 MB or smaller.",
+    "file": "Source/PluginProcessor.cpp",
+    "key": "s.8ad083a6ca28",
+    "line": 1614,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "The selected file is not valid GapFill XML.",
+    "file": "Source/PluginProcessor.cpp",
+    "key": "s.19107d4c26a5",
+    "line": 1622,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "The selected file is not a valid GapFill preset or contains invalid parameter values.",
+    "file": "Source/PluginProcessor.cpp",
+    "key": "s.fd8893569425",
+    "line": 1633,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "GAPFILL_STATE",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1668,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "program",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1672,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "editorWidth",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1675,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "editorHeight",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1676,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "tooltips",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
     "line": 1677,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "reducedMotion",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1678,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "keyboardNavigation",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1679,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -22436,21 +22436,21 @@
     "english": "GlitchClock.h",
     "file": "Source/features/glitch/GlitchRack.h",
     "key": null,
-    "line": 20,
+    "line": 25,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GlitchModules.h",
     "file": "Source/features/glitch/GlitchRack.h",
     "key": null,
-    "line": 21,
+    "line": 26,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GlitchTypes.h",
     "file": "Source/features/glitch/GlitchRack.h",
     "key": null,
-    "line": 22,
+    "line": 27,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -68988,1176 +68988,1176 @@
     "english": "ms",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 37,
+    "line": 60,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": " ms",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 38,
+    "line": 61,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "Hz",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 48,
+    "line": 70,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": " kHz",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 50,
+    "line": 72,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": " Hz",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 51,
+    "line": 73,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "deg",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 59,
+    "line": 81,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": " deg",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 60,
+    "line": 82,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "Off",
     "file": "Source/params/glitch.cpp",
     "key": "s.ca7981b46ecf",
-    "line": 69,
+    "line": 91,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Tempo",
     "file": "Source/params/glitch.cpp",
     "key": "s.214b5b846cf3",
-    "line": 69,
+    "line": 91,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Free",
     "file": "Source/params/glitch.cpp",
     "key": "s.f411a1fb6275",
-    "line": 69,
+    "line": 91,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_on",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 78,
+    "line": 100,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch On",
     "file": "Source/params/glitch.cpp",
     "key": "s.d7a9e8c1a701",
-    "line": 78,
+    "line": 100,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_target",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 79,
+    "line": 101,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch Target",
     "file": "Source/params/glitch.cpp",
     "key": "s.fa474a76ad13",
-    "line": 79,
+    "line": 101,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Fills only",
     "file": "Source/params/glitch.cpp",
     "key": "s.15c223c5e9e5",
-    "line": 79,
+    "line": 101,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Whole output",
     "file": "Source/params/glitch.cpp",
     "key": "s.0dd78629bf6b",
-    "line": 79,
+    "line": 101,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_mix",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 80,
+    "line": 102,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch Mix",
     "file": "Source/params/glitch.cpp",
     "key": "s.23d1e967ffc9",
-    "line": 80,
+    "line": 102,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_swing",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 81,
+    "line": 103,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch Swing",
     "file": "Source/params/glitch.cpp",
     "key": "s.2b382909b325",
-    "line": 81,
+    "line": 103,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_timeVar",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 82,
+    "line": 104,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Glitch Timing Variation",
     "file": "Source/params/glitch.cpp",
     "key": "s.04e905f84d03",
-    "line": 82,
+    "line": 104,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutMode",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 85,
+    "line": 107,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Mode",
     "file": "Source/params/glitch.cpp",
     "key": "s.718fd6329d38",
-    "line": 85,
+    "line": 107,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutDiv",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 86,
+    "line": 108,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Slice",
     "file": "Source/params/glitch.cpp",
     "key": "s.b329fd85e28a",
-    "line": 86,
+    "line": 108,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutMs",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 87,
+    "line": 109,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Slice Time",
     "file": "Source/params/glitch.cpp",
     "key": "s.adc0415b7f5e",
-    "line": 87,
+    "line": 109,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutRepeats",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 88,
+    "line": 110,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Repeats",
     "file": "Source/params/glitch.cpp",
     "key": "s.1f55a8644179",
-    "line": 88,
+    "line": 110,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutProb",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 89,
+    "line": 111,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Probability",
     "file": "Source/params/glitch.cpp",
     "key": "s.4731bc5b167d",
-    "line": 89,
+    "line": 111,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutRev",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 90,
+    "line": 112,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Reverse",
     "file": "Source/params/glitch.cpp",
     "key": "s.9e2a9451d56a",
-    "line": 90,
+    "line": 112,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutVar",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 91,
+    "line": 113,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Variation",
     "file": "Source/params/glitch.cpp",
     "key": "s.021372bdc508",
-    "line": 91,
+    "line": 113,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutPick",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 92,
+    "line": 114,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Slice Pick",
     "file": "Source/params/glitch.cpp",
     "key": "s.f8d1f4c79765",
-    "line": 92,
+    "line": 114,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutGate",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 93,
+    "line": 115,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Gate",
     "file": "Source/params/glitch.cpp",
     "key": "s.9bc744003ef3",
-    "line": 93,
+    "line": 115,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutDecay",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 94,
+    "line": 116,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Decay",
     "file": "Source/params/glitch.cpp",
     "key": "s.c6250209b7cd",
-    "line": 94,
+    "line": 116,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stutSmooth",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 95,
+    "line": 117,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Stutter Smoothing",
     "file": "Source/params/glitch.cpp",
     "key": "s.b9abd0f002f6",
-    "line": 95,
+    "line": 117,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stab",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 98,
+    "line": 120,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "STAB",
     "file": "Source/params/glitch.cpp",
     "key": "s.092e325740f8",
-    "line": 98,
+    "line": 120,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stabInf",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 99,
+    "line": 121,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "STAB Infinite",
     "file": "Source/params/glitch.cpp",
     "key": "s.58d920f16275",
-    "line": 99,
+    "line": 121,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stabDiv",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 100,
+    "line": 122,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "STAB Slice",
     "file": "Source/params/glitch.cpp",
     "key": "s.3cfd91b23932",
-    "line": 100,
+    "line": 122,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stabRepeats",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 101,
+    "line": 123,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "STAB Repeats",
     "file": "Source/params/glitch.cpp",
     "key": "s.ce8d53233fce",
-    "line": 101,
+    "line": 123,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stabDecay",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 102,
+    "line": 124,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "STAB Decay",
     "file": "Source/params/glitch.cpp",
     "key": "s.08a033256270",
-    "line": 102,
+    "line": 124,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stabGate",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 103,
+    "line": 125,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "STAB Gate",
     "file": "Source/params/glitch.cpp",
     "key": "s.aaedfcd5aaef",
-    "line": 103,
+    "line": 125,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stabRelease",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 104,
+    "line": 126,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "STAB Release",
     "file": "Source/params/glitch.cpp",
     "key": "s.c7048a1567a2",
-    "line": 104,
+    "line": 126,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_revMode",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 107,
+    "line": 129,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Reverse Mode",
     "file": "Source/params/glitch.cpp",
     "key": "s.8668db9004f2",
-    "line": 107,
+    "line": 129,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_revDiv",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 108,
+    "line": 130,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Reverse Length",
     "file": "Source/params/glitch.cpp",
     "key": "s.d809128b1d1b",
-    "line": 108,
+    "line": 130,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_revMs",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 109,
+    "line": 131,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Reverse Time",
     "file": "Source/params/glitch.cpp",
     "key": "s.5a1707011720",
-    "line": 109,
+    "line": 131,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_revProb",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 110,
+    "line": 132,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Reverse Probability",
     "file": "Source/params/glitch.cpp",
     "key": "s.8ec1c2ef1c03",
-    "line": 110,
+    "line": 132,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_revMix",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 111,
+    "line": 133,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Reverse Mix",
     "file": "Source/params/glitch.cpp",
     "key": "s.e7cbfada75a7",
-    "line": 111,
+    "line": 133,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_revFade",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 112,
+    "line": 134,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Reverse Fade",
     "file": "Source/params/glitch.cpp",
     "key": "s.0fded96e7ee8",
-    "line": 112,
+    "line": 134,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_gateMode",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 115,
+    "line": 137,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Microgator Mode",
     "file": "Source/params/glitch.cpp",
     "key": "s.071c7b8d7d1f",
-    "line": 115,
+    "line": 137,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_gateDiv",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 116,
+    "line": 138,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Microgator Rate",
     "file": "Source/params/glitch.cpp",
     "key": "s.d8c7f4fba437",
-    "line": 116,
+    "line": 138,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_gateHz",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 117,
+    "line": 139,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Microgator Free Rate",
     "file": "Source/params/glitch.cpp",
     "key": "s.36eba33f44c8",
-    "line": 117,
+    "line": 139,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_gateLen",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 118,
+    "line": 140,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Microgator Length",
     "file": "Source/params/glitch.cpp",
     "key": "s.80467d9c2b42",
-    "line": 118,
+    "line": 140,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_gateDepth",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 119,
+    "line": 141,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Microgator Depth",
     "file": "Source/params/glitch.cpp",
     "key": "s.03e187ac34d4",
-    "line": 119,
+    "line": 141,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_gateAttack",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 120,
+    "line": 142,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Microgator Attack",
     "file": "Source/params/glitch.cpp",
     "key": "s.b5ec4aeba0b2",
-    "line": 120,
+    "line": 142,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_gateRelease",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 121,
+    "line": 143,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Microgator Release",
     "file": "Source/params/glitch.cpp",
     "key": "s.7c1f643ce4a2",
-    "line": 121,
+    "line": 143,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_gatePattern",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 122,
+    "line": 144,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Microgator Pattern",
     "file": "Source/params/glitch.cpp",
     "key": "s.77191008b8f3",
-    "line": 122,
+    "line": 144,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Straight",
     "file": "Source/params/glitch.cpp",
     "key": "s.dc81306b1182",
-    "line": 123,
+    "line": 145,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Offbeat",
     "file": "Source/params/glitch.cpp",
     "key": "s.b1f36abd9d30",
-    "line": 123,
+    "line": 145,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Dotted",
     "file": "Source/params/glitch.cpp",
     "key": "s.be454f3c8084",
-    "line": 123,
+    "line": 145,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Tresillo",
     "file": "Source/params/glitch.cpp",
     "key": "s.9e2c59c4768c",
-    "line": 123,
+    "line": 145,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Euclid 5/8",
     "file": "Source/params/glitch.cpp",
     "key": "s.e3c063dc0927",
-    "line": 123,
+    "line": 145,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Gallop",
     "file": "Source/params/glitch.cpp",
     "key": "s.8d391a6fe164",
-    "line": 123,
+    "line": 145,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Random",
     "file": "Source/params/glitch.cpp",
     "key": "s.67bc484430fe",
-    "line": 123,
+    "line": 145,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_gateVar",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 124,
+    "line": 146,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Microgator Variation",
     "file": "Source/params/glitch.cpp",
     "key": "s.9217fd00dd01",
-    "line": 124,
+    "line": 146,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_gateStereo",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 125,
+    "line": 147,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Microgator Stereo Offset",
     "file": "Source/params/glitch.cpp",
     "key": "s.2232ebb2b6d2",
-    "line": 125,
+    "line": 147,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_filtMode",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 128,
+    "line": 150,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sweep Filter",
     "file": "Source/params/glitch.cpp",
     "key": "s.28ac4e6f4399",
-    "line": 128,
+    "line": 150,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Off",
     "file": "Source/params/glitch.cpp",
     "key": "s.ca7981b46ecf",
-    "line": 128,
+    "line": 150,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Low-pass",
     "file": "Source/params/glitch.cpp",
     "key": "s.faa22cee68ae",
-    "line": 128,
+    "line": 150,
     "wiring": "pending-sink-review"
   },
   {
     "english": "High-pass",
     "file": "Source/params/glitch.cpp",
     "key": "s.c7e889c15c3f",
-    "line": 128,
+    "line": 150,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Band-pass",
     "file": "Source/params/glitch.cpp",
     "key": "s.4db97c668415",
-    "line": 128,
+    "line": 150,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_filtSync",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 129,
+    "line": 151,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sweep Tempo Sync",
     "file": "Source/params/glitch.cpp",
     "key": "s.f0ebcc13c8da",
-    "line": 129,
+    "line": 151,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_filtDiv",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 130,
+    "line": 152,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sweep Cycle",
     "file": "Source/params/glitch.cpp",
     "key": "s.0f009cdead99",
-    "line": 130,
+    "line": 152,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_filtHz",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 131,
+    "line": 153,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sweep Free Rate",
     "file": "Source/params/glitch.cpp",
     "key": "s.7bdd92b9c5d1",
-    "line": 131,
+    "line": 153,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_filtMin",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 132,
+    "line": 154,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sweep Minimum",
     "file": "Source/params/glitch.cpp",
     "key": "s.d46f418983be",
-    "line": 132,
+    "line": 154,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_filtMax",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 133,
+    "line": 155,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sweep Maximum",
     "file": "Source/params/glitch.cpp",
     "key": "s.1322d4dae8b9",
-    "line": 133,
+    "line": 155,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_filtDepth",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 134,
+    "line": 156,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sweep Depth",
     "file": "Source/params/glitch.cpp",
     "key": "s.d0a230ba8626",
-    "line": 134,
+    "line": 156,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_filtRes",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 135,
+    "line": 157,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sweep Resonance",
     "file": "Source/params/glitch.cpp",
     "key": "s.c92f881ea88e",
-    "line": 135,
+    "line": 157,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_filtShape",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 136,
+    "line": 158,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sweep Shape",
     "file": "Source/params/glitch.cpp",
     "key": "s.5f649c49348c",
-    "line": 136,
+    "line": 158,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Sine",
     "file": "Source/params/glitch.cpp",
     "key": "s.37573a14aab6",
-    "line": 136,
+    "line": 158,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Triangle",
     "file": "Source/params/glitch.cpp",
     "key": "s.a0252691b5dc",
-    "line": 136,
+    "line": 158,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Ramp up",
     "file": "Source/params/glitch.cpp",
     "key": "s.dff71ba19ccb",
-    "line": 136,
+    "line": 158,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Ramp down",
     "file": "Source/params/glitch.cpp",
     "key": "s.c882d90a2a7f",
-    "line": 136,
+    "line": 158,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Square",
     "file": "Source/params/glitch.cpp",
     "key": "s.c11092bc0861",
-    "line": 136,
+    "line": 158,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Random",
     "file": "Source/params/glitch.cpp",
     "key": "s.67bc484430fe",
-    "line": 136,
+    "line": 158,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_filtStereo",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 137,
+    "line": 159,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Sweep Stereo Phase",
     "file": "Source/params/glitch.cpp",
     "key": "s.9fedaf631a2b",
-    "line": 137,
+    "line": 159,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_phMix",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 140,
+    "line": 162,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phaser Mix",
     "file": "Source/params/glitch.cpp",
     "key": "s.4acb72e69326",
-    "line": 140,
+    "line": 162,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_phStages",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 141,
+    "line": 163,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phaser Stages",
     "file": "Source/params/glitch.cpp",
     "key": "s.d6a7df88841c",
-    "line": 141,
+    "line": 163,
     "wiring": "pending-sink-review"
   },
   {
     "english": "2",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 141,
+    "line": 163,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "4",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 141,
+    "line": 163,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "6",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 141,
+    "line": 163,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "8",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 141,
+    "line": 163,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "12",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 141,
+    "line": 163,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "fg01_phSync",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 142,
+    "line": 164,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phaser Tempo Sync",
     "file": "Source/params/glitch.cpp",
     "key": "s.e073f280f810",
-    "line": 142,
+    "line": 164,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_phDiv",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 143,
+    "line": 165,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phaser Cycle",
     "file": "Source/params/glitch.cpp",
     "key": "s.59eb98d01dd8",
-    "line": 143,
+    "line": 165,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_phHz",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 144,
+    "line": 166,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phaser Rate",
     "file": "Source/params/glitch.cpp",
     "key": "s.9254ebb4e669",
-    "line": 144,
+    "line": 166,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_phDepth",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 145,
+    "line": 167,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phaser Depth",
     "file": "Source/params/glitch.cpp",
     "key": "s.9f11ed94b699",
-    "line": 145,
+    "line": 167,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_phFb",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 146,
+    "line": 168,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phaser Feedback",
     "file": "Source/params/glitch.cpp",
     "key": "s.d72a075ba927",
-    "line": 146,
+    "line": 168,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_phCentre",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 147,
+    "line": 169,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phaser Centre",
     "file": "Source/params/glitch.cpp",
     "key": "s.80cf2d0a9a82",
-    "line": 147,
+    "line": 169,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_phStereo",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 148,
+    "line": 170,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Phaser Stereo Phase",
     "file": "Source/params/glitch.cpp",
     "key": "s.fe7dd623d37d",
-    "line": 148,
+    "line": 170,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_polL",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 151,
+    "line": 173,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Invert Left Polarity",
     "file": "Source/params/glitch.cpp",
     "key": "s.11c54a6cd722",
-    "line": 151,
+    "line": 173,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_polR",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 152,
+    "line": 174,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Invert Right Polarity",
     "file": "Source/params/glitch.cpp",
     "key": "s.20bbf299de41",
-    "line": 152,
+    "line": 174,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_panInv",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 153,
+    "line": 175,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Pan Inversion",
     "file": "Source/params/glitch.cpp",
     "key": "s.8624a955649c",
-    "line": 153,
+    "line": 175,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_flipMode",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 154,
+    "line": 176,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Rhythmic Flip",
     "file": "Source/params/glitch.cpp",
     "key": "s.75b69403aa74",
-    "line": 154,
+    "line": 176,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Off",
     "file": "Source/params/glitch.cpp",
     "key": "s.ca7981b46ecf",
-    "line": 154,
+    "line": 176,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Swap L/R",
     "file": "Source/params/glitch.cpp",
     "key": "s.9a83ce90344f",
-    "line": 154,
+    "line": 176,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Invert left",
     "file": "Source/params/glitch.cpp",
     "key": "s.6c0fbd102e9a",
-    "line": 154,
+    "line": 176,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Invert right",
     "file": "Source/params/glitch.cpp",
     "key": "s.d4fe394f520a",
-    "line": 154,
+    "line": 176,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Invert both",
     "file": "Source/params/glitch.cpp",
     "key": "s.f13135d7273b",
-    "line": 154,
+    "line": 176,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_flipDiv",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 155,
+    "line": 177,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Flip Rate",
     "file": "Source/params/glitch.cpp",
     "key": "s.1af2d45d7caa",
-    "line": 155,
+    "line": 177,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_flipProb",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 156,
+    "line": 178,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Flip Probability",
     "file": "Source/params/glitch.cpp",
     "key": "s.3c554175f9a2",
-    "line": 156,
+    "line": 178,
     "wiring": "pending-sink-review"
   },
   {
     "english": "fg01_stab",
     "file": "Source/params/glitch.cpp",
     "key": null,
-    "line": 163,
+    "line": 185,
     "wiring": "protected-or-nonprose"
   },
   {
