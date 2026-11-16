@@ -1,3 +1,4 @@
+#include "../support/ScopedTestThread.h"
 #include "../TestFramework.h"
 #include "features/export/ExportService.h"
 
@@ -239,7 +240,7 @@ GF_TEST (ExportOwnership, concurrent_requests_cancellations_and_takes_never_mix_
 {
     ExportFixture fixture;
     std::atomic<std::int64_t> published { 0 };
-    std::jthread audio ([&] (std::stop_token stop)
+    gftest::ScopedTestThread audio ([&] (gftest::ScopedTestThread::StopToken stop)
     {
         while (! stop.stop_requested())
         {

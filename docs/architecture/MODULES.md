@@ -2,6 +2,19 @@
 
 Status: as-built file map and maintenance guide, checked against `CMakeLists.txt`, public headers, repository documentation, and the source tree on 2026-10-21. This is a boundary map, not a claim that every implementation path has received a full code review. Update it whenever ownership or dependencies change.
 
+## Test worker portability
+
+`Tests/support/ScopedTestThread.h` owns a cooperative stop flag and a joining
+`std::thread` for calibration, export ownership and editor lifecycle tests. It
+requires only C++17 library facilities, including on Apple libc++. Destruction
+requests stop and joins during assertion unwinding; explicit joins remain valid.
+The owner is nonmovable so tokens cannot refer to relocated state. Tokens must
+not escape the owner's lifetime. Workers must return or poll the token, and
+tests must release blocking barriers themselves. Worker exceptions must be caught
+inside the callable, as with `std::thread`. This helper is test-only and never
+runs in the plugin's production audio callback. Its standalone regression is
+`tools/test_scoped_test_thread.cpp`, executed by CI preflight.
+
 ## Runtime flow
 
 ```mermaid

@@ -1,3 +1,4 @@
+#include "../support/ScopedTestThread.h"
 // U-6 / F-L05 Auto-Calibrate.
 
 #include "../support/AllocGuard.h"
@@ -261,7 +262,7 @@ GF_TEST (Calibrate, cancelled_tap_refuses_reallocation_until_entered_writer_retu
     PausedTapWrite paused;
     tap.setBeforeWriteForTests (&PausedTapWrite::pause, &paused);
     std::array<float, 512> input {};
-    std::jthread audio ([&] { tap.write (input.data(), (int) input.size()); });
+    gftest::ScopedTestThread audio ([&] { tap.write (input.data(), (int) input.size()); });
     paused.entered.arrive_and_wait();
 
     tap.cancel();
@@ -287,7 +288,7 @@ GF_TEST (Calibrate, cancelled_tap_refuses_restart_until_entered_writer_returns)
     PausedTapWrite paused;
     tap.setBeforeWriteForTests (&PausedTapWrite::pause, &paused);
     std::array<float, 512> input {};
-    std::jthread audio ([&] { tap.write (input.data(), (int) input.size()); });
+    gftest::ScopedTestThread audio ([&] { tap.write (input.data(), (int) input.size()); });
     paused.entered.arrive_and_wait();
 
     tap.cancel();

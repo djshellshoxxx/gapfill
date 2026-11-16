@@ -1,3 +1,26 @@
+# Release continuation (2026-11-16)
+
+- Candidate branch: `integration/gapfill-release-20261116`, PR #40.
+- Consolidates latest Glitch branch `34aada5`, CI speed `01a0671` and build-target tests `a87b1b0`.
+- CI run `43841351862` on `cdf5e45` passed preflight but Apple Silicon full QA
+  failed compiling `TestExportOwnership.cpp`: Apple libc++ lacks `std::jthread`
+  and `std::stop_token`. The first runner-only fix was incomplete.
+- Follow-up: all five remaining uses in Calibrate, ExportOwnership and
+  EditorLifecycle now use `Tests/support/ScopedTestThread.h`. Cancellation and
+  automatic join during assertion unwinding are preserved; no production DSP,
+  parameters or preset changes. Standalone C++17 lifecycle regression is in CI.
+- Local checks: standalone lifecycle test passed; address/undefined sanitizer
+  run passed with leak detection disabled (LeakSanitizer cannot run under this
+  workspace's ptrace environment); 42 tooling tests and validate_repo passed.
+  Hosted sanitizer settings are unchanged. Native Apple verification is pending.
+- Next release tag candidate: `v0.0.2-beta2` (beta1 exists). Do not publish from
+  failed run 43841351862; use a successful push CI run on the exact new head.
+- Release workflow dispatch is not exposed by the connected GitHub tool. Browser
+  sign-in did not complete; publication still needs an authenticated dispatch.
+  Keep all exact-SHA, artifact and package-validation gates in release-beta.yml.
+
+---
+
 # Handoff (2026-11-07, updated 2026-11-11)
 
 ## 2026-11-11 wind-down (GapFill paused by the owner, relayed by the coordinator session)

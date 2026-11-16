@@ -86,6 +86,11 @@ jobs:
           c++ -std=c++20 -Wall -Wextra -Werror -pthread tools/transport_probe/TestTraceQueue.cpp -o "$RUNNER_TEMP/transport-trace-queue"
           "$RUNNER_TEMP/transport-trace-queue"
 
+      - name: Portable test worker lifecycle
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror -pthread tools/test_scoped_test_thread.cpp -o "$RUNNER_TEMP/scoped-test-thread"
+          timeout 15 "$RUNNER_TEMP/scoped-test-thread"
+
       - name: Completeness audit and layout-literal ratchet
         run: |
           python tools/audit/completeness_audit.py

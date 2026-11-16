@@ -1,3 +1,4 @@
+#include "../support/ScopedTestThread.h"
 // W-01: the normal suite launches a fresh child whose actual main thread runs
 // JUCE's public event loop. A test worker coordinates 200 editor lifetimes via
 // callSync(), while separate threads process audio and automate every parameter.
@@ -113,7 +114,7 @@ namespace
         ThreadReport report;
         const auto started = juce::Time::getMillisecondCounterHiRes();
 
-        std::jthread audio ([&] (std::stop_token stop)
+        gftest::ScopedTestThread audio ([&] (gftest::ScopedTestThread::StopToken stop)
         {
             juce::AudioBuffer<float> buffer (2, blockSize);
             juce::MidiBuffer midi;
@@ -139,7 +140,7 @@ namespace
             }
         });
 
-        std::jthread automation ([&] (std::stop_token stop)
+        gftest::ScopedTestThread automation ([&] (gftest::ScopedTestThread::StopToken stop)
         {
             juce::Random rng (99);
 
