@@ -25,7 +25,9 @@ int runWithMessageLoop (RunTests&& runTests)
     auto* manager = juce::MessageManager::getInstance();
     int result = 1;
 
-    std::jthread worker ([&]
+    // Apple libc++ on supported runners does not provide std::jthread yet.
+    // No stop token is used here; retain its join-on-scope-exit guarantee below.
+    std::thread worker ([&]
     {
         try
         {
@@ -49,6 +51,12 @@ int runWithMessageLoop (RunTests&& runTests)
             manager->stopDispatchLoop();
         }
     });
+
+    const juce::ScopeGuard joinWorker { [&]
+    {
+        if (worker.joinable())
+            worker.join();
+    } };
 
     manager->runDispatchLoop();
     worker.join();
