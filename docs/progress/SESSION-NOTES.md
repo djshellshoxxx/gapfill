@@ -3,6 +3,11 @@
 Read this before re-deriving anything. Newest first inside each section.
 
 ## Decisions
+- 2026-11-16 release continuation: #40 remains draft. Native builds/validators at
+  43c1c6f passed, but full assurance found Windows state-recursion stack overflow,
+  MIDI-ON CC loss, platform test defects and macOS long-test timeouts. Repairs and
+  exact evidence are in docs/development/HANDOFF.md. Keep every acceptance gate;
+  runtime/compiler fixes and diagnostic progress do not establish a sanitizer pass.
 - OWNER 2026-11-07 (session prompt): F-G01 Glitch rack requested; freeze lifted for that package only (DECISIONS 19-21).
 - 2026-11-07: hosted-CI failures on #36 = FMA contraction (toolchain emits FMA); fixed by -ffp-contract=off (74bb8ac,
   PR #39). Proof: v3 build of #36 head + fix, full suite 1674/0. See docs/development/STATUS.md and HANDOFF.md.

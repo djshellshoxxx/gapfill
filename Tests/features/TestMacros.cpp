@@ -6,6 +6,7 @@
 #include "features/macros/MacroModel.h"
 #include "features/state/StateSubtrees.h"
 
+#include <array>
 #include <cmath>
 #include <cstring>
 
@@ -216,13 +217,15 @@ GF_TEST (Macros, off_is_the_identity_and_the_stage_never_touches_unmapped_fields
     off.on = false;
     off.runtime = &r.rt;
     EngineSettings s;
+    std::array<unsigned char, sizeof (EngineSettings)> untouched {};
+    std::memcpy (untouched.data(), &s, sizeof (s));
     Effective::applyMacros (s, off, out);
-    GF_EXPECT (std::memcmp (&s, &before, sizeof (EngineSettings)) == 0);
+    GF_EXPECT (std::memcmp (&s, untouched.data(), sizeof (s)) == 0);
 
     Effective::MacroState noRuntime;
     noRuntime.on = true;
     Effective::applyMacros (s, noRuntime, out);
-    GF_EXPECT (std::memcmp (&s, &before, sizeof (EngineSettings)) == 0);
+    GF_EXPECT (std::memcmp (&s, untouched.data(), sizeof (s)) == 0);
 
     // on, with the factory mappings: only mapped fields change
     Effective::MacroState on;

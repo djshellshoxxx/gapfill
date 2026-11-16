@@ -78,7 +78,7 @@ jobs:
         run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py tools/test_x11_test_session.py
 
       - name: Release assurance tool regressions
-        run: python -m unittest tools.qa.nightly_test tools.test_release_pipeline tools.test_i18n_catalog
+        run: python -m unittest tools.qa.nightly_test tools.test_release_pipeline tools.test_i18n_catalog tools.test_native_qa
 
       - name: Transport trace analysis and bounded callback queue
         run: |
@@ -90,6 +90,11 @@ jobs:
         run: |
           c++ -std=c++17 -Wall -Wextra -Werror -pthread tools/test_scoped_test_thread.cpp -o "$RUNNER_TEMP/scoped-test-thread"
           timeout 15 "$RUNNER_TEMP/scoped-test-thread"
+
+      - name: State XML resource limits
+        run: |
+          c++ -std=c++17 -Wall -Wextra -Werror tools/test_xml_limits.cpp -o "$RUNNER_TEMP/xml-limits"
+          "$RUNNER_TEMP/xml-limits"
 
       - name: Completeness audit and layout-literal ratchet
         run: |

@@ -6,6 +6,7 @@
 #include <cmath>
 #include <cstdint>
 #include <exception>
+#include <iostream>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -209,10 +210,15 @@ namespace
 
 GF_TEST (CoopRenderMatrix, four_real_processors_match_every_pcm_bit_for_order_threads_and_block_size_over_64_bars)
 {
+    const auto started = juce::Time::getMillisecondCounterHiRes();
+    std::cout << "  co-op reference: block=64 threads=1 bars=" << bars << std::endl;
     const auto reference = renderMatrix (64, 1, false);
     validateOwners (reference);
     for (const auto config : { std::array<int, 2> { 64, 1 }, { 64, 4 }, { 512, 1 }, { 512, 4 } })
     {
+        std::cout << "  co-op comparison: block=" << config[0] << " threads=" << config[1]
+                  << " elapsed=" << (juce::Time::getMillisecondCounterHiRes() - started) * 0.001
+                  << "s" << std::endl;
         const auto result = renderMatrix (config[0], config[1], true, &reference);
         validateOwners (result);
         for (int i = 0; i < tracks; ++i)

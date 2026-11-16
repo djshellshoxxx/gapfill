@@ -329,10 +329,10 @@ GF_TEST (Controllers, bindings_survive_a_missing_device_and_the_state_remembers_
     GF_EXPECT (c.getLiveControl().feedbackEngine().getNumRules() == 0);
 }
 
-GF_TEST (Controllers, feedback_is_standalone_only_and_the_processor_never_emits_midi)
+GF_TEST (Controllers, feedback_is_standalone_only_and_never_emits_into_host_midi)
 {
     GapFillAudioProcessor proc;
-    GF_EXPECT (! proc.producesMidi());
+    GF_EXPECT (proc.producesMidi() == midiout::kDeclared);
 
     // The compiled test host is a Standalone-style build, so the device path is allowed here...
     GF_EXPECT (gapfill::live::LiveControl::feedbackAvailableInThisHost() == juce::JUCEApplicationBase::isStandaloneApp());

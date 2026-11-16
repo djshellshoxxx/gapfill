@@ -51,13 +51,19 @@ class CatalogTests(unittest.TestCase):
 
     def test_catalogs_and_inventory_match_current_source(self):
         english, pseudo, inventory = build_catalog.build()
-        self.assertEqual(json.loads((build_catalog.LANG / "en.json").read_text()), english)
-        self.assertEqual(json.loads((build_catalog.LANG / "pseudo.json").read_text()), pseudo)
-        self.assertEqual(json.loads((build_catalog.ROOT / "INVENTORY.json").read_text()), inventory)
+        self.assertEqual(json.loads((build_catalog.LANG / "en.json").read_text(encoding="utf-8")), english)
+        self.assertEqual(json.loads((build_catalog.LANG / "pseudo.json").read_text(encoding="utf-8")), pseudo)
+        self.assertEqual(json.loads((build_catalog.ROOT / "INVENTORY.json").read_text(encoding="utf-8")), inventory)
+
+    def test_xml_resource_guard_tokens_are_protocol_data(self):
+        source = 'if (remaining.substr (0, 9) == "<![CDATA[") {}'
+        value, start, end = next(build_catalog.literals(source))
+        self.assertEqual(build_catalog.classify(value, source, start, end, Path("XmlLimits.h"), set()),
+                         "protected-or-nonprose")
 
     def test_utf8_catalogs_fit_cap_and_pseudo_preserves_slots(self):
-        english = json.loads((build_catalog.LANG / "en.json").read_text())
-        pseudo = json.loads((build_catalog.LANG / "pseudo.json").read_text())
+        english = json.loads((build_catalog.LANG / "en.json").read_text(encoding="utf-8"))
+        pseudo = json.loads((build_catalog.LANG / "pseudo.json").read_text(encoding="utf-8"))
         for code in ("en", "pseudo"):
             data = (build_catalog.LANG / (code + ".json")).read_bytes()
             self.assertLessEqual(len(data), build_catalog.MAX_CATALOG_BYTES)
@@ -69,7 +75,7 @@ class CatalogTests(unittest.TestCase):
             self.assertEqual(re.findall(r"\{\d+\}", original), re.findall(r"\{\d+\}", translated), key)
 
     def test_inventory_keeps_protected_ids_out_of_the_catalog(self):
-        inventory = json.loads((build_catalog.ROOT / "INVENTORY.json").read_text())
+        inventory = json.loads((build_catalog.ROOT / "INVENTORY.json").read_text(encoding="utf-8"))
         self.assertTrue(any(row["wiring"] == "protected-or-nonprose" and row["key"] is None for row in inventory))
         for row in inventory:
             if row["wiring"] in ("protected-or-nonprose", "pending-dynamic-template"):

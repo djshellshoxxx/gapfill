@@ -2,6 +2,7 @@
 write a complete evidence file and exit non-zero on any failed step. Uses a fake test binary (a Python one-liner)."""
 
 import json
+import shlex
 import copy
 import hashlib
 import subprocess
@@ -300,7 +301,7 @@ class RunMatrixTests(unittest.TestCase):
             compiler.write_text('set(CMAKE_CXX_COMPILER_ID "GNU")\nset(CMAKE_CXX_COMPILER_VERSION "12.2.0")\n')
             (build / "CMakeCache.txt").write_text("CMAKE_BUILD_TYPE:STRING=Release\nCMAKE_CXX_COMPILER:FILEPATH=/usr/bin/c++\n")
             out = Path(tmp) / "evidence"
-            command = [sys.executable, "-I", str(rm.REPO / "tools/qa/run_matrix.py"), "--binary", sys.executable,
+            command = [sys.executable, "-I", str(rm.REPO / "tools/qa/run_matrix.py"), "--binary", shlex.quote(Path(sys.executable).as_posix()),
                        "--out", str(out), "--build-dir", str(build), "--build-config", "Release"]
             for step in rm.default_steps([sys.executable], "fast"):
                 command += ["--skip", step.name]

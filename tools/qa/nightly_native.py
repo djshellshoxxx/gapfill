@@ -17,13 +17,16 @@ import shlex
 import shutil
 import subprocess
 import sys
+import time
 import urllib.request
 import zipfile
 
 try:
     from .nightly_run import REPO
+    from .run_matrix import auval_command
 except ImportError:
     from nightly_run import REPO
+    from run_matrix import auval_command
 
 PLUGINVAL_VERSION = "1.0.4"
 CLAP_VALIDATOR_REV = "152b9823e992d782c5c1fd33bca0295478b919aa"  # upstream 0.4.1
@@ -31,6 +34,29 @@ CLAP_VALIDATOR_REV = "152b9823e992d782c5c1fd33bca0295478b919aa"  # upstream 0.4.
 
 def run(command):
     subprocess.run([str(arg) for arg in command], cwd=REPO, check=True)
+
+
+def wait_for_audio_unit(bundle: Path, evidence: Path, *, runner=subprocess.run, sleep=time.sleep,
+                        attempts: int = 8) -> None:
+    """Refresh registration and require the built AU's exact identity before validation.
+
+    Discovery is not validation: run_matrix must still run auval -v successfully.
+    Keep every discovery attempt so missing registration remains diagnosable.
+    """
+    identity = auval_command(bundle)[2:]
+    evidence.mkdir(parents=True, exist_ok=True)
+    refresh = runner(["killall", "AudioComponentRegistrar"], capture_output=True, text=True, timeout=30)
+    (evidence / "registrar-refresh.log").write_text(
+        f"exit {refresh.returncode}\n{refresh.stdout or ''}{refresh.stderr or ''}", encoding="utf-8")
+    for attempt in range(attempts):
+        result = runner(["auval", "-a"], capture_output=True, text=True, timeout=30)
+        output = (result.stdout or "") + (result.stderr or "")
+        (evidence / f"discovery-{attempt + 1}.log").write_text(output, encoding="utf-8")
+        if result.returncode == 0 and any(line.split()[:3] == identity for line in output.splitlines()):
+            return
+        if attempt + 1 < attempts:
+            sleep(5)
+    raise RuntimeError("built Audio Unit was not registered after bounded discovery attempts")
 
 
 def prepare_tools(directory: Path) -> tuple[Path, Path, dict]:
@@ -100,6 +126,8 @@ def main(argv=None) -> int:
             destination.parent.mkdir(parents=True, exist_ok=True)
             shutil.copytree(component, destination)
             installed_component = destination
+            destination.touch()
+            wait_for_audio_unit(component, args.out / "au-registration")
         evidence = args.out / "qa-matrix"
         command = [sys.executable, REPO / "tools/qa/run_matrix.py", "--binary", shlex.quote(binary.as_posix()),
                    "--tier", "full", "--out", evidence, "--build-dir", args.build_dir,

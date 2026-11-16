@@ -1,23 +1,72 @@
-# Release continuation (2026-11-16)
+# Release continuation (2026-11-16, native QA repairs)
 
-- Candidate branch: `integration/gapfill-release-20261116`, PR #40.
-- Consolidates latest Glitch branch `34aada5`, CI speed `01a0671` and build-target tests `a87b1b0`.
-- CI run `43841351862` on `cdf5e45` passed preflight but Apple Silicon full QA
-  failed compiling `TestExportOwnership.cpp`: Apple libc++ lacks `std::jthread`
-  and `std::stop_token`. The first runner-only fix was incomplete.
-- Follow-up: all five remaining uses in Calibrate, ExportOwnership and
-  EditorLifecycle now use `Tests/support/ScopedTestThread.h`. Cancellation and
-  automatic join during assertion unwinding are preserved; no production DSP,
-  parameters or preset changes. Standalone C++17 lifecycle regression is in CI.
-- Local checks: standalone lifecycle test passed; address/undefined sanitizer
-  run passed with leak detection disabled (LeakSanitizer cannot run under this
-  workspace's ptrace environment); 42 tooling tests and validate_repo passed.
-  Hosted sanitizer settings are unchanged. Native Apple verification is pending.
-- Next release tag candidate: `v0.0.2-beta2` (beta1 exists). Do not publish from
-  failed run 43841351862; use a successful push CI run on the exact new head.
-- Release workflow dispatch is not exposed by the connected GitHub tool. Browser
-  sign-in did not complete; publication still needs an authenticated dispatch.
-  Keep all exact-SHA, artifact and package-validation gates in release-beta.yml.
+- Candidate: `integration/gapfill-release-20261116`, draft PR #40; next tag
+  candidate `v0.0.2-beta2`. No new release or merge has been performed.
+- Consolidates #32/#36, latest Glitch `34aada5`, CI speed `01a0671`, and build
+  target tests `a87b1b0`. The portable worker fix at `43c1c6f` now builds on both
+  Apple architectures. Existing fixtures/goldens are preserved.
+
+## Hosted evidence before these repairs
+
+Push run [43843843236](https://github.com/djshellshoxxx/gapfill/actions/runs/43843843236)
+on `43c1c6f` failed full assurance even though ordinary Linux/Windows/macOS
+builds, smoke tests, plugin validators and package checks passed. Linux full
+unit tests, MIDI-OFF native QA, performance and 300-second soak also passed.
+
+- Windows full QA exited `3221225725` (stack overflow) in the 2,000-level state
+  nesting regression. Preflight also had UTF-8 and Windows binary-path failures.
+  EVENT drawing and two settings-identity assertions failed before the crash.
+- Linux MIDI-ON: 1,705 passed, three failed (two stale MIDI declaration assertions
+  and real loss of incoming CC while both MIDI output modes were disabled).
+- macOS arm64/x86_64: full suite timed out at `CoopRenderMatrix` (1,800 seconds);
+  editor lifecycle child exceeded 600 seconds. Intel AU discovery was absent.
+- TSan stopped inside JUCE's timed condition-variable wait with GCC 11.4's missing
+  `pthread_cond_clockwait` interceptor (GCC PR 101978); no project threading test
+  completed. ASan+UBSan executed the suite but failed the editor lifecycle deadline;
+  its report contains no address/undefined-behavior diagnostic. Neither is a pass.
+
+## Repairs in this continuation
+
+- State and preset loading reject more than 64 nested XML elements and DTD/entity
+  declarations before JUCE's recursive parser. Binary states validate canonical
+  UTF-8 first. Rejection leaves the session unchanged. See
+  `Source/features/state/README.md` and actual-processor regressions in `StateQa`.
+- Disabled MIDI output preserves incoming MIDI/CC, while active modes and old-note
+  flushes retain ownership. Declaration tests now cover the selected build option.
+- Native drawing is flushed before pixel inspection; no-op settings tests snapshot
+  the same object's representation instead of comparing unrelated padding bytes.
+- Tooling reads catalogs as UTF-8 and quotes the test-binary path correctly on
+  Windows. The generated i18n inventory is refreshed; catalogs are unchanged.
+- Sanitizer jobs select GCC 12 and run a timed-wait runtime smoke test before their
+  full build. All sanitizer diagnostics, leak checks and workload selections stay
+  enabled. AU QA requires bounded discovery of the built bundle's exact identity
+  before running the existing real `auval -v` check.
+- Co-op matrix phases and every 25th editor lifecycle cycle report progress for
+  timeout diagnosis. Bar counts, stress rate assertions and deadlines are unchanged.
+- GUI snapshot matrix now includes Glitch at minimum/large sizes and 100/150/200%.
+
+## Local evidence and remaining work
+
+- 109 tooling tests pass. XML resource-limit tests pass normally and with
+  ASan+UBSan; the timed-wait smoke passes normally and under local GCC 14 TSan.
+  Local ASan leak detection is disabled because this workspace uses ptrace;
+  hosted leak detection stays enabled.
+- Repository validation (362 stable IDs), completeness audit (zero findings),
+  layout checks, i18n freshness, packaging fixtures, CI/build helpers and workflow
+  syntax pass. The standalone portable-worker regression remains in preflight.
+- `tools.qa.nightly_test`: 19 pass, one environment failure creating an ephemeral
+  GPG key because this workspace cannot launch gpg-agent's Unix socket. Not skipped
+  and not reported as a pass; hosted preflight must verify it.
+- Native Linux MIDI-ON Release compilation is in progress. The workspace exceeded
+  memory limits with four and then two compiler jobs; resumed with one. No complete
+  native result for these repairs is claimed here.
+- Require a successful push CI/full-assurance run on the exact new head. In
+  particular, the macOS co-op and editor stress timeouts are still unresolved.
+  Do not merge or publish based solely on ordinary build/validator success.
+- Real DAW/listening, signing/notarization and interactive accessibility remain
+  unverified. Authenticated release workflow dispatch is still needed after green
+  gates; the GitHub connector has no dispatch action. Keep release-beta.yml's
+  exact-SHA, artifact and package-validation requirements.
 
 ---
 

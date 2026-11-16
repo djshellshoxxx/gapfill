@@ -161,6 +161,13 @@ namespace
 
         for (int round = 0; round < rounds; ++round)
         {
+            // Eight short progress lines stay below the child's pipe capacity.
+            // Leave the full stress load and ten-minute deadline unchanged.
+            if (round % 25 == 0)
+                std::cout << "  editor cycle=" << round
+                          << " elapsed=" << (juce::Time::getMillisecondCounterHiRes() - started) * 0.001
+                          << "s blocks=" << report.blocks.load() << " writes=" << report.paramWrites.load()
+                          << std::endl;
             GF_EXPECT (juce::MessageManager::callSync ([&]
             {
                 host.editor.reset (host.proc->createEditor());

@@ -342,6 +342,12 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
         { "main-advanced-min-1020x620-scale200", ui::ViewMode::Advanced, 0, 1020, 620, false, false, false, 200 },
         { "main-advanced-default-1100x700-scale200", ui::ViewMode::Advanced, 0, 1100, 700, false, false, false, 200 },
         { "main-advanced-large-1800x1000-scale200", ui::ViewMode::Advanced, 0, 1800, 1000, false, false, false, 200 },
+        { "glitch-min-1020x620-scale100", ui::ViewMode::Advanced, 4, 1020, 620, false, false, false, 100 },
+        { "glitch-large-1800x1000-scale100", ui::ViewMode::Advanced, 4, 1800, 1000, false, false, false, 100 },
+        { "glitch-min-1020x620-scale150", ui::ViewMode::Advanced, 4, 1020, 620, false, false, false, 150 },
+        { "glitch-large-1800x1000-scale150", ui::ViewMode::Advanced, 4, 1800, 1000, false, false, false, 150 },
+        { "glitch-min-1020x620-scale200", ui::ViewMode::Advanced, 4, 1020, 620, false, false, false, 200 },
+        { "glitch-large-1800x1000-scale200", ui::ViewMode::Advanced, 4, 1800, 1000, false, false, false, 200 },
     };
 
     for (const auto& s : shots)
@@ -366,6 +372,9 @@ GF_TEST (GuiQa, screenshots_of_the_main_screens)
         editor.applyScaleForTests();
         editor.applyViewModeForTests();
         editor.selectTabForTests (s.tab);
+
+        if (s.tab == 4)
+            GF_EXPECT (editor.isGlitchShownForTests());
 
         if (s.drawer)
             if (auto* d = editor.getEffectsDrawerForTests())

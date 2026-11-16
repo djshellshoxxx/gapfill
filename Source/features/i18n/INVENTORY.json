@@ -3423,220 +3423,220 @@
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "features/panic/WetSafety.h",
+    "english": "features/state/XmlLimits.h",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 13,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "features/wetout/WetOut.h",
+    "english": "features/panic/WetSafety.h",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 14,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "features/wetbus/WetBus.h",
+    "english": "features/wetout/WetOut.h",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 15,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "features/glitch/GlitchHooks.h",
+    "english": "features/wetbus/WetBus.h",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 16,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "dsp/SoloLimit.h",
+    "english": "features/glitch/GlitchHooks.h",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
     "line": 17,
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "dsp/SoloLimit.h",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 18,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "MeterState::reasonCount must cover every RejectReason",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 23,
+    "line": 24,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Input",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.36ecb4f86691",
-    "line": 37,
+    "line": 38,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Output",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.b2439bcb8dee",
-    "line": 38,
+    "line": 39,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Sidechain",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.b8ddff9a59c3",
-    "line": 39,
+    "line": 40,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Wet",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.5690f06c3e93",
-    "line": 42,
+    "line": 43,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GAPFILL",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.c8e296d57b39",
-    "line": 49,
+    "line": 50,
     "wiring": "pending-sink-review"
   },
   {
     "english": "bypass",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 54,
+    "line": 55,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Project state could not be saved within its validation or size limits. The previous saved state was retained.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.acba25d96f78",
-    "line": 292,
+    "line": 293,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Project state could not be saved within its validation or size limits. No previous valid state was available.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.be0a1f09b00e",
-    "line": 293,
+    "line": 294,
     "wiring": "pending-sink-review"
   },
   {
     "english": "lookahead",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 322,
+    "line": 323,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Custom",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.494ca78f7374",
-    "line": 1268,
+    "line": 1269,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GAPFILL_STATE",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1339,
+    "line": 1340,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "version",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1340,
+    "line": 1341,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "stateVersion",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1341,
+    "line": 1342,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "program",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1342,
+    "line": 1343,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "editorWidth",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1343,
+    "line": 1344,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "editorHeight",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1344,
+    "line": 1345,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "tooltips",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1345,
+    "line": 1346,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "reducedMotion",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1346,
+    "line": 1347,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "keyboardNavigation",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1347,
+    "line": 1348,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "id",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1386,
+    "line": 1387,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "value",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1399,
+    "line": 1400,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "value",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1404,
+    "line": 1405,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "id",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1473,
+    "line": 1474,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "value",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1475,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "id",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1510,
+    "line": 1476,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -3647,24 +3647,24 @@
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1517,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1517,
-    "wiring": "protected-or-nonprose"
-  },
-  {
     "english": "id",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1544,
+    "line": 1512,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1518,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1518,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -3675,122 +3675,129 @@
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "value",
+    "english": "id",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1548,
+    "line": 1546,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "value",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1548,
+    "line": 1549,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1549,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "The selected preset destination is not a writable file.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.2fc673ae06cf",
-    "line": 1571,
+    "line": 1572,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GapFill could not create preset data.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.fc8327ad4a75",
-    "line": 1581,
+    "line": 1582,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GapFill could not write the preset file. Check the folder permissions and available disk space.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.4c3cc02c1899",
-    "line": 1587,
+    "line": 1588,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The selected preset file does not exist.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.09808bbd9e1a",
-    "line": 1600,
+    "line": 1601,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The selected preset file is empty.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.fb498034e025",
-    "line": 1608,
+    "line": 1609,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The selected preset file is too large. GapFill preset files must be 1 MB or smaller.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.8ad083a6ca28",
-    "line": 1614,
+    "line": 1615,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The selected file is not valid GapFill XML.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.19107d4c26a5",
-    "line": 1622,
+    "line": 1625,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The selected file is not a valid GapFill preset or contains invalid parameter values.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.fd8893569425",
-    "line": 1633,
+    "line": 1636,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GAPFILL_STATE",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1668,
+    "line": 1679,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "program",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1672,
+    "line": 1683,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "editorWidth",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1675,
+    "line": 1686,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "editorHeight",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1676,
+    "line": 1687,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "tooltips",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1677,
+    "line": 1688,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "reducedMotion",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1678,
+    "line": 1689,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "keyboardNavigation",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1679,
+    "line": 1690,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -48542,6 +48549,48 @@
     "file": "Source/features/state/StateSubtrees.cpp",
     "key": null,
     "line": 301,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "<!--",
+    "file": "Source/features/state/XmlLimits.h",
+    "key": null,
+    "line": 30,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "-->",
+    "file": "Source/features/state/XmlLimits.h",
+    "key": null,
+    "line": 32,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "<![CDATA[",
+    "file": "Source/features/state/XmlLimits.h",
+    "key": null,
+    "line": 35,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "]]>",
+    "file": "Source/features/state/XmlLimits.h",
+    "key": null,
+    "line": 37,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "<?",
+    "file": "Source/features/state/XmlLimits.h",
+    "key": null,
+    "line": 40,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "?>",
+    "file": "Source/features/state/XmlLimits.h",
+    "key": null,
+    "line": 42,
     "wiring": "protected-or-nonprose"
   },
   {

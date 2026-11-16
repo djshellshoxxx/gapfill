@@ -10,6 +10,7 @@
 #include "features/FeatureHooks.h"
 #include "features/state/StateSubtrees.h"
 #include "features/state/SavedStateCache.h"
+#include "features/state/XmlLimits.h"
 #include "features/panic/WetSafety.h"
 #include "features/wetout/WetOut.h"
 #include "features/wetbus/WetBus.h"
@@ -1615,7 +1616,9 @@ bool GapFillAudioProcessor::loadParameterStateFromFile (const juce::File& file, 
         return false;
     }
 
-    auto xml = juce::XmlDocument::parse (file);
+    const auto text = file.loadFileAsString();
+    auto xml = state::xmlWithinLimits ({ text.toRawUTF8(), text.getNumBytesAsUTF8() })
+        ? juce::XmlDocument::parse (text) : nullptr;
 
     if (xml == nullptr)
     {
@@ -1640,7 +1643,15 @@ bool GapFillAudioProcessor::loadParameterStateFromFile (const juce::File& file, 
 //==============================================================================
 void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    if (data == nullptr || sizeInBytes <= 0 || sizeInBytes > maxPresetFileBytes)
+    if (data == nullptr || sizeInBytes <= 8 || sizeInBytes > maxPresetFileBytes)
+        return;
+    // Match the UTF-8 payload length used by AudioProcessor::getXmlFromBinary.
+    // Check before either XML parsing or ValueTree conversion can recurse.
+    const auto* bytes = static_cast<const char*> (data);
+    const auto length = (int) juce::ByteOrder::littleEndianInt (bytes + 4);
+    const auto xmlBytes = juce::jmin (length, sizeInBytes - 8);
+    if (xmlBytes <= 0 || ! juce::CharPointer_UTF8::isValidString (bytes + 8, xmlBytes)
+        || ! state::xmlWithinLimits ({ bytes + 8, (std::size_t) xmlBytes }))
         return;
     auto xml = getXmlFromBinary (data, sizeInBytes);
 

@@ -62,7 +62,7 @@ def classify(value: str, source: str, start: int, end: int, path: Path, ids: set
     csv = value.split(",")
     if len(csv) > 1 and all(part in ids for part in csv):
         return "protected-or-nonprose"  # permanent parameter-ID scope lists, never presentation
-    if (path.name in ("StateSubtrees.cpp", "SchedulerTypes.cpp")
+    if (path.name in ("StateSubtrees.cpp", "SchedulerTypes.cpp", "XmlLimits.h")
             or path.name in ("Presets.cpp", "Suggest.cpp") and re.search(r"\{\s*$", prefix)
             or re.search(r"\bstatic_assert\s*\([^;]*,\s*$", prefix)):
         return "protected-or-nonprose"  # state/reason codes, factory identities and compiler diagnostics

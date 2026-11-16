@@ -35,8 +35,9 @@ void GapFillAudioProcessor::beginMidiOutput (juce::MidiBuffer& midi, int n, bool
 
     // Input learn/commands have consumed this buffer. Exactly one owner writes
     // new notes; the previous owner's flush is emitted first at offset zero.
+    // Declaring output support alone must not consume input when both modes are off.
     auto legacy = gatherMidiOutSettings();
-    if (midiout::kDeclared || extendedMidiOwner || legacy.mode != midiout::ModeOff || midiOut.hasSoundingNotes()
+    if (extendedMidiOwner || legacy.mode != midiout::ModeOff || midiOut.hasSoundingNotes()
         || extendedMidiOut.hasSoundingNotes())
         midi.clear();
     if (extendedMidiOwner)

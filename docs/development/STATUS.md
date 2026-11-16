@@ -1,3 +1,20 @@
+# Status update (2026-11-16)
+
+Current candidate: `integration/gapfill-release-20261116`, draft PR #40. See
+[HANDOFF.md](HANDOFF.md) for the native QA failure evidence, repairs and next steps.
+
+Ordinary Windows/macOS/Linux builds and validators passed at `43c1c6f`; full
+assurance did not. This continuation repairs XML recursion bounds, disabled-mode
+MIDI pass-through and platform QA issues. It adds Glitch capture coverage and
+progress diagnostics without relaxing the long-running test requirements.
+
+109 local tooling tests pass. Native execution of the new head and real-host
+acceptance are still pending; macOS co-op/editor lifecycle timeouts block release.
+No beta2 release or merge has been performed. The historical results below describe
+older heads and must not be treated as acceptance of the current candidate.
+
+---
+
 # Status (2026-11-07)
 
 Branch `claude/zealous-gauss-7b4omr` (PR #39, base #36 head `1c94ce4`). Evidence-based; nothing here is host-verified.
