@@ -92,7 +92,8 @@ namespace
     void runLifecycleChild()
     {
         constexpr double sampleRate = 48000.0;
-        constexpr int blockSize = 256, rounds = 200;
+        // 200 cycles everywhere except TSan (25, owner-approved): see gftest::kTsanIterationDivisor.
+        constexpr int blockSize = 256, rounds = 200 / gftest::kTsanIterationDivisor;
         auto* manager = juce::MessageManager::getInstance();
         GF_EXPECT (! manager->isThisTheMessageThread());
         HostSession host;
