@@ -229,6 +229,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
     addCoopParameters (layout);
     addQualityParameters (layout);
     addFm10Parameters (layout);
+    addFl20Parameters (layout);
+    addMidiextParameters (layout);
+    addWetbusextParameters (layout);
+    addCoopextParameters (layout);
+    addMacroExtParameters (layout);
+    addHgextParameters (layout);
+    addTapeExtraParameters (layout);
+    addCaptureextParameters (layout);
+    addL21extParameters (layout);
+    addBattlev2Parameters (layout);
+    addGlitchParameters (layout);
 
     return layout;
 }
@@ -270,7 +281,7 @@ juce::StringArray randomisableParameterIDs()
 
 juce::StringArray routingParameterIDs()
 {
-    return { "wetSolo" };
+    return { "wetSolo", "wetBusMainMode", "wetBusLevel" };
 }
 
 juce::StringArray performanceParameterIDs()
@@ -319,6 +330,17 @@ juce::StringArray performanceParameterIDs()
     addCoopPerformanceIds (ids);
     addQualityPerformanceIds (ids);
     addFm10PerformanceIds (ids);
+    addFl20PerformanceIds (ids);
+    addMidiextPerformanceIds (ids);
+    addWetbusextPerformanceIds (ids);
+    addCoopextPerformanceIds (ids);
+    addMacroExtPerformanceIds (ids);
+    addHgextPerformanceIds (ids);
+    addTapeExtraPerformanceIds (ids);
+    addCaptureextPerformanceIds (ids);
+    addL21extPerformanceIds (ids);
+    addBattlev2PerformanceIds (ids);
+    addGlitchPerformanceIds (ids);
     return ids;
 }
 

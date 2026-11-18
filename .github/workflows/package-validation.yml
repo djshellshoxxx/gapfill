@@ -1,0 +1,105 @@
+name: Native downloaded package validation
+
+on:
+  workflow_call:
+    inputs:
+      asset_tag:
+        required: true
+        type: string
+      release_tag:
+        description: 'Empty validates the candidate artifact; nonempty downloads ALL published assets'
+        default: ''
+        type: string
+      require_signing:
+        default: false
+        type: boolean
+      windows_runner:
+        default: windows-2022
+        type: string
+      linux_runner:
+        default: ubuntu-22.04
+        type: string
+      macos_arm64_runner:
+        default: macos-15
+        type: string
+      macos_x86_64_runner:
+        default: macos-15-intel
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  validate:
+    name: ${{ inputs.release_tag == '' && 'Candidate' || 'Published' }} ${{ matrix.platform }} ${{ matrix.arch }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux
+            arch: x86_64
+            runner: ${{ inputs.linux_runner }}
+            trusted_keyring: ${{ vars.GAPFILL_RELEASE_TRUSTED_KEYRING_LINUX }}
+          - platform: windows
+            arch: x86_64
+            runner: ${{ inputs.windows_runner }}
+            trusted_keyring: ${{ vars.GAPFILL_RELEASE_TRUSTED_KEYRING_WINDOWS }}
+          - platform: macos
+            arch: arm64
+            runner: ${{ inputs.macos_arm64_runner }}
+            trusted_keyring: ${{ vars.GAPFILL_RELEASE_TRUSTED_KEYRING_MACOS }}
+          - platform: macos
+            arch: x86_64
+            runner: ${{ inputs.macos_x86_64_runner }}
+            trusted_keyring: ${{ vars.GAPFILL_RELEASE_TRUSTED_KEYRING_MACOS }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GAPFILL_RELEASE_TRUSTED_KEYRING: ${{ matrix.trusted_keyring }}
+      REQUIRE_SIGNING: ${{ inputs.require_signing }}
+      ASSET_TAG: ${{ inputs.asset_tag }}
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux native runtime dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libasound2-dev libx11-dev libxext-dev libxinerama-dev \
+            libxrandr-dev libxcursor-dev libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev
+      - uses: actions/download-artifact@v4
+        if: inputs.release_tag == ''
+        with:
+          name: candidate-assets
+          path: downloaded
+      - name: Download every published asset for complete manifest verification
+        if: inputs.release_tag != ''
+        shell: bash
+        run: gh release download "$RELEASE_TAG" --dir downloaded
+      - name: Native validators signatures architecture notices and standalone smoke
+        shell: bash
+        run: |
+          set -euo pipefail
+          flags=()
+          if [ "$REQUIRE_SIGNING" = true ]; then flags+=(--require-signing); fi
+          command=(python packaging/release_pipeline.py validate --directory downloaded \
+            --asset-tag "$ASSET_TAG" --platform "${{ matrix.platform }}" --arch "${{ matrix.arch }}" \
+            --out "$RUNNER_TEMP/package-evidence" --tools-dir "$RUNNER_TEMP/validators" "${flags[@]}")
+          if [ "$RUNNER_OS" = Linux ]; then
+            xvfb-run -a -s '-screen 0 6000x4000x24' python3 tools/qa/x11_test_session.py "${command[@]}"
+          else
+            "${command[@]}"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: assurance-${{ inputs.release_tag == '' && 'candidate' || 'published' }}-${{ matrix.platform }}-${{ matrix.arch }}
+          path: ${{ runner.temp }}/package-evidence/
+          if-no-files-found: error
+          retention-days: 30

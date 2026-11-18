@@ -12,7 +12,7 @@ using namespace gftest;
 
 namespace
 {
-    Effective::TransportInfo transport (int num = 4, int den = 4, bool valid = true)
+    Effective::TransportInfo musicalTransport (int num = 4, int den = 4, bool valid = true)
     {
         return { valid, 0.0, num, den, 120.0 };
     }
@@ -29,7 +29,7 @@ namespace
     float multiplierAt (int bars, float bias, int offset, double ppq, int num = 4, int den = 4)
     {
         auto s = phraseSettings (bars, bias, offset);
-        phrase::apply (s, ppq, transport (num, den));
+        phrase::apply (s, ppq, musicalTransport (num, den));
         return s.perf.probabilityMul;
     }
 
@@ -62,7 +62,7 @@ GF_TEST (Phrase, off_or_bias0_is_identity)
         auto s = phraseSettings (bars, bias);
         EngineSettings before;
         std::memcpy (&before, &s, sizeof (s));
-        phrase::apply (s, 15.9, transport());
+        phrase::apply (s, 15.9, musicalTransport());
         GF_EXPECT (std::memcmp (&before, &s, sizeof (s)) == 0);
     }
 
@@ -97,7 +97,7 @@ GF_TEST (Phrase, invalid_ppq_or_time_signature_is_neutral)
     GF_EXPECT (multiplierAt (4, 1.0f, 0, 15.9, 4, 3) == 1.0f);
 
     auto s = phraseSettings (4, 1.0f);
-    phrase::apply (s, 15.9, transport (4, 4, false));
+    phrase::apply (s, 15.9, musicalTransport (4, 4, false));
     GF_EXPECT (s.perf.probabilityMul == 1.0f);
 }
 
@@ -118,7 +118,7 @@ GF_TEST (Phrase, offset_zero_identical_to_the_original_formula)
     {
         const double original = ppq / 16.0 - std::floor (ppq / 16.0);
         PhraseSettings p; p.bars = 4; p.bias01 = 1.0f; p.offsetBars = 0;
-        GF_EXPECT (phrase::positionAt (p, ppq, transport()) == original);
+        GF_EXPECT (phrase::positionAt (p, ppq, musicalTransport()) == original);
     }
 }
 

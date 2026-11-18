@@ -4,15 +4,14 @@
 #include "../../PluginProcessor.h"
 #include "../reasons/Gui.h"
 #include "../reasons/Reasons.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::timeline
 {
 
 namespace
 {
-    constexpr int kControlsHeight = 28;
-    constexpr int kListWidth = 250;
-    constexpr int kAxisHeight = 14;
+    constexpr int kAxisHeight = 28; // separate bar-number and seconds rows
 
     juce::Colour familyColour (int algo)
     {
@@ -24,20 +23,21 @@ namespace
 TimelineView::TimelineView (GapFillAudioProcessor& p) : proc (p)
 {
     setTitle ("Gap timeline");
-    setDescription ("Events, gaps, fills and skipped gaps on a common time axis. The list on the right repeats "
-                    "the last 20 events as text.");
+    setDescription ("Events, gaps, fills and skipped gaps on a common time axis. Event list provides a text alternative.");
     setOpaque (false);
 
     auto& explain = proc.getExplainState();
+    windowEvents.reserve (TimelineModel::capacity);
+    displayFrames.reserve (maxDisplayColumns);
+    if (explain.timelineModel.epoch() == 0)
+        explain.timelineModel.adoptEpoch (0, (std::uint32_t) juce::jlimit (8000.0, (double) UINT32_MAX, explain.sampleRate.load()));
+    if (explain.timelineModel.frames.capacity() == 0)
+        explain.timelineModel.frames.configure (explain.timelineModel.displaySampleRate(), 16.0);
+    explain.timelineModel.frames.setPositionAnchor (liveEndPos());
 
     pauseButton.setClickingTogglesState (true);
     pauseButton.setTooltip ("Freeze the display. Events keep being recorded.");
-    pauseButton.onClick = [this]
-    {
-        proc.getExplainState().timelineModel.setPaused (pauseButton.getToggleState(), liveEndPos());
-        pauseButton.setButtonText (pauseButton.getToggleState() ? "RESUME" : "PAUSE");
-        refresh();
-    };
+    pauseButton.onClick = [this] { setPaused (pauseButton.getToggleState()); };
 
     for (auto* b : { &zoom4, &zoom8, &zoom16 })
     {
@@ -49,29 +49,38 @@ TimelineView::TimelineView (GapFillAudioProcessor& p) : proc (p)
     const auto zoomSeconds = explain.timelineZoomSeconds.load();
     (zoomSeconds == 4 ? zoom4 : zoomSeconds == 16 ? zoom16 : zoom8).setToggleState (true, juce::dontSendNotification);
 
-    zoom4.onClick  = [this] { proc.getExplainState().timelineZoomSeconds.store (4);  repaint(); };
-    zoom8.onClick  = [this] { proc.getExplainState().timelineZoomSeconds.store (8);  repaint(); };
-    zoom16.onClick = [this] { proc.getExplainState().timelineZoomSeconds.store (16); repaint(); };
+    zoom4.onClick  = [this] { proc.getExplainState().timelineZoomSeconds.store (4);  snapshotReady = false; refresh(); };
+    zoom8.onClick  = [this] { proc.getExplainState().timelineZoomSeconds.store (8);  snapshotReady = false; refresh(); };
+    zoom16.onClick = [this] { proc.getExplainState().timelineZoomSeconds.store (16); snapshotReady = false; refresh(); };
     closeButton.onClick = [this] { if (onCloseRequested != nullptr) onCloseRequested(); };
+    closeButton.setTooltip ("Close the detailed timeline");
 
-    for (auto* c : std::initializer_list<juce::Component*> { &pauseButton, &zoom4, &zoom8, &zoom16, &closeButton })
+    listButton.setClickingTogglesState (true);
+    listButton.setTooltip ("Replace the timeline canvas with recent events as an accessible text list");
+    listButton.onClick = [this] { setListOnly (listButton.getToggleState()); };
+    for (auto* button : { &pauseButton, &zoom4, &zoom8, &zoom16, &listButton, &closeButton })
+        button->setTitle (button->getButtonText());
+
+    for (auto* c : std::initializer_list<juce::Component*> { &pauseButton, &zoom4, &zoom8, &zoom16, &listButton, &closeButton })
         addAndMakeVisible (c);
 
     list.setModel (this);
     list.setRowHeight (18);
-    list.setWantsKeyboardFocus (true);
+    list.setWantsKeyboardFocus (proc.isKeyboardNavigationEnabled());
     list.setTitle ("Recent gap events");
     list.setDescription ("The last 20 timeline events as text, newest first.");
     list.setColour (juce::ListBox::backgroundColourId, colours::background.withAlpha (0.6f));
     list.setColour (juce::ListBox::outlineColourId, colours::outline);
     list.setOutlineThickness (1);
     addAndMakeVisible (list);
+    setListOnly (explain.timelineList.load());
 }
 
 TimelineView::~TimelineView()
 {
     stopTimer();
     list.setModel (nullptr);
+    proc.getExplainState().timelineModel.setPaused (false, 0);
 }
 
 void TimelineView::visibilityChanged()
@@ -79,7 +88,7 @@ void TimelineView::visibilityChanged()
     if (isVisible())
     {
         refresh();
-        startTimerHz (proc.isReducedMotionEnabled() ? 4 : 20);
+        startTimerHz (proc.isReducedMotionEnabled() ? 4 : 30);
     }
     else
     {
@@ -90,68 +99,173 @@ void TimelineView::visibilityChanged()
 void TimelineView::resized()
 {
     auto b = getLocalBounds().reduced (6);
-    auto bar = b.removeFromTop (kControlsHeight);
-    closeButton.setBounds (bar.removeFromRight (70).reduced (2));
-    bar.removeFromRight (8);
-    zoom16.setBounds (bar.removeFromRight (52).reduced (2));
-    zoom8.setBounds (bar.removeFromRight (52).reduced (2));
-    zoom4.setBounds (bar.removeFromRight (52).reduced (2));
-    bar.removeFromRight (8);
-    pauseButton.setBounds (bar.removeFromRight (84).reduced (2));
-
-    if (b.getWidth() > 520)
-        list.setBounds (b.removeFromRight (kListWidth));
-    else
-        list.setBounds ({});
+    auto bar = b.removeFromTop (controlsHeight);
+    closeButton.setBounds (bar.removeFromRight (56).reduced (2));
+    bar.removeFromRight (4);
+    listButton.setBounds (bar.removeFromRight (88).reduced (2));
+    bar.removeFromRight (4);
+    zoom16.setBounds (bar.removeFromRight (40).reduced (2));
+    zoom8.setBounds (bar.removeFromRight (40).reduced (2));
+    zoom4.setBounds (bar.removeFromRight (40).reduced (2));
+    bar.removeFromRight (4);
+    pauseButton.setBounds (bar.removeFromRight (80).reduced (2));
+    list.setBounds (listOnly ? b : juce::Rectangle<int>());
 }
 
 //==============================================================================
 std::int64_t TimelineView::liveEndPos() const
 {
-    return proc.getSourceHistoryWritePosition() - (std::int64_t) proc.getMeterState().latencySamples.load();
+    return proc.getTimelinePosition();
 }
 
 std::int64_t TimelineView::windowSamples() const
 {
-    return (std::int64_t) (proc.getExplainState().timelineZoomSeconds.load() * juce::jmax (8000.0, proc.getExplainState().sampleRate.load()));
+    return (std::int64_t) (proc.getExplainState().timelineZoomSeconds.load()
+                          * proc.getExplainState().timelineModel.displaySampleRate());
 }
 
 void TimelineView::timerCallback()
 {
+    const auto interval = proc.isReducedMotionEnabled() ? 250 : 33;
+    if (getTimerInterval() != interval)
+        startTimer (interval);
     refresh();
 }
 
 void TimelineView::refresh()
 {
     auto& model = proc.getExplainState().timelineModel;
-    shownEnd = model.viewEnd (liveEndPos());
-    model.window (shownEnd, windowSamples(), windowEvents);
-    numListItems = model.latest (listItems.data(), listRows);
+    const auto rate = model.displaySampleRate();
+    if (model.frames.sampleRate() != rate)
+    {
+        model.frames.configure (rate, 16.0);
+        model.frames.setPositionAnchor (liveEndPos());
+        snapshotReady = false;
+    }
+    setWantsKeyboardFocus (proc.isKeyboardNavigationEnabled());
+    list.setWantsKeyboardFocus (proc.isKeyboardNavigationEnabled());
+    const bool generationChanged = displayedEpoch != model.epoch();
+    if (generationChanged)
+    {
+        displayedEpoch = model.epoch();
+        snapshotReady = false;
+        inspectorShown = false;
+        inspectorText.clear();
+        resized();
+    }
+    const auto end = model.viewEnd (liveEndPos());
+    const auto languageGeneration = i18n::languageGeneration();
+    const bool languageChanged = languageGeneration != displayedLanguageGeneration;
+    const bool retainSnapshot = model.isPaused() && snapshotReady && end == shownEnd;
+    if (retainSnapshot && ! languageChanged)
+        return; // Retain the visible snapshot while ingestion continues.
+
+    if (! retainSnapshot)
+    {
+        shownEnd = end;
+        model.window (shownEnd, windowSamples(), windowEvents);
+        collectFrames();
+        numListItems = model.latest (listItems.data(), listRows);
+        numOutcomeItems = model.latestOutcomes (outcomeItems.data(), outcomeRows, shownEnd);
+    }
+    displayedLanguageGeneration = languageGeneration;
+    if (languageChanged || generationChanged)
+    {
+        pauseButton.setToggleState (model.isPaused(), juce::dontSendNotification);
+        pauseButton.setButtonText (model.isPaused() ? i18n::text ("LIVE") : i18n::text ("FREEZE"));
+        pauseButton.setTitle (pauseButton.getButtonText());
+        pauseButton.setTooltip (model.isPaused() ? i18n::text ("Resume the live display")
+                                                : i18n::text ("Freeze the display. Events keep being recorded."));
+        listButton.setButtonText (i18n::text ("EVENT LIST"));
+        closeButton.setButtonText (i18n::text ("CLOSE"));
+        setTitle (i18n::text ("Gap timeline"));
+        updateListAccessibility();
+    }
+    if (inspectorShown)
+        updateInspector (inspectorX);
     list.updateContent();
     list.repaint();
+    int filled = 0, skipped = 0;
+    for (const auto& event : windowEvents)
+        if (event.type == EventType::GapEval)
+            event.reason == 0 ? ++filled : ++skipped;
+    const auto summary = i18n::format ("Last {0} seconds: {1} gaps, {2} filled, {3} skipped. F freezes, arrows scrub, I inspects, L opens Event list.",
+                                      { juce::String (proc.getExplainState().timelineZoomSeconds.load()), juce::String (filled + skipped),
+                                        juce::String (filled), juce::String (skipped) });
+    if (summary != getDescription())
+    {
+        setDescription (summary);
+        if (hasKeyboardFocus (true))
+            juce::AccessibilityHandler::postAnnouncement (summary, juce::AccessibilityHandler::AnnouncementPriority::low);
+    }
+    snapshotReady = true;
     repaint();
 }
 
-int TimelineView::getNumListRows() const   { return numListItems; }
-int TimelineView::getNumRows()             { return numListItems; }
+int TimelineView::getNumListRows() const   { return listOnly ? numOutcomeItems : numListItems; }
+int TimelineView::getNumRows()             { return getNumListRows(); }
+
+void TimelineView::updateListAccessibility()
+{
+    list.setTitle (listOnly ? i18n::text ("Recent gap outcomes") : i18n::text ("Recent gap events"));
+    list.setDescription (listOnly ? i18n::text ("The last 16 gap outcomes at or before the inspected time, newest first.")
+                                  : i18n::text ("The last 20 timeline events as text, newest first."));
+}
 
 juce::StringArray TimelineView::getListText() const
 {
-    juce::StringArray out;
-    const auto sr = juce::jmax (8000.0, proc.getExplainState().sampleRate.load());
+    juce::StringArray result;
+    for (int i = 0; i < getNumListRows(); ++i)
+        result.add (listRowText (i));
+    return result;
+}
 
-    for (int i = 0; i < numListItems; ++i)
+juce::String TimelineView::listRowText (int row) const
+{
+    if (row < 0 || row >= getNumListRows())
+        return {};
+    const auto& event = listOnly ? outcomeItems[(size_t) row] : listItems[(size_t) row];
+    const auto rate = proc.getExplainState().timelineModel.displaySampleRate();
+    auto description = describe (event);
+    if (listOnly && event.type == EventType::GapEval && event.reason == 0 && event.algo < numAlgos)
+        description = i18n::format ("Filled: {0}, {1} ms", { i18n::text (algoName ((Algo) event.algo)), juce::String (event.lenMs) });
+    return i18n::format ("{0} s  {1}", { juce::String ((double) (event.pos - shownEnd) / rate, 1), description });
+}
+
+juce::String TimelineView::getNameForRow (int row) { return listRowText (row); }
+
+TimelineView::RetainedMemory TimelineView::retainedMemoryForTests() const
+{
+    RetainedMemory memory;
+    const auto& model = proc.getExplainState().timelineModel;
+    memory.model = sizeof (TimelineModel) + model.frames.memoryBytes();
+    memory.frameSnapshot = displayFrames.capacity() * sizeof (FrameHistory::Column);
+    memory.eventSnapshot = windowEvents.capacity() * sizeof (TimelineEvent);
+    memory.view = sizeof (*this); // includes the 20 structured list records and container objects
+    const auto charge = [&] (const juce::String& value)
     {
-        const auto& e = listItems[(size_t) i];
-        out.add (juce::String ((double) (e.pos - shownEnd) / sr, 1) + " s  " + describe (e));
-    }
-
-    return out;
+        // Pinned JUCE stores COW text. Overcharge each reference independently,
+        // including UTF conversion/spare storage and the allocation header.
+        if (value.isNotEmpty()) memory.textUpperBound += 4 * (value.getNumBytesAsUTF8() + 1) + 128;
+    };
+    charge (inspectorText);
+    const auto componentText = [&] (auto&& self, const juce::Component& component) -> void
+    {
+        charge (component.getTitle());
+        charge (component.getDescription());
+        charge (component.getName());
+        charge (component.getHelpText());
+        if (auto* button = dynamic_cast<const juce::Button*> (&component)) charge (button->getButtonText());
+        if (auto* label = dynamic_cast<const juce::Label*> (&component)) charge (label->getText());
+        for (auto* child : component.getChildren()) self (self, *child);
+    };
+    componentText (componentText, *this);
+    return memory;
 }
 
 void TimelineView::paintListBoxItem (int row, juce::Graphics& g, int width, int height, bool selected)
 {
-    if (row < 0 || row >= numListItems)
+    if (row < 0 || row >= getNumListRows())
         return;
 
     if (selected)
@@ -162,7 +276,7 @@ void TimelineView::paintListBoxItem (int row, juce::Graphics& g, int width, int 
 
     g.setColour (colours::text);
     g.setFont (fonts::ui (11.0f));
-    g.drawText (getListText()[row], 6, 0, width - 8, height, juce::Justification::centredLeft, true);
+    g.drawText (listRowText (row), 6, 0, width - 8, height, juce::Justification::centredLeft, true);
 }
 
 //==============================================================================
@@ -174,34 +288,43 @@ void TimelineView::paint (juce::Graphics& g)
     g.setColour (colours::outline);
     g.drawRoundedRectangle (b.reduced (0.5f), 7.0f, 1.0f);
 
-    auto inner = getLocalBounds().reduced (6);
-    inner.removeFromTop (kControlsHeight);
+    if (! listOnly)
+        paintLanes (g, plotBounds().toFloat());
 
-    if (inner.getWidth() > 520)
-        inner.removeFromRight (kListWidth + 8);
-
-    paintLanes (g, inner.toFloat());
+    if (inspectorShown && inspectorText.isNotEmpty() && ! listOnly)
+    {
+        g.setColour (colours::text);
+        g.setFont (fonts::ui (10.0f));
+        g.drawText (inspectorText, getLocalBounds().reduced (8, 4).removeFromBottom (16),
+                    juce::Justification::centredLeft, true);
+    }
 
     g.setColour (colours::textDim);
     g.setFont (fonts::label (10.0f));
-    g.drawText ("TIMELINE", getLocalBounds().reduced (12, 6).removeFromTop (kControlsHeight), juce::Justification::centredLeft, false);
+    g.drawText (i18n::text ("TIMELINE"), getLocalBounds().reduced (12, 6).removeFromTop (controlsHeight), juce::Justification::centredLeft, false);
 }
 
 void TimelineView::paintLanes (juce::Graphics& g, juce::Rectangle<float> plot)
 {
-    const auto sr = juce::jmax (8000.0, proc.getExplainState().sampleRate.load());
+    const auto sr = proc.getExplainState().timelineModel.displaySampleRate();
     const auto window = windowSamples();
     const auto startPos = shownEnd - window;
     auto axis = plot.removeFromBottom ((float) kAxisHeight);
+    axis.removeFromTop ((float) kAxisHeight * 0.5f);
+    const auto* detMode = proc.getValueTreeState().getRawParameterValue ("detMode");
+    const bool showBands = detMode != nullptr && (int) detMode->load() == (int) DetMode::Spectral && getWidth() >= 1100;
+    const auto bandLanes = showBands ? plot.removeFromBottom (juce::jmin (54.0f, plot.getHeight() * 0.25f))
+                                    : juce::Rectangle<float>();
 
-    const auto laneEvents = plot.removeFromTop (plot.getHeight() * 0.26f);
-    const auto laneGaps = plot.removeFromTop (plot.getHeight() * 0.52f);
+    const auto laneEvents = plot.removeFromTop (plot.getHeight() * 0.22f);
+    const auto laneGaps = plot.removeFromTop (plot.getHeight() * 0.36f);
+    const auto laneProtection = plot.removeFromTop (plot.getHeight() * 0.35f);
     const auto laneFills = plot;
 
     auto xOf = [&] (std::int64_t pos) { return plot.getX() + (float) ((double) (pos - startPos) / (double) window) * plot.getWidth(); };
     auto msToPx = [&] (double ms) { return (float) (ms * 0.001 * sr / (double) window) * plot.getWidth(); };
 
-    for (auto lane : { laneEvents, laneGaps, laneFills })
+    for (auto lane : { laneEvents, laneGaps, laneProtection, laneFills })
     {
         g.setColour (colours::panelRaised.withAlpha (0.55f));
         g.fillRoundedRectangle (lane.reduced (0.0f, 1.0f), 3.0f);
@@ -209,9 +332,11 @@ void TimelineView::paintLanes (juce::Graphics& g, juce::Rectangle<float> plot)
 
     g.setFont (fonts::label (9.0f));
     g.setColour (colours::textMuted);
-    g.drawText ("EVENTS", laneEvents.reduced (6.0f, 0.0f), juce::Justification::topLeft, false);
-    g.drawText ("GAPS", laneGaps.reduced (6.0f, 0.0f), juce::Justification::topLeft, false);
-    g.drawText ("FILLS", laneFills.reduced (6.0f, 0.0f), juce::Justification::topLeft, false);
+    g.drawText (i18n::text ("AUDIO / EVENTS"), laneEvents.reduced (6.0f, 0.0f), juce::Justification::topLeft, false);
+    g.drawText (i18n::text ("GAPS"), laneGaps.reduced (6.0f, 0.0f), juce::Justification::topLeft, false);
+    g.drawText (i18n::text ("FILLS"), laneFills.reduced (6.0f, 0.0f), juce::Justification::topLeft, false);
+    g.drawText (i18n::text ("PROTECTION"), laneProtection.reduced (6.0f, 0.0f), juce::Justification::topLeft, false);
+    paintFrameLanes (g, laneEvents, laneGaps, laneProtection, bandLanes);
 
     // Confidence threshold: the engine's own number (below it is "quiet but not a gap").
     {
@@ -220,7 +345,7 @@ void TimelineView::paintLanes (juce::Graphics& g, juce::Rectangle<float> plot)
         g.setColour (colours::accent.withAlpha (0.6f));
         g.drawDashedLine ({ laneGaps.getX(), y, laneGaps.getRight(), y }, dashes, 2, 1.0f);
         g.setFont (fonts::label (8.5f));
-        g.drawText ("gap threshold", juce::Rectangle<float> (laneGaps.getRight() - 90.0f, y - 11.0f, 88.0f, 10.0f),
+        g.drawText (i18n::text ("gap threshold"), juce::Rectangle<float> (laneGaps.getRight() - 90.0f, y - 11.0f, 88.0f, 10.0f),
                     juce::Justification::centredRight, false);
     }
 
@@ -282,7 +407,7 @@ void TimelineView::paintLanes (juce::Graphics& g, juce::Rectangle<float> plot)
 
     closeGap (shownEnd);
 
-    if (confidenceStarted)
+    if (confidenceStarted && displayFrames.empty())
     {
         g.setColour (colours::accent.withAlpha (0.9f));
         g.strokePath (confidence, juce::PathStrokeType (1.3f));
@@ -296,11 +421,10 @@ void TimelineView::paintLanes (juce::Graphics& g, juce::Rectangle<float> plot)
 
         if (e.type == EventType::FillStart)
         {
-            // End at the matching FillEnd when it is in view, otherwise the planned length.
+            // The engine records a planned length. Aggregate FillEnd events do
+            // not identify a voice, so pairing the next one would invent a
+            // shortened duration when several fills overlap.
             float w = msToPx (e.lenMs);
-
-            for (std::size_t j = i + 1; j < windowEvents.size(); ++j)
-                if (windowEvents[j].type == EventType::FillEnd) { w = juce::jmax (2.0f, xOf (windowEvents[j].pos) - x); break; }
 
             auto r = juce::Rectangle<float> (x, laneFills.getY() + 12.0f, juce::jmax (2.0f, w), laneFills.getHeight() - 16.0f);
             const auto colour = familyColour (e.algo);
@@ -322,7 +446,7 @@ void TimelineView::paintLanes (juce::Graphics& g, juce::Rectangle<float> plot)
             {
                 g.setColour (colours::text);
                 g.setFont (fonts::label (8.5f));
-                g.drawText (juce::String (algoName ((Algo) e.algo)).toUpperCase(), r.reduced (3.0f, 0.0f),
+                g.drawText (i18n::text (algoName ((Algo) e.algo)).toUpperCase(), r.reduced (3.0f, 0.0f),
                             juce::Justification::centredLeft, true);
             }
         }
@@ -347,7 +471,7 @@ void TimelineView::paintLanes (juce::Graphics& g, juce::Rectangle<float> plot)
             g.setColour (e.type == EventType::Panic ? colours::clip : colours::secondary);
             g.drawVerticalLine ((int) x, plot.getY(), plot.getBottom());
             g.setFont (fonts::label (8.5f));
-            g.drawText (e.type == EventType::SceneApplied ? "SCENE" : e.type == EventType::Panic ? "PANIC" : "RECOVER",
+            g.drawText (e.type == EventType::SceneApplied ? i18n::text ("SCENE") : e.type == EventType::Panic ? i18n::text ("PANIC") : i18n::text ("RECOVER"),
                         juce::Rectangle<float> (x + 3.0f, plot.getY(), 60.0f, 10.0f), juce::Justification::centredLeft, false);
         }
     }
@@ -361,7 +485,7 @@ void TimelineView::paintLanes (juce::Graphics& g, juce::Rectangle<float> plot)
     {
         const auto px = plot.getRight() - (float) s / (float) windowSeconds * plot.getWidth();
         g.drawVerticalLine ((int) px, axis.getY(), axis.getY() + 3.0f);
-        g.drawText (s == 0 ? "now" : "-" + juce::String (s) + "s",
+        g.drawText (s == 0 ? i18n::text ("now") : i18n::format ("-{0}s", { juce::String (s) }),
                     juce::Rectangle<float> (px - 22.0f, axis.getY() + 2.0f, 44.0f, 11.0f), juce::Justification::centred, false);
     }
 
@@ -378,7 +502,7 @@ void TimelineView::paintLanes (juce::Graphics& g, juce::Rectangle<float> plot)
 
         g.setColour (colours::warning);
         g.setFont (fonts::label (9.0f));
-        g.drawText ("view incomplete", juce::Rectangle<float> (plot.getX() + 20.0f, axis.getY(), 110.0f, 12.0f),
+        g.drawText (i18n::text ("view incomplete"), juce::Rectangle<float> (plot.getX() + 20.0f, axis.getY(), 110.0f, 12.0f),
                     juce::Justification::centredLeft, false);
     }
 }

@@ -1,0 +1,89 @@
+# Session notes (scratch: decisions, working commands, pitfalls)
+
+Read this before re-deriving anything. Newest first inside each section.
+
+## Decisions
+- 2026-11-18 P3 TAIL: Tests/features/TestHostTail.cpp has been rewritten and pushed as claude/p3-tail-host-tests
+  (stacked on #40). 5 real-processor tests: every card, max-feedback Dub and the all-card cascade, mono,
+  44.1/96/192 kHz, the off ramp and concurrent host queries. Measured: Dub max feedback rings 8.36 s and
+  reports 18.81 s; all cards ring 10.48 s and report 32.38 s. Mutation (constant 2.5 s) fails 4/5.
+  Still open in TAIL: the parallel-return maximum (no parallel return exists yet).
+- 2026-11-18: hosted failure details live in run artifacts. Download them with
+  `curl -sSL https://api.github.com/repos/djshellshoxxx/gapfill/actions/artifacts/<id>/zip` (works unauthenticated here).
+  Repairs are in HANDOFF.md (top table). The F-L11 spec governs input clearing in MIDI-declared builds.
+- 2026-11-16 release continuation: #40 remains draft. Native builds/validators at
+  43c1c6f passed, but full assurance found Windows state-recursion stack overflow,
+  MIDI-ON CC loss, platform test defects and macOS long-test timeouts. Repairs and
+  exact evidence are in docs/development/HANDOFF.md. Keep every acceptance gate;
+  runtime/compiler fixes and diagnostic progress do not establish a sanitizer pass.
+- OWNER 2026-11-07 (session prompt): F-G01 Glitch rack requested; freeze lifted for that package only (DECISIONS 19-21).
+- 2026-11-07: hosted-CI failures on #36 = FMA contraction (toolchain emits FMA); fixed by -ffp-contract=off (74bb8ac,
+  PR #39). Proof: v3 build of #36 head + fix, full suite 1674/0. See docs/development/STATUS.md and HANDOFF.md.
+- OWNER 2026-11-04: (1) i18n cap -> 1 MiB (done on #36). (2) extra branches claude/stoic-brown-92wmta-<theme>
+  allowed. (3) F-L20 per-voice formant, F-X06 cross-process co-op, F-M03 editor growth, MIDI Program Change are
+  POST-1.0 (doc 13 governs; drop FORMANT/COOP cross-process/F-M03/PC rows from P4). (4) cleanup approved: #27 #33 #11
+  closed by the session; the 30 branch deletions must be run by the owner (session proxy: 403 on non-session refs).
+- 2026-11-04 P1: audit gaps closed on branch claude/stoic-brown-92wmta (based on integration 2c36731, master cea17ff merged).
+  - TAPEXTRA lock = rename fm20.lock -> tapextra.lock (audit keys locks by macro suffix; validate_repo keys by
+    header stem and only for headers whose stem == macro, so fm20.h is NOT checked by validate_repo; follow-up:
+    rename fm20.h/.cpp -> tapextra.* in a separate refactor PR).
+  - L21EXT (fl21_*) and BATTLEV2 (fm18_*) are registered host params with NO engine wiring (CV / BATTLEV2 P4).
+    GUI rows drawn disabled (`ControlDef::inactive`, BattleCard reserved row) + ParamInfo "not active yet".
+    Flip them on in the package that wires the engine.
+  - Help order: Detector MIDI output 1230 -> 1235 (F-M23 doc pins Macros and modulation at 1230).
+- i18n: pseudo catalog 270 KB > 256 KiB cap on integration (en 192 KB; +40% pseudo makes the cap unreachable).
+  Spec value (doc 12 F-P04, i18n README, Catalog.h, tests) -> OWNER decision. Hidden behind the audit failure
+  in #32 preflight because CI step order runs test_completeness_audit first.
+
+- P0 baseline (integration 2c36731 + GCC13 test fix, full suite under Xvfb): 1666 passed, 6 failed:
+  Audit.feature_parameters_are_never_randomised, Foundations.help_registry_returns_sections_sorted_by_order,
+  ModulationPipeline.opt_in_decision_targets..., ParameterCompatibility.detailed_feature_tail_order...,
+  StackBudget.big_objects_stay_small_by_value (engine 105304 > 96 KiB, processor 248368 > 192 KiB),
+  Info.every_parameter_has_info. All six addressed on PR #36 (help order, ParamInfo, 3 stale tests, heap-owned
+  HoldVoices + LiveControl). #32 CI never reached unit-tests (preflight failed first), so none were visible.
+- Doc 12 C9 (no post-66 param randomised) vs F-X01 contract (Random All draws fx01_motion/scatter/tone while
+  fx01_mode on): the contract governs; the Audit test encodes both. Flagged to the owner.
+- P3 triage: TAIL partial (legacy wired; parallel max unused because no parallel return exists yet; processor
+  tests missing: 16 s Dub, off ramp, mono, rates, concurrent queries). EVENT open. STATE-GRAPH partial (Lock only;
+  scenes/macros serialisers read live models). CORE-CALLBACK open (diagnostic note, reproducer outside the repo).
+- Session may push only claude/stoic-brown-92wmta; P2 (a)/(b) live on local branches p2/ci-speed, p2/build-target-tests.
+
+- 2026-11-04 head of #36 (b95301f, code == d430239): full suite 1674 passed, 0 failed (Xvfb). StateQa
+  populated_session_round_trip failed once in an earlier full run (passes alone/per group/full rerun); it now
+  prints firstDifference. Treat a recurrence as a real order-dependence bug.
+- P3 TAIL ready, unpushed (3-PR cap): local branch p3/tail cfa5422 = Tests/features/TestHostTail.cpp (5 tests,
+  all pass; impulse test mutation-checked: dub rings 8.3 s, reports 19 s) + cmake/tests/tailprediction.cmake.
+  Push as claude/stoic-brown-92wmta-tail once one of #36/#37/#38 merges. If the container was reclaimed,
+  rewrite it from this description.
+- Next P3 after TAIL: EVENT (recorder: host callback length + transport flags, versioned; replay > prepared
+  block; ReplayPlayHead noPPQ/invalid tempo; incomplete marker for ModelVersions/subtree changes), then
+  STATE-GRAPH (serialiser owner table, snapshots for scenes/macros, interleaving test into nightly TSan),
+  then CORE-CALLBACK (in-repo reproducer first).
+
+## Working commands
+- deps: apt-get install ccache xvfb libasound2-dev libfreetype-dev libfontconfig1-dev libx11-dev libxcomposite-dev
+  libxcursor-dev libxext-dev libxinerama-dev libxrandr-dev libxrender-dev
+- configure: cmake -S . -B build-dev -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+- build+test: JOBS=6 bash tools/dev/build-target.sh build-dev tests -Combinatorial   (16 GB box -> 6 jobs)
+- preflight: python3 tools/validate_repo.py; python3 -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py
+  tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py tools/test_x11_test_session.py;
+  python3 -m unittest tools.qa.nightly_test tools.test_release_pipeline tools.test_i18n_catalog;
+  python3 tools/audit/completeness_audit.py; python3 tools/check_layout_literals.py
+- i18n regen: python3 Source/features/i18n/build_catalog.py  (--check to verify)
+- absorbed-branch check: merge-tree --write-tree <int-or-master> <branch> == that ref's tree.
+
+## Pitfalls
+- Test harness sync: use gftest::TestBarrier/TestSemaphore (Tests/support/TestSync.h), not std::barrier/semaphore
+  (Apple libc++ atomic-wait stalls; TSan cannot see futex-based waits).
+- Unpaced stress spin loops starve the message thread on <= 3 cores. Yield once per block/sweep.
+- Struct `x = {}` on MSVC copies indeterminate padding. Byte-compared structs need named zeroed padding.
+- Never edit headers while a ninja build of the same tree runs (ODR-mixed objects segfault); use `git worktree add`.
+- Skewed continuous NormalisableRange values drift through save/load: give them an interval.
+- Never put `git push` after `;` in a check chain: it runs even when the checks fail (pushed b95301f with a stale INVENTORY).
+- Any change to a Source/*.cpp string or line layout needs `python3 Source/features/i18n/build_catalog.py` (INVENTORY line numbers).
+- The i18n cap has three copies: Catalog.h, build_catalog.py, cmake/sources/i18n.cmake.
+- GuiQa needs a display: run the suite as `xvfb-run -a -s "-screen 0 6000x4000x24" python3 tools/qa/x11_test_session.py <bin>`.
+- `pkill -f <pattern>` inside a bash -c whose command line contains the pattern kills itself (exit 144).
+- sizeof probe without linking: `template<size_t N,int T> struct Sz; Sz<sizeof(X),1> a;` + -fsyntax-only with the ninja command.
+- JUCE/clap-juce-extensions are gitignored clones; a second worktree can symlink them.
+- PROGRESS.md is a hot file; hot rule only bites ticket-titled (E-1:, F-L07:) or `feature`-labelled PRs.

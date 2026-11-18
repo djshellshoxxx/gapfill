@@ -212,7 +212,32 @@ GF_TEST (Harmonic, pitch_step_cpu_is_reported_and_bounded)
     }
 
     std::printf ("         worst YIN step: %.3f ms (budget 0.3 ms on the reference build)\n", worst);
-    GF_EXPECT (juce::SystemStats::getEnvironmentVariable ("GAPFILL_PERF_ENFORCE", {}) != "1" || (worst < 5.0));   // wall clock: enforced only with GAPFILL_PERF_ENFORCE=1
+    GF_EXPECT (juce::SystemStats::getEnvironmentVariable ("GAPFILL_PERF_ENFORCE", {}) != "1" || (worst <= 0.3));
+}
+
+GF_TEST (Harmonic, whole_pitch_decision_including_history_reads_meets_point_three_ms)
+{
+    const auto pitched = tone (48000.0, 110.0, 0.25);
+    const Hist history (pitched);
+    EngineSettings settings;
+    settings.perf.harmonic.amount01 = 1;
+    FillPlan plan;
+    GapContext context;
+    context.key = 77;
+    double worst = 0;
+    for (int i = 0; i < 40; ++i)
+    {
+        VoiceSetup voice;
+        voice.algo = Algo::Granular;
+        voice.sampleRate = 48000;
+        voice.sourceAnchor = (std::int64_t) pitched.size() - 1;
+        const auto started = std::chrono::steady_clock::now();
+        decide (voice, plan, context, settings, history, nullptr);
+        worst = std::max (worst, std::chrono::duration<double, std::milli> (std::chrono::steady_clock::now() - started).count());
+        GF_EXPECT (voice.harmonicSetup.enabled);
+    }
+    std::printf ("         whole harmonic pitch decision: %.3f ms (limit0.3 ms)\n", worst);
+    GF_EXPECT (juce::SystemStats::getEnvironmentVariable ("GAPFILL_PERF_ENFORCE", {}) != "1" || worst <= 0.3);
 }
 
 GF_TEST (Harmonic, ratio_table_and_thirds)

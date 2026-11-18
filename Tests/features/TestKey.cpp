@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <cstdio>
+#include <ctime>
 #include <cmath>
 #include <vector>
 
@@ -501,7 +502,37 @@ GF_TEST (Key, worst_hop_cost_is_reported_and_bounded)
     }
 
     std::printf ("         worst analyseFrame: %.1f us (target <= 60 us on a quiet machine)\n", worst);
-    GF_EXPECT (juce::SystemStats::getEnvironmentVariable ("GAPFILL_PERF_ENFORCE", {}) != "1" || (worst < 3000.0));  // wall clock: enforced only with GAPFILL_PERF_ENFORCE=1                                       // sanity bound on a shared CI VM
+    GF_EXPECT (juce::SystemStats::getEnvironmentVariable ("GAPFILL_PERF_ENFORCE", {}) != "1" || (worst <= 60.0));
+}
+
+GF_TEST (Key, dense_tonal_hop_meets_sixty_us_and_total_cpu_meets_point_three_percent)
+{
+    constexpr int seconds = 4;
+    std::vector<float> input ((std::size_t) (kSr * seconds), 0);
+    for (int tone = 0; tone < 64; ++tone)
+    {
+        const double hz = 75.0 + tone * 29.0;
+        for (std::size_t i = 0; i < input.size(); ++i)
+            input[i] += (float) (0.015 * std::sin (6.283185307179586 * hz * (double) i / kSr) / (1 + 0.02 * tone));
+    }
+    ChromaTracker tracker;
+    tracker.prepare (kSr);
+    const auto cpuStarted = std::clock();
+    for (std::size_t at = 0; at < input.size(); at += 512)
+        tracker.process (input.data() + at, (int) std::min<std::size_t> (512, input.size() - at));
+    const double fraction = (double) (std::clock() - cpuStarted) / CLOCKS_PER_SEC / seconds;
+    double worst = 0;
+    for (int i = 0; i < 50; ++i)
+    {
+        const auto started = std::chrono::steady_clock::now();
+        tracker.analyseFrame();
+        worst = std::max (worst, std::chrono::duration<double, std::micro> (std::chrono::steady_clock::now() - started).count());
+    }
+    GF_EXPECT (tracker.framesAnalysed() > 10 && tracker.lastFrameGated());
+    for (float value : tracker.chroma()) GF_EXPECT (std::isfinite (value) && value >= 0);
+    std::printf ("         dense key: worst hop%.2f us, total CPU%.4f%% (limits60 us/0.3%%)\n", worst, fraction * 100);
+    const bool enforce = juce::SystemStats::getEnvironmentVariable ("GAPFILL_PERF_ENFORCE", {}) == "1";
+    GF_EXPECT (! enforce || (worst <= 60 && fraction <= 0.003));
 }
 
 GF_TEST (Key, context_resolves_the_scale_to_the_detected_key)

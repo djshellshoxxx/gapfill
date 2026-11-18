@@ -22,6 +22,9 @@ struct GrooveSnapshot
     float confidence = 0.0f;
     float swingPercent = 50.0f;
     bool  valid = false;           ///< confidence >= kConfidenceGate
+    // Named tail padding: `snap = {}` copies a temporary, and MSVC copies its indeterminate
+    // padding bytes. Zeroed members keep EngineSettings byte-comparable (Effective seam test).
+    std::uint8_t reserved[3] {};
 };
 
 inline constexpr float kConfidenceGate = 0.35f;

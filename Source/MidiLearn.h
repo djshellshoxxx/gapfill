@@ -1,7 +1,10 @@
 #pragma once
 
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "features/controller/ControllerTypes.h"
 #include <array>
+#include <functional>
+#include <memory>
 #include <atomic>
 
 namespace gapfill
@@ -24,6 +27,7 @@ class MidiLearnManager
 {
 public:
     MidiLearnManager();
+    ~MidiLearnManager();
 
     /** Must be called once, from prepareToPlay or the constructor, before any
         audio runs. Caches the parameter pointers in index order. */
@@ -66,6 +70,19 @@ public:
 
     /** Maps a CC explicitly (used by state restore and the right-click menu). */
     void setMapping (const juce::String& parameterID, int cc);
+    /** Validated profile/UI edit; refuses existing owners unless replace was explicitly requested. */
+    bool configureMapping (const juce::String& parameterID, int cc, controller::MappingOptions, bool replace = false);
+    controller::MappingOptions getMappingOptions (const juce::String& parameterID) const;
+    void setMappingOptions (const juce::String& parameterID, controller::MappingOptions);
+    void resetMappingOptions();
+    std::vector<controller::ParameterBinding> parameterBindings() const;
+    const juce::String& getMappingStatus() const noexcept;
+    /** Message-thread conflict lookup/explicit replacement; never called on audio. */
+    void setCommandConflictHandler (std::function<juce::String (int cc, int channel, bool replace)>);
+    void setLearnStartHook (std::function<void()>);
+    struct InputMessage { std::uint8_t status = 0, data1 = 0, data2 = 0; std::uint32_t sequence = 0; };
+    InputMessage lastInput() const noexcept;
+    bool takeReceivedCC (int cc, std::uint8_t& channel) noexcept;
     void clearMapping (const juce::String& parameterID);
     void clearAllMappings();
     int  getNumMappings() const;
@@ -80,6 +97,8 @@ public:
     void restoreFromValueTree (const juce::ValueTree& tree);
 
 private:
+    struct Extended;
+    std::unique_ptr<Extended> extended;
     int indexOf (const juce::String& parameterID) const;
 
     static constexpr int numCCs      = 128;
@@ -90,6 +109,7 @@ private:
         int   paramIndex;   // parameter to move, or -1 for a completed learn
         int   learnIndex;   // parameter that just claimed `cc` (learn only)
         int   cc;
+        int   channel;
         float value;        // 0-1
     };
 

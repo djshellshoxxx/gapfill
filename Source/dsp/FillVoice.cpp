@@ -1,4 +1,5 @@
 #include "FillVoice.h"
+#include "ScrambleTiming.h"
 #include "../features/sync/Sync.h"
 
 namespace gapfill
@@ -37,12 +38,13 @@ namespace
 //==============================================================================
 void FillVoice::prepare (double sampleRate, int numChannels)
 {
+    pitchVoice.reset(); // release borrowed capture before prepare may resize it
     sr = juce::jmax (8000.0, sampleRate);
     channels = juce::jlimit (1, 2, numChannels);
 
     mistakeStage.prepare();   // C-3: the wobble delay lines live on the heap (small audio / Windows stacks)
 
-    maxCaptureSamples = (int) std::ceil (sr * 0.32);
+    maxCaptureSamples = voiceTiming::maximumCaptureSamples (sr);
     capture.setSize (2, maxCaptureSamples + 8, false, true, false);
 
     combSize = (int) std::ceil (sr * 0.06) + 8;
@@ -50,12 +52,22 @@ void FillVoice::prepare (double sampleRate, int numChannels)
 
     bandFilter.prepare (sr, 2);
     fxChain.prepare (sr, fx::kMaxVoiceBlock, channels);
+    tapeDamage.prepare (sr);
 
     reset();
 }
 
 void FillVoice::reset()
 {
+    if (formantProcessor != nullptr)
+    {
+        formantProcessor->release();
+        formantProcessor = nullptr;
+    }
+    formantInputEnd = 0;
+    tapeInputEnd = 0;
+    pitchVoice.reset();
+    tapeDamage.reset();
     active = false;
     capture.clear();
     combBuffer.clear();
@@ -189,8 +201,10 @@ void FillVoice::captureSource (const SourceHistory& history, int lengthNeeded)
 
 //==============================================================================
 bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
-                       SpectralSmear* spectral)
+                       SpectralSmear* spectral, formant::FormantProcessor* formant,
+                       harmonic::psola::PitchMarks* pitchMarks)
 {
+    pitchVoice.reset();
     setupData = setup;
     rng.seed (setup.rngSeed);
     noiseRng.seed (hashCombine (setup.rngSeed, 0x51ED270Bu));
@@ -237,12 +251,29 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
         case Algo::TapeStop: needed = juce::jmax (setup.sinceEventSamples, totalLength) + (int) (sr * 0.01); break;
         // Reverse Swell reads back to just before the hit that opened the gap (N-FX1).
         case Algo::Reverse:  if (setup.modes.swell) needed = setup.sinceEventSamples + (int) (sr * 0.015); break;
-        case Algo::Granular: needed = 256; break;            // grains read the history directly
+        case Algo::Granular:
+            needed = setup.pitchSync.settings.enabled && setup.pitchSync.voiced && setup.pitchSync.settings.mix01 > 0.0f
+                ? juce::jmin (maxCaptureSamples, (int) juce::jmax ((std::int64_t) 0,
+                    setup.sourceAnchor - juce::jmax ((std::int64_t) 0, history.getReadFloor(),
+                        history.getWritePosition() - history.getSize() + 2))) : 256;
+            break;
         case Algo::Texture:  needed = 256; break;            // synthesised, no source slice
         default: break;
     }
 
     captureSource (history, needed);
+
+    if (setup.pitchSync.settings.enabled && setup.pitchSync.voiced && setup.pitchSync.settings.mix01 > 0.0f)
+    {
+        const harmonic::psola::Capture source { capture.getReadPointer (0), capture.getReadPointer (1),
+            captureLength, juce::jlimit (1, 2, setup.sourceChannels) };
+        const auto epochs = pitchMarks != nullptr ? pitchMarks->find (source, setup.pitchSync.f0Hz)
+                                                 : harmonic::psola::EpochResult {};
+        if (epochs.ready() && pitchVoice.configure (setup.pitchSync, source, epochs.epochs, sr, setup.recipeSeed, totalLength))
+            setupData.recipeExtras.harmonic.voices = (std::uint8_t) pitchVoice.voices();
+        else
+            setupData.recipeExtras.harmonic.outcome = harmonic::psola::Outcome::EpochFallback;
+    }
 
     filterL.reset();
     filterR.reset();
@@ -402,6 +433,15 @@ bool FillVoice::start (const VoiceSetup& setup, const SourceHistory& history,
     // HOOK (WP8, FX-0): latch the effect cards for this fill.
     { auto fxs = setup.fxStart; fxs.lengthSamples = totalLength; fxChain.start (fxs); }
 
+    // The scheduler has already claimed a free, prepared processor. Keep the
+    // planned output deadline; the generated source ends N samples earlier so
+    // the delayed stage drains before the next protected event, with no PDC change.
+    formantProcessor = formant;
+    formantInputEnd = formant != nullptr ? juce::jmax (0, totalLength - formant->latencySamples()) : totalLength;
+    tapeDamage.begin (setup.fxStart.settings.tapeExtra, setup.rngSeed, formantInputEnd, setup.minimumSourceSamples,
+        setup.recipeExtras.tape, setup.replayRecipe, setup.fxStart.skipVoiceFx ? 0.0f : setup.recipeReplaySend01);
+    tapeInputEnd = tapeDamage.sourceInputSamples();
+    setupData.recipeExtras.tape = tapeDamage.metadata();
     active = true;
     return true;
 }
@@ -418,8 +458,7 @@ void FillVoice::configureAlgorithm()
 
     // Where the hit that opened this gap sits inside the captured slice. A few
     // milliseconds of pre-roll keeps the attack intact.
-    sliceOffset = juce::jlimit (0, juce::jmax (0, captureLength - 64),
-                                captureLength - setupData.sinceEventSamples - (int) (sr * 0.004));
+    sliceOffset = voiceTiming::sliceOffsetSamples (captureLength, setupData.sinceEventSamples, sr);
 
     // Generic loop region used by the "play the slice forward" algorithms.
     freezeXfade = juce::jlimit (16, juce::jmax (17, captureLength / 4), (int) (sr * 0.008));
@@ -622,8 +661,7 @@ void FillVoice::configureAlgorithm()
 
                 // E-2 Sync Mods: slices land on the stutter grid (at most half the material).
                 if (setupData.modSyncSeconds > 0.0f)
-                    sliceLen = juce::jlimit (48, juce::jmax (48, usable / 2),
-                                             (int) std::lround (setupData.modSyncSeconds * sr));
+                    sliceLen = voiceTiming::syncedScrambleSliceSamples (usable, setupData.modSyncSeconds, sr);
 
                 numSlices = juce::jlimit (2, maxSlices, juce::jmax (2, usable / sliceLen));
             }
@@ -789,7 +827,26 @@ void FillVoice::generateSample (float& left, float& right, const SourceHistory& 
     if (envelopeStage.isActive())
         envelopeStage.process (l, r, (float) elapsed / (float) totalLength);
 
+    if (tapeDamage.isActive())
+    {
+        if (elapsed >= tapeInputEnd) l = r = 0.0f;
+        tapeDamage.process (l, r);
+    }
+
+    if (formantProcessor != nullptr)
+    {
+        if (elapsed >= formantInputEnd)
+            l = r = 0.0f;
+        formantProcessor->process (l, r);
+    }
+
     auto gain = envelopeAt (elapsed) * setupData.amp;
+    if (formantProcessor != nullptr || tapeDamage.latencySamples() > 0)
+    {
+        const int onsetAge = elapsed - tapeDamage.latencySamples()
+            - (formantProcessor != nullptr ? formantProcessor->latencySamples() : 0);
+        gain *= onsetAge < 0 ? 0.0f : juce::jlimit (0.0f, 1.0f, (float) onsetAge / (float) juce::jmax (1, fadeIn));
+    }
     const auto preFxGain = gain;
 
     duck += duckCoeff * (duckTarget - duck);
@@ -831,6 +888,13 @@ void FillVoice::generateSample (float& left, float& right, const SourceHistory& 
 void FillVoice::deactivate() noexcept
 {
     active = false;
+    pitchVoice.reset();
+
+    if (formantProcessor != nullptr)
+    {
+        formantProcessor->release();
+        formantProcessor = nullptr;
+    }
 
     if (spectralProcessor != nullptr)
     {
@@ -964,6 +1028,26 @@ void FillVoice::genDelay (float& l, float& r) noexcept
 
 void FillVoice::genGranular (float& l, float& r, const SourceHistory& history) noexcept
 {
+    if (setupData.pitchSync.settings.enabled)
+    {
+        if (! pitchVoice.active())
+        {
+            genPlainGranular (l, r, history);
+            return;
+        }
+        const auto mix = pitchVoice.mixWeight();
+        if (mix < 1.0f)
+        {
+            genPlainGranular (l, r, history);
+            l *= 1.0f - mix;
+            r *= 1.0f - mix;
+        }
+        float pitchL = 0.0f, pitchR = 0.0f;
+        pitchVoice.render (pitchL, pitchR);
+        l += pitchL * mix;
+        r += pitchR * mix;
+        return;
+    }
     // HOOK (WP7, F-X01): period-synchronous harmonic grains replace the legacy grain scheduler.
     if (harmonicGrains.active())
     {
@@ -974,6 +1058,12 @@ void FillVoice::genGranular (float& l, float& r, const SourceHistory& history) n
     // HOOK (WP8, N-FX2): Granular Cloud render mode.
     if (cloudMode.generate (l, r, history, channels))
         return;
+
+    genPlainGranular (l, r, history);
+}
+
+void FillVoice::genPlainGranular (float& l, float& r, const SourceHistory& history) noexcept
+{
 
     if (--grainCountdown <= 0)
     {
@@ -1186,14 +1276,28 @@ void FillVoice::genDistort (float& l, float& r) noexcept
 
 void FillVoice::genScramble (float& l, float& r) noexcept
 {
-    if (slicePos >= sliceLen)
+    int currentSliceLength = sliceLen;
+    if (setupData.grooveShifts.on)
+    {
+        const auto boundary = [&] (int k) { return k * sliceLen + setupData.grooveShifts.at (k); };
+        int ordinal = elapsed / sliceLen;
+        // Bounded shifts are less than one period, so one correction in
+        // either direction locates the actual monotonic boundary.
+        if (ordinal > 0 && elapsed < boundary (ordinal)) --ordinal;
+        else if (elapsed >= boundary (ordinal + 1)) ++ordinal;
+        const auto start = boundary (ordinal);
+        currentSliceLength = juce::jmax (1, boundary (ordinal + 1) - start);
+        sliceIndex = ordinal % juce::jmax (1, numSlices);
+        slicePos = elapsed - start;
+    }
+    else if (slicePos >= sliceLen)
     {
         slicePos = 0;
         sliceIndex = (sliceIndex + 1) % juce::jmax (1, numSlices);
     }
 
     const auto base = sliceOffset + sliceOrder[juce::jlimit (0, maxSlices - 1, sliceIndex)] * sliceLen;
-    const auto edge = juce::jmin (sliceLen / 8, (int) (sr * 0.0015) + 2);
+    const auto edge = juce::jmin (currentSliceLength / 8, (int) (sr * 0.0015) + 2);
 
     float w = 1.0f;
 
@@ -1201,8 +1305,8 @@ void FillVoice::genScramble (float& l, float& r) noexcept
     {
         if (slicePos < edge)
             w = (float) slicePos / (float) edge;
-        else if (slicePos > sliceLen - edge)
-            w = (float) (sliceLen - slicePos) / (float) edge;
+        else if (slicePos > currentSliceLength - edge)
+            w = (float) (currentSliceLength - slicePos) / (float) edge;
     }
 
     w = juce::jlimit (0.0f, 1.0f, w);

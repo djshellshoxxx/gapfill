@@ -75,8 +75,14 @@ struct TabPlan
     int tabWidth = 130;                 ///< width of the Creative and Spectral tabs
     int weightsTabWidth = 150;
     int performanceTabWidth = 120;
+    bool glitchAsTab = false;           ///< F-G01: the GLITCH tab follows Performance when it also fits
+    int glitchTabWidth = 100;
+    int tabInset = 1;                   ///< 1 px inset of every tab button
 };
 
 TabPlan planTabs (int availableWidth, bool performancePopulated) noexcept;
+
+/** F-G01: as planTabs, plus the GLITCH tab after the others (FILE menu entry otherwise). */
+TabPlan planTabs (int availableWidth, bool performancePopulated, bool glitchPopulated) noexcept;
 
 } // namespace gapfill

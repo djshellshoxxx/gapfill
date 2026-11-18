@@ -9,6 +9,7 @@
 // isValid() and never allocates more than the input needs.
 
 #include "../../dsp/FillRecipe.h"
+#include "../../dsp/RecipeExtras.h"
 
 #include <juce_core/juce_core.h>
 
@@ -22,5 +23,10 @@ juce::String encode (const FillRecipe&);
 
 /** False for bad base64, wrong size, wrong checksum or an out-of-range recipe. */
 bool decode (const juce::String& text, FillRecipe& out);
+
+/** Optional bounded sidecar (44 canonical bytes plus checksum, 60 base64 chars).
+    Empty legacy metadata encodes to an empty string and is omitted by callers. */
+juce::String encodeExtras (const RecipeExtras&);
+bool decodeExtras (const juce::String&, RecipeExtras&);
 
 } // namespace gapfill::recipecodec

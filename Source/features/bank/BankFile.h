@@ -2,7 +2,7 @@
 
 // N-VAL Scene Bank exchange: the portable `.gapbank` file (docs/dev/12 N-VAL).
 //
-// UTF-8 XML, at most 256 KiB and 64 scenes. Message thread only. Parsing is a
+// UTF-8 XML, at most 1 MiB and 64 scenes. Message thread only. Parsing is a
 // pure function that never touches plugin state; applying is atomic (the whole
 // accepted set replaces / extends the bank, or nothing changes) and remembers
 // the previous bank for a one-step "Undo import". Import never changes live
@@ -18,9 +18,9 @@
 namespace gapfill::bank
 {
 
-inline constexpr juce::int64 kMaxFileBytes = 256 * 1024;
-inline constexpr int kFormatVersion = 1;
-inline constexpr int kStateVersionInFile = 3;
+inline constexpr juce::int64 kMaxFileBytes = 1024 * 1024;
+inline constexpr int kFormatVersion = 2;
+inline constexpr int kStateVersionInFile = 2;
 
 enum class ParseStatus { Ok, TooLarge, Malformed, NewerVersion, Empty };
 
@@ -40,7 +40,7 @@ struct ImportReport
     int unknownIds = 0;                       ///< ids this version does not know (ignored)
     bool digestMismatch = false;              ///< integrity warning, the user may continue
     bool digestPresent = false;
-    juce::ValueTree macros;                   ///< optional <Macros>, validated by its owner
+    juce::ValueTree macros;                   ///< optional validated MacrosV3, MacrosV2 or legacy Macros
 };
 
 struct ExportOptions
@@ -54,7 +54,8 @@ struct ExportOptions
 juce::String sha256 (const juce::String& text);
 
 /** Canonical payload text used for the digest (names, scopes, quant, params). */
-juce::String canonicalPayload (const std::vector<scenes::Scene>& selected, const juce::String& bankName);
+juce::String canonicalPayload (const std::vector<scenes::Scene>& selected, const juce::String& bankName,
+                               int formatVersion = kFormatVersion);
 
 /** XML text of the bank. `created` is an ISO-8601 string (injected for tests). */
 juce::String exportToString (const scenes::SceneBank&, const ExportOptions&,

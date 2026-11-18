@@ -8,14 +8,17 @@ namespace gapfill::calibrate
 
 bool RecordTap::allocate (double sampleRate)
 {
-    if (sampleRate <= 0.0)
+    if (! std::isfinite (sampleRate) || sampleRate <= 0.0)
         return false;
 
     if (ready.load (std::memory_order_acquire) && allocatedRate == sampleRate)
         return true;
 
-    // A running recording must not lose its buffer under the audio thread.
-    if (getState() == State::Recording)
+    // Cancel changes the public state immediately, but an entered writer still owns
+    // its storage until the bounded copy returns. Refuse rather than wait for it.
+    StorageClaim claim (storageClaimed);
+
+    if (! claim || getState() == State::Recording)
         return false;
 
     ready.store (false, std::memory_order_release);
@@ -27,7 +30,9 @@ bool RecordTap::allocate (double sampleRate)
 
 bool RecordTap::start (int seconds, double sampleRate) noexcept
 {
-    if (! isReadyFor (sampleRate) || getState() == State::Recording)
+    StorageClaim claim (storageClaimed);
+
+    if (! claim || ! isReadyFor (sampleRate) || getState() == State::Recording)
         return false;
 
     seconds = std::clamp (seconds, kMinSeconds, kMaxSeconds);
@@ -51,6 +56,9 @@ void RecordTap::reset() noexcept
 
 void RecordTap::writeRecording (const float* in, int n) noexcept
 {
+    if (in == nullptr || n <= 0)
+        return;
+
     const auto done = written.load (std::memory_order_relaxed);
     const auto want = target.load (std::memory_order_relaxed);
     const auto room = std::min<std::int64_t> ((std::int64_t) buffer.size() - done, want - done);

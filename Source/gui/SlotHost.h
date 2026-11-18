@@ -27,6 +27,7 @@ enum class Slot
 {
     TopBarRight, CreativeExtra, PerformanceStrip, VisualiserOverlay, OptionsExtra, FooterStatus,
     PerformanceTab, EffectsSection, FileMenuExtra, HistoryDrawerExtra,   // added by docs/dev/12 F0-10
+    GlitchTab,                                                           // F-G01 GLITCH tab
     Count
 };
 

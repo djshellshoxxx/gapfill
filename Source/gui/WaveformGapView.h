@@ -4,6 +4,7 @@
 #include "LookAndFeel.h"
 #include "MeterMath.h"
 #include "../dsp/VisualisationState.h"
+#include "../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -87,7 +88,7 @@ public:
         const auto clamped = juce::jlimit (0.0f, 1.0f, newLevel);
         const auto db = toDb (clamped);
 
-        if (peak.push (db, juce::Time::getMillisecondCounter()))
+        if (peak.push (db, nowMs()))
         {
             // The peak now has to be animated back down.
             if (! isTimerRunning())
@@ -154,11 +155,31 @@ public:
         repaint();
     }
 
+   #ifdef GAPFILL_UNIT_TESTS
+    /** Injects only the display clock; nullptr restores the normal JUCE clock. */
+    static void setClockForTests (juce::uint32 (*clock)()) noexcept { testClock = clock; }
+    void tickForTests() { timerCallback(); }
+    float peakDbForTests() const noexcept { return peak.peakDb; }
+   #endif
+
 private:
+    static juce::uint32 nowMs() noexcept
+    {
+       #ifdef GAPFILL_UNIT_TESTS
+        if (testClock != nullptr)
+            return testClock();
+       #endif
+        return juce::Time::getMillisecondCounter();
+    }
+
+   #ifdef GAPFILL_UNIT_TESTS
+    static inline juce::uint32 (*testClock)() = nullptr;
+   #endif
+
     void timerCallback() override
     {
         // 20dB per second at the timer rate (meter::PeakHold).
-        const auto step = peak.tick (juce::Time::getMillisecondCounter());
+        const auto step = peak.tick (nowMs());
 
         if (step == meter::PeakHold::Tick::Held)
             return;
@@ -206,7 +227,7 @@ public:
 
         g.setColour (colours::textDim);
         g.setFont (juce::Font (juce::FontOptions (10.0f)));
-        g.drawText ("GAP CONFIDENCE  " + juce::String ((int) std::round (value * 100.0f)) + "%",
+        g.drawText (i18n::format ("GAP CONFIDENCE  {0}%", { juce::String ((int) std::round (value * 100.0f)) }),
                     getLocalBounds().reduced (6, 0), juce::Justification::centredLeft);
     }
 

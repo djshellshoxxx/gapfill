@@ -2,6 +2,7 @@
 
 #include "../SlotHost.h"
 #include "../HelpRegistry.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill::fxgui
 {
@@ -138,7 +139,18 @@ const std::vector<CardDef>& cardDefinitions()
             { K::Button, "irAuto",    "Auto",       "Capture automatically on the first strong hit when no impulse is loaded.", true },
             { K::Button, "irSave",    "Save IR...", "Save the current impulse as a WAV file.", true },
             { K::Button, "irLoad",    "Load IR...", "Load a WAV impulse (1 second or shorter).", true },
-            { K::Button, "irClear",   "Clear IR",   "Forget the impulse; the card then passes the sound unchanged.", true } } },
+            { K::Button, "irClear",   "Clear IR",   "Forget the impulse; the card then passes the sound unchanged.", true },
+            // F-L21 detailed Hit Reverb (L21EXT): reserved host parameters, drawn disabled until the CV package
+            // wires the engine (docs/progress/F-L21-EXTENSION-CONTRACT-20261031.md). Flip `inactive` with it.
+            { K::Combo,  "fl21_mode",     "Mode",      "Detailed Hit Reverb (not active in this build yet).", true, true },
+            { K::Knob,   "fl21_mix",      "Mix",       "Detailed Hit Reverb return level (not active in this build yet).", true, true },
+            { K::Combo,  "fl21_source",   "Source",    "Detailed Hit Reverb impulse source (not active in this build yet).", true, true },
+            { K::Toggle, "fl21_hold",     "Hold",      "Keep the detailed impulse (not active in this build yet).", true, true },
+            { K::Knob,   "fl21_length",   "Length",    "Detailed impulse length (not active in this build yet).", true, true },
+            { K::Knob,   "fl21_preDelay", "Pre-delay", "Detailed impulse pre-delay (not active in this build yet).", true, true },
+            { K::Knob,   "fl21_damp",     "Damp",      "Detailed impulse damping (not active in this build yet).", true, true },
+            { K::Knob,   "fl21_decay",    "Decay",     "Detailed impulse decay (not active in this build yet).", true, true },
+            { K::Combo,  "fl21_stereo",   "Stereo",    "Detailed impulse stereo or mono (not active in this build yet).", true, true } } },
 
         { fx::CardId::SpFreeze, "Spectral Freeze", "sfzAmount",
           "Freezes the sound just before a gap into a sustained, evolving texture, optionally morphing between two captures.",
@@ -213,6 +225,7 @@ EffectCardView::EffectCardView (GapFillAudioProcessor& p, const CardDef& d)
             }
         }
 
+        comp->setEnabled (! c.inactive);
         addAndMakeVisible (*comp);
         controls.push_back (std::move (comp));
         haveAdvanced = haveAdvanced || c.advanced;
@@ -296,7 +309,7 @@ void EffectCardView::runAction (const juce::String& action, juce::Button* source
     else if (action == "irSave" || action == "irLoad")
     {
         const bool save = action == "irSave";
-        chooser = std::make_unique<juce::FileChooser> (save ? "Save impulse response" : "Load impulse response",
+        chooser = std::make_unique<juce::FileChooser> (i18n::text (save ? "Save impulse response" : "Load impulse response"),
                                                        juce::File::getSpecialLocation (juce::File::userDocumentsDirectory), "*.wav");
         const auto flags = save ? juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles
                                 : juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
@@ -354,38 +367,38 @@ void EffectCardView::refresh()
     if (def.card == fx::CardId::Swell && on)
     {
         if (m.swellNoTransport.load (std::memory_order_relaxed))
-            text = "Swell: no transport - landing at gap end";
+            text = i18n::text ("Swell: no transport - landing at gap end");
         else if (m.swellLandingBar.load (std::memory_order_relaxed) > 0)
-            text = "Last landing: bar " + juce::String (m.swellLandingBar.load (std::memory_order_relaxed)) + "."
-                     + juce::String (m.swellLandingBeat.load (std::memory_order_relaxed));
+            text = i18n::format ("Last landing: bar {0}.{1}", { juce::String (m.swellLandingBar.load (std::memory_order_relaxed)),
+                                                              juce::String (m.swellLandingBeat.load (std::memory_order_relaxed)) });
     }
     else if (def.card == fx::CardId::Cloud && on)
     {
         const auto n = m.cloudGrains.load (std::memory_order_relaxed);
 
         if (n > 0)
-            text = "~" + juce::String (n) + " grains" + (m.cloudLimited.load (std::memory_order_relaxed) ? ", density limited" : "");
+            text = i18n::format (m.cloudLimited.load (std::memory_order_relaxed) ? "~{0} grains, density limited" : "~{0} grains", { juce::String (n) });
     }
     else if (def.card == fx::CardId::Ratchet && on && m.tempoFallback.load (std::memory_order_relaxed))
     {
-        text = "No transport - using the fallback tempo";
+        text = i18n::text ("No transport - using the fallback tempo");
     }
 
     else if (def.card == fx::CardId::Convo && on)
     {
         const auto& cv = proc.getFxChain().cardsRef().convo;
-        text = cv.hasIr() ? "IR: " + juce::String (juce::roundToInt (1000.0 * cv.irLengthSamples() / juce::jmax (1.0, proc.getSampleRate()))) + " ms"
-                          : juce::String ("No IR - capture one");
+        text = cv.hasIr() ? i18n::format ("IR: {0} ms", { juce::String (juce::roundToInt (1000.0 * cv.irLengthSamples() / juce::jmax (1.0, proc.getSampleRate()))) })
+                          : i18n::text ("No IR - capture one");
     }
     else if (def.card == fx::CardId::SpFreeze && on)
     {
         const auto& sf = proc.getFxChain().cardsRef().spfreeze;
-        text = sf.isSounding() ? "Frozen" : (sf.captureSequence() > 0 ? "Released" : "Nothing captured yet");
+        text = i18n::text (sf.isSounding() ? "Frozen" : (sf.captureSequence() > 0 ? "Released" : "Nothing captured yet"));
     }
     else if (def.card == fx::CardId::Formant && on)
     {
         const auto ms = 1000.0 * proc.getFxChain().cardsRef().formant.latencySamples() / juce::jmax (1.0, proc.getSampleRate());
-        text = "Delays the sound by " + juce::String (juce::roundToInt (ms)) + " ms";
+        text = i18n::format ("Delays the sound by {0} ms", { juce::String (juce::roundToInt (ms)) });
     }
 
     if (text != readout.getText())

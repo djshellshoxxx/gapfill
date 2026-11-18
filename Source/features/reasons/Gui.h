@@ -31,10 +31,11 @@ void drawSwatch (juce::Graphics&, juce::Rectangle<float> r, Pattern, juce::Colou
 
 juce::Colour swatchColour (Pattern) noexcept;
 
-class LegendStrip : public juce::Component
+class LegendStrip : public juce::Component, private juce::ChangeListener
 {
 public:
     LegendStrip();
+    ~LegendStrip() override;
 
     void setCollapsed (bool shouldCollapse);
     bool isCollapsed() const noexcept   { return collapsed; }
@@ -50,6 +51,8 @@ public:
 
 private:
     void toggle();
+    void refreshLanguage();
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
 
     bool collapsed = false;
 

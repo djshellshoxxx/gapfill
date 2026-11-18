@@ -1,4 +1,5 @@
 #include "Effective.h"
+#include "../modulation/Runtime.h"
 
 namespace gapfill::Effective
 {
@@ -21,6 +22,11 @@ void applyAtDecision (EngineSettings& sLocal, double ppq, const TransportInfo& t
     applyEvolve (sLocal, ppq, ts);
     applyBreathing (sLocal, ppq, ts);
     applyTension (sLocal, ppq, ts);      // F-M21 (WP7): after Breathing, before the Phrase probability multiplier
+    if (sLocal.perf.extendedMacroRuntime != nullptr)
+    {
+        if (sLocal.perf.macroFxSend01 < 1) sLocal.perf.fxSend01 *= sLocal.perf.macroFxSend01;
+        modulation::applyCombinedEffectSend (sLocal, sLocal.perf.fxSend01);
+    }
     applyPhrase (sLocal, ppq, ts);
     applyEnergy (sLocal, ppq, ts);       // F-L22 (WP7), after the other stages
     applyArrangement (sLocal, ppq, ts);  // F-X04 (WP7)

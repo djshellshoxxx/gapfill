@@ -1,7 +1,9 @@
 #include "Model.h"
 
 #include "../../Parameters.h"
+#include "../../dsp/VisualisationState.h"
 #include "../reasons/Reasons.h"
+#include "../i18n/Strings.h"
 
 #include <cmath>
 
@@ -50,6 +52,8 @@ int fromEngineEvent (const FillEvent& e, TimelineEvent out[2]) noexcept
             eval.type = EventType::GapEval;
             eval.reason = (std::uint8_t) RejectReason::None;
             eval.availMs = sat16 (e.availMs);
+            eval.algo = e.recipe.algo;
+            eval.lenMs = e.recipe.lengthMs;
             out[0] = eval;
 
             auto start = base;
@@ -81,7 +85,9 @@ int fromEngineEvent (const FillEvent& e, TimelineEvent out[2]) noexcept
         case FillEventType::SceneApplied:  base.type = EventType::SceneApplied; break;
         case FillEventType::Panic:         base.type = EventType::Panic;        break;
         case FillEventType::Recover:       base.type = EventType::Recover;      break;
-        case FillEventType::None:          return 0;
+        case FillEventType::None:
+        case FillEventType::LockSet:
+        case FillEventType::LockCleared:   return 0; // control acknowledgements are not timeline events
     }
 
     out[0] = base;
@@ -94,23 +100,22 @@ juce::String describe (const TimelineEvent& e)
     {
         case EventType::GapEval:
             if (e.reason == (std::uint8_t) RejectReason::None)
-                return "Gap evaluated: filled";
+                return i18n::text ("Gap evaluated: filled");
 
-            return "Gap skipped: " + reasons::labelWithNumbers ((RejectReason) e.reason, (float) e.availMs, (float) e.needMs)
-                   + ". " + reasons::advice ((RejectReason) e.reason);
+            return i18n::format ("Gap skipped: {0}. {1}",
+                { reasons::labelWithNumbers ((RejectReason) e.reason, (float) e.availMs, (float) e.needMs),
+                  i18n::text (reasons::advice ((RejectReason) e.reason)) });
 
         case EventType::FillStart:
         {
-            juce::String s = "Fill started";
-
             if (e.algo < numAlgos)
-                s << ": " << algoName ((Algo) e.algo) << ", " << juce::String (e.lenMs) << " ms";
-
-            return s;
+                return i18n::format ("Fill started: {0}, {1} ms",
+                                      { i18n::text (algoName ((Algo) e.algo)), juce::String (e.lenMs) });
+            return i18n::text ("Fill started");
         }
 
         default:
-            return typeName (e.type);
+            return i18n::text (typeName (e.type));
     }
 }
 
@@ -131,11 +136,49 @@ void TimelineModel::push (const TimelineEvent& e) noexcept
 
 void TimelineModel::pushEngineEvent (const FillEvent& e) noexcept
 {
+    if (! adoptEpoch (e.timelineEpoch, e.sampleRateHz))
+        return;
+
     TimelineEvent out[2];
     const auto n = fromEngineEvent (e, out);
 
     for (int i = 0; i < n; ++i)
         push (out[i]);
+}
+
+bool TimelineModel::adoptEpoch (std::uint32_t incoming, std::uint32_t sampleRateHz) noexcept
+{
+    if (sampleRateHz != 0 && sampleRateHz < 8000)
+        return false;
+    if (incoming == 0)
+    {
+        if (currentEpoch != 0)
+            return false;
+        if (sampleRateHz != 0)
+            currentSampleRate = (double) sampleRateHz;
+        return true;
+    }
+    if (incoming == currentEpoch)
+        return sampleRateHz == 0 || (double) sampleRateHz == currentSampleRate;
+    if (currentEpoch != 0 && (std::int32_t) (incoming - currentEpoch) <= 0)
+        return false;
+
+    clear();
+    currentEpoch = incoming;
+    if (sampleRateHz != 0)
+        currentSampleRate = (double) sampleRateHz;
+    return true;
+}
+
+bool TimelineModel::pushFrame (const VizFrame& frame, std::int64_t positionAnchor)
+{
+    if (! adoptEpoch (frame.timelineEpoch, frame.sampleRateHz))
+        return false;
+    if (frames.capacity() > 0 && frames.sampleRate() != currentSampleRate)
+        frames.configure (currentSampleRate, 16.0);
+    frames.setPositionAnchor (positionAnchor);
+    frames.push (frame);
+    return true;
 }
 
 const TimelineEvent& TimelineModel::at (int i) const noexcept
@@ -166,11 +209,41 @@ int TimelineModel::latest (TimelineEvent* out, int maxItems) const noexcept
     return n;
 }
 
+int TimelineModel::latestOutcomes (TimelineEvent* out, int maxItems, std::int64_t endPos) const noexcept
+{
+    int written = 0;
+    for (int i = count; --i >= 0 && written < maxItems;)
+    {
+        const auto& event = at (i);
+        if (event.pos <= endPos && (event.type == EventType::GapEval || event.type == EventType::Preview))
+            out[written++] = event;
+    }
+    return written;
+}
+
 void TimelineModel::clear() noexcept
 {
     head = 0;
     count = 0;
     haveLoss = false;
+    lossUpToPos = 0;
+    paused = false;
+    frozenPos = 0;
+    frames.clear();
+}
+
+void TimelineModel::scrubTo (std::int64_t position, std::int64_t livePos) noexcept
+{
+    if (! paused)
+        return;
+
+    auto first = livePos;
+    if (count > 0)
+        first = juce::jmin (first, at (0).pos);
+    if (frames.size() > 0)
+        first = juce::jmin (first, frames.at (0).position);
+
+    frozenPos = juce::jlimit (first, juce::jmax (first, livePos), position);
 }
 
 } // namespace gapfill::timeline

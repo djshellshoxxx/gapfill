@@ -1,4 +1,5 @@
 #include "StatusBoard.h"
+#include "../i18n/Strings.h"
 
 #include "ParamInfo.h"
 
@@ -82,17 +83,17 @@ juce::String describeParameter (juce::AudioProcessorValueTreeState& state, const
         return {};
 
     const auto* entry = ParamInfoRegistry::get().find (id);
-    const juce::String name = entry != nullptr ? juce::String (entry->shortName) : parameter->getName (32);
+    const auto name = i18n::text (entry != nullptr ? juce::String (entry->shortName) : parameter->getName (32));
     const auto base = parameter->getText (parameter->getValue(), 32);
 
-    juce::String text = name + " " + base;
+    juce::String text = i18n::format ("{0} {1}", { name, base });
 
     if (const auto effective = ParamInfoRegistry::get().effectiveValue (id))
     {
         const auto effectiveText = parameter->getText (parameter->convertTo0to1 (*effective), 32);
 
         if (effectiveText != base)
-            text << " (" << base << " -> " << effectiveText << ")";
+            text = i18n::format ("{0} {1} ({1} -> {2})", { name, base, effectiveText });
     }
 
     return text;

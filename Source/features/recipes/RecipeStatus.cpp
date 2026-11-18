@@ -3,6 +3,8 @@
 #include "../audition/PreviewChannel.h"
 #include "../history/Describe.h"
 #include "../../PluginProcessor.h"
+#include "../i18n/Strings.h"
+#include "../i18n/RecipePresentation.h"
 
 namespace gapfill::recipes
 {
@@ -26,16 +28,14 @@ juce::String RecipeStatus::lockSummary (GapFillAudioProcessor& proc, bool& isWar
     if (fillType != nullptr && fillType->load() > 0.5f)
     {
         isWarning = true;
-        return "Fill Type overrides Lock";
+        return i18n::text ("Fill Type overrides Lock");
     }
 
     const auto& mirror = proc.getRecipes().lockMirror;
-    const auto& t = history::strings();
-
     if (mirror.valid && ! proc.getRecipes().lockArmed.load (std::memory_order_relaxed))
-        return juce::String (t.locked) + ": " + history::describeRecipe (mirror.recipe, 0.0);
+        return i18n::format ("Locked: {0}", { i18n::describeRecipe (mirror.recipe) });
 
-    return juce::String (t.armed) + ": the next fill will be locked";
+    return i18n::text ("Lock armed: the next fill will be locked");
 }
 
 RecipeStatus::Line RecipeStatus::update()
@@ -60,31 +60,31 @@ RecipeStatus::Line RecipeStatus::update()
     {
         const auto seconds = (trig.getLearnTicksRemaining() + audition::MidiTrigger::timerHz - 1)
                                / audition::MidiTrigger::timerHz;
-        line.text = juce::String ("MIDI LEARN  |  Fill Audition  |  ")
-                  + (trig.getLearn() == audition::MidiTrigger::Learn::Note ? "play a note" : "move a controller")
-                  + "  |  " + juce::String (seconds) + "s";
+        line.text = trig.getLearn() == audition::MidiTrigger::Learn::Note
+            ? i18n::format ("MIDI LEARN  |  Fill Audition  |  play a note  |  {0}s", { juce::String (seconds) })
+            : i18n::format ("MIDI LEARN  |  Fill Audition  |  move a controller  |  {0}s", { juce::String (seconds) });
     }
     else if (message.isNotEmpty())
     {
-        line.text = message;
+        line.text = i18n::errorText (message);
         line.warning = true;
     }
     else if (previewStatusOf (code) == PreviewStatus::Playing)
     {
         const auto algo = previewAlgoOf (code);
-        line.text = algo >= 0 && algo < numAlgos ? "Preview: " + juce::String (algoName ((Algo) algo))
-                                                 : juce::String ("Preview");
+        line.text = algo >= 0 && algo < numAlgos ? i18n::format ("Preview: {0}", { i18n::text (algoName ((Algo) algo)) })
+                                                 : i18n::text ("Preview");
     }
     else if (services.match.isEnabled() && abcompare::trimText (services.match.getTrimDb()).isNotEmpty())
     {
-        line.text = abcompare::trimText (services.match.getTrimDb());
+        line.text = i18n::matchTrim (services.match.getTrimDb());
     }
     else
     {
         line.text = lockSummary (proc, line.warning);
 
         if (line.text.isEmpty() && services.likeRemaining.load (std::memory_order_relaxed) > 0)
-            line.text = "LIKED x" + juce::String (services.likeRemaining.load (std::memory_order_relaxed));
+            line.text = i18n::format ("LIKED x{0}", { juce::String (services.likeRemaining.load (std::memory_order_relaxed)) });
     }
 
     return line;

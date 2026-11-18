@@ -33,10 +33,14 @@ enum class RecType : std::uint8_t
     Command = 2,       ///< flags = CommandType, index = Command::index, p0 = velocity
     Transport = 3,     ///< flags bit0 = valid, index = tsNum << 8 | tsDen, p0 = bpm (float bits), pos = ppq * 1e6
     BlockSize = 4,     ///< p0 = host block size in samples (written when it changes)
-    Outcome = 5        ///< flags bit0 = started, index = reason | algo << 8, pos = decision sample, p0/p1 = avail/need ms
+    Outcome = 5,       ///< flags bit0 = started, index = reason | algo << 8, pos = decision sample, p0/p1 = avail/need ms
+    RecipePayload = 6, ///< format2: follows a *Recipe command; pos/p0/p1 hold its portable 16-byte recipe
+    RecipeExtras = 7,  ///< format3: three chunks after a marked recipe payload, flags=0/1/2, index=16/16/12
+    OutcomeRecipe = 8  ///< format3: complete recipe for a detailed Started outcome, followed by extras
 };
 
-inline constexpr std::uint8_t kLastRecType = (std::uint8_t) RecType::Outcome;
+inline constexpr std::uint8_t kLastRecType = (std::uint8_t) RecType::OutcomeRecipe;
+inline constexpr std::uint8_t kOutcomeHasDetails = 2;
 
 /** Exactly 24 bytes; serialised little-endian field by field (never as raw memory). */
 struct Record
@@ -70,6 +74,7 @@ inline float bitsFloat (std::uint32_t u) noexcept   { float f; std::memcpy (&f, 
 /** Everything a .gfevents file holds. */
 struct ReplayData
 {
+    int formatVersion = 1;
     juce::String pluginVersion;
     int stateVersion = 0;
     double sampleRate = 48000.0;
@@ -80,6 +85,10 @@ struct ReplayData
     juce::String initialState;        ///< the APVTS root as XML text
     std::vector<Record> records;
 };
+
+/** Restores a command and its paired payload. Legacy format1 has no recipe payload. */
+bool commandAt (const ReplayData&, std::size_t recordIndex, Command&) noexcept;
+bool outcomeDetailsAt (const ReplayData&, std::size_t recordIndex, FillRecipe&, gapfill::RecipeExtras&) noexcept;
 
 /** Serialises to the .gfevents text (XML header + base64 records). */
 juce::String toFileText (const ReplayData&);
@@ -139,6 +148,7 @@ public:
 
 private:
     void push (const Record&) noexcept;
+    void push (const Record*, int count) noexcept;
 
     struct Ring;
     std::unique_ptr<Ring> ring;
@@ -151,6 +161,7 @@ private:
     std::atomic<bool> full { false };
     std::atomic<std::uint32_t> produced { 0 };
     std::atomic<std::uint32_t> blockIndex { 0 };
+    std::atomic<int> formatVersion { 1 };
 
     // audio-thread-only state while recording (reset by start() before activation)
     int lastBlockSize = -1;

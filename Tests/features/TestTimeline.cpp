@@ -1,9 +1,11 @@
 // F-M03 Gap timeline - data model and engine event feed (docs/dev/12 F-M03).
 
 #include "../support/TestRig.h"
+#include "../support/AllocGuard.h"
 
 #include "features/reasons/Reasons.h"
 #include "features/timeline/Model.h"
+#include "features/i18n/Strings.h"
 
 #include <set>
 #include <tuple>
@@ -56,6 +58,7 @@ GF_TEST (Timeline, record_is_32_bytes_and_every_type_has_text)
 
 GF_TEST (Timeline, reason_enum_to_text_total)
 {
+    i18n::ScopedLanguage language ("en");
     // Every reason the engine can return has text on the timeline, and that text is the E-3 wording.
     for (int r = 0; r < numRejectReasons; ++r)
     {
@@ -239,4 +242,103 @@ GF_TEST (Timeline, variable_block_sizes)
         const auto keys = renderTimeline (block);
         GF_EXPECT_MSG (keys == reference, "timeline differs at block size " + juce::String (block));
     }
+}
+
+GF_TEST (Timeline, frames_keep_actual_period_and_detect_fifo_loss)
+{
+    FrameHistory history;
+    history.configure (192000.0, 8.0);
+    VizFrame f;
+    f.periodSamples = 288; // the compact visualiser's existing high-rate decimation
+    f.peak = 0.7f;
+    f.conf = 0.55f;
+    f.ppqTick = 384;
+    f.timeSigNumerator = 7;
+    f.timeSigDenominator = 8;
+    f.protectionKinds = VizFrame::protectionHit | VizFrame::protectionLookahead;
+
+    for (int i = 0; i < 3; ++i)
+    {
+        f.posLo = (std::uint32_t) (i * 288);
+        history.push (f);
+    }
+
+    GF_EXPECT (history.size() == 3);
+    GF_EXPECT (! history.at (2).incompleteBefore);
+    GF_EXPECT (history.at (2).position == 576 && history.at (2).ppqTick == 384);
+    GF_EXPECT (history.at (2).timeSigNumerator == 7 && history.at (2).timeSigDenominator == 8);
+    GF_EXPECT (history.at (2).protectionKinds == (VizFrame::protectionHit | VizFrame::protectionLookahead));
+    GF_EXPECT_NEAR (history.at (2).confidence, 0.55, 1.0e-6);
+    f.posLo += 2 * f.periodSamples;
+    history.push (f);
+    GF_EXPECT (history.at (3).incompleteBefore);
+}
+
+GF_TEST (Timeline, frame_position_wraparound_is_not_a_dropped_region)
+{
+    FrameHistory history;
+    history.configure (48000.0, 8.0);
+    VizFrame f;
+    f.posLo = 0xffffffe0u;
+    history.push (f);
+    f.posLo += f.periodSamples;
+    history.push (f);
+
+    GF_EXPECT (history.at (1).position == 0x100000020ll);
+    GF_EXPECT (! history.at (1).incompleteBefore);
+}
+
+GF_TEST (Timeline, discontinuity_resets_frame_coordinates_without_interpolating)
+{
+    FrameHistory history;
+    history.configure (48000.0, 8.0);
+    VizFrame f;
+    f.posLo = 10000;
+    history.push (f);
+    f.posLo = 0;
+    f.flags = VizFrame::flagDiscontinuity;
+    history.push (f);
+
+    GF_EXPECT (history.size() == 1 && history.at (0).position == 0);
+    GF_EXPECT ((history.at (0).flags & VizFrame::flagDiscontinuity) != 0);
+    GF_EXPECT (! history.at (0).incompleteBefore);
+}
+
+GF_TEST (Timeline, frame_history_trims_window_and_meets_memory_budget_at_all_rates)
+{
+    for (const auto rate : { 44100.0, 48000.0, 96000.0, 192000.0 })
+    {
+        FrameHistory history;
+        history.configure (rate, 8.0);
+        GF_EXPECT (history.capacity() <= FrameHistory::maxColumns);
+        GF_EXPECT (history.memoryBytes() + sizeof (TimelineModel) <= 1500000);
+
+        VizFrame f;
+        f.periodSamples = visualisation::periodForRate (rate);
+        const int frames = (int) std::ceil (rate * 10.0 / (double) f.periodSamples);
+        for (int i = 0; i < frames; ++i)
+        {
+            f.posLo = (std::uint32_t) i * f.periodSamples;
+            history.push (f);
+        }
+
+        GF_EXPECT (history.size() <= history.capacity());
+        const auto elapsed = history.at (history.size() - 1).position - history.at (0).position;
+        GF_EXPECT (elapsed < (std::int64_t) (rate * 8.0));
+        GF_EXPECT (elapsed + f.periodSamples >= (std::int64_t) (rate * 8.0));
+    }
+}
+
+GF_TEST (Timeline, frame_ingestion_does_not_allocate_after_configure)
+{
+    FrameHistory history;
+    history.configure (192000.0, 8.0);
+    VizFrame f;
+    AllocGuard guard;
+    for (int i = 0; i < 30000; ++i)
+    {
+        f.posLo = (std::uint32_t) (i * 64);
+        history.push (f);
+    }
+    GF_EXPECT (guard.count() == 0);
 }

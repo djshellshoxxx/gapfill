@@ -27,6 +27,12 @@ public:
     /** Level input from one source; edges are detected here. */
     void setLevel (Effect, Source, bool down) noexcept;
 
+    /** Schema3 MIDI levels are independent of the global GUI/parameter latch
+        mode. Releasing them restores the previous legacy source and ordering. */
+    void setControllerLevel (Effect, bool down, bool timeout = false, int slot = -1) noexcept;
+    void clearControllerLevels() noexcept;
+    bool controllerLevelActive (Effect, int slot) const noexcept;
+
     /** GUI click in Latch mode (a no-op in Momentary mode). */
     void toggle (Effect) noexcept;
 
@@ -37,7 +43,7 @@ public:
     void panic() noexcept;
 
     std::uint8_t engagedMask() const noexcept;       ///< bit per Effect
-    std::uint8_t timedOutMask() const noexcept       { return timedOut; }
+    std::uint8_t timedOutMask() const noexcept       { return (std::uint8_t) (timedOut | controllerTimedOut); }
     int topEffect() const noexcept;                  ///< newest engaged effect or -1
 
     /** Delays an engage to `samplePos` (quantised engage, F-M11/F-S07); a release before then cancels it. */
@@ -49,6 +55,12 @@ private:
     void pushStack (int e) noexcept;
     void removeStack (int e) noexcept;
 
+    struct ControllerLevel { bool active = false, timeout = false; std::uint8_t effect = 0; std::uint64_t activationOrder = 0; };
+    static constexpr int controllerSlots = 48;
+    ControllerLevel controllerLevels[controllerSlots] {};
+    std::uint64_t legacyOrder[kNumEffects] {};
+    std::uint64_t order = 0;
+    std::uint8_t controllerTimedOut = 0;
     bool latchMode = false;
     bool level[kNumEffects][(int) Source::Count] {};
     bool prevOr[kNumEffects] {};

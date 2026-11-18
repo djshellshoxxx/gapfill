@@ -1,6 +1,7 @@
 #include "PresetFiles.h"
 
 #include "../../PluginProcessor.h"
+#include "../state/SafeXml.h"
 
 namespace gapfill::presets
 {
@@ -142,7 +143,7 @@ bool renameUserPreset (const PresetEntry& entry, const juce::String& newName, ju
         return false;
     }
 
-    auto xml = juce::XmlDocument::parse (entry.file);
+    auto xml = state::parseUntrustedXml (entry.file, GapFillAudioProcessor::maxPresetFileBytes);
 
     if (xml == nullptr)
     {

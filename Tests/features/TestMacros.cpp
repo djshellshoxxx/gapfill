@@ -6,6 +6,7 @@
 #include "features/macros/MacroModel.h"
 #include "features/state/StateSubtrees.h"
 
+#include <array>
 #include <cmath>
 #include <cstring>
 
@@ -216,13 +217,15 @@ GF_TEST (Macros, off_is_the_identity_and_the_stage_never_touches_unmapped_fields
     off.on = false;
     off.runtime = &r.rt;
     EngineSettings s;
+    std::array<unsigned char, sizeof (EngineSettings)> untouched {};
+    std::memcpy (untouched.data(), &s, sizeof (s));
     Effective::applyMacros (s, off, out);
-    GF_EXPECT (std::memcmp (&s, &before, sizeof (EngineSettings)) == 0);
+    GF_EXPECT (std::memcmp (&s, untouched.data(), sizeof (s)) == 0);
 
     Effective::MacroState noRuntime;
     noRuntime.on = true;
     Effective::applyMacros (s, noRuntime, out);
-    GF_EXPECT (std::memcmp (&s, &before, sizeof (EngineSettings)) == 0);
+    GF_EXPECT (std::memcmp (&s, untouched.data(), sizeof (s)) == 0);
 
     // on, with the factory mappings: only mapped fields change
     Effective::MacroState on;
@@ -364,14 +367,14 @@ GF_TEST (Macros, invalid_subtree_is_dropped_atomically_and_the_rest_of_the_state
     a.getStateInformation (blob);
 
     auto xml = juce::AudioProcessor::getXmlFromBinary (blob.getData(), (int) blob.getSize());
-    auto* m = xml->getChildByName ("Macros");
+    auto* m = xml->getChildByName (MacroModel::subtreeName);
     GF_EXPECT (m != nullptr);
 
     for (const char* bad : { "99,0,1000,0,0,0", "0,2000,0,0,0,0", "0,0,1000,9,0,0", "0,0,1000,0,900,0", "0,0,1000,0,0,5", "x,y,z",
                              "0,0,1000;0,0,1000;0,0,1000;0,0,1000;0,0,1000;0,0,1000;0,0,1000;0,0,1000;0,0,1000" })
     {
         auto copy = std::make_unique<juce::XmlElement> (*xml);
-        copy->getChildByName ("Macros")->getChildElement (1)->setAttribute ("m", bad);
+        copy->getChildByName (MacroModel::subtreeName)->getChildElement (1)->setAttribute ("m", bad);
         juce::MemoryBlock damaged;
         juce::AudioProcessor::copyXmlToBinary (*copy, damaged);
 
@@ -398,6 +401,7 @@ GF_TEST (Macros, old_state_loads_with_macros_off_and_factory_mappings)
     a.getStateInformation (blob);
     auto xml = juce::AudioProcessor::getXmlFromBinary (blob.getData(), (int) blob.getSize());
     GF_EXPECT (xml->getChildByName ("Macros") == nullptr);                  // defaults write nothing
+    GF_EXPECT (xml->getChildByName (MacroModel::subtreeName) == nullptr);
 
     GapFillAudioProcessor b;
     b.getLiveControl().macroMappings().rename (0, "Temp");

@@ -116,6 +116,11 @@ int ChromaTracker::process (const float* mono, int numSamples) noexcept
 
 void ChromaTracker::analyseFrame() noexcept
 {
+    const double fs = sr / (double) decim;
+    const double binHz = fs / (double) kFftSize;
+    const int kLo = std::max (2, (int) std::ceil ((double) kLowHz / binHz));
+    const int kHi = std::min (kBins - 3, (int) std::floor ((double) kHighHz / binHz));
+    const int usedBins = std::min (kBins, kHi + kLocalHalfWidth + 1);
     // ---- windowed copy of the newest kFftSize samples -------------------------------
     double energy = 0.0;
 
@@ -131,21 +136,16 @@ void ChromaTracker::analyseFrame() noexcept
 
     fft->performRealOnlyForwardTransform (fftData.data(), true);
 
-    for (int k = 0; k < kBins; ++k)
+    for (int k = 0; k < usedBins; ++k)
     {
         const float re = fftData[(size_t) (2 * k)], im = fftData[(size_t) (2 * k + 1)];
         mag[(size_t) k] = std::sqrt (re * re + im * im);
     }
 
     // ---- peaks -------------------------------------------------------------------
-    const double fs = sr / (double) decim;
-    const double binHz = fs / (double) kFftSize;
-    const int kLo = std::max (2, (int) std::ceil ((double) kLowHz / binHz));
-    const int kHi = std::min (kBins - 3, (int) std::floor ((double) kHighHz / binHz));
-
     prefix[0] = 0.0;
 
-    for (int k = 0; k < kBins; ++k)
+    for (int k = 0; k < usedBins; ++k)
         prefix[(size_t) k + 1] = prefix[(size_t) k] + (double) mag[(size_t) k];
 
     double totalEnergy = 0.0, peakEnergy = 0.0;
@@ -203,8 +203,16 @@ void ChromaTracker::analyseFrame() noexcept
             const double ratio = peaks[i].freq / peaks[j].freq;
             const long h = std::lround (ratio);
 
-            if (h >= 2 && h <= 7 && std::abs (12.0 * std::log2 (ratio / (double) h)) < 0.45)
-                discount = 0.25f;
+            if (h >= 2 && h <= 7)
+            {
+                const double relative = ratio / (double) h;
+                // A match must be in (2^-0.0375, 2^0.0375), strictly inside
+                // this loose interval. Preserve the original log predicate
+                // near the boundary; avoid logs for impossible candidates.
+                if (relative > 0.97 && relative < 1.03
+                    && std::abs (12.0 * std::log2 (relative)) < 0.45)
+                    discount = 0.25f;
+            }
         }
 
         const double f = peaks[i].freq;

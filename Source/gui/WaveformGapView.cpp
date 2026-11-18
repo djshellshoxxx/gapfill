@@ -166,8 +166,8 @@ void WaveformGapView::paint (juce::Graphics& g)
     {
         g.setFont (juce::Font (juce::FontOptions (10.0f)).withExtraKerningFactor (0.08f));
         g.setColour (colours::textDim);
-        g.drawText (juce::String (kWindowSeconds, 1) + " s  |  lookahead "
-                      + juce::String ((int) std::round (lookaheadMs)) + " ms",
+        g.drawText (i18n::format ("{0} s  |  lookahead {1} ms",
+                                  { juce::String (kWindowSeconds, 1), juce::String ((int) std::round (lookaheadMs)) }),
                     legend.toNearestInt(), juce::Justification::centredRight);
     }
 
@@ -346,9 +346,9 @@ void WaveformGapView::paint (juce::Graphics& g)
 
         g.setColour (recentAlgo >= 0 ? (recentIsPreview ? colours::accentGreen : colours::accentWarm) : colours::textDim);
         g.setFont (juce::Font (juce::FontOptions (10.5f)).withExtraKerningFactor (0.1f));
-        g.drawText (recentAlgo >= 0 ? juce::String (recentIsPreview ? "PREVIEW  " : "")
-                                        + juce::String (algoName ((Algo) recentAlgo)).toUpperCase()
-                                    : juce::String ("NO FILL"),
+        const auto algorithm = recentAlgo >= 0 ? i18n::text (algoName ((Algo) recentAlgo)).toUpperCase() : juce::String();
+        g.drawText (recentAlgo >= 0 ? (recentIsPreview ? i18n::format ("PREVIEW  {0}", { algorithm }) : algorithm)
+                                    : i18n::text ("NO FILL"),
                     fillLane.reduced (7.0f, 0.0f).toNearestInt(), juce::Justification::centredRight);
     }
 
@@ -356,7 +356,6 @@ void WaveformGapView::paint (juce::Graphics& g)
     if (spectralMode && bandArea.getHeight() > 12.0f)
     {
         const auto laneHeight = bandArea.getHeight() / 3.0f;
-        const char* names[] = { "LOW", "MID", "HIGH" };
 
         for (int b = 0; b < 3; ++b)
         {
@@ -383,7 +382,8 @@ void WaveformGapView::paint (juce::Graphics& g)
 
             g.setColour (colours::text.withAlpha (0.8f));
             g.setFont (juce::Font (juce::FontOptions (9.5f)).withExtraKerningFactor (0.12f));
-            g.drawText (names[b], lane.reduced (6.0f, 0.0f).toNearestInt(), juce::Justification::centredLeft);
+            g.drawText (b == 0 ? i18n::text ("LOW") : b == 1 ? i18n::text ("MID") : i18n::text ("HIGH"),
+                        lane.reduced (6.0f, 0.0f).toNearestInt(), juce::Justification::centredLeft);
         }
     }
 

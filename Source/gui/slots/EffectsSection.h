@@ -35,6 +35,7 @@ struct ControlDef
     const char* label;
     const char* tooltip;
     bool advanced = false;      ///< shown under "More"
+    bool inactive = false;      ///< reserved host parameter whose engine is not wired yet: drawn disabled
 };
 
 struct CardDef

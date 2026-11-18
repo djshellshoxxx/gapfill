@@ -2,6 +2,8 @@
 
 #include "../Salts.h"
 #include "Yin.h"
+#include "psola/PitchSourceRouter.h"
+#include "psola/IntervalSets.h"
 
 #include <cmath>
 
@@ -11,6 +13,53 @@ namespace gapfill::harmonic
 void decide (VoiceSetup& setup, const FillPlan& plan, const GapContext& ctx, const EngineSettings& s,
              const SourceHistory& history, fx::FxMeters* meters) noexcept
 {
+    using namespace psola;
+    const auto& incoming = setup.recipeExtras.harmonic;
+    const bool recorded = incoming.version == 1 && applicableToAlgorithm (incoming, (std::uint8_t) setup.algo);
+    const bool detailed = setup.algo == Algo::Granular
+        && (recorded || (! setup.replayRecipe && s.perf.pitchSync.enabled));
+    if (detailed)
+    {
+        auto& selected = setup.pitchSync;
+        selected.settings = s.perf.pitchSync;
+        if (s.perf.extendedMacroRuntime == nullptr)
+            selected.settings.mix01 *= s.perf.fxSend01;
+        selected.settings.enabled = true;
+        if (s.scaleLock.active())
+            selected.scale = absoluteScale (s.scaleLock.set.root, s.scaleLock.set.mask);
+        auto& meta = setup.recipeExtras.harmonic;
+        if (recorded)
+        {
+            selected.settings.intervals = (IntervalSet) incoming.intervals;
+            selected.settings.voices = incoming.voices;
+            selected.f0Hz = incoming.f0Hz;
+            selected.clarity = incoming.clarity;
+            selected.voiced = incoming.outcome == Outcome::Used;
+        }
+        else
+        {
+            meta = { 1, Outcome::Bypassed, (std::uint8_t) selected.settings.intervals,
+                (std::uint8_t) selected.settings.voices, 0.0f, 0.0f };
+            if (selected.settings.mix01 > 0.0f)
+            {
+                const auto availableFrom = juce::jmax ((std::int64_t) 0, history.getReadFloor(),
+                    history.getWritePosition() - history.getSize() + 2);
+                const auto first = juce::jmax (availableFrom,
+                    setup.sourceAnchor - (std::int64_t) std::ceil (0.32 * setup.sampleRate));
+                const auto query = s.perf.pitchTracker != nullptr
+                    ? s.perf.pitchTracker->query (first, setup.sourceAnchor - 1) : PitchSourceRouter::Query {};
+                selected.voiced = query.voiced;
+                selected.f0Hz = query.voiced ? query.f0Hz : 0.0f;
+                selected.clarity = query.clarity;
+                meta.outcome = query.voiced ? Outcome::Used : Outcome::UnvoicedFallback;
+                meta.f0Hz = selected.f0Hz;
+                meta.clarity = selected.clarity;
+            }
+        }
+        setup.modes.cloud = false;
+        return;
+    }
+
     const auto& hp = s.perf.harmonic;
 
     if (hp.amount01 <= 0.0f || setup.algo != Algo::Granular)

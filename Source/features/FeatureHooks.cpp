@@ -26,6 +26,26 @@ Effective::ModulationInputs gatherModulationInputs (const ParamCache& params) no
     in.macros.chaos = pv (params.macroChaos);
     in.macros.space = pv (params.macroSpace);
     in.macros.destruction = pv (params.macroDestruction);
+    auto& extended = in.macros.extendedInputs;
+    const std::atomic<float>* knobs[] { params.macroExt5, params.macroExt6, params.macroExt7, params.macroExt8 };
+    const std::atomic<float>* sources[] { params.macroSource1, params.macroSource2, params.macroSource3, params.macroSource4,
+                                         params.macroSource5, params.macroSource6, params.macroSource7, params.macroSource8 };
+    const std::atomic<float>* depths[] { params.macroDepth1, params.macroDepth2, params.macroDepth3, params.macroDepth4,
+                                        params.macroDepth5, params.macroDepth6, params.macroDepth7, params.macroDepth8 };
+    extended.knob01[0] = in.macros.activity * 0.01f;
+    extended.knob01[1] = in.macros.chaos * 0.01f;
+    extended.knob01[2] = in.macros.space * 0.01f;
+    extended.knob01[3] = in.macros.destruction * 0.01f;
+    for (int i = 0; i < 4; ++i) extended.knob01[i + 4] = pv (knobs[i]) * 0.01f;
+    for (int i = 0; i < modulation::kMacroCount; ++i)
+    {
+        extended.source[i] = (modulation::MacroSource) juce::jlimit (0, 3, pi (sources[i]));
+        extended.depth[i] = pv (depths[i]) * 0.01f;
+    }
+    extended.lfo[0] = { (modulation::LfoShape) juce::jlimit (0, 5, pi (params.macroLfoAShape)),
+                        (std::uint8_t) juce::jlimit (0, 15, pi (params.macroLfoADiv)), pv (params.macroLfoAHz) };
+    extended.lfo[1] = { (modulation::LfoShape) juce::jlimit (0, 5, pi (params.macroLfoBShape)),
+                        (std::uint8_t) juce::jlimit (0, 15, pi (params.macroLfoBDiv)), pv (params.macroLfoBHz) };
     return in;
 }
 
@@ -92,6 +112,13 @@ void gatherFeatureSettings (EngineSettings& s, const ParamCache& params) noexcep
     //   gatherLearn, gatherCoop, gatherQuality
 
     context::gatherContext (s, params); // WP7: F-L22 energy follow (tracker runs in ContextState::onChunk)
+    s.perf.pitchSync.enabled = pi (params.fx01_mode) != 0;
+    s.perf.pitchSync.intervals = (harmonic::psola::IntervalSet) juce::jlimit (0, 5, pi (params.fx01_intervals));
+    s.perf.pitchSync.voices = juce::jlimit (1, 4, pi (params.fx01_voices));
+    s.perf.pitchSync.motion01 = pv (params.fx01_motion) * 0.01f;
+    s.perf.pitchSync.scatter01 = pv (params.fx01_scatter) * 0.01f;
+    s.perf.pitchSync.tone = pv (params.fx01_tone) * 0.01f;
+    s.perf.pitchSync.snap01 = pv (params.fx01_snap) * 0.01f;
     scale::gatherScale (s, params);     // WP7: N-MUS Scale Lock
     fx::gatherFx (s, params);           // WP8: swell, cloud, ratchet, rcrush, tapedestr, bandfx (scrub: F-M19)
 }

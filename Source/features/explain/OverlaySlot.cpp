@@ -2,6 +2,7 @@
 
 #include "../../PluginProcessor.h"
 #include "../../gui/SlotHost.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::explain
 {
@@ -26,22 +27,72 @@ VisualiserOverlayComponent::VisualiserOverlayComponent (GapFillAudioProcessor& p
     addAndMakeVisible (timelineToggle);
 
     timeline.onCloseRequested = [this] { setTimelineExpanded (false); };
-    timeline.setVisible (false);                       // collapsed by default
+    timeline.setVisible (proc.getExplainState().timelineExpanded.load());
+    timelineToggle.setToggleState (timeline.isVisible(), juce::dontSendNotification);
+    timelineToggle.setButtonText (timeline.isVisible() ? "HIDE TIMELINE" : "TIMELINE");
     addChildComponent (timeline);
+    updateText();
+    i18n::languageChanges().addChangeListener (this);
+
+    proc.getVisualisationFifo().setReadObserver (this,
+        [] (void* context, const VizFrame* drained, int count)
+        {
+            auto& processor = static_cast<VisualiserOverlayComponent*> (context)->proc;
+            auto& model = processor.getExplainState().timelineModel;
+            const auto anchor = processor.getTimelinePosition();
+            for (int i = 0; i < count; ++i)
+                model.pushFrame (drained[i], anchor);
+        });
+}
+
+VisualiserOverlayComponent::~VisualiserOverlayComponent()
+{
+    i18n::languageChanges().removeChangeListener (this);
+    proc.getVisualisationFifo().clearReadObserver (this);
+}
+
+void VisualiserOverlayComponent::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    updateText();
+    resized();
+}
+
+void VisualiserOverlayComponent::updateText()
+{
+    timelineToggle.setButtonText (timeline.isVisible() ? i18n::text ("HIDE TIMELINE") : i18n::text ("TIMELINE"));
+    timelineToggle.setTitle (i18n::text ("Gap timeline"));
+    timelineToggle.setTooltip (i18n::text ("Expand the gap timeline: events, gaps, fills and skipped gaps on one time axis"));
 }
 
 void VisualiserOverlayComponent::setTimelineExpanded (bool shouldExpand)
 {
+    const bool changed = timeline.isVisible() != shouldExpand;
+    proc.getExplainState().timelineExpanded.store (shouldExpand);
     timelineToggle.setToggleState (shouldExpand, juce::dontSendNotification);
-    timelineToggle.setButtonText (shouldExpand ? "HIDE TIMELINE" : "TIMELINE");
     timeline.setVisible (shouldExpand);
+    updateText();
     resized();
+    if (changed && onExpansionChanged != nullptr)
+        onExpansionChanged();
+}
+
+void VisualiserOverlayComponent::setExpansionBounds (juce::Rectangle<int> available)
+{
+    if (! timeline.isVisible() || available.isEmpty())
+        return;
+
+    const auto compact = getBounds();
+    const auto height = juce::jmin (compact.getHeight() * 3, available.getBottom() - compact.getY());
+    if (height > compact.getHeight())
+        setBounds (compact.withHeight (height));
+    toFront (false);
 }
 
 void VisualiserOverlayComponent::resized()
 {
     constexpr int right = 8 + 196;                     // the view's own "4.0 s | lookahead" readout
-    const auto toggleWidth = timelineToggle.getToggleState() ? 104 : 84;
+    const auto toggleWidth = juce::jmax (timelineToggle.getToggleState() ? 104 : 84,
+                                       timelineToggle.getBestWidthForHeight (18));
     const auto toggleX = juce::jmax (8, getWidth() - right - toggleWidth);
 
     timelineToggle.setBounds (toggleX, 8, toggleWidth, 18);

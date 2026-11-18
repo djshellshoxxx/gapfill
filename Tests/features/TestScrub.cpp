@@ -38,7 +38,7 @@ namespace
         }
     };
 
-    fx::ScrubSettings settings (bool on, float pos01, float widthMs)
+    fx::ScrubSettings scenarioSettings (bool on, float pos01, float widthMs)
     {
         fx::ScrubSettings s;
         s.on = on;
@@ -120,7 +120,7 @@ GF_TEST (Scrub, window_position_exact)
     {
         fx::ScrubVoice v;
         v.prepare (kSr, 2);
-        const auto out = run (v, h, (int) kSr, 32, [&] (int) { return settings (true, pos, widthMs); });
+        const auto out = run (v, h, (int) kSr, 32, [&] (int) { return scenarioSettings (true, pos, widthMs); });
 
         GF_EXPECT (v.snapshotLength() == snapLen);
         const auto expectedStart = (double) pos * (double) (snapLen - width);
@@ -155,7 +155,7 @@ GF_TEST (Scrub, window_movement_is_smoothed_and_speed_bounded)
         out.clear();
         // Jump the position from 0 to 100 % at sample 2000, back at 12000.
         const auto pos = (i >= 2000 && i < 12000) ? 1.0f : 0.0f;
-        v.render (out, 0, 1, h.history, h.anchor, settings (true, pos, 80.0f), 1.0f);
+        v.render (out, 0, 1, h.history, h.anchor, scenarioSettings (true, pos, 80.0f), 1.0f);
 
         if (prev >= 0.0)
             worst = std::max (worst, std::abs ((double) v.windowStart() - prev));
@@ -176,7 +176,7 @@ GF_TEST (Scrub, loop_crossfade_is_click_free)
     {
         fx::ScrubVoice v;
         v.prepare (kSr, 2);
-        const auto out = run (v, h, (int) (kSr * 1.5), 64, [&] (int pos) { return settings (true, pos < 30000 ? 0.3f : 0.6f, widthMs); });
+        const auto out = run (v, h, (int) (kSr * 1.5), 64, [&] (int pos) { return scenarioSettings (true, pos < 30000 ? 0.3f : 0.6f, widthMs); });
         GF_EXPECT (allFinite (out));
         GF_EXPECT_MSG (maxSampleJump (out) < 0.06f, "width " + juce::String (widthMs) + " step " + juce::String (maxSampleJump (out)));
         GF_EXPECT (std::abs (out.getSample (0, 0)) < 0.01f);          // the 8 ms fade-in starts silent
@@ -190,7 +190,7 @@ GF_TEST (Scrub, source_is_a_snapshot_taken_when_the_voice_starts)
     fx::ScrubVoice va, vb;
     va.prepare (kSr, 2);
     vb.prepare (kSr, 2);
-    const auto oa = run (va, a, 24000, 32, [] (int) { return settings (true, 0.4f, 120.0f); });
+    const auto oa = run (va, a, 24000, 32, [] (int) { return scenarioSettings (true, 0.4f, 120.0f); });
 
     // Same history, but afterwards (the live input) other audio arrives: must not matter.
     juce::AudioBuffer<float> more (2, 24000);
@@ -208,7 +208,7 @@ GF_TEST (Scrub, source_is_a_snapshot_taken_when_the_voice_starts)
         if (pos == 24000)
             b.history.write (more, 0, 24000);
 
-        vb.render (out, pos, 32, b.history, b.anchor, settings (true, 0.4f, 120.0f), 1.0f);
+        vb.render (out, pos, 32, b.history, b.anchor, scenarioSettings (true, 0.4f, 120.0f), 1.0f);
     }
 
     for (int ch = 0; ch < 2; ++ch)
@@ -218,7 +218,7 @@ GF_TEST (Scrub, source_is_a_snapshot_taken_when_the_voice_starts)
     // And while the voice runs, the later input never shows up: the second half equals a continuous run.
     fx::ScrubVoice vc;
     vc.prepare (kSr, 2);
-    const auto oc = run (vc, a, 48000, 32, [] (int) { return settings (true, 0.4f, 120.0f); });
+    const auto oc = run (vc, a, 48000, 32, [] (int) { return scenarioSettings (true, 0.4f, 120.0f); });
     GF_EXPECT (buffersIdentical (out, oc));
 }
 
@@ -228,7 +228,7 @@ GF_TEST (Scrub, automation_is_block_size_invariant)
 
     auto automated = [] (int pos)
     {
-        return settings (true, pos < 9600 ? 0.2f : (pos < 19200 ? 0.8f : 0.5f), pos < 14400 ? 60.0f : 150.0f);
+        return scenarioSettings (true, pos < 9600 ? 0.2f : (pos < 19200 ? 0.8f : 0.5f), pos < 14400 ? 60.0f : 150.0f);
     };
 
     juce::AudioBuffer<float> first;
@@ -260,7 +260,7 @@ GF_TEST (Scrub, panic_fades_in_8ms_and_holds_the_voice_off_until_it_is_switched_
         if (pos == 12000)
             v.panic();
 
-        v.render (out, pos, 32, h.history, h.anchor, settings (true, 0.5f, 80.0f), 1.0f);
+        v.render (out, pos, 32, h.history, h.anchor, scenarioSettings (true, 0.5f, 80.0f), 1.0f);
     }
 
     GF_EXPECT (v.isHeldOffByPanic());
@@ -271,11 +271,11 @@ GF_TEST (Scrub, panic_fades_in_8ms_and_holds_the_voice_off_until_it_is_switched_
     // Release then press again: sounds again.
     juce::AudioBuffer<float> again (2, 4800);
     again.clear();
-    v.render (again, 0, 32, h.history, h.anchor, settings (false, 0.5f, 80.0f), 1.0f);
+    v.render (again, 0, 32, h.history, h.anchor, scenarioSettings (false, 0.5f, 80.0f), 1.0f);
     GF_EXPECT (! v.isHeldOffByPanic());
 
     for (int pos = 0; pos < 4800; pos += 32)
-        v.render (again, pos, 32, h.history, h.anchor, settings (true, 0.5f, 80.0f), 1.0f);
+        v.render (again, pos, 32, h.history, h.anchor, scenarioSettings (true, 0.5f, 80.0f), 1.0f);
 
     GF_EXPECT (maxAbs (again, 2400, 2000) > 0.05f);
 }
@@ -285,16 +285,16 @@ GF_TEST (Scrub, switching_off_fades_and_the_duck_is_applied)
     const RampHistory h (3.0, true);
     fx::ScrubVoice v;
     v.prepare (kSr, 2);
-    const auto loud = run (v, h, 9600, 32, [] (int) { return settings (true, 0.5f, 80.0f); }, 1.0f);
+    const auto loud = run (v, h, 9600, 32, [] (int) { return scenarioSettings (true, 0.5f, 80.0f); }, 1.0f);
 
     fx::ScrubVoice d;
     d.prepare (kSr, 2);
-    const auto ducked = run (d, h, 9600, 32, [] (int) { return settings (true, 0.5f, 80.0f); }, 0.25f);
+    const auto ducked = run (d, h, 9600, 32, [] (int) { return scenarioSettings (true, 0.5f, 80.0f); }, 0.25f);
     GF_EXPECT_NEAR (maxAbs (ducked, 2000, 7000) / maxAbs (loud, 2000, 7000), 0.25, 0.02);
 
     fx::ScrubVoice o;
     o.prepare (kSr, 2);
-    const auto off = run (o, h, 9600, 32, [] (int pos) { return settings (pos < 4800, 0.5f, 80.0f); });
+    const auto off = run (o, h, 9600, 32, [] (int pos) { return scenarioSettings (pos < 4800, 0.5f, 80.0f); });
     GF_EXPECT (maxAbs (off, 4800 + 400, 4800 - 400) == 0.0f);
     GF_EXPECT (maxSampleJump (off) < 0.06f);
     GF_EXPECT (! o.isActive());
@@ -311,7 +311,7 @@ GF_TEST (Scrub, extremes_are_finite_and_nothing_allocates)
             fx::ScrubVoice v;
             v.prepare (kSr, 2);
             v.setWindowMs (250.0f);                          // window shorter than the 500 ms width
-            const auto out = run (v, h, 24000, 64, [&] (int) { return settings (true, pos, width); });
+            const auto out = run (v, h, 24000, 64, [&] (int) { return scenarioSettings (true, pos, width); });
             GF_EXPECT (allFinite (out));
             GF_EXPECT (maxAbs (out) < 2.0f);
         }
@@ -321,14 +321,14 @@ GF_TEST (Scrub, extremes_are_finite_and_nothing_allocates)
     v.prepare (kSr, 2);
     juce::AudioBuffer<float> out (2, 64);
     out.clear();
-    v.render (out, 0, 64, h.history, h.anchor, settings (true, 0.5f, 80.0f), 1.0f);       // warm up
+    v.render (out, 0, 64, h.history, h.anchor, scenarioSettings (true, 0.5f, 80.0f), 1.0f);       // warm up
 
     AllocGuard guard;
 
     for (int i = 0; i < 600; ++i)
     {
         out.clear();
-        v.render (out, 0, 64, h.history, h.anchor, settings (true, (float) (i % 10) * 0.1f, 80.0f), 1.0f);
+        v.render (out, 0, 64, h.history, h.anchor, scenarioSettings (true, (float) (i % 10) * 0.1f, 80.0f), 1.0f);
     }
 
     GF_EXPECT (guard.count() == 0);

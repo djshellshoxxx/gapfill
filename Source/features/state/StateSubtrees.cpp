@@ -14,6 +14,8 @@
 #include "../tension/TensionTree.h"
 #include "../mutation/State.h"
 
+#include <algorithm>
+
 namespace gapfill::state
 {
 
@@ -47,7 +49,14 @@ namespace
         const auto& m = p.getLiveControl().macroMappings();
         macros::MacroModel factory;
         const auto tree = m.toValueTree();
-        return tree.isEquivalentTo (factory.toValueTree()) ? juce::ValueTree() : tree;     // defaults write nothing
+        return ! tree.hasType (macros::MacroModel::subtreeName) || tree.isEquivalentTo (factory.toValueTree())
+            ? juce::ValueTree() : tree;     // defaults and inactive schemas write nothing
+    }
+
+    juce::ValueTree extendedMacrosSerialise (const GapFillAudioProcessor& p)
+    {
+        const auto tree = p.getLiveControl().macroMappings().toValueTree();
+        return tree.hasType (modulation::kSubtreeName) ? tree : juce::ValueTree {};
     }
 
     void macrosApply (GapFillAudioProcessor& p, const juce::ValueTree& t)  { p.getLiveControl().macroMappings().restore (t); }
@@ -118,8 +127,19 @@ namespace
     juce::ValueTree scenesSerialise (const GapFillAudioProcessor& p)
     {
         const auto& bank = p.getLiveControl().scenes().getBank();
-        return bank.size() == 0 && bank.getName().isEmpty() ? juce::ValueTree()
-                                                              : bank.toValueTree (24 * Ki - 64);
+
+        if (bank.size() == 0 && bank.getName().isEmpty())
+            return {};
+
+        juce::String why;
+        const auto tree = bank.toValueTree (scenes::kMaxSceneStateBytes, nullptr, &why);
+
+        if (tree.isValid())
+            return tree;
+
+        juce::ValueTree error (scenes::SceneBank::subtreeName);
+        error.setProperty ("__serialiseError", why, nullptr);
+        return error;
     }
 
     void scenesApply (GapFillAudioProcessor& p, const juce::ValueTree& t)
@@ -130,6 +150,11 @@ namespace
     }
 
     void scenesReset (GapFillAudioProcessor& p)                         { p.getLiveControl().scenes().reset(); }
+
+    // A deliberate read-only owner: keep legacy restore support without ever
+    // writing two competing banks to the same project state.
+    juce::ValueTree legacyScenesSerialise (const GapFillAudioProcessor&) { return {}; }
+    juce::ValueTree legacyMacrosSerialise (const GapFillAudioProcessor&) { return {}; }
 }
 
 const std::vector<SubtreeDesc>& reservedSubtrees()
@@ -138,11 +163,14 @@ const std::vector<SubtreeDesc>& reservedSubtrees()
     // (and only its row): validate / apply / serialise / reset.
     static const std::vector<SubtreeDesc> table =
     {
-        { "Macros",  2 * Ki,  &macros::MacroModel::validateTree, &macrosApply, &macrosSerialise, &macrosReset },   // C-2
+        { "Macros",  2 * Ki,  &macros::MacroModel::validateTree, &macrosApply, &legacyMacrosSerialise, &macrosReset },   // released v1: read only
+        { "MacrosV2", 2 * Ki, &macros::MacroModel::validateTree, &macrosApply, &macrosSerialise, &macrosReset, "Macros" },
+        { "MacrosV3", modulation::kMaxStateBytes, &macros::MacroModel::validateTree, &macrosApply, &extendedMacrosSerialise, &macrosReset, "MacrosV2", "Macros" },
         { "Lock",    1 * Ki,  lock::validate, lock::apply, lock::serialise, lock::reset },   // C-5
-        { "History", 1 * Ki,  history::validate, history::apply, history::serialise, history::reset },   // U-1
+        { "History", 2 * Ki,  history::validate, history::apply, history::serialise, history::reset },   // U-1
         { "Perf",    4 * Ki,  &perfValidateAll, &perfApplyAll, &perfSerialiseAll, &perfResetAll },   // U prefs + panic options (WP6)
-        { "Scenes",  24 * Ki, &scenes::SceneBank::validateTree, &scenesApply, &scenesSerialise, &scenesReset },   // F-L07 / N-VAL
+        { "Scenes",  24 * Ki, &scenes::SceneBank::validateTree, &scenesApply, &legacyScenesSerialise, &scenesReset },   // released v1: read only
+        { "ScenesV2", scenes::kMaxSceneStateBytes, &scenes::SceneBank::validateTree, &scenesApply, &scenesSerialise, &scenesReset, "Scenes" },
         { "Cmd",     3 * Ki,  &commands::BindingModel::validateTree, &cmdApply, &cmdSerialise, &cmdReset },   // X-1
         { "Tension", 3 * Ki,  tension::validateTree, tension::applyTree, tension::serialiseTree, tension::resetTree },   // F-M21
         { "Groove",  1 * Ki,  groove::validateTree, groove::applyTree, groove::serialiseTree, groove::resetTree },   // F-L09
@@ -182,9 +210,32 @@ SubtreePlan planSubtrees (const juce::ValueTree& root, const std::vector<Subtree
 {
     SubtreePlan plan;
     std::size_t budget = kTotalSubtreeBudget;
+    std::vector<juce::String> superseded;
 
     for (const auto& desc : table)
     {
+        if (desc.supersedes == nullptr && desc.alsoSupersedes == nullptr)
+            continue;
+
+        const auto newer = root.getChildWithName (juce::Identifier (desc.name));
+        const auto bytes = serialisedSize (newer);
+
+        if (newer.isValid() && bytes <= desc.maxBytes && bytes <= budget
+            && (desc.validate == nullptr || desc.validate (newer)))
+        {
+            if (desc.supersedes != nullptr) superseded.emplace_back (desc.supersedes);
+            if (desc.alsoSupersedes != nullptr) superseded.emplace_back (desc.alsoSupersedes);
+        }
+    }
+
+    for (const auto& desc : table)
+    {
+        if (std::find (superseded.begin(), superseded.end(), juce::String (desc.name)) != superseded.end())
+        {
+            plan.toReset.push_back (&desc);
+            continue;
+        }
+
         const auto tree = root.getChildWithName (juce::Identifier (desc.name));
 
         if (! tree.isValid())
@@ -223,9 +274,10 @@ void applyPlan (GapFillAudioProcessor& proc, const SubtreePlan& plan)
             desc->apply (proc, tree);
 }
 
-void writeSubtrees (const GapFillAudioProcessor& proc, juce::ValueTree& root, const std::vector<SubtreeDesc>& table)
+WriteResult writeSubtrees (const GapFillAudioProcessor& proc, juce::ValueTree& root, const std::vector<SubtreeDesc>& table)
 {
     std::size_t budget = kTotalSubtreeBudget;
+    auto candidate = root.createCopy();
 
     for (const auto& desc : table)
     {
@@ -234,17 +286,30 @@ void writeSubtrees (const GapFillAudioProcessor& proc, juce::ValueTree& root, co
 
         auto tree = desc.serialise (proc);
 
-        if (! tree.isValid() || ! tree.hasType (juce::Identifier (desc.name)))
+        if (! tree.isValid())
             continue;
+
+        if (tree.hasProperty ("__serialiseError"))
+            return { false, tree.getProperty ("__serialiseError").toString() };
+
+        if (! tree.hasType (juce::Identifier (desc.name)))
+            return { false, "The " + juce::String (desc.name) + " state could not be saved: invalid subtree." };
 
         const auto size = serialisedSize (tree);
 
-        if (size > desc.maxBytes || size > budget)
-            continue;                                // never write what the loader would drop
+        if (size > desc.maxBytes || size > budget || (desc.validate != nullptr && ! desc.validate (tree)))
+            return { false, "The " + juce::String (desc.name) + " state could not be saved: size or validation limit." };
 
         budget -= size;
-        root.appendChild (tree, nullptr);
+        if (desc.supersedes != nullptr)
+            candidate.removeChild (candidate.getChildWithName (juce::Identifier (desc.supersedes)), nullptr);
+        if (desc.alsoSupersedes != nullptr)
+            candidate.removeChild (candidate.getChildWithName (juce::Identifier (desc.alsoSupersedes)), nullptr);
+        candidate.appendChild (tree, nullptr);
     }
+
+    root = candidate;
+    return {};
 }
 
 } // namespace gapfill::state

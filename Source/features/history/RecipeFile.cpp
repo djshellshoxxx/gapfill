@@ -1,6 +1,8 @@
 #include "RecipeFile.h"
 #include "RecipeCodec.h"
 #include "../state/StateSubtrees.h"
+#include "../state/SafeXml.h"
+#include <cstring>
 
 #ifndef GAPFILL_VERSION
  #define GAPFILL_VERSION "0.0.0"
@@ -37,19 +39,23 @@ juce::File defaultRecipeDirectory()
                .getChildFile ("GapFill").getChildFile ("Recipes");
 }
 
-juce::String recipeFileText (const FillRecipe& recipe, const juce::String& name)
+juce::String recipeFileText (const FillRecipe& recipe, const juce::String& name, const RecipeExtras& extras)
 {
     juce::XmlElement root ("GFRECIPE");
     root.setAttribute ("name", sanitiseRecipeName (name));
     root.setAttribute ("recipe", recipecodec::encode (recipe));
     root.setAttribute ("appVersion", juce::String (GAPFILL_VERSION));
     root.setAttribute ("stateVersion", state::kStateVersion);
+    const auto extra = recipecodec::encodeExtras (normalizeRecipeExtrasForAlgorithm (recipe.algo, extras));
+    if (extra.isNotEmpty())
+        root.setAttribute ("extras", extra);
     return root.toString (juce::XmlElement::TextFormat().singleLine());
 }
 
-bool writeRecipeFile (const juce::File& file, const FillRecipe& recipe, const juce::String& name, juce::String& error)
+bool writeRecipeFile (const juce::File& file, const FillRecipe& recipe, const juce::String& name, juce::String& error,
+                       const RecipeExtras& extras)
 {
-    if (! isValid (recipe))
+    if (! isValid (recipe) || ! isValid (extras))
     {
         error = "That recipe is not valid and was not saved.";
         return false;
@@ -61,7 +67,7 @@ bool writeRecipeFile (const juce::File& file, const FillRecipe& recipe, const ju
         return false;
     }
 
-    if (! file.replaceWithText (recipeFileText (recipe, name)))
+    if (! file.replaceWithText (recipeFileText (recipe, name, extras)))
     {
         error = "Couldn't write " + file.getFullPathName();
         return false;
@@ -74,13 +80,14 @@ RecipeFile parseRecipeText (const juce::String& text)
 {
     RecipeFile result;
 
-    if (text.getNumBytesAsUTF8() > (size_t) kMaxRecipeFileBytes)
+    // strlen: getNumBytesAsUTF8() over-reads a string holding invalid UTF-8 (fuzzing).
+    if (std::strlen (text.toRawUTF8()) > (size_t) kMaxRecipeFileBytes)
     {
         result.error = "That file is too large to be a GapFill recipe.";
         return result;
     }
 
-    const auto xml = juce::XmlDocument::parse (text);
+    const auto xml = state::parseUntrustedXml (text);
 
     if (xml == nullptr || ! xml->hasTagName ("GFRECIPE"))
     {
@@ -95,6 +102,8 @@ RecipeFile parseRecipeText (const juce::String& text)
     }
 
     result.name = sanitiseRecipeName (xml->getStringAttribute ("name"));
+    recipecodec::decodeExtras (xml->getStringAttribute ("extras"), result.extras);
+    result.extras = normalizeRecipeExtrasForAlgorithm (result.recipe.algo, result.extras);
     result.ok = true;
     return result;
 }

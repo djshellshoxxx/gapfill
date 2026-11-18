@@ -1,6 +1,7 @@
 #include "Modulators.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace gapfill::arrangement
 {
@@ -36,10 +37,35 @@ ModulatorResult evaluate (const Fx04Settings& s, double bpm, double beatsPerBar)
     const float proximity = st.expectedIn >= 0 ? smoothstep (liftWindow, 0.0f, (float) st.expectedIn) : 0.0f;
     const float buildTerm = std::max (0.0f, st.trend) * 0.5f;
 
-    r.densityFactor = calm * settle;
+    r.densityFactor = s.modelVersion == 2 ? settle : calm * settle;
+    r.probabilityFactor = s.modelVersion == 2 ? calm : 1.0f;
     r.lift = std::clamp (s.lift01 * st.confidence * std::max (proximity, buildTerm), 0.0f, 1.0f);
     r.active = true;
     return r;
+}
+
+ArrangementState snapPrediction (ArrangementState state, bool valid, double ppq,
+                                double bpm, int numerator, int denominator, int phraseBars) noexcept
+{
+    if (state.expectedIn < 0)
+        return state;
+    if (! valid || ! std::isfinite (ppq) || ! std::isfinite (bpm) || bpm <= 1.0
+        || numerator <= 0 || numerator > 64 || denominator <= 0 || denominator > 64)
+    {
+        state.expectedIn = -1;
+        return state;
+    }
+    const double beatsPerBar = 4.0 * (double) numerator / (double) denominator;
+    const double grid = beatsPerBar * (double) std::clamp (phraseBars, 1, 64);
+    const double predicted = ppq + (double) state.expectedIn * bpm / 120.0;
+    const double snapped = std::round (predicted / grid) * grid;
+    // Never publish a target in the past merely because nearest-grid rounding
+    // crossed the current playhead. Unknown is safer than a fabricated delay.
+    if (! std::isfinite (snapped) || snapped < ppq - 1.0e-9)
+        state.expectedIn = -1;
+    else
+        state.expectedIn = (std::int16_t) std::lround (std::clamp ((snapped - ppq) * 120.0 / bpm, 0.0, 32000.0));
+    return state;
 }
 
 } // namespace gapfill::arrangement

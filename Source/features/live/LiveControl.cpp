@@ -37,10 +37,17 @@ LiveControl::LiveControl (juce::AudioProcessorValueTreeState& state)
     bool available[macros::kNumTargets] {};
 
     for (int i = 0; i < macros::kNumTargets; ++i)
-        available[i] = state.getParameter (macros::targetInfo (i).id) != nullptr;
+        available[i] = state.getParameter (macros::targetParameterId (i)) != nullptr;
 
     macroModel.setTargetAvailability (available);
     macroRuntime.cfg = macros::defaultConfig();
+    modulation::initTargets();
+    for (int i = 0; i < modulation::kTargetCount; ++i)
+    {
+        const auto* id = modulation::targetParameterId (i);
+        extendedMacroRuntime.available[i] = id == nullptr || state.getParameter (id) != nullptr;
+    }
+    macroModel.setExtendedTargetAvailability (extendedMacroRuntime.available);
 }
 
 //==============================================================================
@@ -62,6 +69,9 @@ void LiveControl::reset() noexcept
     ringCount = 0;
     sceneEngine.reset();
     panicCtl.reset();
+    extendedMacroRuntime.resetReadout();
+    modulationTransportValid.store (false, std::memory_order_relaxed);
+    for (auto& value : uiEffective) value.store (0.0f, std::memory_order_relaxed);
 }
 
 void LiveControl::post (UiRequest::Kind kind, int a) noexcept
@@ -71,7 +81,15 @@ void LiveControl::post (UiRequest::Kind kind, int a) noexcept
     r.a = a;
 
     if (! uiQueue.push (r))
+    {
         uiDropped.fetch_add (1, std::memory_order_relaxed);
+        // Intermediate requests may be superseded, but the currently pending
+        // scene must always receive its final acknowledgement after pressure.
+        if (kind == UiRequest::SceneMissedDeadline)
+            missedSceneFallback.store ((std::uint32_t) a, std::memory_order_release);
+        else if (kind == UiRequest::SceneApplied)
+            appliedSceneFallback.store ((std::uint32_t) a, std::memory_order_release);
+    }
 }
 
 void LiveControl::emit (FillEventType type, std::int64_t pos) noexcept
@@ -96,6 +114,7 @@ void LiveControl::onPanicAction (panic::Action action, FillEngine& engine) noexc
             engine.panic();
 
         sceneEngine.cancelPending();
+        panicCancelFallback.store (true, std::memory_order_release);
         fillNowRequested = fillNowPending = false;      // panic cancels queued actions
         hold.panic();                                   // and releases every hold
         engine.panicHolds();
@@ -111,7 +130,8 @@ void LiveControl::onPanicAction (panic::Action action, FillEngine& engine) noexc
     }
 }
 
-void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset, FillEngine& engine, momentary::Source src) noexcept
+void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset, FillEngine& engine,
+                           momentary::Source src, std::uint32_t recipeGeneration, std::uint64_t lockEpoch) noexcept
 {
     switch ((int) type)
     {
@@ -147,17 +167,33 @@ void LiveControl::execute (CommandType type, int arg, bool on, int sampleOffset,
 
         case (int) CommandType::PresetNext:  if (on) post (UiRequest::PresetNext); break;
         case (int) CommandType::PresetPrev:  if (on) post (UiRequest::PresetPrev); break;
+        case (int) CommandType::PresetGoto:  if (on) post (UiRequest::PresetGoto, arg); break;
         case (int) CommandType::Roulette:    if (on) post (UiRequest::Roulette); break;
         case (int) CommandType::AbSwap:      if (on) post (UiRequest::AbSwap); break;
 
         default:
-            break;      // commands owned by other work packages are ignored here
+            if (src == momentary::Source::Midi && on && commands::isKnownCommand (type) && featureCommandSink != nullptr)
+            {
+                Command command;
+                command.type = type;
+                command.index = (std::int16_t) arg;
+                command.velocity = 100;
+                command.lockEpoch = lockEpoch;
+                if (commands::needsRecipeTarget (type) && ! recipeTargets.resolve (type, arg, recipeGeneration, command))
+                {
+                    ringDropped.fetch_add (1, std::memory_order_relaxed);
+                    break;
+                }
+                featureCommandSink (featureCommandContext, command);
+            }
+            break;
     }
 }
 
 void LiveControl::beginBlock (const juce::MidiBuffer& midi, FillEngine& engine, std::int64_t outputPos) noexcept
 {
     blockPos = outputPos;
+    recipeTargets.adopt();
     commands::Event events[commands::kMaxCommandEventsPerBlock];
 
     // 1. A new binding table (releases anything that was held).
@@ -177,10 +213,12 @@ void LiveControl::beginBlock (const juce::MidiBuffer& midi, FillEngine& engine, 
     ringCount = 0;
 
     for (int i = 0; i < queued; ++i)
-        execute (ring[i].type, ring[i].arg, ring[i].on, ring[i].sampleOffset, engine);
+        execute (ring[i].type, ring[i].arg, ring[i].on, ring[i].sampleOffset, engine,
+                 momentary::Source::Midi, ring[i].recipeGeneration, ring[i].lockEpoch);
 
     // 4. This block's MIDI. Panic/Recover act immediately, the rest waits one block.
     const auto n = scanner.process (midi, events, commands::kMaxCommandEventsPerBlock);
+    const auto receivedLockEpoch = lockEpochReader != nullptr ? lockEpochReader (lockEpochContext) : 0;
 
     for (int i = 0; i < n; ++i)
     {
@@ -192,7 +230,10 @@ void LiveControl::beginBlock (const juce::MidiBuffer& midi, FillEngine& engine, 
         }
         else if (ringCount < commands::kMaxCommandEventsPerBlock)
         {
-            ring[ringCount++] = e;
+            auto queued = e;
+            queued.recipeGeneration = recipeTargets.generation();
+            queued.lockEpoch = receivedLockEpoch;
+            ring[ringCount++] = queued;
         }
         else
         {
@@ -210,18 +251,30 @@ void LiveControl::handleCommand (const Command& c, FillEngine& engine) noexcept
 
 void LiveControl::fillModulationInputs (Effective::ModulationInputs& in, int seed) noexcept
 {
-    macros::MacroConfig fresh;
-
-    if (macroModel.publisher().consume (fresh))
-    {
-        macroRuntime.cfg = fresh;
-
-        for (auto& h : macroRuntime.hasSmoothed)
-            h = false;
-    }
-
     macroRuntime.seed = seed;
-    in.macros.runtime = &macroRuntime;
+    in = pinnedModulation;
+}
+
+void LiveControl::guardGroupScene() noexcept
+{
+    const auto group = sceneEngine.pendingGroup();
+    if (group == 0) return;
+    if (panicCtl.isPanicked() || groupCancelReader == nullptr
+        || groupCancelReader (groupCancelContext, group) != sceneEngine.pendingCancelEpoch())
+    {
+        const auto id = sceneEngine.activeId();
+        sceneEngine.cancelPending();
+        post (UiRequest::SceneMissedDeadline, (int) id);
+    }
+}
+
+int LiveControl::stageSceneChunk (const scenes::TransportSnap& transport) noexcept
+{
+    const auto result = sceneEngine.stagePublished (sceneCtl.publisher(), transport);
+    if (result.missedDeadlineId != 0)
+        post (UiRequest::SceneMissedDeadline, (int) result.missedDeadlineId);
+    guardGroupScene();
+    return sceneEngine.samplesUntilBoundary (transport);
 }
 
 void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t outputPos) noexcept
@@ -264,9 +317,11 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t 
     holdTimedOut.store (hold.timedOutMask(), std::memory_order_relaxed);
 
     macroRuntime.chunkSeconds = (float) ((double) std::max (1, numSamples) / sampleRate);
+    modulationTransportValid.store (s.transportValid, std::memory_order_relaxed);
 
-    for (int t = 0; t < macros::kNumTargets; ++t)
-        uiEffective[t].store (macroRuntime.effective01[t], std::memory_order_relaxed);
+    for (int target = 0; target < modulation::kTargetCount; ++target)
+        uiEffective[target].store (extendedMacros ? extendedMacroRuntime.effective01[target]
+            : (target < macros::kNumTargets ? macroRuntime.effective01[target] : 0.0f), std::memory_order_relaxed);
 
     scenes::TransportSnap t;
     t.valid = s.transportValid && s.samplesPerBeat > 1.0;
@@ -286,7 +341,13 @@ void LiveControl::prepareChunk (EngineSettings& s, int numSamples, std::int64_t 
     if (phraseOffsetParam != nullptr)
         t.phraseOffset = (int) std::lround (phraseOffsetParam->load (std::memory_order_relaxed));
 
+    guardGroupScene();
     const auto r = sceneEngine.beginChunk (sceneCtl.publisher(), t);
+
+    if (r.missedDeadlineId != 0)
+        post (UiRequest::SceneMissedDeadline, (int) r.missedDeadlineId);
+    if (! s.perf.sceneBaseApplied && sceneEngine.view().appliesAt (s.ppqAtBlockStart, s.transportValid))
+        sceneEngine.view().applyFxTo (s);
 
     if (r.appliedId != 0)
     {
@@ -433,31 +494,103 @@ void LiveControl::handleUi (const UiRequest& r, GapFillAudioProcessor& proc)
 {
     switch ((int) r.kind)
     {
-        case (int) UiRequest::SceneApplied:  sceneCtl.onApplied ((std::uint32_t) r.a); break;
+        case (int) UiRequest::SceneApplied:
+            sceneCtl.onApplied ((std::uint32_t) r.a);
+            if (groupSceneRequestId == (std::uint32_t) r.a)
+            {
+                groupSceneRequestId = 0;
+                groupSceneRequestGroup = 0;
+            }
+            break;
+        case (int) UiRequest::SceneMissedDeadline:
+            if (groupSceneRequestId == (std::uint32_t) r.a)
+            {
+                proc.getCoop().cancelGroupScenes();
+                groupSceneRequestId = 0;
+                groupSceneRequestGroup = 0;
+            }
+            sceneCtl.rejectPending ((std::uint32_t) r.a, "Group scene cancelled: missed boundary or transport changed");
+            break;
         case (int) UiRequest::SceneGoto:     sceneCtl.gotoScene (r.a); break;
         case (int) UiRequest::SceneNext:     sceneCtl.next(); break;
         case (int) UiRequest::ScenePrev:     sceneCtl.prev(); break;
         case (int) UiRequest::SceneCancel:   sceneCtl.cancel(); break;
         case (int) UiRequest::SceneLastGood: sceneCtl.gotoLastGood(); break;
+        case (int) UiRequest::PanicChanged:
+            if (r.a != 0)
+                proc.getUiState().presetNavigation.cancelPending();
+            break;
         case (int) UiRequest::Roulette:      rouletteState.spin (proc); break;
+        case (int) UiRequest::AbSwap:
+        {
+            auto& ab = proc.getUiState().headerAb;
+            const auto target = ab.swap (apvts.copyState());
+            if (target.isValid())
+            {
+                proc.replaceParameterStateKeepingPerformance (target);
+                proc.syncModelVersions();
+                proc.getRecipes().noteHeaderAbSide (ab.isUsingB());
+                proc.updateHostDisplay();
+            }
+            break;
+        }
+        case (int) UiRequest::PresetGoto:
+            if (r.a >= 0 && r.a < proc.getNumPrograms())
+            {
+                proc.selectPreset (r.a);
+                auto& navigation = proc.getUiState().presetNavigation;
+                for (const auto& entry : navigation.catalog().entries())
+                    if (entry.origin == presets::PresetEntry::Origin::Factory && entry.factoryIndex == r.a)
+                    {
+                        navigation.noteLoaded (entry);
+                        break;
+                    }
+            }
+            break;
 
         case (int) UiRequest::PresetNext:
         case (int) UiRequest::PresetPrev:
         {
-            const auto n = proc.getNumPrograms();
-
-            if (n > 0)
-            {
-                const auto cur = proc.getCurrentProgram();
-                const auto next = r.kind == UiRequest::PresetNext ? (cur < 0 ? 0 : (cur + 1) % n)
-                                                                  : (cur <= 0 ? n - 1 : cur - 1);
-                proc.selectPreset (next);
-            }
+            proc.getUiState().presetNavigation.requestStep (r.kind == UiRequest::PresetNext ? 1 : -1);
             break;
         }
 
         default:
             break;
+    }
+}
+
+void LiveControl::pumpGroupScenes (GapFillAudioProcessor& proc)
+{
+    auto& member = proc.getCoop();
+    coop::GroupSceneEvent event;
+    // The channel retains the latest request plus its cancel epoch. Bound this
+    // work even if another instance keeps publishing while the timer runs.
+    for (int count = 0; count < 4 && member.pollGroupSceneEvent (event); ++count)
+    {
+        if (event.kind == coop::GroupSceneEvent::Cancel)
+        {
+            if (event.group == groupSceneRequestGroup)
+            {
+                if (groupSceneRequestId != 0 && sceneCtl.getPendingId() == groupSceneRequestId)
+                    sceneCtl.cancel();
+                groupSceneRequestId = 0;
+                groupSceneRequestGroup = 0;
+            }
+            continue;
+        }
+
+        // Consume and invalidate a recall while panicked. Recovery must never
+        // turn an old, already-consumed group request back into a local action.
+        if (panicCtl.isPanicked()
+            || ! sceneCtl.gotoSceneAt (event.sceneIndex, event.targetPpq,
+                                      (std::uint8_t) event.group, event.cancelGeneration))
+        {
+            member.cancelGroupScenes();
+            continue;
+        }
+        groupSceneRequestId = sceneCtl.getPendingId();
+        groupSceneRequestGroup = event.group;
     }
 }
 
@@ -476,7 +609,25 @@ void LiveControl::pump (GapFillAudioProcessor& proc)
             handleUi (batch[i], proc);
     }
 
+    if (const auto applied = appliedSceneFallback.exchange (0, std::memory_order_acq_rel))
+        handleUi ({ UiRequest::SceneApplied, (std::int32_t) applied }, proc);
+    if (const auto missed = missedSceneFallback.exchange (0, std::memory_order_acq_rel))
+        handleUi ({ UiRequest::SceneMissedDeadline, (std::int32_t) missed }, proc);
+    // A full queue may drop both SceneCancel and PanicChanged. This sticky
+    // acknowledgement survives a Recover before the next message-thread tick.
+    if (panicCancelFallback.exchange (false, std::memory_order_acq_rel))
+    {
+        sceneCtl.cancel();
+        groupSceneRequestId = 0;
+        groupSceneRequestGroup = 0;
+        proc.getUiState().presetNavigation.cancelPending();
+    }
+    pumpGroupScenes (proc);
     sceneCtl.poll();
+    const auto pendingPresetSteps = proc.getUiState().takePresetStep();
+    if (pendingPresetSteps != 0)
+        proc.getUiState().presetNavigation.requestStep (pendingPresetSteps);
+    proc.getUiState().presetNavigation.pump (proc);
 
     // ---- F-L24 LED feedback (message thread; never touches audio) ------------
     {

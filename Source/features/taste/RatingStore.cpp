@@ -1,4 +1,5 @@
 #include "RatingStore.h"
+#include "../state/SafeXml.h"
 
 #include <algorithm>
 #include <cstring>
@@ -49,7 +50,7 @@ bool RatingStore::parse (const juce::File& f, std::vector<RatingEntry>& out) con
     if (f.getSize() > kMaxLibraryBytes)
         return false;
 
-    const auto xml = juce::XmlDocument::parse (f);
+    const auto xml = state::parseUntrustedXml (f, kMaxLibraryBytes);
 
     if (xml == nullptr || ! xml->hasTagName ("Ratings"))
         return false;

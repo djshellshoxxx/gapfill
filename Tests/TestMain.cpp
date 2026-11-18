@@ -1,5 +1,6 @@
 #include "TestFramework.h"
 #include "support/TestRig.h"
+#include "support/MessageLoopTestRunner.h"
 #include <juce_events/juce_events.h>
 #include <iostream>
 
@@ -9,6 +10,7 @@ int main (int argc, char* argv[])
 
     juce::String filter;
     bool writeGolden = false;
+    bool messageLoop = false;
 
     // --dump-golden <dir>: render golden scenarios A..F and write <dir>/<id>.f32
     // (planar float32) plus fills.txt. Used by the same-runner master comparison
@@ -39,6 +41,8 @@ int main (int argc, char* argv[])
 
         if (arg == "--write-golden")
             writeGolden = true;
+        else if (arg == "--message-loop")
+            messageLoop = true;
         else
             filter = arg;
     }
@@ -53,6 +57,20 @@ int main (int argc, char* argv[])
         int failures = gftest::Registry::get().run ("Golden");
         failures += gftest::Registry::get().run ("StateCompat");
         return failures == 0 ? 0 : 1;
+    }
+
+    if (messageLoop)
+    {
+        if (filter.isEmpty())
+        {
+            std::cerr << "--message-loop requires an explicit test filter" << std::endl;
+            return 2;
+        }
+
+        return gftest::runWithMessageLoop ([&]
+        {
+            return gftest::Registry::get().run (filter) == 0 ? 0 : 1;
+        });
     }
 
     const auto failures = gftest::Registry::get().run (filter);

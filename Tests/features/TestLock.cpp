@@ -485,7 +485,7 @@ GF_TEST (Lock, lock_restore_plays_nothing)
 {
     GapFillAudioProcessor src;
     setParams (src, { { "fl01_lock", 1.0f } });
-    src.getRecipes().lockMirror = { true, stutterRecipe() };
+    src.getRecipes().lockPublication.beginRestore ({ true, stutterRecipe() }); // canonical state, without an audio callback
     juce::MemoryBlock blob;
     src.getStateInformation (blob);
 

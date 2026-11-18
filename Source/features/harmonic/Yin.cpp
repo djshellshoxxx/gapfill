@@ -59,18 +59,45 @@ YinResult yinDetectDecimated (const float* x, double fs) noexcept
     dPrime[0] = 1.0f;
     double running = 0.0;
 
-    for (int tau = 1; tau <= tauMax; ++tau)
+    int lag = 1;
+    for (; lag + 3 <= tauMax; lag += 4)
+    {
+        // Four independent lags permit SIMD without changing the addition
+        // order inside ANY lag. Normalization below still visits tau1..max
+        // in the released order; this is not an approximate correlation FFT.
+        double d0 = 0.0, d1 = 0.0, d2 = 0.0, d3 = 0.0;
+        for (int j = 0; j < W; ++j)
+        {
+            const double base = (double) x[j];
+            const double diff0 = base - (double) x[j + lag];
+            const double diff1 = base - (double) x[j + lag + 1];
+            const double diff2 = base - (double) x[j + lag + 2];
+            const double diff3 = base - (double) x[j + lag + 3];
+            d0 += diff0 * diff0;
+            d1 += diff1 * diff1;
+            d2 += diff2 * diff2;
+            d3 += diff3 * diff3;
+        }
+        const double differences[] { d0, d1, d2, d3 };
+        for (int lane = 0; lane < 4; ++lane)
+        {
+            const double d = differences[lane];
+            running += d;
+            dPrime[lag + lane] = running > 1.0e-12 ? (float) (d * (lag + lane) / running) : 1.0f;
+        }
+    }
+    for (; lag <= tauMax; ++lag)
     {
         double d = 0.0;
 
         for (int j = 0; j < W; ++j)
         {
-            const double diff = (double) x[j] - (double) x[j + tau];
+            const double diff = (double) x[j] - (double) x[j + lag];
             d += diff * diff;
         }
 
         running += d;
-        dPrime[tau] = running > 1.0e-12 ? (float) (d * tau / running) : 1.0f;
+        dPrime[lag] = running > 1.0e-12 ? (float) (d * lag / running) : 1.0f;
     }
 
     // ---- absolute threshold: first dip below it, walked down to its local minimum ---------------

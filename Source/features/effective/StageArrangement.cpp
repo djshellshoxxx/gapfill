@@ -22,6 +22,8 @@ void applyArrangement (EngineSettings& sLocal, double /*ppq*/, const TransportIn
         return;
 
     sLocal.density01 = std::clamp (sLocal.density01 * r.densityFactor + 0.5f * r.lift, 0.0f, 1.0f);
+    if (fx.modelVersion == 2)
+        sLocal.perf.probabilityMul *= r.probabilityFactor;
     sLocal.maxFillMs = std::clamp (sLocal.maxFillMs * (1.0f + 0.5f * r.lift), 20.0f, 2000.0f);
 }
 

@@ -3,6 +3,7 @@
 #include "../../gui/HelpRegistry.h"
 #include "../../gui/Knob.h"
 #include "../../gui/LookAndFeel.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::tour
 {
@@ -146,8 +147,11 @@ TourOverlay::TourOverlay (std::vector<TourStep> s, TourModel& m) : steps (std::m
     dontShowButton.onClick = [this] { model.dontShowAgain(); close (0); };
     exampleButton.onClick = [this] { if (onLoadExample != nullptr) onLoadExample(); };
 
+    i18n::languageChanges().addChangeListener (this);
     refresh();
 }
+
+TourOverlay::~TourOverlay() { i18n::languageChanges().removeChangeListener (this); }
 
 void TourOverlay::parentHierarchyChanged()
 {
@@ -169,24 +173,51 @@ void TourOverlay::close (int)
 
 void TourOverlay::setExampleStatus (const juce::String& text)
 {
-    status.setText (text, juce::dontSendNotification);
+    exampleStatus = text;
+    status.setText (i18n::text (text), juce::dontSendNotification);
+    resized();
+}
+
+void TourOverlay::updateText()
+{
+    const auto& step = getStep();
+    const auto n = model.numSteps();
+    const auto label = i18n::format ("Quick tour, step {0} of {1}", { juce::String (model.index() + 1), juce::String (n) });
+    const auto stepTitle = i18n::text (step.title);
+    const auto stepBody = i18n::text (step.body);
+
+    card.setTitle (label);
+    card.setDescription (i18n::format ("{0}. {1}", { stepTitle, stepBody }));
+    title.setText (i18n::format ("{0}  -  {1}", { label.toUpperCase(), stepTitle.toUpperCase() }), juce::dontSendNotification);
+    body.setText (stepBody, juce::dontSendNotification);
+    status.setText (i18n::text (exampleStatus), juce::dontSendNotification);
+    backButton.setButtonText (i18n::text ("BACK"));
+    backButton.setTitle (i18n::text ("Back"));
+    skipButton.setButtonText (i18n::text ("SKIP"));
+    skipButton.setTitle (i18n::text ("Skip tour"));
+    dontShowButton.setButtonText (i18n::text ("DON'T SHOW AGAIN"));
+    dontShowButton.setTitle (i18n::text ("Don't show the tour again"));
+    exampleButton.setButtonText (i18n::text ("LOAD EXAMPLE"));
+    exampleButton.setTitle (i18n::text ("Load example"));
+    exampleButton.setTooltip (i18n::text ("Loads the Drum Gap Glitch preset. Undo goes back."));
+    nextButton.setButtonText (model.isLast() ? i18n::text ("DONE") : i18n::text ("NEXT"));
+    nextButton.setTitle (model.isLast() ? i18n::text ("Done") : i18n::text ("Next"));
+}
+
+void TourOverlay::changeListenerCallback (juce::ChangeBroadcaster*)
+{
+    updateText();
+    resized();
+    repaint();
 }
 
 void TourOverlay::refresh()
 {
-    const auto& step = getStep();
-    const auto n = model.numSteps();
-    const auto label = "Quick tour, step " + juce::String (model.index() + 1) + " of " + juce::String (n);
-
-    card.setTitle (label);
-    card.setDescription (step.title + ". " + step.body);
-    title.setText (label.toUpperCase() + "  -  " + step.title.toUpperCase(), juce::dontSendNotification);
-    body.setText (step.body, juce::dontSendNotification);
-    status.setText ({}, juce::dontSendNotification);
+    exampleStatus.clear();
+    updateText();
 
     backButton.setEnabled (model.index() > 0);
-    nextButton.setButtonText (model.isLast() ? "DONE" : "NEXT");
-    exampleButton.setVisible (step.offersExample);
+    exampleButton.setVisible (getStep().offersExample);
 
     resized();
     repaint();
@@ -213,7 +244,37 @@ std::vector<juce::Rectangle<int>> TourOverlay::getHighlights() const
 void TourOverlay::resized()
 {
     const auto cardW = juce::jmax (200, juce::jmin (360, getWidth() - 48));
-    const auto cardH = 170;
+    constexpr int padding = 12, gap = 6, buttonHeight = 26;
+    const auto innerWidth = cardW - 2 * padding;
+    const auto textHeight = [innerWidth] (const TextLabel& label, int minimum)
+    {
+        return juce::jmax (minimum, label.heightForWidth (innerWidth));
+    };
+    const auto buttonWidth = [innerWidth] (juce::TextButton& button)
+    {
+        const auto font = button.getLookAndFeel().getTextButtonFont (button, buttonHeight);
+        return juce::jmin (innerWidth, juce::jmax (52, (int) std::ceil (
+            juce::GlyphArrangement::getStringWidth (font, button.getButtonText())) + 24));
+    };
+    const auto layoutActions = [&] (int top, bool place)
+    {
+        int x = 0, y = 0;
+        for (auto* button : { &skipButton, &dontShowButton, &exampleButton })
+        {
+            if (! button->isVisible()) continue;
+            const auto width = buttonWidth (*button);
+            if (x != 0 && x + width > innerWidth) { x = 0; y += buttonHeight + gap; }
+            if (place) button->setBounds (padding + x, top + y, width, buttonHeight);
+            x += width + gap;
+        }
+        return y + buttonHeight;
+    };
+    const auto titleHeight = textHeight (title, 20);
+    const auto bodyHeight = textHeight (body, 40);
+    const auto statusHeight = status.getText().isEmpty() ? 0 : textHeight (status, 16);
+    const auto actionHeight = layoutActions (0, false);
+    const auto cardH = 2 * padding + titleHeight + gap + bodyHeight
+                     + (statusHeight == 0 ? 0 : gap + statusHeight) + 2 * gap + actionHeight + buttonHeight;
     const auto highlights = getHighlights();
 
     juce::Rectangle<int> cardBounds (cardW, cardH);
@@ -251,19 +312,18 @@ void TourOverlay::resized()
 
     card.setBounds (cardBounds);
 
-    auto b = card.getLocalBounds().reduced (12);
-    title.setBounds (b.removeFromTop (20));
-    auto buttons = b.removeFromBottom (26);
-    status.setBounds (b.removeFromBottom (16));
-    body.setBounds (b);
-
-    skipButton.setBounds (buttons.removeFromLeft (52));
-    buttons.removeFromLeft (4);
-    dontShowButton.setBounds (buttons.removeFromLeft (juce::jmin (130, buttons.getWidth() / 2)));
-    nextButton.setBounds (buttons.removeFromRight (56));
-    buttons.removeFromRight (4);
-    backButton.setBounds (buttons.removeFromRight (52));
-    exampleButton.setBounds (buttons.removeFromRight (juce::jmin (104, buttons.getWidth())));
+    auto b = card.getLocalBounds().reduced (padding);
+    title.setBounds (b.removeFromTop (titleHeight));
+    b.removeFromTop (gap);
+    body.setBounds (b.removeFromTop (bodyHeight));
+    if (statusHeight != 0) b.removeFromTop (gap);
+    status.setBounds (b.removeFromTop (statusHeight));
+    b.removeFromTop (gap);
+    layoutActions (b.getY(), true);
+    b.removeFromTop (actionHeight + gap);
+    nextButton.setBounds (b.removeFromRight (buttonWidth (nextButton)));
+    b.removeFromRight (gap);
+    backButton.setBounds (b.removeFromRight (buttonWidth (backButton)));
 }
 
 void TourOverlay::paint (juce::Graphics& g)

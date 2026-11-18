@@ -1,4 +1,6 @@
 #include "Gui.h"
+#include "../i18n/Strings.h"
+#include "../i18n/ComponentTranslator.h"
 
 namespace gapfill::reasons
 {
@@ -95,18 +97,31 @@ void drawSwatch (juce::Graphics& g, juce::Rectangle<float> r, Pattern p, juce::C
 //==============================================================================
 LegendStrip::LegendStrip()
 {
-    setTitle ("Visualiser legend");
-    setDescription ("Shows how each state in the gap view is drawn. Press Enter to collapse or expand.");
     setWantsKeyboardFocus (false);
     setMouseCursor (juce::MouseCursor::PointingHandCursor);
+    i18n::languageChanges().addChangeListener (this);
+    refreshLanguage();
+}
+
+LegendStrip::~LegendStrip() { i18n::languageChanges().removeChangeListener (this); }
+
+void LegendStrip::refreshLanguage()
+{
+    setTitle (i18n::text ("Visualiser legend"));
+    setDescription (i18n::text ("Shows how each state in the gap view is drawn. Press Enter to collapse or expand."));
 
     juce::String all;
 
     for (const auto& e : legendEntries())
-        all << e.description << ". ";
+        all += i18n::format ("{0}. ", { i18n::text (e.description) });
 
     setHelpText (all);
+    if (auto* parent = getParentComponent())
+        parent->resized();
+    repaint();
 }
+
+void LegendStrip::changeListenerCallback (juce::ChangeBroadcaster*) { refreshLanguage(); }
 
 void LegendStrip::setCollapsed (bool shouldCollapse)
 {
@@ -119,14 +134,20 @@ void LegendStrip::setCollapsed (bool shouldCollapse)
 
 int LegendStrip::getPreferredWidth() const
 {
+    const auto header = i18n::text (collapsed ? "LEGEND  +" : "LEGEND  -");
+    const auto headerFont = i18n::fontForText (fonts::label (9.5f), header);
+    const auto headerWidth = (int) std::ceil (juce::GlyphArrangement::getStringWidth (headerFont, header)) + 20;
     if (collapsed)
-        return 74;
+        return juce::jmax (74, headerWidth);
 
-    int w = 78;
+    int w = juce::jmax (78, headerWidth);
     const auto font = fonts::label (9.5f);
 
     for (const auto& e : legendEntries())
-        w += 20 + (int) std::ceil (juce::GlyphArrangement::getStringWidth (font, e.label)) + 14;
+    {
+        const auto label = i18n::text (e.label);
+        w += 20 + (int) std::ceil (juce::GlyphArrangement::getStringWidth (i18n::fontForText (font, label), label)) + 14;
+    }
 
     return w;
 }
@@ -162,20 +183,25 @@ void LegendStrip::paint (juce::Graphics& g)
     g.setColour (colours::background.withAlpha (0.78f));
     g.fillRoundedRectangle (b, 3.0f);
 
-    g.setFont (fonts::label (9.5f));
+    const auto header = i18n::text (collapsed ? "LEGEND  +" : "LEGEND  -");
+    const auto headerFont = i18n::fontForText (fonts::label (9.5f), header);
+    const auto headerWidth = juce::jmax (78.0f, std::ceil (juce::GlyphArrangement::getStringWidth (headerFont, header)) + 20.0f);
+    g.setFont (headerFont);
     g.setColour (colours::textDim);
-    g.drawText (collapsed ? "LEGEND  +" : "LEGEND  -", b.withWidth (70.0f).reduced (6.0f, 0.0f),
+    g.drawText (header, b.withWidth (headerWidth - 8.0f).reduced (6.0f, 0.0f),
                 juce::Justification::centredLeft, false);
 
     if (collapsed)
         return;
 
-    auto x = b.getX() + 78.0f;
+    auto x = b.getX() + headerWidth;
     const auto font = fonts::label (9.5f);
 
     for (const auto& e : legendEntries())
     {
-        const auto entryWidth = 20.0f + (float) std::ceil (juce::GlyphArrangement::getStringWidth (font, e.label)) + 2.0f;
+        const auto label = i18n::text (e.label);
+        const auto labelFont = i18n::fontForText (font, label);
+        const auto entryWidth = 20.0f + (float) std::ceil (juce::GlyphArrangement::getStringWidth (labelFont, label)) + 2.0f;
 
         if (x + entryWidth > b.getRight())
             break;                                   // narrow: show the entries that fit
@@ -184,9 +210,9 @@ void LegendStrip::paint (juce::Graphics& g)
         drawSwatch (g, swatch, e.pattern, swatchColour (e.pattern));
 
         g.setColour (colours::textDim);
-        g.setFont (font);
-        const auto w = (float) std::ceil (juce::GlyphArrangement::getStringWidth (font, e.label)) + 2.0f;
-        g.drawText (e.label, juce::Rectangle<float> (x + 18.0f, b.getY(), w, b.getHeight()),
+        g.setFont (labelFont);
+        const auto w = (float) std::ceil (juce::GlyphArrangement::getStringWidth (labelFont, label)) + 2.0f;
+        g.drawText (label, juce::Rectangle<float> (x + 18.0f, b.getY(), w, b.getHeight()),
                     juce::Justification::centredLeft, false);
         x += 20.0f + w + 14.0f;
     }

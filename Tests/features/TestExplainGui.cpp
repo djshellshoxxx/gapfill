@@ -30,8 +30,10 @@ namespace
     {
         c.setBounds (0, 0, w, h);
         juce::Image img (juce::Image::ARGB, w, h, true);
-        juce::Graphics g (img);
-        c.paintEntireComponent (g, true);
+        {
+            juce::Graphics g (img);
+            c.paintEntireComponent (g, true);
+        } // Flush native drawing before reading pixels or saving the image.
 
         // Optional: GF_SCREENSHOT_DIR=<dir> keeps the renders for a visual check.
         if (const auto dir = juce::SystemStats::getEnvironmentVariable ("GF_SCREENSHOT_DIR", {}); dir.isNotEmpty())
@@ -64,8 +66,10 @@ GF_TEST (ReasonsGui, gui_legend_has_text_and_shape_for_every_state)
 
         // Each state draws something visible by itself (a shape, not only a colour).
         juce::Image img (juce::Image::ARGB, 24, 14, true);
-        juce::Graphics g (img);
-        reasons::drawSwatch (g, { 2.0f, 2.0f, 20.0f, 10.0f }, e.pattern, reasons::swatchColour (e.pattern));
+        {
+            juce::Graphics g (img);
+            reasons::drawSwatch (g, { 2.0f, 2.0f, 20.0f, 10.0f }, e.pattern, reasons::swatchColour (e.pattern));
+        }
         GF_EXPECT_MSG (hasVisiblePixels (img), e.label);
     }
 

@@ -39,12 +39,24 @@ public:
     static constexpr double kMinSeconds = 0.25;
 
     enum Status : int { Off = 0, Held = 1, Pending = 2 };
+    enum Notice : int { None = 0, NotHeld, Short, Busy, Overwritten };
+    static constexpr int HeldRecaptured = 3;
+    struct CopyDescriptor
+    {
+        std::uint64_t generation = 0;
+        int targetIndex = -1;
+        std::int64_t liveStart = 0;
+        int total = 0;
+    };
 
     void prepare (double sampleRate, int channels);
     void reset() noexcept;
 
     /** The captureLength parameter in milliseconds (clamped to 250-2000). */
     void setLengthMs (float ms) noexcept;
+    void setDetailed (bool) noexcept;
+    bool isDetailed() const noexcept { return detailed; } // audio owner only
+    int maxDetailedChunkSamples() const noexcept;
 
     /** Tracks the Capture parameter edges; a falling edge clears a ReleaseCapture suppression. */
     void noteParameter (bool captureParameterOn) noexcept;
@@ -62,6 +74,9 @@ public:
 
     /** The snapshot the engine must read, or nullptr to read the (live or frozen) history. */
     const SourceHistory* getActiveSnapshot() const noexcept   { return activeIndex >= 0 ? &snapshot[activeIndex] : nullptr; }
+    CopyDescriptor getCopyDescriptor() const noexcept { return latestCopy; } // audio only
+    int getActiveSnapshotIndex() const noexcept { return activeIndex; }
+    std::uint64_t getActiveSnapshotGeneration() const noexcept { return activeIndex >= 0 ? snapshotGeneration[activeIndex] : 0; }
 
     //==========================================================================
     // Status (relaxed atomics; message thread)
@@ -69,6 +84,8 @@ public:
     float getProgress() const noexcept      { return progress.load (std::memory_order_relaxed); }   ///< 0..1 of a pending copy
     int   getHeldMs() const noexcept        { return heldMs.load (std::memory_order_relaxed); }
     int   getSnapshotCount() const noexcept { return snapshotCount.load (std::memory_order_relaxed); }
+    int   getDetailNotice() const noexcept { return notice.load (std::memory_order_relaxed); }
+    int   getMinimumHoldRemainingMs() const noexcept { return remainingHoldMs.load (std::memory_order_relaxed); }
 
     //==========================================================================
     // Test hooks
@@ -98,6 +115,11 @@ private:
     bool suppressed = false;
     bool recaptureRequested = false;
     bool pending = false;
+    bool detailed = false;
+    Notice detailNotice = None;
+    std::int64_t requestedEnd = 0;
+    std::uint64_t copySerial = 0, snapshotGeneration[2] {};
+    CopyDescriptor latestCopy;
     int  activeIndex = -1;              // -1: the engine reads `history`
     int  targetIndex = 0;
     std::int64_t copyStart = 0;
@@ -109,6 +131,7 @@ private:
     std::atomic<float> progress { 0.0f };
     std::atomic<int>   heldMs { 0 };
     std::atomic<int>   snapshotCount { 0 };
+    std::atomic<int>   notice { None }, remainingHoldMs { 250 };
 };
 
 } // namespace gapfill

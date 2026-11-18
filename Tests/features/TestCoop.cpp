@@ -269,6 +269,179 @@ GF_TEST (Coop, parameters_are_registered_off_by_default_and_never_randomised)
     }
 }
 
+GF_TEST (Coop, released_choice_normalization_is_unchanged_by_deterministic_extensions)
+{
+    GapFillAudioProcessor proc;
+    const auto* mode = proc.getValueTreeState().getParameter ("coopMode");
+    const auto* group = proc.getValueTreeState().getParameter ("coopGroup");
+    GF_EXPECT (mode->convertFrom0to1 (0.0f) == 0.0f);
+    GF_EXPECT (mode->convertFrom0to1 (0.5f) == 1.0f);
+    GF_EXPECT (mode->convertFrom0to1 (1.0f) == 2.0f);
+    GF_EXPECT (group->convertFrom0to1 (0.0f) == 0.0f);
+    GF_EXPECT (group->convertFrom0to1 (0.5f) == 2.0f);
+    GF_EXPECT (group->convertFrom0to1 (1.0f) == 4.0f);
+}
+
+GF_TEST (Coop, deterministic_to_off_clears_visible_membership_without_a_legacy_slot)
+{
+    CoopMember a, b;
+    DeterministicConfig config;
+    config.group = GroupA;
+    config.slot = 1;
+    a.configureDeterministic (config);
+    config.slot = 2;
+    b.configureDeterministic (config);
+    config.slot = 1;
+    a.beginDeterministicChunk (config, { true, 0.0, 24000.0, 4.0, 512 });
+    GF_EXPECT (a.getGroup() == GroupA && a.getPeerCount() == 1);
+    const auto disabled = a.beginChunk (GroupOff, AvoidOverlap, kSr, 0.0, 1000);
+    GF_EXPECT (disabled.view == nullptr && a.getGroup() == GroupOff && a.getPeerCount() == 0);
+    GF_EXPECT (a.describe().isEmpty());
+
+    a.configureDeterministic (config);
+    config.group = GroupOff;
+    a.configureDeterministic (config);
+    GF_EXPECT (a.getGroup() == GroupOff && a.getPeerCount() == 0);
+}
+
+GF_TEST (Coop, deterministic_group_off_also_releases_an_existing_legacy_membership)
+{
+    CoopMember member;
+    const auto before = liveSlots();
+    member.beginChunk (GroupA, AvoidOverlap, kSr, 0.0, 1000);
+    GF_EXPECT (liveSlots() == before + 1);
+    member.configureDeterministic ({});
+    GF_EXPECT (liveSlots() == before && member.getGroup() == GroupOff && member.getPeerCount() == 0);
+}
+
+GF_TEST (Coop, deterministic_preparation_reserves_unique_slots_without_an_editor)
+{
+    CoopMember a, b, c;
+    DeterministicConfig settings;
+    settings.group = GroupA;
+    for (auto* member : { &a, &b, &c })
+        member->configureDeterministic (settings);
+    GF_EXPECT (a.assignedSlot() == 1 && b.assignedSlot() == 2 && c.assignedSlot() == 3);
+    // Re-reading the old parameter before the message tick must not undo the reservation.
+    b.configureDeterministic (settings);
+    GF_EXPECT (b.assignedSlot() == 2 && b.pendingSlotForHost (1) == 2);
+    GF_EXPECT (b.pendingSlotForHost (4) == 0);                // a newer explicit user edit wins
+    juce::ValueTree state ("PARAMETERS"), node ("PARAM");
+    node.setProperty ("id", "coopSlot", nullptr);
+    node.setProperty ("value", 1, nullptr);
+    state.appendChild (node, nullptr);
+    b.applyAssignedSlotToState (state);
+    GF_EXPECT ((int) state.getChild (0).getProperty ("value") == 2);
+}
+
+GF_TEST (Coop, deterministic_adapter_yields_all_non_owners_across_64_bars)
+{
+    CoopMember a, b, c, d;
+    CoopMember* members[] { &a, &b, &c, &d };
+    DeterministicConfig configs[4];
+    for (int i = 0; i < 4; ++i)
+    {
+        configs[i].group = GroupA;
+        configs[i].slot = i + 1;
+        configs[i].yieldPercent = 100.0f;
+        members[i]->configureDeterministic (configs[i]);
+    }
+    CoopSettings settings[4];
+    for (int i = 0; i < 4; ++i)
+        settings[i] = members[i]->beginDeterministicChunk (configs[i], { true, 0.0, 24000.0, 4.0, 512 });
+    for (int bar = 0; bar < 64; ++bar)
+    {
+        int owners = 0;
+        for (int i = 0; i < 4; ++i)
+        {
+            GF_EXPECT (settings[i].view != nullptr);
+            const double ppq = bar * 4.0 + 0.5;
+            const auto reason = evaluate (*settings[i].view, true, ppq, 0, 24000.0, 4.0);
+            const auto scale = yieldScale (*settings[i].view, true, ppq);
+            owners += reason == RejectReason::None ? 1 : 0;
+            GF_EXPECT (scale.density == (reason == RejectReason::None ? 1.0f : 0.0f));
+        }
+        GF_EXPECT (owners == 1);
+    }
+}
+
+GF_TEST (Coop, partial_deterministic_yield_is_a_scale_not_a_full_rejection)
+{
+    CoopMember a, b;
+    DeterministicConfig ac { GroupA, 1, 50, 50.0f }, bc { GroupA, 2, 50, 50.0f };
+    a.configureDeterministic (ac);
+    b.configureDeterministic (bc);
+    const auto state = a.beginDeterministicChunk (ac, { true, 0.0, 24000.0, 4.0, 512 });
+    b.beginDeterministicChunk (bc, { true, 0.0, 24000.0, 4.0, 512 });
+    bool foundNonOwner = false;
+    for (int bar = 0; bar < 64; ++bar)
+    {
+        const auto scale = yieldScale (*state.view, true, bar * 4.0);
+        if (scale.density < 1.0f)
+        {
+            foundNonOwner = true;
+            GF_EXPECT (scale.density == 0.5f && scale.fill == 0.75f);
+            GF_EXPECT (evaluate (*state.view, true, bar * 4.0, 0, 24000.0, 4.0) == RejectReason::None);
+        }
+    }
+    GF_EXPECT (foundNonOwner);
+}
+
+GF_TEST (Coop, group_scene_events_have_one_deadline_and_cancel_generation)
+{
+    CoopMember a, b;
+    DeterministicConfig ac { GroupA, 1 }, bc { GroupA, 2 };
+    a.configureDeterministic (ac);
+    b.configureDeterministic (bc);
+    a.beginDeterministicChunk (ac, { true, 0.0, 24000.0, 4.0, 512 });
+    b.beginDeterministicChunk (bc, { true, 0.0, 24000.0, 4.0, 512 });
+    GF_EXPECT (a.requestGroupScene (3));
+    GroupSceneEvent ae, be;
+    int requestsA = 0, requestsB = 0;
+    for (int n = 0; n < 4 && a.pollGroupSceneEvent (ae); ++n)
+        requestsA += ae.kind == GroupSceneEvent::Recall ? 1 : 0;
+    for (int n = 0; n < 4 && b.pollGroupSceneEvent (be); ++n)
+        requestsB += be.kind == GroupSceneEvent::Recall ? 1 : 0;
+    GF_EXPECT (requestsA == 1 && requestsB == 1);
+    GF_EXPECT (ae.targetPpq == be.targetPpq && ae.sceneIndex == 3 && be.sceneIndex == 3);
+    const auto epoch = ae.cancelGeneration;
+    b.cancelGroupScenes();
+    GF_EXPECT (a.groupCancelGeneration (GroupA) != epoch);
+    GF_EXPECT (a.pollGroupSceneEvent (ae) && ae.kind == GroupSceneEvent::Cancel);
+    GF_EXPECT (! a.pollGroupSceneEvent (ae));
+}
+
+GF_TEST (Coop, deterministic_callback_work_reuses_preallocated_membership_and_views)
+{
+    CoopMember a, b;
+    DeterministicConfig ac { GroupA, 1 }, bc { GroupA, 2 };
+    a.configureDeterministic (ac);
+    b.configureDeterministic (bc);
+    a.beginDeterministicChunk (ac, { true, 0.0, 24000.0, 4.0, 512 });
+    b.beginDeterministicChunk (bc, { true, 0.0, 24000.0, 4.0, 512 });
+    AllocGuard guard;
+    for (int n = 0; n < 2000; ++n)
+    {
+        const double ppq = n * 512.0 / 24000.0;
+        const auto state = a.beginDeterministicChunk (ac, { true, ppq, 24000.0, 4.0, 512 });
+        b.beginDeterministicChunk (bc, { true, ppq, 24000.0, 4.0, 512 });
+        yieldScale (*state.view, true, ppq);
+    }
+    GF_EXPECT (guard.count() == 0);
+}
+
+GF_TEST (Coop, deterministic_capacity_failure_pauses_fills_instead_of_inventing_an_owner)
+{
+    std::array<CoopMember, 33> members;
+    for (int i = 0; i < 32; ++i)
+        members[(std::size_t) i].configureDeterministic ({ GroupA, i + 1 });
+    const auto overflow = members[32].beginDeterministicChunk ({ GroupA, 1 }, { true, 0.0, 24000.0, 4.0, 512 });
+    GF_EXPECT (overflow.view != nullptr);
+    GF_EXPECT (evaluate (*overflow.view, true, 0.0, 0, 24000.0, 4.0) == RejectReason::CoopYield);
+    GF_EXPECT (yieldScale (*overflow.view, true, 0.0).density == 0.0f);
+    GF_EXPECT (members[32].describe().containsIgnoreCase ("capacity"));
+}
+
 namespace
 {
     struct Pair

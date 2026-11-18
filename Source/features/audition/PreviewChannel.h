@@ -54,6 +54,7 @@ struct PreviewRequest
     bool hasRecipe = false;
     FillRecipe recipe;
     int gainCentiDb = 0;            ///< F-S06 recipe A/B: level-matching trim for this preview, 1/100 dB
+    RecipeExtras extras {};
 };
 
 /** The preview voice and the short tail that lets a restarted preview fade out

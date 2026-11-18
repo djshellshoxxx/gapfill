@@ -19,6 +19,8 @@
 #include "../info/StatusBoard.h"
 #include "../mutation/MutationLab.h"
 #include "../suggest/Profile.h"
+#include "../abcompare/HeaderAB.h"
+#include "../presetbrowser/PresetNavigation.h"
 
 #include <juce_data_structures/juce_data_structures.h>
 
@@ -33,7 +35,10 @@ enum class ViewMode { Simple = 0, Advanced = 1 };
 class UiState
 {
 public:
+    UiState();
     info::StatusBoard status;
+    abcompare::HeaderAB headerAb;
+    presets::PresetNavigation presetNavigation;
 
     /** U-6: audio-thread input recorder for Auto-Calibrate (idle = one atomic load per chunk). */
     calibrate::RecordTap recordTap;

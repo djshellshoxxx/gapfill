@@ -9,6 +9,7 @@
 #include "../../PluginProcessor.h"
 #include "../../features/keydetect/AutoKey.h"
 #include "../../features/scale/ScaleLock.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -81,12 +82,12 @@ namespace
         {
             juce::String text;
             const auto manual = scale::makeScaleSet (raw ("scaleRoot"), raw ("scaleType"));
-            char manualLabel[48] {};
-            scale::describeShort (manual, manualLabel, (int) sizeof (manualLabel));
+            const auto manualLabel = i18n::format ("{0} {1}",
+                { scale::rootName (manual.root), i18n::text (scale::scaleName (manual.type)) });
 
             if (raw ("scaleFollow") == 0)
             {
-                text = manual.active() ? "Key: " + juce::String (manualLabel) + " (manual)" : "Key: not set";
+                text = manual.active() ? i18n::format ("Key: {0} (manual)", { manualLabel }) : i18n::text ("Key: not set");
             }
             else
             {
@@ -94,10 +95,15 @@ namespace
                 const auto e = raw ("fx03_hold") != 0 && ak.heldKey().valid ? ak.heldKey() : ak.estimate();
 
                 if (e.valid && e.tonic >= 0)
-                    text = juce::String (raw ("fx03_hold") != 0 ? "Locked: " : "Auto: ") + scale::rootName (e.tonic) + (e.mode == 0 ? " major, " : " minor, ")
-                             + juce::String ((int) e.confidence) + " %";
+                {
+                    const auto key = i18n::format ("{0} {1}",
+                        { scale::rootName (e.tonic), e.mode == 0 ? i18n::text ("major") : i18n::text ("minor") });
+                    text = raw ("fx03_hold") != 0 ? i18n::format ("Locked: {0}, {1} %", { key, juce::String ((int) e.confidence) })
+                                                 : i18n::format ("Auto: {0}, {1} %", { key, juce::String ((int) e.confidence) });
+                }
                 else
-                    text = "Auto: not detected" + (manual.active() ? " - using manual " + juce::String (manualLabel) : juce::String());
+                    text = manual.active() ? i18n::format ("Auto: not detected - using manual {0}", { manualLabel })
+                                            : i18n::text ("Auto: not detected");
             }
 
             if (readout.getText() != text)

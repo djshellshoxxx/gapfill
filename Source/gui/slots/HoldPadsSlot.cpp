@@ -9,6 +9,8 @@
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
+#include "../../features/i18n/ComponentTranslator.h"
 
 namespace gapfill
 {
@@ -45,8 +47,9 @@ namespace
             g.setColour (hasKeyboardFocus (false) ? colours::text : colours::edge);
             g.drawRoundedRectangle (r, metrics::controlRadius, 1.0f);
             g.setColour (lit ? colours::background : colours::text);
-            g.setFont (fonts::label (11.0f));
-            g.drawText (text, getLocalBounds(), juce::Justification::centred, false);
+            const auto displayed = i18n::text (text);
+            g.setFont (i18n::fontForText (fonts::label (11.0f), displayed));
+            g.drawFittedText (displayed, getLocalBounds().reduced (2, 0), juce::Justification::centred, 1, 0.8f);
         }
 
         void mouseDown (const juce::MouseEvent&) override  { down = true; send (isHold ? 127 : 1); repaint(); }

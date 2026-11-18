@@ -7,6 +7,7 @@
 #include "../SlotHost.h"
 #include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -79,16 +80,16 @@ namespace
             const bool haveSnap = gs.readSnapshot (snap);
 
             if (gs.learnBarsRemaining() > 0)
-                text = "Groove: learning, " + juce::String (gs.learnBarsRemaining()) + " bars left";
+                text = i18n::format ("Groove: learning, {0} bars left", { juce::String (gs.learnBarsRemaining()) });
             else if (! on && ! gs.isFrozenByLearn())
-                text = "Groove: off";
+                text = i18n::text ("Groove: off");
             else if (gs.isWaitingForTempo())
-                text = "Groove: waiting for host tempo";
+                text = i18n::text ("Groove: waiting for host tempo");
             else if (haveSnap && snap.valid)
-                text = "Groove: swing " + juce::String (juce::roundToInt (snap.swingPercent)) + " %, confidence "
-                         + juce::String (juce::roundToInt (snap.confidence * 100.0f)) + " %";
+                text = i18n::format ("Groove: swing {0} %, confidence {1} %", { juce::String (juce::roundToInt (snap.swingPercent)),
+                                                                                  juce::String (juce::roundToInt (snap.confidence * 100.0f)) });
             else
-                text = "Groove: unclear (straight)";
+                text = i18n::text ("Groove: unclear (straight)");
 
             if (readout.getText() != text)
             {
@@ -98,12 +99,12 @@ namespace
 
             if (haveSnap)
             {
-                juce::String tip = "Offsets in grid steps (+ = late): ";
+                juce::StringArray offsets;
 
                 for (int i = 0; i < groove::kSlots; ++i)
-                    tip << (i > 0 ? ", " : "") << juce::String (snap.offsetSteps[i], 2);
+                    offsets.add (juce::String (snap.offsetSteps[i], 2));
 
-                readout.setTooltip (tip);
+                readout.setTooltip (i18n::format ("Offsets in grid steps (+ = late): {0}", { offsets.joinIntoString (", ") }));
             }
         }
 

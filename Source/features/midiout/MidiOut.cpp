@@ -157,10 +157,15 @@ void MidiOutEmitter::consume (const TransitionLog& log, std::int64_t chunkOutput
 
 int MidiOutEmitter::finish (juce::MidiBuffer& midi) noexcept
 {
+    return finish (midi, true);
+}
+
+int MidiOutEmitter::finish (juce::MidiBuffer& midi, bool clearInput) noexcept
+{
     if (current.mode == ModeOff && numPending == 0)
         return 0;                                   // disabled and nothing to end: the buffer is left alone
 
-    midi.clear();                                   // never echo the incoming MIDI
+    if (clearInput) midi.clear();                   // never echo input; append mode preserves coordinated handoff Offs
 
     // Insertion sort by (offset, arrival order): at most 48 entries, and unlike std::stable_sort it never allocates.
     for (int i = 1; i < numPending; ++i)

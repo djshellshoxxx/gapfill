@@ -8,6 +8,7 @@
 #include "../LookAndFeel.h"
 #include "../SlotHost.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -21,7 +22,12 @@ namespace
             : proc (p),
               every (p.getValueTreeState(), "battleEvery", "BEAT BATTLE",
                      "Alternates two stored fill styles, A and B, every 1, 2, 4 or 8 bars. Needs host transport and a time signature. "
-                     "Host automation and your own settings are never changed: the styles are applied on top.")
+                     "Host automation and your own settings are never changed: the styles are applied on top."),
+              // F-M18 detailed Battle (BATTLEV2): reserved host parameters, drawn disabled until the detailed runtime
+              // is wired (docs/progress/battle-v2-contract-20261031.md). Enable them in the same change.
+              detailed (p.getValueTreeState(), "fm18_on", "DETAILED", "Detailed Beat Battle (not active in this build yet)."),
+              unit (p.getValueTreeState(), "fm18_unit", "WINDOW", "Bars per detailed Battle window (not active in this build yet)."),
+              first (p.getValueTreeState(), "fm18_first", "FIRST", "Style of the first detailed window (not active in this build yet).")
         {
             setTitle ("Beat Battle");
 
@@ -56,6 +62,12 @@ namespace
 
             addAndMakeVisible (every);
 
+            for (auto* c : std::initializer_list<juce::Component*> { &detailed, &unit, &first })
+            {
+                c->setEnabled (false);
+                addAndMakeVisible (*c);
+            }
+
             for (auto* b : { &store[0], &store[1], &fromAb, &clear })
                 addAndMakeVisible (*b);
 
@@ -64,7 +76,7 @@ namespace
             status.setMinimumHorizontalScale (0.8f);
             addAndMakeVisible (status);
 
-            setSize (400, 52);
+            setSize (400, 84);
             refresh();
             startTimerHz (4);
         }
@@ -85,6 +97,13 @@ namespace
             top.removeFromLeft (4);
             clear.setBounds (top.reduced (0, 2));
             status.setBounds (r.removeFromTop (18));
+            r.removeFromTop (4);
+            auto reserved = r.removeFromTop (28);
+            detailed.setBounds (reserved.removeFromLeft (juce::jmax (96, reserved.getWidth() / 3)).reduced (0, 2));
+            reserved.removeFromLeft (8);
+            unit.setBounds (reserved.removeFromLeft (juce::jmax (120, reserved.getWidth() / 2)));
+            reserved.removeFromLeft (8);
+            first.setBounds (reserved);
         }
 
     private:
@@ -93,9 +112,11 @@ namespace
         void refresh()
         {
             auto& live = proc.getLiveControl();
-            const auto base = juce::String (battle::statusText (live.getBattleStatus()));
-            const auto text = base + "   [A " + (live.battles().hasStyle (0) ? "stored" : "empty")
-                                + ", B " + (live.battles().hasStyle (1) ? "stored" : "empty") + "]" + notice;
+            const auto base = i18n::text (battle::statusText (live.getBattleStatus()));
+            auto text = i18n::format ("{0}   [A {1}, B {2}]", { base, live.battles().hasStyle (0) ? i18n::text ("stored") : i18n::text ("empty"),
+                                                                           live.battles().hasStyle (1) ? i18n::text ("stored") : i18n::text ("empty") });
+            if (notice.isNotEmpty())
+                text = i18n::format ("{0}  (header A/B is not available)", { text });
 
             if (status.getText() != text)
             {
@@ -106,6 +127,8 @@ namespace
 
         GapFillAudioProcessor& proc;
         GapCombo every;
+        GapToggle detailed;
+        GapCombo unit, first;
         juce::TextButton store[2], fromAb, clear;
         juce::Label status;
         juce::String notice;

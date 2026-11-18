@@ -6,8 +6,12 @@
 //  - Source: the voice's source anchor (the latched Capture material while
 //    Capture holds the history, else the recent window [anchor - span, anchor]);
 //    never beyond the anchor, never before the start of valid history.
-//  - Scheduler: inter-onset 1/density +-50 % uniform; grain length `size` +-20 %,
-//    Hann window (Tukey below 20 ms); equal-power pan scaled by spread.
+//  - Legacy model 1: inter-onset 1/density +-50 % uniform; grain length
+//    `size` +-20 %, Hann window (Tukey below 20 ms).
+//  - Model 2: stratified +-5 % onsets, Tukey windows and bounded window-energy
+//    normalisation reduce amplitude holes at the SAME Density/Size values.
+//    Model2 also matches bounded windowed source energy per grain; silent
+//    estimates fall back to unity source gain. Both use equal-power pan.
 //  - Position jitter: back = span * (0.5 + jitter * (u - 0.5)); 0 = every grain
 //    from the middle of the span, 100 = uniform over the span.
 //  - Pitch spread: triangular within +-cents; N-MUS Scale Lock quantises it via
@@ -15,7 +19,7 @@
 //  - Bounds: 48 grains per voice (preallocated); estimated overlap
 //    density * size is limited to 40 by lowering the effective density; a grain
 //    that cannot be allocated is dropped and counted. Output is scaled by
-//    1/sqrt(max(1, overlap)).
+//    1/sqrt(max(1, overlap)) in legacy model 1. Model 2 window gain is bounded\n//    at 2 and source gain at 4 (combined per-grain multiplier at most 8).
 
 #include "../../dsp/DspUtils.h"
 #include "../fx/FxSettings.h"
@@ -51,6 +55,7 @@ struct CloudGrain
     int    dur = 1;
     float  panL = 1.0f, panR = 1.0f;
     float  amp = 1.0f;
+    float  sourceGain = 1.0f;       ///< Model2: bounded source-energy levelling, separate from window gain.
     bool   tukey = false;
 };
 
@@ -77,6 +82,7 @@ public:
     int  activeGrains() const noexcept;
     int  droppedGrains() const noexcept { return dropped; }
     const CloudDensity& density() const noexcept { return dens; }
+    /** Legacy nominal gain; model2 uses time-varying bounded overlap gain. */
     float outputNorm() const noexcept { return norm; }
 
 private:
@@ -88,6 +94,8 @@ private:
     Rng rng;
     CloudDensity dens;
     float norm = 1.0f;
+    float sourceRms = 0.0f;
+    bool sourceRmsReady = false;
     int countdown = 0;
     int dropped = 0;
     CloudPitchQuantiser quantiser = nullptr;

@@ -5,6 +5,7 @@
 // share these types freely.
 
 #include "FillRecipe.h"
+#include "RecipeExtras.h"
 
 #include <cstdint>
 
@@ -87,6 +88,7 @@ struct FillPlan
     float neededMs = 0.0f;         ///< set with NoAlgoFits: the shortest fill that would have fit
     int algoIndex = 0;
     int band = -1;
+    RecipeExtras extras {};
 };
 
 struct ScheduleResult
@@ -97,6 +99,7 @@ struct ScheduleResult
     std::int64_t lengthSamples = 0;///< when started: the exact planned length (the recipe keeps whole ms)
     float availableMs = 0.0f;      ///< room that was available when rejected
     float neededMs = 0.0f;         ///< room that would have been needed
+    RecipeExtras extras {};
 };
 
 } // namespace gapfill

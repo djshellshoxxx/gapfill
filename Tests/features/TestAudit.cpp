@@ -466,6 +466,12 @@ GF_TEST (Audit, feature_parameters_are_never_randomised)
         before.emplace_back (ids[i], prm->getValue());
     }
 
+    // The one approved exception (docs/progress/F-X01-EXTENSION-CONTRACT-20261031.md): while Pitch Sync
+    // fx01_mode is on, Random All may also draw fx01_motion / fx01_scatter / fx01_tone. Random Fill and
+    // Surprise never touch them, and with the mode off nothing after index 66 moves (checked below).
+    const juce::StringArray harmonicRandomAll { "fx01_motion", "fx01_scatter", "fx01_tone" };
+    GF_EXPECT (p.getValueTreeState().getRawParameterValue ("fx01_mode")->load() > 0.5f);   // 0.8 above = Harmonic
+
     for (int round = 0; round < 3; ++round)
     {
         p.randomise (true);
@@ -474,7 +480,51 @@ GF_TEST (Audit, feature_parameters_are_never_randomised)
     }
 
     for (const auto& b : before)
-        GF_EXPECT_MSG (p.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random / Surprise");
+        if (! harmonicRandomAll.contains (b.first))
+            GF_EXPECT_MSG (p.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random / Surprise");
+
+    // Random Fill and Surprise never draw the three, even with the mode on.
+    for (const auto& b : before)
+        if (harmonicRandomAll.contains (b.first))
+            p.getValueTreeState().getParameter (b.first)->setValueNotifyingHost (b.second);
+
+    for (int round = 0; round < 3; ++round)
+    {
+        p.randomise (false);
+        p.surprise();
+    }
+
+    for (const auto& b : before)
+        if (harmonicRandomAll.contains (b.first))
+            GF_EXPECT_MSG (p.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random Fill / Surprise");
+
+    // With the mode off (a fresh processor, so no mode switch is involved), Random All leaves every feature
+    // parameter alone, the three included.
+    GapFillAudioProcessor q;
+    std::vector<std::pair<juce::String, float>> offBefore;
+
+    for (int i = 66; i < ids.size(); ++i)
+    {
+        if (ids[i] == "fx01_mode")
+            continue;   // stays at its default, Off
+
+        auto* prm = q.getValueTreeState().getParameter (ids[i]);
+        const float v = prm->getDefaultValue() < 0.5f ? 0.8f : 0.2f;
+        prm->setValueNotifyingHost (v);
+        offBefore.emplace_back (ids[i], prm->getValue());
+    }
+
+    GF_EXPECT (q.getValueTreeState().getRawParameterValue ("fx01_mode")->load() < 0.5f);
+
+    for (int round = 0; round < 3; ++round)
+    {
+        q.randomise (true);
+        q.randomise (false);
+        q.surprise();
+    }
+
+    for (const auto& b : offBefore)
+        GF_EXPECT_MSG (q.getValueTreeState().getParameter (b.first)->getValue() == b.second, b.first + " was changed by Random / Surprise with Pitch Sync off");
 }
 
 //==============================================================================

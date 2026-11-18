@@ -849,8 +849,8 @@ GF_TEST (NoteTrigger, coalesces_with_ui_request)
     GF_EXPECT_MSG (n == 1, "a UI press and a NoteOn in one block start one preview");
 }
 
-GF_TEST (NoteTrigger, no_midi_is_produced)
+GF_TEST (NoteTrigger, midi_declaration_follows_the_build_option)
 {
     GapFillAudioProcessor proc;
-    GF_EXPECT (proc.acceptsMidi() && ! proc.producesMidi());
+    GF_EXPECT (proc.acceptsMidi() && proc.producesMidi() == midiout::kDeclared);
 }

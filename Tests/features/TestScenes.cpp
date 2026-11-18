@@ -255,8 +255,10 @@ namespace
 GF_TEST (Scenes, scope_flags_select_the_expected_parameters_and_never_ids_are_excluded)
 {
     initTables();
-    const auto& creative = idsForScope (ScopeCreative);
-    GF_EXPECT (creative.size() == 6);
+    const auto& creative = idsForScope (ScopeCreative, 2);
+    GF_EXPECT (creative.size() == 13);
+    const auto& oldCreative = idsForScope (ScopeCreative, 1);
+    GF_EXPECT (oldCreative.size() == 6);
     const auto& weights = idsForScope (ScopeWeights);
     GF_EXPECT ((int) weights.size() == numAlgos);
 
@@ -264,6 +266,11 @@ GF_TEST (Scenes, scope_flags_select_the_expected_parameters_and_never_ids_are_ex
     {
         return std::find (v.begin(), v.end(), juce::String (id)) != v.end();
     };
+
+    for (const auto* id : { "fill", "intensity", "complexity", "chaos", "density", "fillType" })
+        GF_EXPECT (contains (creative, id) && contains (oldCreative, id));
+    for (const auto* id : { "pingPong", "fl01_lock", "personality", "mistakes", "fillShape", "fillShapeAmount", "evolve" })
+        GF_EXPECT (contains (creative, id) && ! contains (oldCreative, id));
 
     const auto& everything = idsForScope (kAllScopes);
 
@@ -280,6 +287,24 @@ GF_TEST (Scenes, scope_flags_select_the_expected_parameters_and_never_ids_are_ex
     GF_EXPECT (idsForScope (kDefaultScope).size() <= (size_t) kMaxSceneParams);
 }
 
+GF_TEST (Scenes, detailed_capture_controls_are_never_admitted_even_in_an_untrusted_all_scope_scene)
+{
+    initTables();
+    for (const auto* id : { "fm08_detail", "fm08_scan" })
+    {
+        GF_EXPECT (isNeverId (id));
+        const auto& all = idsForScope (kAllScopes);
+        GF_EXPECT (std::find (all.begin(), all.end(), juce::String (id)) == all.end());
+        const auto index = paramIndexOf (id);
+        GF_EXPECT (index >= 0);
+        Scene hostile;
+        hostile.scope = kAllScopes;
+        hostile.params.push_back ({ (std::uint16_t) index, 1.0f });
+        juce::String why;
+        GF_EXPECT (! isSceneValid (hostile, why) && why.contains (id));
+    }
+}
+
 GF_TEST (Scenes, capture_is_sparse_and_resolve_fills_the_rest_with_defaults)
 {
     GapFillAudioProcessor proc;
@@ -290,13 +315,18 @@ GF_TEST (Scenes, capture_is_sparse_and_resolve_fills_the_rest_with_defaults)
     std::vector<ResolvedParam> out;
     juce::String why;
     GF_EXPECT (resolveScene (proc.getValueTreeState(), s, out, why));
-    GF_EXPECT (out.size() == 6);
+    GF_EXPECT (out.size() == 13);
 
     for (const auto& r : out)
         if (paramIdAt (r.index) == "fill")
             GF_EXPECT_NEAR (r.real, 80.0, 0.01);
         else if (paramIdAt (r.index) == "density")
             GF_EXPECT_NEAR (r.real, 65.0, 0.01);                          // default
+    auto legacy = s;
+    legacy.scopeVersion = 1;
+    GF_EXPECT (resolveScene (proc.getValueTreeState(), legacy, out, why));
+    GF_EXPECT (out.size() == 6);
+
 }
 
 GF_TEST (Scenes, scene_with_a_never_id_or_bad_value_is_invalid)
@@ -360,7 +390,10 @@ GF_TEST (Scenes, invalid_scene_is_never_applied_and_last_good_is_kept)
     auto& ctl = proc.getLiveControl().scenes();
     ctl.getBank().options.quant = Quant::Immediate;
     ctl.getBank().store (0, sceneWith ("Good", { { "fill", 0.5f } }));
-    ctl.getBank().store (1, sceneWith ("Bad", { { "dry", 0.5f } }));
+    ctl.getBank().store (1, sceneWith ("Bad", { { "fill", 0.5f } }));
+    // Simulate corruption after admission; the controller must still defend
+    // against an invalid mutable slot without disturbing the last good scene.
+    ctl.getBank().at (1).params[0].index = (std::uint16_t) paramIndexOf ("dry");
 
     prepareProcessor (proc, kSr, 256, false);
     juce::AudioBuffer<float> work (2, 256);
@@ -399,13 +432,22 @@ GF_TEST (Scenes, manual_edit_removes_only_that_overlay_entry)
     Overlay seen;
     prepareProcessor (proc, kSr, 256, false);
     GF_EXPECT (ctl.publisher().consume (seen));               // the audio side's view of the latest publication
-    GF_EXPECT (seen.kind == Overlay::Set && seen.n == 6 - 1);  // creative scope: 6 ids minus chaos
+    GF_EXPECT (seen.kind == Overlay::Set && seen.n == 13 - 1); // new creative scope minus the touched chaos
     bool hasChaos = false;
 
     for (int i = 0; i < seen.n; ++i)
         hasChaos = hasChaos || paramIdAt (seen.idx[i]) == "chaos";
 
     GF_EXPECT (! hasChaos);
+    auto legacy = sceneWith ("Legacy", { { "fill", .9f }, { "chaos", .8f } });
+    legacy.scopeVersion = 1;
+    GF_EXPECT (ctl.getBank().store (1, legacy));
+    GF_EXPECT (ctl.gotoScene (1));
+    setParams (proc, { { "chaos", 6.0f } });
+    ctl.poll();
+    GF_EXPECT (ctl.publisher().consume (seen));
+    GF_EXPECT (seen.kind == Overlay::Set && seen.n == 6 - 1);
+
 }
 
 GF_TEST (Scenes, next_prev_clamp_wrap_and_rapid_presses_advance_the_pending_target)
@@ -517,10 +559,9 @@ GF_TEST (Scenes, bank_state_round_trip_old_state_and_cap)
     GF_EXPECT (back.options.quant == Quant::Phrase);
     GF_EXPECT (back.canonicalPayload() == bank.canonicalPayload());
 
-    // beyond the cap the tail is left out and reported, never a corrupt subtree
+    // A small cap fails explicitly rather than silently saving a prefix.
     const auto small = bank.toValueTree (4 * 1024, &truncated);
-    GF_EXPECT (truncated && SceneBank::validateTree (small));
-    GF_EXPECT (state::serialisedSize (small) <= 4 * 1024);
+    GF_EXPECT (truncated && ! small.isValid());
 }
 
 GF_TEST (Scenes, malformed_scenes_subtree_is_dropped_and_the_rest_of_the_state_loads)
@@ -534,7 +575,7 @@ GF_TEST (Scenes, malformed_scenes_subtree_is_dropped_and_the_rest_of_the_state_l
     auto xml = juce::AudioProcessor::getXmlFromBinary (blob.getData(), (int) blob.getSize());
     GF_EXPECT (xml != nullptr);
 
-    auto* scenesXml = xml->getChildByName ("Scenes");
+    auto* scenesXml = xml->getChildByName (SceneBank::subtreeName);
     GF_EXPECT (scenesXml != nullptr && scenesXml->getNumChildElements() == 1);
 
     // round trip
@@ -556,7 +597,7 @@ GF_TEST (Scenes, malformed_scenes_subtree_is_dropped_and_the_rest_of_the_state_l
     GF_EXPECT_NEAR (pv (c.getValueTreeState().getRawParameterValue ("chaos")), 77.0, 0.01);   // rest loaded
 
     // old state without the subtree: empty bank
-    scenesXml = xml->getChildByName ("Scenes");
+    scenesXml = xml->getChildByName (SceneBank::subtreeName);
     xml->removeChildElement (scenesXml, true);
     juce::MemoryBlock old;
     juce::AudioProcessor::copyXmlToBinary (*xml, old);

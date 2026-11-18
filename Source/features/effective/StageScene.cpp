@@ -10,7 +10,7 @@ void applyScene (EngineSettings& s, double ppq, const TransportInfo& ts)
 {
     const auto* view = s.perf.sceneView;
 
-    if (view != nullptr && view->appliesAt (ppq, ts.valid))
+    if (! s.perf.sceneBaseApplied && view != nullptr && view->appliesAt (ppq, ts.valid))
         view->applyTo (s);
 }
 

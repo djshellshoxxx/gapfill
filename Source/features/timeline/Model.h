@@ -8,11 +8,14 @@
 // the engine returned, never one recomputed from UI state.
 
 #include "../../dsp/EngineEvents.h"
+#include "FrameHistory.h"
 
 #include <juce_core/juce_core.h>
 
 #include <array>
 #include <vector>
+
+namespace gapfill { struct VizFrame; }
 
 namespace gapfill::timeline
 {
@@ -47,7 +50,8 @@ static_assert (std::is_trivially_copyable_v<TimelineEvent>);
     GapEval with no reason plus a FillStart). Returns how many were written to `out`. */
 int fromEngineEvent (const FillEvent&, TimelineEvent out[2]) noexcept;
 
-/** One-line text for the keyboard-reachable companion list and the legend. */
+/** Message-thread display text for the companion list/legend. Localized human
+    wording is separate from the stable English typeName/schema labels. */
 juce::String describe (const TimelineEvent&);
 
 /** Total, never throws: every EventType has a name and an explanation. */
@@ -59,9 +63,22 @@ class TimelineModel
 public:
     static constexpr int capacity = 512;
 
+    FrameHistory frames; ///< message-thread view of the existing visualisation FIFO
+
     /** Message thread. */
     void push (const TimelineEvent&) noexcept;
     void pushEngineEvent (const FillEvent&) noexcept;
+    /** Message thread, through the existing FIFO consumer. May resize the
+        bounded history only when a new sample-rate generation is adopted. */
+    bool pushFrame (const VizFrame&, std::int64_t positionAnchor);
+
+    /** Both independently drained queues adopt before insertion. A newer
+        nonzero generation clears both histories once; older generations are
+        rejected using modular comparison. Epoch zero is unmanaged legacy data
+        and is accepted only until the first managed generation. No allocation. */
+    bool adoptEpoch (std::uint32_t epoch, std::uint32_t sampleRateHz = 0) noexcept;
+    std::uint32_t epoch() const noexcept { return currentEpoch; }
+    double displaySampleRate() const noexcept { return currentSampleRate; }
 
     /** The fillEvents queue (or its optional-event shortcut) dropped events:
         everything at or before `pos` of the newest known event may be incomplete. */
@@ -78,16 +95,21 @@ public:
     /** True when a loss happened inside the window (shown as a striped end-cap). */
     bool isIncomplete (std::int64_t endPos, std::int64_t windowSamples) const noexcept
     {
-        return haveLoss && lossUpToPos > endPos - windowSamples;
+        return haveLoss && lossUpToPos <= endPos && lossUpToPos > endPos - windowSamples;
     }
 
     /** Newest events first, at most `maxItems`, for the companion list. */
     int latest (TimelineEvent* out, int maxItems) const noexcept;
+    /** One row per evaluated gap or preview, excluding future records beyond
+        the inspected/frozen edge. Bounded and allocation-free. */
+    int latestOutcomes (TimelineEvent* out, int maxItems, std::int64_t endPos) const noexcept;
 
     /** Pause freezes only the DISPLAY: events keep being recorded. */
     void setPaused (bool shouldPause, std::int64_t nowPos) noexcept { paused = shouldPause; frozenPos = nowPos; }
     bool isPaused() const noexcept                                   { return paused; }
     std::int64_t viewEnd (std::int64_t livePos) const noexcept       { return paused ? frozenPos : livePos; }
+    /** Frozen inspection is bounded by data the view can still retrieve. */
+    void scrubTo (std::int64_t position, std::int64_t livePos) noexcept;
 
     void clear() noexcept;
 
@@ -99,6 +121,8 @@ private:
     std::int64_t lossUpToPos = 0;
     bool paused = false;
     std::int64_t frozenPos = 0;
+    std::uint32_t currentEpoch = 0;
+    double currentSampleRate = 48000.0;
 };
 
 } // namespace gapfill::timeline

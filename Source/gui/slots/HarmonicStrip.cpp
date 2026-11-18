@@ -6,6 +6,7 @@
 #include "../SlotHost.h"
 #include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -60,12 +61,12 @@ namespace
         {
             const auto& m = proc.getFxMeters();
             const int state = m.hgState.load();
-            juce::String text = "Harmonic: idle";
+            juce::String text = i18n::text ("Harmonic: idle");
 
             if (state == 1)
-                text = "Pitch " + juce::String (m.hgF0.load(), 1) + " Hz";
+                text = i18n::format ("Pitch {0} Hz", { juce::String (m.hgF0.load(), 1) });
             else if (state == 2)
-                text = "Source not pitched: plain Granular";
+                text = i18n::text ("Source not pitched: plain Granular");
 
             if (status.getText() != text)
             {

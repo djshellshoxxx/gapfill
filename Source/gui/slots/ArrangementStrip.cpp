@@ -7,6 +7,7 @@
 #include "../SlotHost.h"
 #include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -69,17 +70,19 @@ namespace
             juce::String text;
 
             if (! enabled)
-                text = "Arrangement: off";
+                text = i18n::text ("Arrangement: off");
             else if (st.learning)
-                text = "Learning (" + juce::String (juce::roundToInt ((float) proc.getContextState().arrangementFrames() * 0.5f)) + " s of 8 needed)";
+                text = i18n::format ("Learning ({0} s of 8 needed)", { juce::String (juce::roundToInt ((float) proc.getContextState().arrangementFrames() * 0.5f)) });
             else
             {
-                static const char* names[] = { "low", "mid", "high" };
+                static const char* current[] = { "Section {0} - low energy", "Section {0} - mid energy", "Section {0} - high energy" };
+                static const char* forecast[] = { "Section {0} - low energy - next change in about {1} s",
+                                                 "Section {0} - mid energy - next change in about {1} s",
+                                                 "Section {0} - high energy - next change in about {1} s" };
                 const int cls = st.energy01 < 0.33f ? 0 : (st.energy01 < 0.66f ? 1 : 2);
-                text = "Section " + juce::String ((int) st.sectionIndex + 1) + " - " + names[cls] + " energy";
-
-                if (st.expectedIn >= 0)
-                    text << " - next change in about " << juce::String (juce::roundToInt ((float) st.expectedIn * 0.5f)) << " s";
+                const auto section = juce::String ((int) st.sectionIndex + 1);
+                text = st.expectedIn >= 0 ? i18n::format (forecast[cls], { section, juce::String (juce::roundToInt ((float) st.expectedIn * 0.5f)) })
+                                          : i18n::format (current[cls], { section });
             }
 
             if (readout.getText() != text)
@@ -108,6 +111,9 @@ namespace
                 "and longer just before an expected change and during a build, Settle holds fills back right after a section starts so the downbeat lands cleanly.");
         w.body ("It never forces a fill into a protected or ineligible gap and never touches the dry sound. The result depends on what has played, so it relearns after "
                 "a seek or loop restart. A single drum bus shows little structure; then it stays neutral.");
+        w.body ("The current arrangement model forecasts a change only after observing repeated periods. Irregular or unseen structures and invalid transport keep the forecast unknown. "
+                "When transport is valid, estimates align to host bars and phrases; they remain estimates of the music, not promises. "
+                "Existing projects retain their legacy arrangement model until you explicitly upgrade it.");
     });
 }
 

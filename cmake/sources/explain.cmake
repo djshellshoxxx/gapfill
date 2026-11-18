@@ -8,6 +8,7 @@ list(APPEND GAPFILL_SOURCES
     Source/features/timeline/Model.cpp
     Source/features/events/EventRecorder.cpp
     Source/features/events/Replay.cpp
+    Source/features/events/OutcomeLog.cpp
     Source/features/events/Diagnostics.cpp
     Source/features/explain/ExplainState.cpp
     Source/features/explain/OverlaySlot.cpp

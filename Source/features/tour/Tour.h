@@ -11,6 +11,7 @@
 // Nothing is stored in the plug-in state: a project must never carry the flag.
 
 #include "../presetbrowser/GlobalSettings.h"
+#include "../../gui/TextLabel.h"
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -69,10 +70,12 @@ private:
 };
 
 //==============================================================================
-class TourOverlay : public juce::Component
+class TourOverlay : public juce::Component,
+                    private juce::ChangeListener
 {
 public:
     TourOverlay (std::vector<TourStep>, TourModel&);
+    ~TourOverlay() override;
 
     /** Finds the component for a target id (may return null: the card is then centred). */
     std::function<juce::Component* (const juce::String& id)> findTarget;
@@ -105,15 +108,18 @@ private:
     };
 
     void refresh();
+    void updateText();
+    void changeListenerCallback (juce::ChangeBroadcaster*) override;
     void close (int how);
 
     std::vector<TourStep> steps;
     TourModel& model;
     Card card;
-    juce::Label title, body, status;
+    TextLabel title, body, status;
     juce::TextButton backButton { "BACK" }, nextButton { "NEXT" }, skipButton { "SKIP" },
                      dontShowButton { "DON'T SHOW AGAIN" }, exampleButton { "LOAD EXAMPLE" };
     bool closing = false;
+    juce::String exampleStatus;
 };
 
 } // namespace gapfill::tour

@@ -1,6 +1,7 @@
 #include "PresetCatalog.h"
 
 #include "../../Presets.h"
+#include "../state/SafeXml.h"
 
 #include <juce_data_structures/juce_data_structures.h>
 
@@ -120,7 +121,7 @@ namespace
         e.identity = "U:" + file.getRelativePathFrom (root.folder).replaceCharacter ('\\', '/');
 
         // Optional root attributes override the file-name defaults. Anything malformed is ignored.
-        if (auto xml = juce::XmlDocument::parse (file))
+        if (auto xml = state::parseUntrustedXml (file, 1024 * 1024))   // same cap as preset loading
         {
             const auto name = cleanMetaText (xml->getStringAttribute ("name"), kMaxNameLength);
             const auto category = xml->getStringAttribute ("category");

@@ -3,6 +3,7 @@ list(APPEND GAPFILL_TEST_SOURCES
     Tests/features/TestUi0.cpp
     Tests/features/TestInfo.cpp
     Tests/features/TestPresetBrowser.cpp
+    Tests/features/TestPresetNavigation.cpp
     Tests/features/TestViewMode.cpp
     Tests/features/TestUiScale.cpp
     Tests/features/TestTour.cpp

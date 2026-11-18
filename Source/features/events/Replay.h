@@ -18,14 +18,25 @@ struct OutcomeKey
     bool started = false;
     std::uint8_t reason = 0;
     std::int64_t pos = 0;
+    bool detailed = false;
+    FillRecipe recipe {};
+    RecipeExtras extras {};
 
     bool operator== (const OutcomeKey& o) const noexcept
     {
-        return started == o.started && reason == o.reason && pos == o.pos;
+        if (started != o.started || reason != o.reason || pos != o.pos || detailed != o.detailed)
+            return false;
+        if (! detailed)
+            return true;
+        std::uint8_t first[FillRecipe::serialisedBytes], second[FillRecipe::serialisedBytes];
+        gapfill::toBytes (recipe, first);
+        gapfill::toBytes (o.recipe, second);
+        return std::memcmp (first, second, sizeof first) == 0 && extras == o.extras;
     }
 };
 
 std::vector<OutcomeKey> outcomesOf (const ReplayData&);
+namespace detail { OutcomeKey outcomeKeyAt (const ReplayData&, std::size_t recordIndex); }
 
 /** Index of the first differing outcome, or -1 when the sequences are identical
     (a length difference counts as a divergence at the shorter length). */

@@ -537,9 +537,22 @@ GF_TEST (GapClose, ctrl_d_toggles_the_favourite_and_ctrl_arrows_step)
     GF_EXPECT (! editor.keyPressed (juce::KeyPress ('d', juce::ModifierKeys::commandModifier | juce::ModifierKeys::altModifier, 0)));
 
     // Ctrl+Down = next, Ctrl+Up = previous (all presets).
+    const auto finishQueuedNavigation = [&]
+    {
+        auto& navigation = proc.getUiState().presetNavigation;
+        const auto start = juce::Time::getMillisecondCounter();
+        while (navigation.scanPendingForTests() && juce::Time::getMillisecondCounter() - start < 5000u)
+        {
+            navigation.pump (proc); // the production non-blocking adoption path
+            juce::Thread::sleep (1);
+        }
+        GF_EXPECT (! navigation.scanPendingForTests());
+    };
     GF_EXPECT (editor.keyPressed (juce::KeyPress (juce::KeyPress::downKey, juce::ModifierKeys::commandModifier, 0)));
+    finishQueuedNavigation();
     GF_EXPECT (editor.currentPresetIdentityForTests() == entries[3].identity);
     GF_EXPECT (editor.keyPressed (juce::KeyPress (juce::KeyPress::upKey, juce::ModifierKeys::commandModifier, 0)));
+    finishQueuedNavigation();
     GF_EXPECT (editor.currentPresetIdentityForTests() == entries[2].identity);
 
     // A modified sound is handled without a crash (it may or may not still map to a preset).

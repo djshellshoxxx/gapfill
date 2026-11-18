@@ -57,6 +57,8 @@ public:
     void setInt (const juce::String& key, int value);
     bool getBool (const juce::String& key, bool fallback) const;
     void setBool (const juce::String& key, bool value);
+    juce::String getString (const juce::String& key, const juce::String& fallback) const;
+    void setString (const juce::String& key, const juce::String& value);
 
     //--- favourites (U-4 / F-S11) -----------------------------------------------
     juce::StringArray getFavourites() const;
@@ -70,6 +72,7 @@ public:
     static constexpr const char* keyContrast    = "contrast";         // F-D04: 0 standard, 1 high, 2 dim
     static constexpr const char* keyControlSize = "controlSize";      // F-D04: 0 standard, 1 large
     static constexpr const char* keyFocusRing   = "focusRingPx";      // F-D04: 2 or 3
+    static constexpr const char* keyLanguage    = "language";         // F-P04: catalog code, default en
 
     /** Writes pending changes now (also done by the destructor). */
     void flush();

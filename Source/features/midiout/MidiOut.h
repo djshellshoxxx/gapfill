@@ -84,6 +84,8 @@ public:
     /** Audio thread, once per host block: writes the events (clearing the incoming MIDI first)
         when anything is pending or the emitter is enabled. Returns the number of events written. */
     int finish (juce::MidiBuffer&) noexcept;
+    /** Append mode is for a coordinator that already cleared input and is preserving another owner's handoff Offs. */
+    int finish (juce::MidiBuffer&, bool clearInput) noexcept;
 
     bool isEnabled() const noexcept       { return current.mode != ModeOff; }
     bool hasSoundingNotes() const noexcept { return gapOn || fillsOn > 0; }

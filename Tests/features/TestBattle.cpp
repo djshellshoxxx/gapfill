@@ -5,6 +5,7 @@
 #include "dsp/FillEngine.h"
 #include "features/battle/Battle.h"
 
+#include <array>
 #include <cmath>
 #include <cstring>
 
@@ -146,9 +147,11 @@ GF_TEST (Battle, decision_stage_replaces_base_values_with_the_active_style_and_i
     GF_EXPECT (s3.fill01 == before.fill01);
 
     // no battle runtime attached: bit-identical settings
-    EngineSettings off, ref;
+    EngineSettings off;
+    std::array<unsigned char, sizeof (EngineSettings)> untouched {};
+    std::memcpy (untouched.data(), &off, sizeof (off));
     Effective::applyAtDecision (off, 5.0, ts);
-    GF_EXPECT (std::memcmp (&off, &ref, sizeof (EngineSettings)) == 0);
+    GF_EXPECT (std::memcmp (&off, untouched.data(), sizeof (off)) == 0);
 }
 
 GF_TEST (Battle, off_is_identical_to_a_plugin_without_styles)

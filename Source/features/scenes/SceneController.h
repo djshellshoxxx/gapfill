@@ -10,6 +10,8 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 
 #include <vector>
+#include <functional>
+#include <utility>
 
 namespace gapfill::scenes
 {
@@ -22,6 +24,9 @@ public:
     SceneBank& getBank() noexcept                   { return bank; }
     const SceneBank& getBank() const noexcept       { return bank; }
     TripleBuffer<Overlay>& publisher() noexcept     { return pub; }
+    /** Message-thread owner synchronises the canonical model-selection child
+        after a scene commit. No callback runs on audio. */
+    void setModelVersionsCommittedCallback (std::function<void()> callback) { modelVersionsCommitted = std::move (callback); }
 
     //------------------------------------------------------------------------
     // Navigation (all quantised by the audio thread).
@@ -29,6 +34,11 @@ public:
     /** Requests scene `index`. False (status set) when the index is out of range
         or the scene is invalid; the previous state is then kept. */
     bool gotoScene (int index);
+    /** Group recall at an explicit future PPQ boundary. A missed deadline or
+        transport discontinuity cancels rather than applying at another time. */
+    bool gotoSceneAt (int index, double targetPpq, std::uint8_t group = 0, std::uint64_t cancelEpoch = 0);
+    /** Message-thread acknowledgement of a fixed request rejected by audio. */
+    void rejectPending (std::uint32_t requestId, const juce::String& reason);
     bool next();
     bool prev();
 
@@ -40,6 +50,11 @@ public:
 
     /** Saves the current sound into slot `index` (or appends when index == size). */
     bool saveCurrent (int index, const juce::String& name, std::uint16_t scope = kDefaultScope);
+    bool renameScene (int index, const juce::String& name);
+    bool setSceneQuant (int index, Quant);
+    bool removeScene (int index);
+    bool duplicateScene (int index);
+    bool moveScene (int from, int to);
 
     //------------------------------------------------------------------------
     // From the audio thread (through LiveControl's UiRequest queue).
@@ -65,12 +80,16 @@ public:
     /** Undo for the last import. */
     bool canUndoImport() const noexcept             { return hasUndo; }
     void rememberForUndo();
+    /** Optional message-thread part of the same successful bank import (e.g.
+        macro mappings). Its captured model must outlive any undo invocation. */
+    void setImportUndoAction (std::function<void()> action) { importUndoAction = std::move (action); }
     bool undoImport();
 
     void reset();     ///< clears bank and request state
 
 private:
-    bool request (int index);
+    bool request (int index, bool fixedBoundary = false, double targetPpq = 0.0,
+                  std::uint8_t group = 0, std::uint64_t cancelEpoch = 0);
     int  clampStep (int from, int delta) const;
     void publishOverlay (Overlay::Kind kind);
 
@@ -86,6 +105,18 @@ private:
     std::uint32_t idCounter = 0;
     std::uint8_t pendingQuant = (std::uint8_t) Quant::Immediate;
     std::uint8_t pendingWait = 0;
+    bool pendingFixedBoundary = false;
+    double pendingTargetPpq = 0.0;
+    std::uint8_t pendingScopeVersion = 2;
+    std::uint8_t pendingGroup = 0;
+    std::uint64_t pendingCancelEpoch = 0;
+    std::uint8_t pendingModelDomains = 0;
+    std::uint8_t pendingCloudModelVersion = 1;
+    std::uint8_t baselineCloudModelVersion = 1;
+    std::uint8_t pendingGrooveModelVersion = 1;
+    std::uint8_t baselineGrooveModelVersion = 1;
+    std::function<void()> modelVersionsCommitted;
+    std::function<void()> importUndoAction;
 
     std::vector<ResolvedParam> resolved;       ///< entries still governed by the overlay
     std::vector<float> baseline01;             ///< parameter value when the request was made

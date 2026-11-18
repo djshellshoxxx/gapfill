@@ -8,6 +8,14 @@
 #include "../HelpRegistry.h"
 #include "../SlotHost.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/ComponentTranslator.h"
+#include "../../features/i18n/Strings.h"
+#include "../../features/modulation/Gui.h"
+#include "../../features/modulation/Targets.h"
+#include "../../features/info/ParamInfo.h"
+#include <cmath>
+
+#include <cstring>
 
 namespace gapfill
 {
@@ -18,6 +26,15 @@ namespace
 
     constexpr int kRowHeight = 26;
     constexpr int kLfoHeight = 30;
+
+    class MacroNameLabel final : public juce::Label
+    {
+        bool keyPressed (const juce::KeyPress& key) override
+        {
+            if (key == juce::KeyPress::returnKey || key == juce::KeyPress::F2Key) { showEditor(); return true; }
+            return juce::Label::keyPressed (key);
+        }
+    };
 
     class MappingRow : public juce::Component
     {
@@ -63,11 +80,13 @@ namespace
                 addAndMakeVisible (*c);
         }
 
-        void set (const Mapping& m)
+        void set (const Mapping& m, bool extended = false)
         {
+            extendedMode = extended;
+            smooth.setVisible (! extendedMode);
             const juce::ScopedValueSetter<bool> guard (loading, true);
             current = m;
-            label.setText (targetInfo (m.target).label, juce::dontSendNotification);
+            label.setText (i18n::text (extendedMode ? modulation::targetInfo (m.target).label : targetInfo (m.target).label), juce::dontSendNotification);
             lo.setValue (m.min01 * 100.0, juce::dontSendNotification);
             hi.setValue (m.max01 * 100.0, juce::dontSendNotification);
             curve.setSelectedId (juce::jlimit (0, 3, (int) m.curve) + 1, juce::dontSendNotification);
@@ -80,7 +99,7 @@ namespace
             auto r = getLocalBounds();
             remove.setBounds (r.removeFromRight (24).reduced (0, 1));
             bipolar.setBounds (r.removeFromRight (34).reduced (0, 1));
-            smooth.setBounds (r.removeFromRight (78).reduced (2, 1));
+            if (! extendedMode) smooth.setBounds (r.removeFromRight (78).reduced (2, 1));
             curve.setBounds (r.removeFromRight (84).reduced (2, 1));
             const int w = juce::jmax (40, r.getWidth() / 3);
             label.setBounds (r.removeFromLeft (w));
@@ -107,7 +126,7 @@ namespace
         juce::ComboBox curve;
         juce::TextButton bipolar, remove;
         Mapping current;
-        bool loading = false;
+        bool loading = false, extendedMode = false;
     };
 
     /** The selected macro's LFO (F-M23): one per macro. */
@@ -225,18 +244,20 @@ namespace
               knobs { GapKnob (p.getValueTreeState(), "macroActivity",    "Activity",    "One knob for how busy the fills are.", colours::primary),
                       GapKnob (p.getValueTreeState(), "macroChaos",       "Chaos",       "One knob for how unpredictable the fills are.", colours::primary),
                       GapKnob (p.getValueTreeState(), "macroSpace",       "Space",       "One knob for how roomy the fills sound.", colours::primary),
-                      GapKnob (p.getValueTreeState(), "macroDestruction", "Destruction", "One knob for how damaged the fills sound.", colours::primary) }
+                      GapKnob (p.getValueTreeState(), "macroDestruction", "Destruction", "One knob for how damaged the fills sound.", colours::primary) },
+              extendedControls (p.getValueTreeState())
         {
             setTitle ("Macros");
             addAndMakeVisible (macrosOn);
             for (auto& k : knobs)
                 addAndMakeVisible (k);
 
-            for (int i = 0; i < kNumMacros; ++i)
+            for (int i = 0; i < modulation::kMacroCount; ++i)
             {
                 select[i].setButtonText ("M" + juce::String (i + 1));
                 select[i].setClickingTogglesState (false);
-                select[i].setTooltip ("Edit the mappings of macro " + juce::String (i + 1));
+                select[i].setTooltip (i18n::format ("Edit the mappings of macro {0}", { juce::String (i + 1) }));
+                select[i].setTitle (i18n::format ("Edit macro {0}", { juce::String (i + 1) }));
                 select[i].onClick = [this, i] { selected = i; rebuild(); };
                 addAndMakeVisible (select[i]);
             }
@@ -251,7 +272,20 @@ namespace
                     return;
                 Mapping m;
                 m.target = (std::uint8_t) (id - 1);
-                proc.getLiveControl().macroMappings().addMapping (selected, m);
+                auto& model = proc.getLiveControl().macroMappings();
+                if (model.isExtendedEnabled() && m.target == 5 && extendedControls.selectedSource() == modulation::MacroSource::Energy)
+                {
+                    addTarget.setSelectedId (0, juce::dontSendNotification);
+                    info.setText (i18n::text ("Energy cannot drive a width mapping. Choose a knob or LFO."), juce::dontSendNotification);
+                    return;
+                }
+                if (model.addMapping (selected, m) != MacroModel::AddResult::Ok)
+                {
+                    addTarget.setSelectedId (0, juce::dontSendNotification);
+                    info.setText (i18n::text ("That target is unavailable or already belongs to a macro."), juce::dontSendNotification);
+                    return;
+                }
+                notifyModelChanged();
                 addTarget.setSelectedId (0, juce::dontSendNotification);
                 rebuild();
             };
@@ -259,8 +293,55 @@ namespace
 
             reset.setButtonText ("RESET");
             reset.setTooltip ("Restore the factory mappings of this macro.");
-            reset.onClick = [this] { proc.getLiveControl().macroMappings().resetMacro (selected); rebuild(); };
+            reset.onClick = [this] { proc.getLiveControl().macroMappings().resetMacro (selected); notifyModelChanged(); };
             addAndMakeVisible (reset);
+
+            upgrade.setButtonText ("UPGRADE FX");
+            upgrade.setTooltip ("Enable repaired effect, energy, scale, groove and tension macro targets for this older session. "
+                                "Tension amount scales the configured depths: 0 is neutral, 100% uses their nominal values.");
+            upgrade.onClick = [this]
+            {
+                proc.getLiveControl().macroMappings().upgradeTargetSchema();
+                notifyModelChanged();
+            };
+            addAndMakeVisible (upgrade);
+
+            mode.onClick = [this]
+            {
+                auto& model = proc.getLiveControl().macroMappings();
+                if (model.isExtendedEnabled()) model.returnToLegacy(); else model.enableExtended();
+                expanded = false;
+                notifyModelChanged();
+            };
+            mode.setTitle ("Choose macro setup");
+            addAndMakeVisible (mode);
+            undoSetup.setButtonText ("UNDO SETUP");
+            undoSetup.setTooltip ("Undo the last switch between the four-macro and eight-macro setups.");
+            undoSetup.onClick = [this] { if (proc.getLiveControl().macroMappings().undoModeChange()) notifyModelChanged(); };
+            addAndMakeVisible (undoSetup);
+            expand.setButtonText ("+4");
+            expand.setTitle ("Show macros 5 to 8");
+            expand.setClickingTogglesState (true);
+            expand.onClick = [this] { expanded = expand.getToggleState(); if (! expanded && selected >= 4) selected = 0; rebuild(); };
+            addAndMakeVisible (expand);
+            extendedControls.onHeightChanged = [this] { scheduleHeight(); };
+            extendedControls.onRejectedSource = [this] (const juce::String& message) { info.setText (message, juce::dontSendNotification); };
+            addChildComponent (extendedControls);
+
+            macroName.setTitle ("Macro name");
+            macroName.setWantsKeyboardFocus (true);
+            macroName.setTooltip ("Double-click to rename this macro.");
+            macroName.setEditable (false, true, false);
+            i18n::markUserContent (macroName);
+            macroName.onTextChange = [this]
+            {
+                if (! updatingName)
+                {
+                    proc.getLiveControl().macroMappings().rename (selected, macroName.getText());
+                    notifyModelChanged();
+                }
+            };
+            addAndMakeVisible (macroName);
 
             info.setFont (fonts::ui (11.0f));
             info.setColour (juce::Label::textColourId, colours::textMuted);
@@ -272,7 +353,7 @@ namespace
             lfoRow.onEdit = [this] (const LfoSettings& l) { proc.getLiveControl().macroMappings().setLfo (selected, l); };
             addAndMakeVisible (lfoRow);
 
-            setSize (400, 4 + 72 + 4 + 28 + kMaxMappings * kRowHeight + 22 + kLfoHeight);
+            setSize (400, preferredHeight());
             rebuild();
             startTimerHz (4);
         }
@@ -287,74 +368,202 @@ namespace
                 k.setBounds (top.removeFromLeft (w));
 
             r.removeFromTop (4);
+            auto setup = r.removeFromTop (28);
+            mode.setBounds (setup.removeFromLeft (100).reduced (2));
+            if (undoSetup.isVisible()) undoSetup.setBounds (setup.removeFromLeft (110).reduced (2));
+            if (expand.isVisible()) expand.setBounds (setup.removeFromLeft (48).reduced (2));
+            if (extendedControls.isVisible())
+                extendedControls.setBounds (r.removeFromTop (extendedControls.preferredHeight (getWidth())));
             auto sel = r.removeFromTop (28);
-            for (auto& b : select)
-                b.setBounds (sel.removeFromLeft (38).reduced (1));
+            for (auto& button : select)
+                if (button.isVisible()) button.setBounds (sel.removeFromLeft (34).reduced (1));
             sel.removeFromLeft (4);
             reset.setBounds (sel.removeFromRight (60).reduced (1));
             addTarget.setBounds (sel.reduced (2, 1));
 
             for (auto& row : rows)
                 row.setBounds (r.removeFromTop (kRowHeight));
-            lfoRow.setBounds (r.removeFromTop (kLfoHeight).reduced (0, 2));
-            info.setBounds (r.removeFromTop (20));
+            if (lfoRow.isVisible()) lfoRow.setBounds (r.removeFromTop (kLfoHeight).reduced (0, 2));
+            auto footer = r.removeFromTop (20);
+            macroName.setBounds (footer.removeFromLeft (juce::jmin (130, footer.getWidth() / 3)));
+            if (upgrade.isVisible()) upgrade.setBounds (footer.removeFromRight (100));
+            info.setBounds (footer);
+            scheduleHeight();
         }
 
     private:
+        void updateSourceTooltips()
+        {
+            const auto& model = proc.getLiveControl().macroMappings();
+            constexpr const char* oldIds[] { "macroActivity", "macroChaos", "macroSpace", "macroDestruction" };
+            constexpr const char* sourceIds[] { "fm23_src1", "fm23_src2", "fm23_src3", "fm23_src4", "fm23_src5", "fm23_src6", "fm23_src7", "fm23_src8" };
+            const juce::String names[] { i18n::text ("Knob"), i18n::text ("LFO A"), i18n::text ("LFO B"), i18n::text ("Energy") };
+            for (int macro = 0; macro < (model.isExtendedEnabled() ? 8 : 4); ++macro)
+            {
+                auto& slider = macro < 4 ? knobs[macro].getSlider() : extendedControls.extraSlider (macro - 4);
+                const auto* parameter = proc.getValueTreeState().getRawParameterValue (sourceIds[macro]);
+                const auto raw = parameter != nullptr ? parameter->load() : 0.0f;
+                const auto source = std::isfinite (raw) ? juce::jlimit (0, 3, (int) std::lround (raw)) : 0;
+                slider.setTooltip (model.isExtendedEnabled() ? i18n::format ("{0}. Source: {1}",
+                    { juce::String::fromUTF8 (model.getExtended().names[macro]), names[source] }) : gapfill::info::tooltipFor (oldIds[macro], {}));
+            }
+        }
+
+        void notifyModelChanged()
+        {
+            proc.updateHostDisplay (juce::AudioProcessor::ChangeDetails().withNonParameterStateChanged (true));
+            rebuild();
+        }
+
+        int preferredHeight() const noexcept
+        {
+            const auto extension = proc.getLiveControl().macroMappings().isExtendedEnabled()
+                ? extendedControls.preferredHeight (getWidth()) : kLfoHeight;
+            return 4 + 72 + 4 + 28 + 28 + kMaxMappings * kRowHeight + 22 + extension;
+        }
+
+        void scheduleHeight()
+        {
+            if (heightQueued || getHeight() == preferredHeight()) return;
+            heightQueued = true;
+            juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<MacroEditor> (this)]
+            {
+                if (safe != nullptr)
+                {
+                    safe->heightQueued = false;
+                    safe->setSize (safe->getWidth(), safe->preferredHeight());
+                }
+            });
+        }
+
         void rebuild()
         {
             auto& model = proc.getLiveControl().macroMappings();
             const auto& cfg = model.get();
-            shownCount = cfg.count[selected];
-            lfoRow.set (cfg.lfo[selected]);
-
-            for (int i = 0; i < kNumMacros; ++i)
-                select[i].setColour (juce::TextButton::buttonColourId, i == selected ? colours::primary : colours::panel);
+            const auto& extendedCfg = model.getExtended();
+            const bool extended = model.isExtendedEnabled();
+            selected = juce::jlimit (0, extended ? 7 : 3, selected);
+            shownCfg = cfg;
+            shownExtended = extendedCfg;
+            shownExtendedMode = extended;
+            shownModeUndo = model.canUndoModeChange();
+            shownLanguage = i18n::languageGeneration();
+            const auto* counts = extended ? extendedCfg.count : cfg.count;
+            const auto* mappings = extended ? extendedCfg.map : cfg.map;
+            const auto* names = extended ? extendedCfg.names : cfg.names;
+            {
+                const juce::ScopedValueSetter<bool> guard (updatingName, true);
+                macroName.setText (juce::String::fromUTF8 (names[selected]), juce::dontSendNotification);
+            }
+            upgrade.setVisible (! extended && cfg.targetSchemaVersion == 1);
+            lfoRow.setVisible (! extended);
+            if (! extended) lfoRow.set (cfg.lfo[selected]);
+            mode.setButtonText (extended ? i18n::text ("RETURN 4") : i18n::text ("ENABLE 8"));
+            mode.setTooltip (i18n::text ("Eight macros use two shared LFOs. The four-macro setup is retained and the setup switch can be undone."));
+            undoSetup.setVisible (model.canUndoModeChange());
+            undoSetup.setButtonText (i18n::text ("UNDO SETUP"));
+            expand.setVisible (extended);
+            expand.setToggleState (expanded, juce::dontSendNotification);
+            extendedControls.setVisible (extended);
+            extendedControls.setExpanded (expanded);
+            extendedControls.selectMacro (selected, model.ownerOf (5) == selected);
+            extendedControls.setTransportAvailable (proc.getLiveControl().modulationHasTransport());
+            extendedControls.refreshLanguage();
+            for (int index = 0; index < modulation::kMacroCount; ++index)
+            {
+                select[index].setVisible (index < 4 || (extended && expanded));
+                select[index].setColour (juce::TextButton::buttonColourId, index == selected ? colours::primary : colours::panel);
+            }
 
             for (int i = 0; i < kMaxMappings; ++i)
             {
                 auto& row = rows[i];
-                const bool used = i < cfg.count[selected];
+                const bool used = i < counts[selected];
                 row.setVisible (used);
                 if (! used)
                     continue;
-                row.set (cfg.map[selected][i]);
-                row.onEdit = [this, i] (const Mapping& m) { proc.getLiveControl().macroMappings().editMapping (selected, i, m); };
+                row.set (mappings[selected][i], extended);
+                row.onEdit = [this, i] (const Mapping& m) { proc.getLiveControl().macroMappings().editMapping (selected, i, m); notifyModelChanged(); };
                 row.onRemove = [this, i]
                 {
                     proc.getLiveControl().macroMappings().removeMapping (selected, i);
+                    proc.updateHostDisplay (juce::AudioProcessor::ChangeDetails().withNonParameterStateChanged (true));
                     juce::MessageManager::callAsync ([safe = juce::Component::SafePointer<MacroEditor> (this)] { if (safe != nullptr) safe->rebuild(); });
                 };
             }
 
             addTarget.clear (juce::dontSendNotification);
-            for (int t = 0; t < kNumTargets; ++t)
-                if (model.isTargetAvailable (t) && model.ownerOf (t) < 0)
-                    addTarget.addItem (targetInfo (t).label, t + 1);
-            addTarget.setEnabled (cfg.count[selected] < kMaxMappings);
+            if (! extended)
+            {
+                for (int target = 0; target < kNumTargets; ++target)
+                    if (model.isTargetAvailable (target) && model.ownerOf (target) < 0)
+                        addTarget.addItem (i18n::text (targetInfo (target).label), target + 1);
+            }
+            else
+            {
+                const auto category = [] (int target)
+                {
+                    if (target < 21) return 0;
+                    if (target == 36) return 1;
+                    if (target == 23 || target == 41) return 2;
+                    if (target == 25 || target == 42 || target == 47) return 3;
+                    if (target == 26 || target == 39 || target == 40) return 4;
+                    if (target == 24 || target == 37 || target == 38) return 5;
+                    if (target >= 44 && target <= 46) return 6;
+                    return 7;
+                };
+                const juce::String headings[] { i18n::text ("Core"), i18n::text ("Mistakes"), i18n::text ("Rhythmic"),
+                    i18n::text ("Tape"), i18n::text ("Resonator"), i18n::text ("Crush"), i18n::text ("Bands"), i18n::text ("Other effects") };
+                for (int group = 0; group < 8; ++group)
+                {
+                    bool headingAdded = false;
+                    for (int target = 0; target < modulation::kTargetCount; ++target)
+                        if (category (target) == group && model.isTargetAvailable (target) && model.ownerOf (target) < 0)
+                        {
+                            if (! headingAdded) { addTarget.addSectionHeading (headings[group]); headingAdded = true; }
+                            addTarget.addItem (i18n::text (modulation::targetInfo (target).label), target + 1);
+                        }
+                }
+            }
+            addTarget.setEnabled (counts[selected] < kMaxMappings);
 
-            info.setText (juce::String (cfg.names[selected]) + ": " + juce::String ((int) cfg.count[selected]) + " of "
-                              + juce::String (kMaxMappings) + " mappings" + (cfg.lfo[selected].enabled != 0 ? ", LFO running" : ""),
+            info.setText (! extended && cfg.lfo[selected].enabled != 0
+                              ? i18n::format ("{0} of {1} mappings, LFO running", { juce::String ((int) counts[selected]), juce::String (kMaxMappings) })
+                              : i18n::format ("{0} of {1} mappings", { juce::String ((int) counts[selected]), juce::String (kMaxMappings) }),
                           juce::dontSendNotification);
+            updateSourceTooltips();
+            resized();
         }
 
         void timerCallback() override
         {
             // Another path (state restore, bank import, controller profile) may have changed the table.
-            if (proc.getLiveControl().macroMappings().get().count[selected] != shownCount)
+            if (std::memcmp (&proc.getLiveControl().macroMappings().get(), &shownCfg, sizeof (shownCfg)) != 0
+                || shownModeUndo != proc.getLiveControl().macroMappings().canUndoModeChange()
+                || shownExtendedMode != proc.getLiveControl().macroMappings().isExtendedEnabled()
+                || (shownExtendedMode && std::memcmp (&proc.getLiveControl().macroMappings().getExtended(), &shownExtended, sizeof (shownExtended)) != 0)
+                || shownLanguage != i18n::languageGeneration())
                 rebuild();
+            extendedControls.setTransportAvailable (proc.getLiveControl().modulationHasTransport());
+            updateSourceTooltips();
         }
 
         GapFillAudioProcessor& proc;
         GapToggle macrosOn;
         GapKnob knobs[kNumMacros];
-        juce::TextButton select[kNumMacros], reset;
+        juce::TextButton select[modulation::kMacroCount], reset, upgrade, mode, undoSetup, expand;
+        modulation::ExtendedControls extendedControls;
         juce::ComboBox addTarget;
         MappingRow rows[kMaxMappings];
         LfoRow lfoRow;
         juce::Label info;
+        MacroNameLabel macroName;
+        MacroConfig shownCfg {};
+        modulation::ExtendedConfig shownExtended;
+        bool shownExtendedMode = false, shownModeUndo = false, expanded = false, heightQueued = false;
+        std::uint64_t shownLanguage = 0;
+        bool updatingName = false;
         int selected = 0;
-        int shownCount = -1;
     };
 
     const SlotRegistrar macroEditor ({ Slot::PerformanceTab, 300,
@@ -373,6 +582,10 @@ namespace
         w.body ("Each macro can also have an LFO: switch LFO on, pick a shape (Sine, Triangle, Saw, Square or Sample & hold), and either "
                 "lock it to the tempo with SYNC and a division, or let it run free at a rate in Hz. Depth is how far it swings the macro, "
                 "Phase is where in its cycle it starts.");
+        w.body ("Older sessions keep their original advanced-target behavior until you choose UPGRADE FX. "
+                "The upgrade enables effect amounts, Energy Adapt, Scale Amount, Groove and the Tension master without changing mappings. "
+                "Tension amount scales all configured curve depths: 0 disables their contribution and 100% uses their nominal depths. "
+                "Double-click the macro name to rename it.");
     });
 }
 

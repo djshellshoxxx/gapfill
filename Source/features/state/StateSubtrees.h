@@ -34,7 +34,7 @@ namespace state
 inline constexpr int kStateVersion = 2;
 
 /** Sum of all subtree sizes (serialised XML text) accepted from one state. */
-inline constexpr std::size_t kTotalSubtreeBudget = 64 * 1024;
+inline constexpr std::size_t kTotalSubtreeBudget = 384 * 1024;
 
 /** One feature-owned subtree. All members are plain function pointers so the
     table is constant data; null members mean "nothing to do". */
@@ -46,6 +46,8 @@ struct SubtreeDesc
     void (*apply) (GapFillAudioProcessor&, const juce::ValueTree&);  ///< message thread
     juce::ValueTree (*serialise) (const GapFillAudioProcessor&);     ///< invalid tree = write nothing
     void (*reset) (GapFillAudioProcessor&);                          ///< back to the default
+    const char* supersedes = nullptr;   ///< a valid newer schema wins; invalid newer data falls back
+    const char* alsoSupersedes = nullptr; ///< optional second legacy schema in an explicit migration chain
 };
 
 /** The reserved table (docs/dev/12 section 2.3 caps): Macros Lock History Perf
@@ -74,8 +76,15 @@ SubtreePlan planSubtrees (const juce::ValueTree& root, const std::vector<Subtree
 /** Step 4: applies the plan (after the parameters). */
 void applyPlan (GapFillAudioProcessor&, const SubtreePlan&);
 
-/** Appends each non-empty, in-cap serialised subtree to `root`. */
-void writeSubtrees (const GapFillAudioProcessor&, juce::ValueTree& root, const std::vector<SubtreeDesc>& table);
+struct WriteResult
+{
+    bool ok = true;
+    juce::String error;        ///< user-facing explanation; empty on success
+};
+
+/** Appends complete validated subtrees transactionally. Failure leaves `root`
+    untouched; the caller must surface the error and keep its previous state. */
+WriteResult writeSubtrees (const GapFillAudioProcessor&, juce::ValueTree& root, const std::vector<SubtreeDesc>& table);
 
 /** Serialised size used for the caps. */
 std::size_t serialisedSize (const juce::ValueTree&);

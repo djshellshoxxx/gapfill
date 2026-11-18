@@ -18,7 +18,9 @@
 #include "../battle/Battle.h"
 #include "../commands/CommandMap.h"
 #include "../commands/ControllerProfile.h"
+#include "../commands/RecipeCommandTargets.h"
 #include "../macros/MacroModel.h"
+#include "../modulation/Runtime.h"
 #include "../momentary/HoldController.h"
 #include "../panic/Panic.h"
 #include "../scenes/SceneController.h"
@@ -47,7 +49,7 @@ struct UiRequest
     {
         None = 0, PresetNext, PresetPrev, Roulette, AbSwap,
         SceneGoto, SceneNext, ScenePrev, SceneCancel, SceneApplied, SceneLastGood,
-        PanicChanged
+        PanicChanged, PresetGoto, SceneMissedDeadline
     };
 
     Kind kind = None;
@@ -76,6 +78,7 @@ public:
     const commands::BindingModel& bindings() const noexcept { return bindingModel; }
     scenes::SceneController& scenes() noexcept           { return sceneCtl; }
     const scenes::SceneController& scenes() const noexcept { return sceneCtl; }
+    const scenes::OverlayView& sceneView() const noexcept { return sceneEngine.view(); }
     battle::BattleModel& battles() noexcept              { return battleModel; }
     battle::Status getBattleStatus() const noexcept      { return (battle::Status) uiBattle.load (std::memory_order_relaxed); }
     macros::MacroModel& macroMappings() noexcept         { return macroModel; }
@@ -101,6 +104,25 @@ public:
     /** Called on the audio thread when a panic starts: stops the voices AND fades the FX chain
         (the processor's panicWet). Falls back to FillEngine::panic() when unset. */
     void setPanicHook (void (*fn) (void*) noexcept, void* context) noexcept { panicHook = fn; panicContext = context; }
+
+    /** Prepare/message thread while audio is stopped. Non-live MIDI presses only; GUI commands already use the
+        processor's command drain. The callback executes once on audio, after the established one-block delay. */
+    void setFeatureCommandSink (void (*fn) (void*, const Command&) noexcept, void* context) noexcept
+    {
+        featureCommandSink = fn;
+        featureCommandContext = context;
+    }
+    /** Message thread, after RecipeHistory changes. No GUI/history object is retained by the audio side. */
+    void publishRecipeTargets (const commands::RecipeTargetSnapshot& snapshot) noexcept { recipeTargets.publish (snapshot); }
+    /** Install while audio is stopped. Null fails closed for external-group requests. Reader must be bounded/lock-free. */
+    void setGroupSceneCancelReader (std::uint64_t (*reader) (void*, std::uint8_t) noexcept, void* context) noexcept
+    {
+        groupCancelReader = reader; groupCancelContext = context;
+    }
+    /** Install before audio starts. MIDI lock commands retain the epoch seen
+        when received, so a restore invalidates already queued old commands. */
+    void setLockEpochReader (std::uint64_t (*reader) (void*) noexcept, void* context) noexcept
+    { lockEpochReader = reader; lockEpochContext = context; }
 
     //--- F-L24 controller profiles and LED feedback ---------------------------
     /** Installs a profile's bindings (Replace clears first, otherwise existing bindings win) and its
@@ -154,17 +176,25 @@ public:
     /** One command drained from the processor's message-thread queue. */
     void handleCommand (const Command&, FillEngine&) noexcept;
 
-    /** Block stage inputs: adopts a newly published macro table and attaches the runtime. */
+    /** Pre-analysis: pin one coherent mode/config and input snapshot, including
+        an applicable scene, before choosing this segment's control grid. */
+    void preflightModulationInputs (const Effective::ModulationInputs&, int seed,
+                                    const scenes::TransportSnap&) noexcept;
+    int modulationSegmentLength (std::int64_t outputPos, int maxSamples) const noexcept;
+    bool modulationHasTransport() const noexcept { return modulationTransportValid.load (std::memory_order_relaxed); }
+    /** Copies the already pinned inputs. Never consumes another publication. */
     void fillModulationInputs (Effective::ModulationInputs&, int seed) noexcept;
 
     /** Latest effective NORMALISED value of a macro target (any thread, for the UI). */
     float getMacroEffective01 (int target) const noexcept
     {
-        return target >= 0 && target < macros::kNumTargets ? uiEffective[target].load (std::memory_order_relaxed) : 0.0f;
+        return target >= 0 && target < modulation::kTargetCount ? uiEffective[target].load (std::memory_order_relaxed) : 0.0f;
     }
 
     /** Per processed chunk, after the transport fields of `s` are filled. */
     void prepareChunk (EngineSettings& s, int numSamples, std::int64_t outputPos) noexcept;
+    /** Pre-analysis preflight, once per segment. Consumes the coherent request and returns samples before its boundary. */
+    int stageSceneChunk (const scenes::TransportSnap&) noexcept;
 
     /** Wet-bus gains for the next `n` samples (sequential chunks of one block). */
     const float* wetGains (int n) noexcept               { return panicCtl.nextGains (n); }
@@ -182,30 +212,46 @@ public:
 
 private:
     void execute (CommandType, int arg, bool on, int sampleOffset, FillEngine&,
-                  momentary::Source = momentary::Source::Midi) noexcept;
+                  momentary::Source = momentary::Source::Midi, std::uint32_t recipeGeneration = 0,
+                  std::uint64_t lockEpoch = 0) noexcept;
     void onPanicAction (panic::Action, FillEngine&) noexcept;
     void post (UiRequest::Kind, int a = 0) noexcept;
     void emit (FillEventType, std::int64_t pos) noexcept;
     void handleUi (const UiRequest&, GapFillAudioProcessor&);
+    void pumpGroupScenes (GapFillAudioProcessor&);
+    void guardGroupScene() noexcept;
 
     juce::AudioProcessorValueTreeState& apvts;
     MidiLearnManager* midiLearn = nullptr;
     FillEventQueue* eventQueue = nullptr;
     void (*panicHook) (void*) noexcept = nullptr;
     void* panicContext = nullptr;
+    void (*featureCommandSink) (void*, const Command&) noexcept = nullptr;
+    void* featureCommandContext = nullptr;
+    commands::RecipeCommandTargets recipeTargets;
+    std::uint64_t (*groupCancelReader) (void*, std::uint8_t) noexcept = nullptr;
+    void* groupCancelContext = nullptr;
+    std::uint64_t (*lockEpochReader) (void*) noexcept = nullptr;
+    void* lockEpochContext = nullptr;
     std::int64_t blockPos = 0;
 
     commands::BindingModel bindingModel;
     commands::Scanner scanner;
     scenes::SceneController sceneCtl;
     scenes::SceneEngine sceneEngine;
+    std::uint32_t groupSceneRequestId = 0;           // message-thread owner; never identifies a local request
+    int groupSceneRequestGroup = 0;
     panic::PanicController panicCtl;
     macros::MacroModel macroModel;
     battle::BattleModel battleModel;
     battle::BattleRuntime battleRuntime;
     std::atomic<int> uiBattle { 0 };
     macros::MacroRuntime macroRuntime;
-    std::atomic<float> uiEffective[macros::kNumTargets] {};
+    modulation::Runtime extendedMacroRuntime;
+    Effective::ModulationInputs pinnedModulation;
+    bool extendedMacros = false;
+    std::atomic<bool> modulationTransportValid { false };
+    std::atomic<float> uiEffective[modulation::kTargetCount] {};
     GlitchRoulette rouletteState { juce::Random::getSystemRandom() };
 
     // audio-thread-local ring of MIDI-originated commands (drained next block)
@@ -215,6 +261,8 @@ private:
 
     SpscQueue<UiRequest, 32> uiQueue;
     std::atomic<std::uint32_t> uiDropped { 0 };
+    std::atomic<std::uint32_t> missedSceneFallback { 0 }, appliedSceneFallback { 0 };
+    std::atomic<bool> panicCancelFallback { false };
 
     commands::BindingTable tableScratch;
 

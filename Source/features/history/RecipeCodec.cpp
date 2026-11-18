@@ -1,5 +1,7 @@
 #include "RecipeCodec.h"
 
+#include <array>
+
 namespace gapfill::recipecodec
 {
 
@@ -48,6 +50,41 @@ bool decode (const juce::String& text, FillRecipe& out)
 
     out = recipe;
     return true;
+}
+
+namespace
+{
+    std::uint8_t extrasChecksum (std::span<const std::uint8_t> bytes) noexcept
+    {
+        unsigned value = 0xA5u;
+        for (const auto byte : bytes)
+            value = (((value << 1) | (value >> 7)) & 0xFFu) ^ byte;
+        return (std::uint8_t) value;
+    }
+}
+
+juce::String encodeExtras (const RecipeExtras& extras)
+{
+    if (! hasRecipeExtras (extras))
+        return {};
+    std::array<std::uint8_t, kRecipeExtrasBytes + 1> bytes {};
+    if (! encodeRecipeExtras (extras, std::span (bytes).first (kRecipeExtrasBytes)))
+        return {};
+    bytes.back() = extrasChecksum (std::span (bytes).first (kRecipeExtrasBytes));
+    return juce::Base64::toBase64 (bytes.data(), bytes.size());
+}
+
+bool decodeExtras (const juce::String& text, RecipeExtras& out)
+{
+    if (text.length() != 60)
+        return false;
+    juce::MemoryOutputStream stream;
+    if (! juce::Base64::convertFromBase64 (stream, text) || stream.getDataSize() != kRecipeExtrasBytes + 1)
+        return false;
+    const auto bytes = std::span (static_cast<const std::uint8_t*> (stream.getData()), stream.getDataSize());
+    if (bytes.back() != extrasChecksum (bytes.first (kRecipeExtrasBytes)))
+        return false;
+    return decodeRecipeExtras (bytes.first (kRecipeExtrasBytes), out);
 }
 
 } // namespace gapfill::recipecodec

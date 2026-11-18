@@ -7,6 +7,7 @@
 #include "../SlotHost.h"
 #include "MusicalStrip.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
 #include "../../features/callresponse/Responder.h"
 
 namespace gapfill
@@ -19,13 +20,13 @@ namespace
         using callresponse::ResponderState;
 
         if (s.off)
-            return "Call and response: off";
+            return i18n::text ("Call and response: off");
 
         switch (s.state)
         {
-            case ResponderState::Collecting:  return "CALL " + juce::String (s.k) + "/" + juce::String (s.n);
-            case ResponderState::Responding:  return "RESPONSE " + juce::String (s.k) + "/" + juce::String (s.n);
-            case ResponderState::Unclear:     return "No response: motif unclear (" + juce::String (s.confidencePercent) + " %)";
+            case ResponderState::Collecting:  return i18n::format ("CALL {0}/{1}", { juce::String (s.k), juce::String (s.n) });
+            case ResponderState::Responding:  return i18n::format ("RESPONSE {0}/{1}", { juce::String (s.k), juce::String (s.n) });
+            case ResponderState::Unclear:     return i18n::format ("No response: motif unclear ({0} %)", { juce::String (s.confidencePercent) });
         }
 
         return {};
@@ -87,7 +88,7 @@ namespace
             if (chip.getText() != text)
             {
                 chip.setText (text, juce::dontSendNotification);
-                chip.setTitle ("Call and response status: " + text);
+                chip.setTitle (i18n::format ("Call and response status: {0}", { text }));
             }
         }
 

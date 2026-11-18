@@ -40,6 +40,7 @@ void RecipeServices::publish (const FillEngine& engine, double bpm) noexcept
 
 bool RecipeServices::tick() noexcept
 {
+    pollLockPublication();
     // F-S06: a preview that A/B started has finished playing; remember how loud it was.
     const auto done = previewDone.load (std::memory_order_relaxed);
 
@@ -57,21 +58,31 @@ bool RecipeServices::onFillEvent (const FillEvent& e) noexcept
     switch (e.type)
     {
         case FillEventType::LockSet:
-            lockMirror = { true, e.recipe };
+            pollLockPublication();
             return true;
 
         case FillEventType::LockCleared:
-            lockMirror = {};
+            pollLockPublication();
             return true;
 
         case FillEventType::Preview:
             lastPreviewSpan = { e.pos, e.lengthSamples };
             lastPreviewRecipe = e.recipe;
+            lastPreviewExtras = e.extras;
             return true;                      // consumed: never listed in history or the outcome log
 
         default:
             return false;
     }
+}
+
+bool RecipeServices::pollLockPublication() noexcept
+{
+    lock::LockSnapshot latest;
+    if (! lockPublication.tryLatest (latest))
+        return false;
+    lockMirror = latest;
+    return true;
 }
 
 void RecipeServices::postMessage (const juce::String& text, std::uint32_t durationMs)

@@ -31,6 +31,7 @@ list(APPEND GAPFILL_SOURCES
     Source/params/wetout.cpp
     Source/params/safety.cpp
     Source/params/midiout.cpp
+    Source/params/midiext.cpp
     Source/params/scdrive.cpp
     Source/params/bandfx.cpp
     Source/params/groove.cpp

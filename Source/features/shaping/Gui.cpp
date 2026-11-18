@@ -4,6 +4,7 @@
 #include "../../Presets.h"
 #include "../../gui/HelpRegistry.h"
 #include "../../gui/SlotHost.h"
+#include "../i18n/Strings.h"
 
 namespace gapfill::shapegui
 {
@@ -16,6 +17,7 @@ namespace
     constexpr int kKnobW = 72, kKnobH = 80;
     constexpr int kComboW = 132, kComboH = 40;
     constexpr int kToggleW = 120, kToggleH = 28;
+    constexpr int kCaptureStatusIndent = 120;   // clears the CAPTURE heading, also at +40% pseudo length
 
     juce::Rectangle<int> sizeOf (Cell::Kind k)
     {
@@ -33,9 +35,9 @@ namespace
     {
         switch (c.getStatus())
         {
-            case CaptureLatch::Held:    return "Capture: held (" + juce::String (c.getHeldMs() / 1000.0, 1) + " s)";
-            case CaptureLatch::Pending: return "Capture: pending " + juce::String (juce::roundToInt (c.getProgress() * 100.0f)) + " %";
-            default:                    return "Capture: off";
+            case CaptureLatch::Held:    return i18n::format ("Capture: held ({0} s)", { juce::String (c.getHeldMs() / 1000.0, 1) });
+            case CaptureLatch::Pending: return i18n::format ("Capture: pending {0} %", { juce::String (juce::roundToInt (c.getProgress() * 100.0f)) });
+            default:                    return i18n::text ("Capture: off");
         }
     }
 }
@@ -71,7 +73,9 @@ const std::vector<Group>& groups()
             { K::Toggle, "modSync", "Sync mods", "Locks tremolo, pan motion and scramble slices to the tempo." } } },
 
         { "CAPTURE", true,
-          { { K::Knob, "captureLength", "Length", "How much audio before the freeze point a latched Capture may use." } } },
+          { { K::Knob,   "captureLength", "Length", "How much audio before the freeze point a latched Capture may use." },
+            { K::Toggle, "fm08_detail", "Detailed", "Record live input only while Capture is held; reports short, busy or cancelled recaptures." },
+            { K::Knob,   "fm08_scan", "Scan", "With Detailed on, varies each fill's start within the held material; 0 keeps the classic anchor." } } },
     };
 
     return table;
@@ -196,6 +200,7 @@ ShapePanel::ShapePanel (GapFillAudioProcessor& p) : proc (p), preview (p.getValu
 
     advanced = proc.getUiState().getViewMode() == ui::ViewMode::Advanced;
     applyViewMode();
+    translator = std::make_unique<i18n::ComponentTranslator> (*this);
     timerCallback();
     startTimerHz (10);
 }
@@ -214,8 +219,8 @@ void ShapePanel::timerCallback()
 
     const auto profile = proc.getFillEngine().getDecisionTelemetry().evolveProfile.load();
     const auto evolveOn = (int) std::lround (proc.getValueTreeState().getRawParameterValue ("evolve")->load()) > 0;
-    const juce::String text = evolveOn ? (profile >= 0 ? juce::String ("-> ") + surpriseTargets (profile).name
-                                                       : juce::String ("needs a playing transport"))
+    const juce::String text = evolveOn ? (profile >= 0 ? i18n::format ("-> {0}", { surpriseTargets (profile).name })
+                                                       : i18n::text ("needs a playing transport"))
                                        : juce::String();
 
     if (evolveLabel.getText() != text)
@@ -294,13 +299,17 @@ int ShapePanel::layoutGroups (bool apply)
         {
             items.push_back ({ &recapture, 96, 26 });
             items.push_back ({ &release, 86, 26 });
-            items.push_back ({ &captureStatus, 200, 24 });
         }
 
         if (apply)
         {
             // The group title is painted at y; controls start below it.
             titleY.push_back (y);
+
+            // The capture status sits on the CAPTURE title line, right of the heading, so the Length / Detailed /
+            // Scan / Recapture / Release row stays one row inside kContentWidth.
+            if (title == "CAPTURE")
+                captureStatus.setBounds (kPad + kCaptureStatusIndent, y, right - kPad - kCaptureStatusIndent, kTitleHeight);
         }
 
         y += kTitleHeight;
@@ -353,7 +362,11 @@ void ShapePanel::paint (juce::Graphics& g)
             continue;
 
         if (n < titleY.size())
-            g.drawText (pl.group->title, kPad, titleY[n], kContentWidth - 2 * kPad, kTitleHeight, juce::Justification::centredLeft);
+        {
+            const auto heading = i18n::text (pl.group->title);
+            g.setFont (i18n::fontForText (fonts::sectionHeader (11.0f), heading));
+            g.drawText (heading, kPad, titleY[n], kContentWidth - 2 * kPad, kTitleHeight, juce::Justification::centredLeft);
+        }
 
         ++n;
     }
@@ -444,9 +457,9 @@ namespace
             const bool standalone = juce::JUCEApplicationBase::isStandaloneApp();
             const bool hostTempo = proc.getShaping().tempo.hostTempoSeenRecently (juce::jmax (8000.0, proc.getSampleRate()));
             slider.setEnabled (standalone || ! hostTempo);
-            hint.setText (standalone ? "Standalone has no host tempo, so synced lengths use this."
+            hint.setText (i18n::text (standalone ? "Standalone has no host tempo, so synced lengths use this."
                                      : (hostTempo ? "Your host provides the tempo; this is only a fallback."
-                                                  : "No host tempo seen recently: synced lengths use this."),
+                                                  : "No host tempo seen recently: synced lengths use this.")),
                           juce::dontSendNotification);
         }
 

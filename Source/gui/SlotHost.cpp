@@ -39,6 +39,7 @@ SlotLayout defaultLayoutFor (Slot slot) noexcept
     {
         case Slot::OptionsExtra:   return SlotLayout::Stack;      // inside the Options page's scrolling area
         case Slot::PerformanceTab: return SlotLayout::Stack;
+        case Slot::GlitchTab:      return SlotLayout::Stack;
         default:                   return SlotLayout::Row;
     }
 }
@@ -212,6 +213,21 @@ void SlotHost::layout (Slot slot)
             c->setBounds (area);
         }
 
+        return;
+    }
+
+    if (slot == Slot::CreativeExtra)
+    {
+        constexpr int rowHeight = 24;
+        const auto columns = juce::jmax (1, (n + 1) / 2);
+        const auto cellWidth = juce::jmax (0, (area.getWidth() - spacing * (columns - 1)) / columns);
+        for (int index = 0; index < n; ++index)
+        {
+            auto* component = comps[(size_t) index];
+            component->setVisible (show);
+            component->setBounds (area.getX() + (index % columns) * (cellWidth + spacing),
+                                  area.getY() + (index / columns) * (rowHeight + spacing), cellWidth, rowHeight);
+        }
         return;
     }
 

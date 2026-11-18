@@ -77,6 +77,7 @@ juce::String failureText (Failure f)
         case Failure::TooOld:       return "That fill is too old";
         case Failure::NotRecorded:  return "That fill was played before the export buffer was recording";
         case Failure::TooLong:      return "That fill is too long to export";
+        case Failure::Cancelled:    return "Export cancelled";
         case Failure::None:
         default:                    return "Export failed";
     }

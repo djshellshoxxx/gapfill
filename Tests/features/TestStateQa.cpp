@@ -11,6 +11,7 @@
 #include <cmath>
 #include <iostream>
 #include <random>
+#include <string>
 
 using namespace gapfill;
 using namespace gftest;
@@ -177,7 +178,7 @@ GF_TEST (StateQa, populated_session_round_trip_is_byte_identical_and_stable)
     const auto before = saveState (a);
     renderOffline (a, drumLoop (48000.0, 150.0, 1), 300, 48000.0);
     const auto after = saveState (a);
-    GF_EXPECT_MSG (before == after, "processing audio changed the saved state");
+    GF_EXPECT_MSG (before == after, "processing audio changed the saved state; " + firstDifference (before, after));
 }
 
 GF_TEST (StateQa, garbage_truncated_and_flipped_blobs_never_crash_or_corrupt_parameters)
@@ -302,7 +303,9 @@ GF_TEST (StateQa, oversized_subtree_text_and_deep_nesting_are_bounded)
         for (int i = 0; i < depth; ++i)
             nest << "</L>";
 
+        const auto before = saveState (p);
         loadState (p, wrapText (text.replaceFirstOccurrenceOf ("</GAPFILL_STATE>", nest + "</GAPFILL_STATE>")));
+        GF_EXPECT_MSG (saveState (p) == before, "excessive nesting must be rejected without changing state");
         expectSane (p, "deep nesting");
     }
 
@@ -315,6 +318,53 @@ GF_TEST (StateQa, oversized_subtree_text_and_deep_nesting_are_bounded)
         loadState (p, wrapText (text.replaceFirstOccurrenceOf ("</GAPFILL_STATE>", many + "</GAPFILL_STATE>")));
         expectSane (p, "20000 siblings");
     }
+}
+
+GF_TEST (StateQa, nested_preset_and_dtd_state_are_rejected_without_changing_the_session)
+{
+    GapFillAudioProcessor p;
+    const auto before = saveState (p);
+    const auto xml = p.getValueTreeState().copyState().createXml();
+    GF_EXPECT (xml != nullptr);
+    const auto preset = xml->toString (juce::XmlElement::TextFormat().singleLine());
+    const auto nested = juce::String::repeatedString ("<L>", 2000)
+                      + juce::String::repeatedString ("</L>", 2000);
+    juce::TemporaryFile file (".gapfill");
+    GF_EXPECT (file.getFile().replaceWithText (preset.replaceFirstOccurrenceOf ("</GAPFILL>", nested + "</GAPFILL>")));
+    juce::String error;
+    GF_EXPECT (! p.loadParameterStateFromFile (file.getFile(), error));
+    GF_EXPECT (error.isNotEmpty());
+    GF_EXPECT (saveState (p) == before);
+
+    p.getValueTreeState().getParameter ("wet")->setValueNotifyingHost (0.23f);
+    const auto changed = saveState (p);
+    GF_EXPECT (changed != before);
+    loadState (p, before);
+    const auto withDtd = stateText (changed).replaceFirstOccurrenceOf (
+        "<GAPFILL_STATE", "<!DOCTYPE GAPFILL_STATE [<!ENTITY x 'text'>]><GAPFILL_STATE");
+    loadState (p, wrapText (withDtd));
+    GF_EXPECT (saveState (p) == before);
+
+    // Non-canonical UTF-8 must not hide nesting from the byte-level scanner and
+    // then turn into '<' when JUCE decodes the payload for its XML parser.
+    const auto deep = stateText (before).replaceFirstOccurrenceOf ("</GAPFILL_STATE>", nested + "</GAPFILL_STATE>");
+    std::string encoded;
+    for (const char c : std::string (deep.toRawUTF8()))
+        if (c == '<') encoded += "\xc0\xbc";
+        else encoded += c;
+    auto nonCanonical = before;
+    nonCanonical.setSize (8);
+    const auto length = juce::ByteOrder::swapIfBigEndian ((juce::uint32) encoded.size());
+    std::memcpy (static_cast<char*> (nonCanonical.getData()) + 4, &length, 4);
+    nonCanonical.append (encoded.data(), encoded.size());
+    loadState (p, nonCanonical);
+    GF_EXPECT (saveState (p) == before);
+
+    // Both entry points continue to accept the original, shallow format.
+    GF_EXPECT (file.getFile().replaceWithText (preset));
+    GF_EXPECT (p.loadParameterStateFromFile (file.getFile(), error));
+    loadState (p, before);
+    GF_EXPECT (saveState (p) == before);
 }
 
 GF_TEST (StateQa, beta1_parameter_ids_and_host_indices_are_unchanged_and_every_locked_id_exists)

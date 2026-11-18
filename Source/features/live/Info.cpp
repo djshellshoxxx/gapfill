@@ -14,7 +14,7 @@ namespace
         { "macroChaos",       "Macro Chaos",       "One knob for how unpredictable the fills are: more variation and surprise", "20-60", "%" },
         { "macroSpace",       "Macro Space",       "One knob for how roomy the fills sound: wetter, wider and longer tails", "20-60", "%" },
         { "macroDestruction", "Macro Destruction", "One knob for how damaged the fills sound: crush, grit and tape wear", "0-40", "%" },
-        { "macrosOn",         "Macros On",         "Lets the four macros drive their target settings; off leaves every target alone", "", "" },
+        { "macrosOn",         "Macros On",         "Enables the selected macro setup; off leaves every target under your control", "", "" },
         { "wetSafety",        "Wet Safety",        "Soft limiter and DC guard on the wet signal so live tweaks cannot blast the speakers", "", "" },
         { "battleEvery",      "Beat Battle",       "Every N bars the engine swaps the fill settings with a rival set to keep it lively", "", "" },
         { "fm10_stutter",     "Hold Stutter",      "While on, holds a stutter of the last moment of sound (MIDI or the pads)", "", "" },

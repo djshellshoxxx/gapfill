@@ -2,6 +2,8 @@
 
 #include "ScrubCard.h"
 #include "../HelpRegistry.h"
+#include "../../features/i18n/Strings.h"
+#include "../../features/i18n/ComponentTranslator.h"
 
 namespace gapfill::fxgui
 {
@@ -111,8 +113,9 @@ void ScrubCardView::paint (juce::Graphics& g)
     if (! isScrubOn() && getWidth() > hintX + 60)
     {
         g.setColour (colours::textDim);
-        g.setFont (fonts::label (11.0f));
-        g.drawText ("Freeze and scrub the last second", hintX, 0, getWidth() - hintX - kPad, headerHeight,
+        const auto hint = i18n::text ("Freeze and scrub the last second");
+        g.setFont (i18n::fontForText (fonts::label (11.0f), hint));
+        g.drawText (hint, hintX, 0, getWidth() - hintX - kPad, headerHeight,
                     juce::Justification::centredLeft, true);
     }
 }

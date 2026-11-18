@@ -50,12 +50,20 @@ void addRating (Counts& c, const FillRecipe& r, int rating) noexcept
     }
 }
 
-float score (const Counts& c, int f) noexcept
+float score (const Counts& c, int f, std::uint8_t modelVersion) noexcept
 {
     if (f < 0 || f >= kFeatures)
         return 0.0f;
 
     const float l = (float) c.liked[(size_t) f], d = (float) c.skipped[(size_t) f];
+    if (modelVersion == 2)
+    {
+        // Version 2 uses per-feature Like/Skip evidence directly. A Like is
+        // four times as likely for a preferred type under the canonical 80%
+        // consistent user; Skip supplies the reciprocal evidence. The prior
+        // odds 1:2 prevent one noisy Like from raising every unobserved type.
+        return (l - d) * std::log (4.0f) - std::log (2.0f);
+    }
     return std::log ((l + kAlpha) / ((float) c.likes + 2.0f * kAlpha)) - std::log ((d + kAlpha) / ((float) c.skips + 2.0f * kAlpha));
 }
 
@@ -69,7 +77,7 @@ float confidence (const Counts& c) noexcept
     return std::min (1.0f, (float) (c.likes + c.skips) / kConfidenceRatings);
 }
 
-TasteBias biasFrom (const Counts& c, float strength01) noexcept
+TasteBias biasFrom (const Counts& c, float strength01, std::uint8_t modelVersion) noexcept
 {
     TasteBias b;
     b.ready = isReady (c);
@@ -77,13 +85,21 @@ TasteBias biasFrom (const Counts& c, float strength01) noexcept
     if (! b.ready)
         return b;
 
-    const float beta = std::clamp (strength01, 0.0f, 1.0f) * confidence (c);
+    const auto certainty = modelVersion == 2 ? std::min (1.0f, (float) (c.likes + c.skips) / 16.0f) : confidence (c);
+    const float beta = std::clamp (strength01, 0.0f, 1.0f) * certainty;
 
     for (int a = 0; a < kAlgoFeatures; ++a)
-        b.algo[a] = std::clamp (std::exp (beta * score (c, a)), kMin, kMax);
+        b.algo[a] = std::clamp (std::exp (beta * score (c, a, modelVersion)), kMin, kMax);
 
     for (int i = 0; i < kBandFeatures; ++i)
-        b.band[i] = std::clamp (std::exp (beta * score (c, kAlgoFeatures + i)), kMin, kMax);
+    {
+        const auto f = (std::size_t) (kAlgoFeatures + i);
+        // Full-band ratings contain no spectral-band preference evidence.
+        // Keep those unrelated odds neutral until the band itself is rated.
+        if (modelVersion == 2 && c.liked[f] + c.skipped[f] == 0)
+            continue;
+        b.band[i] = std::clamp (std::exp (beta * score (c, kAlgoFeatures + i, modelVersion)), kMin, kMax);
+    }
 
     return b;
 }
@@ -97,6 +113,24 @@ void quantise (const TasteBias& b, std::int8_t (&q)[kFeatures]) noexcept
 
     for (int i = 0; i < kBandFeatures; ++i)
         q[kAlgoFeatures + i] = one (b.band[i]);
+}
+
+void quantiseRatingUpdate (const TasteBias& bias, const std::int8_t (&previous)[kFeatures],
+                           std::int8_t (&next)[kFeatures]) noexcept
+{
+    std::int8_t prior[kFeatures];
+    std::copy (std::begin (previous), std::end (previous), std::begin (prior));
+    quantise (bias, next);
+    for (int f = 0; f < kFeatures; ++f)
+    {
+        const auto before = std::exp ((float) prior[f] / 64.0f);
+        // Limit *after* quantisation: a float slew of 0.09 followed by rounding
+        // can exceed 0.1 near 2x. Search is at most 88 integer steps, off audio.
+        while (next[f] > prior[f] && std::exp ((float) next[f] / 64.0f) - before >= 0.099f)
+            --next[f];
+        while (next[f] < prior[f] && before - std::exp ((float) next[f] / 64.0f) >= 0.099f)
+            ++next[f];
+    }
 }
 
 TasteBias dequantise (const std::int8_t (&q)[kFeatures], bool ready) noexcept
@@ -122,7 +156,8 @@ const char* featureName (int f) noexcept
     return f >= kAlgoFeatures && f < kFeatures ? bands[f - kAlgoFeatures] : "?";
 }
 
-void explain (const Counts& c, int maxItems, std::vector<ExplainItem>& toward, std::vector<ExplainItem>& away)
+void explain (const Counts& c, int maxItems, std::vector<ExplainItem>& toward, std::vector<ExplainItem>& away,
+              std::uint8_t modelVersion)
 {
     toward.clear();
     away.clear();
@@ -134,7 +169,7 @@ void explain (const Counts& c, int maxItems, std::vector<ExplainItem>& toward, s
         if (total < 3)
             continue;
 
-        ExplainItem it { f, (int) c.liked[(size_t) f], total, score (c, f) };
+        ExplainItem it { f, (int) c.liked[(size_t) f], total, score (c, f, modelVersion) };
 
         if (it.score > 0.0f)
             toward.push_back (it);

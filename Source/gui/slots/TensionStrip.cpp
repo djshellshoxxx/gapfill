@@ -9,6 +9,7 @@
 #include "MusicalStrip.h"
 #include "TensionEditor.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -97,16 +98,16 @@ namespace
             juce::String text;
 
             if (! enabled)
-                text = "Tension: off";
+                text = i18n::text ("Tension: off");
             else if (! svc.lastActive())
-                text = "Tension waiting for transport";
+                text = i18n::text ("Tension waiting for transport");
             else
             {
                 const int totalBars = (int) std::lround (proc.getValueTreeState().getRawParameterValue ("fm21_bars")->load());
                 static const int lengths[] = { 2, 4, 8, 16, 32 };
                 const int n = lengths[juce::jlimit (0, 4, totalBars)];
                 const int bar = 1 + (int) (svc.lastPhase() * (float) n);
-                text = "Bar " + juce::String (juce::jlimit (1, n, bar)) + " of " + juce::String (n);
+                text = i18n::format ("Bar {0} of {1}", { juce::String (juce::jlimit (1, n, bar)), juce::String (n) });
             }
 
             if (status.getText() != text)

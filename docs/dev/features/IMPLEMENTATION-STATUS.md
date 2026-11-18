@@ -9,6 +9,7 @@ listed in the WP progress files and are never claimed here. The mechanical audit
 | Ticket | Status | Key source files | Tests / notes |
 |---|---|---|---|
 | D-01-compliance-and-docs-refresh | yes | docs/COMPLIANCE.md, docs/TEST-TRACEABILITY.md, docs/architecture/MODULES.md, PROGRESS.md | refreshed by the completeness audit; keep updating per package |
+| F-G01-glitch-rack | yes | Source/features/glitch/*, Source/params/glitch.*, editor GLITCH tab (Slot::GlitchTab) | TestGlitchDsp.cpp, TestGlitchPlugin.cpp; owner request 2026-11-07 (DECISIONS 19); real hosts and listening unverified |
 | F-FX0-effect-module-seam | yes | Source/features/fx/{FxChain,VoiceFxChain,EffectCard,FxHooks}.*, Source/gui/slots/EffectsSection.* | Tests/features/TestFx.cpp, TestVoiceFxCards.cpp, TestFxSection.cpp |
 | F-L01-fill-lock | yes | Source/features/lock/*, Source/params/lock.*, recipes drawer LOCK switch | TestLock.cpp; `fl01_lock` is performance state; Fix-it R8 live |
 | F-L02-fill-history-save-recipe | yes | Source/features/history/*, Source/features/recipes/RecipeDrawer.cpp | TestHistory.cpp; FILE > Fill history... |

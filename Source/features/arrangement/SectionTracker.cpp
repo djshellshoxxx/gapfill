@@ -37,6 +37,16 @@ void SectionTracker::reset() noexcept
     st = {};
 }
 
+void SectionTracker::setModelVersion (int next) noexcept
+{
+    next = next == 2 ? 2 : 1;
+    if (version != next)
+    {
+        version = next;
+        reset();
+    }
+}
+
 float SectionTracker::kernel (int a, int b) noexcept
 {
     const float ax = (float) a - 0.5f, bx = (float) b - 0.5f;
@@ -113,6 +123,8 @@ void SectionTracker::normalised (const context::FrameFeatures& f, float (&out)[k
 
         const float span = std::max (hi - lo, kMinSpan[d]);
         const float mid = 0.5f * (lo + hi);
+        rawMin[(size_t) d] = mid - 0.5f * span;
+        rawMax[(size_t) d] = span;
         // A flat history maps to the middle of the scale, so noise cannot be stretched to the full range.
         out[d] = std::clamp ((rf[d] - (mid - 0.5f * span)) / span, 0.0f, 1.0f);
     }
@@ -141,7 +153,13 @@ void SectionTracker::pushFrame (const context::FrameFeatures& f, float sensitivi
 
         for (int d = 0; d < kDims; ++d)
         {
-            const float diff = fn[d] - feat[(size_t) other][(size_t) d];
+            // V2 compares both raw frames in today's coordinate system. A
+            // newly observed maximum and the old maximum otherwise both map
+            // to 1 under their own historical ranges, hiding an upward step.
+            const float historical = version == 2
+                ? std::clamp ((rawFeat[(size_t) other][(size_t) d] - rawMin[(size_t) d]) / rawMax[(size_t) d], 0.0f, 1.0f)
+                : feat[(size_t) other][(size_t) d];
+            const float diff = fn[d] - historical;
             dist += diff * diff;
         }
 
@@ -201,7 +219,10 @@ void SectionTracker::pushFrame (const context::FrameFeatures& f, float sensitivi
                  && (lastBoundary < 0 || p - lastBoundary >= kRefractoryFrames))
             {
                 boundary = true;
-                boundaryAt = p;
+                // The novelty maximum names the last frame before the step.
+                // V2 reports the edge (start of the next frame), in the same
+                // time coordinates as framesInto and the transport clock.
+                boundaryAt = p + (version == 2 ? 1 : 0);
             }
         }
     }
@@ -311,8 +332,19 @@ void SectionTracker::updateSections (int boundaryAt, bool boundary) noexcept
         const int a = sectionLengths[(size_t) ((completed - 1) % kMaxSections)];
         const int b = sectionLengths[(size_t) ((completed - 2) % kMaxSections)];
 
-        if (std::abs (a - b) <= 1)
-            st.expectedIn = (std::int16_t) std::clamp (a - (int) st.framesInto, 0, 32000);
+        if (std::abs (a - b) <= 1 && a > 0)
+        {
+            int expected = a - (int) st.framesInto;
+            if (version == 2 && expected < 0)
+            {
+                // Confirmation is delayed by the novelty/peak windows. A
+                // supported repeated period can still predict the next edge
+                // during this interval, without inventing future evidence.
+                expected = -expected <= kKernelHalf + 3
+                    ? (a - (int) st.framesInto % a) % a : -1;
+            }
+            st.expectedIn = (std::int16_t) std::clamp (expected, version == 2 ? -1 : 0, 32000);
+        }
     }
 }
 

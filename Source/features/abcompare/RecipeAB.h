@@ -21,12 +21,13 @@ public:
     static constexpr int numSlots = 2;
 
     /** Sets slot 0 (A) or 1 (B). Invalid recipes are ignored. Resets that slot's measurement. */
-    void setSlot (int slot, const FillRecipe& recipe) noexcept;
+    void setSlot (int slot, const FillRecipe& recipe, const RecipeExtras& extras = {}) noexcept;
     void clear() noexcept;
 
     bool hasSlot (int slot) const noexcept             { return has[slot != 0]; }
     bool isReady() const noexcept                      { return has[0] && has[1]; }
     const FillRecipe& getSlot (int slot) const noexcept { return recipes[slot != 0]; }
+    const RecipeExtras& getExtras (int slot) const noexcept { return extras[slot != 0]; }
 
     /** The slot the next press will play (alternates A, B, A, B ...). */
     int getNextSlot() const noexcept                   { return nextSlot; }
@@ -54,6 +55,7 @@ private:
     int nextSlot = 0;
     int awaiting = -1;
     float awaitingTrimDb = 0.0f;
+    RecipeExtras extras[numSlots];
 };
 
 } // namespace gapfill::abcompare

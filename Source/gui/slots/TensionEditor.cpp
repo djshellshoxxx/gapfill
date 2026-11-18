@@ -4,6 +4,7 @@
 
 #include "../LookAndFeel.h"
 #include "../../PluginProcessor.h"
+#include "../../features/i18n/Strings.h"
 
 namespace gapfill
 {
@@ -32,8 +33,8 @@ TensionCurveEditor::TensionCurveEditor (GapFillAudioProcessor& p)
         auto* b = laneButtons.add (new juce::TextButton (kLaneNames[i]));
         b->setClickingTogglesState (true);
         b->setRadioGroupId (4021);
-        b->setTitle (juce::String (kLaneNames[i]) + " lane");
-        b->setTooltip (juce::String ("Edit the ") + kLaneNames[i] + " curve");
+        b->setTitle (i18n::format ("{0} lane", { i18n::text (kLaneNames[i]) }));
+        b->setTooltip (i18n::format ("Edit the {0} curve", { i18n::text (kLaneNames[i]) }));
         b->setToggleState (i == 0, juce::dontSendNotification);
         b->onClick = [this, i] { setLane (i); };
         addAndMakeVisible (b);
@@ -42,7 +43,7 @@ TensionCurveEditor::TensionCurveEditor (GapFillAudioProcessor& p)
     for (int i = 0; i < 4; ++i)
     {
         auto* b = shapeButtons.add (new juce::TextButton (kShapeNames[i]));
-        b->setTitle (juce::String ("Copy the ") + kShapeNames[i] + " shape into this lane");
+        b->setTitle (i18n::format ("Copy the {0} shape into this lane", { i18n::text (kShapeNames[i]) }));
         b->setTooltip ("Copy this built-in shape into the selected lane; then drag points to adjust it.");
         b->onClick = [this, i] { applyShape (i); };
         addAndMakeVisible (b);
@@ -58,6 +59,8 @@ TensionCurveEditor::TensionCurveEditor (GapFillAudioProcessor& p)
     addAndMakeVisible (status);
 
     setSize (kWidth, kHeight);
+    translator = std::make_unique<i18n::ComponentTranslator> (*this);
+    languageGeneration = i18n::languageGeneration();
     refreshAnnouncement();
     startTimerHz (15);
 }
@@ -188,8 +191,8 @@ juce::String TensionCurveEditor::describeSelection() const
     const int idx = (int) std::lround (proc.getValueTreeState().getRawParameterValue ("fm21_bars")->load());
     const double barPos = (double) l.pt[i].x * 0.001 * (double) lengths[juce::jlimit (0, 4, idx)];
 
-    return juce::String (kLaneNames[lane]) + " point " + juce::String (i + 1) + " of " + juce::String (l.numPoints)
-         + ", bar " + juce::String (barPos + 1.0, 1) + ", " + juce::String (juce::roundToInt ((double) l.pt[i].y * 0.1)) + " percent";
+    return i18n::format ("{0} point {1} of {2}, bar {3}, {4} percent", { i18n::text (kLaneNames[lane]), juce::String (i + 1),
+           juce::String (l.numPoints), juce::String (barPos + 1.0, 1), juce::String (juce::roundToInt ((double) l.pt[i].y * 0.1)) });
 }
 
 void TensionCurveEditor::refreshAnnouncement()
@@ -204,9 +207,8 @@ void TensionCurveEditor::refreshAnnouncement()
             h->notifyAccessibilityEvent (juce::AccessibilityEvent::titleChanged);
     }
 
-    status.setText (text + (proc.getValueTreeState().getRawParameterValue ("fm21_shape")->load() > 3.5f
-                                ? juce::String()
-                                : juce::String ("  |  editing switches Shape to Custom")),
+    status.setText (proc.getValueTreeState().getRawParameterValue ("fm21_shape")->load() > 3.5f
+                                ? text : i18n::format ("{0}  |  editing switches Shape to Custom", { text }),
                     juce::dontSendNotification);
 }
 
@@ -382,6 +384,18 @@ void TensionCurveEditor::mouseDoubleClick (const juce::MouseEvent& e)
 
 void TensionCurveEditor::timerCallback()
 {
+    if (languageGeneration != i18n::languageGeneration())
+    {
+        languageGeneration = i18n::languageGeneration();
+        for (int i = 0; i < laneButtons.size(); ++i)
+        {
+            laneButtons[i]->setTitle (i18n::format ("{0} lane", { i18n::text (kLaneNames[i]) }));
+            laneButtons[i]->setTooltip (i18n::format ("Edit the {0} curve", { i18n::text (kLaneNames[i]) }));
+        }
+        for (int i = 0; i < shapeButtons.size(); ++i)
+            shapeButtons[i]->setTitle (i18n::format ("Copy the {0} shape into this lane", { i18n::text (kShapeNames[i]) }));
+        refreshAnnouncement();
+    }
     const auto& svc = proc.getContextState().tensionService();
     const float next = svc.lastActive() ? svc.lastPhase() : -1.0f;
 

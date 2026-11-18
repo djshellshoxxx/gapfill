@@ -402,7 +402,7 @@ GF_TEST (Cloud, no_alloc)
     GF_EXPECT (guard.count() == 0);
 }
 
-GF_TEST (Cloud, dense_clouds_are_smoother_than_plain_granular)
+GF_TEST (Cloud, registry_default_clouds_are_smoother_than_plain_granular)
 {
     VoiceRig rig;
 
@@ -446,5 +446,5 @@ GF_TEST (Cloud, dense_clouds_are_smoother_than_plain_granular)
     const auto dense = modulation (true, 80.0f, 250.0f);
     std::cout << "         RMS-modulation depth: plain granular " << plain << ", cloud at the registry defaults (20/s, 60 ms) "
               << atDefaults << ", 40/s 120 ms " << mid << ", 80/s 250 ms " << dense << std::endl;
-    GF_EXPECT_MSG (dense <= plain * 0.8, "cloud " + juce::String (dense) + " vs granular " + juce::String (plain));
+    GF_EXPECT_MSG (atDefaults <= plain * 0.8, "registry default cloud " + juce::String (atDefaults) + " vs granular " + juce::String (plain));
 }
