@@ -181,3 +181,9 @@ set_target_properties(GapFillTests PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${GAPFIL
 if (MSVC)
     target_compile_options(GapFillTests PRIVATE /W4 /fp:precise /bigobj)
 endif()
+
+# Opt-in libFuzzer harness (clang only); see docs/qa/FUZZING.md.
+option(GAPFILL_FUZZ "Build the GapFillFuzz libFuzzer target" OFF)
+if (GAPFILL_FUZZ)
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/fuzz/fuzz.cmake")
+endif()

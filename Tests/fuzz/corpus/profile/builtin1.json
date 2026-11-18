@@ -1,0 +1,16 @@
+
+{ "name": "Generic CC buttons (CC 20-29, channel 1)", "version": 1,
+  "bindings": [
+    { "command": "Panic", "type": "cc", "channel": 1, "number": 20 },
+    { "command": "Recover", "type": "cc", "channel": 1, "number": 21 },
+    { "command": "ScenePrev", "type": "cc", "channel": 1, "number": 22 },
+    { "command": "SceneNext", "type": "cc", "channel": 1, "number": 23 },
+    { "command": "SceneCancel", "type": "cc", "channel": 1, "number": 24 },
+    { "command": "Roulette", "type": "cc", "channel": 1, "number": 25 },
+    { "command": "PresetPrev", "type": "cc", "channel": 1, "number": 26 },
+    { "command": "PresetNext", "type": "cc", "channel": 1, "number": 27 },
+    { "command": "SceneGoto", "arg": -1, "type": "cc", "channel": 1, "number": 28 }
+  ],
+  "feedback": [
+    { "source": "panic", "type": "cc", "channel": 1, "number": 20, "on": 127, "off": 0 }
+  ] }
