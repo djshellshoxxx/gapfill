@@ -3,6 +3,11 @@
 Read this before re-deriving anything. Newest first inside each section.
 
 ## Decisions
+- 2026-11-18 P3 TAIL: Tests/features/TestHostTail.cpp has been rewritten and pushed as claude/p3-tail-host-tests
+  (stacked on #40). 5 real-processor tests: every card, max-feedback Dub and the all-card cascade, mono,
+  44.1/96/192 kHz, the off ramp and concurrent host queries. Measured: Dub max feedback rings 8.36 s and
+  reports 18.81 s; all cards ring 10.48 s and report 32.38 s. Mutation (constant 2.5 s) fails 4/5.
+  Still open in TAIL: the parallel-return maximum (no parallel return exists yet).
 - 2026-11-18: hosted failure details live in run artifacts. Download them with
   `curl -sSL https://api.github.com/repos/djshellshoxxx/gapfill/actions/artifacts/<id>/zip` (works unauthenticated here).
   Repairs are in HANDOFF.md (top table). The F-L11 spec governs input clearing in MIDI-declared builds.
