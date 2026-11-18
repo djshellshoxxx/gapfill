@@ -1,9 +1,11 @@
 #include "BankFile.h"
 #include "../macros/MacroModel.h"
+#include "../state/SafeXml.h"
 
 #include <cmath>
 #include <cstdint>
 #include <vector>
+#include <cstring>
 
 namespace gapfill::bank
 {
@@ -282,7 +284,8 @@ ImportReport parseString (const juce::String& text)
 {
     ImportReport r;
 
-    if ((juce::int64) text.getNumBytesAsUTF8() > kMaxFileBytes)
+    // strlen: getNumBytesAsUTF8() over-reads a string holding invalid UTF-8 (fuzzing).
+    if ((juce::int64) std::strlen (text.toRawUTF8()) > kMaxFileBytes)
     {
         r.status = ParseStatus::TooLarge;
         r.message = "This file is larger than 1 MiB and cannot be imported as a GapFill scene bank.";
@@ -291,7 +294,8 @@ ImportReport parseString (const juce::String& text)
 
     juce::XmlDocument doc (text);
     doc.setEmptyTextElementsIgnored (true);
-    auto xml = doc.getDocumentElement();
+    // Same guard as every other untrusted XML (invalid UTF-8 / mid-content <? hang JUCE).
+    auto xml = state::xmlTextIsSafe (text) ? doc.getDocumentElement() : nullptr;
 
     if (xml == nullptr || ! xml->hasTagName ("GapBank"))
     {

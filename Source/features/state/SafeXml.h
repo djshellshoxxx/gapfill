@@ -16,6 +16,7 @@
 
 #include <juce_core/juce_core.h>
 
+#include <cstring>
 #include <limits>
 #include <string_view>
 #include <memory>
@@ -51,8 +52,10 @@ inline bool processingInstructionsOnlyInProlog (std::string_view text) noexcept
 
 inline bool xmlTextIsSafe (const juce::String& text) noexcept
 {
+    // strlen, not getNumBytesAsUTF8(): the latter walks code points and reads past the end of
+    // a string holding invalid UTF-8 (heap overflow found by the fuzzer).
     const auto* utf8 = text.toRawUTF8();
-    const auto bytes = text.getNumBytesAsUTF8();
+    const auto bytes = std::strlen (utf8);
     return bytes <= (size_t) std::numeric_limits<int>::max()
         && juce::CharPointer_UTF8::isValidString (utf8, (int) bytes)
         && processingInstructionsOnlyInProlog ({ utf8, bytes })

@@ -11702,752 +11702,759 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../state/SafeXml.h",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 3,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "creative",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 52,
+    "line": 54,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "weights",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 52,
+    "line": 54,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "fx",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 52,
+    "line": 54,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "musical",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 52,
+    "line": 54,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "macros",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 53,
+    "line": 55,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "detector",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 53,
+    "line": 55,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "protection",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 53,
+    "line": 55,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "bands",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 53,
+    "line": 55,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "immediate",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 60,
+    "line": 62,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "beat",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 61,
+    "line": 63,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "bar",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 62,
+    "line": 64,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "phrase",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 63,
+    "line": 65,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "inherit",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 67,
+    "line": 69,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": ",",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 90,
+    "line": 92,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": ",",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 97,
+    "line": 99,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 97,
+    "line": 99,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "g",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 198,
+    "line": 200,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GapBank",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 235,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "formatVersion",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 236,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "appVersion",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
     "line": 237,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "stateVersion",
+    "english": "formatVersion",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
     "line": 238,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "name",
+    "english": "appVersion",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
     "line": 239,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "created",
+    "english": "stateVersion",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
     "line": 240,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "Scene",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 244,
-    "wiring": "protected-or-nonprose"
-  },
-  {
     "english": "name",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 245,
+    "line": 241,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "quant",
+    "english": "created",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 242,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "Scene",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
     "line": 246,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "scope",
+    "english": "name",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
     "line": 247,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "scopeVersion",
+    "english": "quant",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
     "line": 248,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "cloudModel",
+    "english": "scope",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
     "line": 249,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "grooveModel",
+    "english": "scopeVersion",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
     "line": 250,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "P",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 254,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "id",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 255,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "v",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 256,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "Digest",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 267,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "sha256",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 267,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "This file is larger than 1 MiB and cannot be imported as a GapFill scene bank.",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.5c98b352e33a",
-    "line": 288,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "GapBank",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 296,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "This is not a GapFill scene bank (.gapbank).",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.e3dc4f0b38c2",
-    "line": 299,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "formatVersion",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 303,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "The scene bank has no format version.",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.9c94e1fffe67",
-    "line": 305,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "formatVersion",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 309,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "The scene bank has an invalid format version.",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.2f3cbffcb631",
-    "line": 314,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "This bank was made by a newer GapFill (format ",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 321,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": "). Update GapFill to import it.",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 322,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": "The scene bank has an invalid format version.",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.2f3cbffcb631",
-    "line": 328,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "name",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 334,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "Scene",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.477e5af2fd7e",
-    "line": 336,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "name",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 340,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "more than 64 scenes",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.fd6a6d30c814",
-    "line": 340,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "name",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 345,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "1",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 347,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "scopeVersion",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 347,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "1",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 349,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "2",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 349,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "unsupported scene scope version",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.4e6aa38cd066",
-    "line": 351,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "1",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 356,
-    "wiring": "protected-or-nonprose"
-  },
-  {
     "english": "cloudModel",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 356,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "1",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 356,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "1",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 357,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "2",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 357,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "unsupported Cloud model version",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.77039a209ebb",
-    "line": 359,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "1",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 363,
+    "line": 251,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "grooveModel",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 363,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "1",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 363,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "1",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 364,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "2",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 364,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "unsupported Groove model version",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.7bded31485af",
-    "line": 366,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "name",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 371,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "name longer than 32 characters",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.ef9514026bb3",
-    "line": 373,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "quant",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 377,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "inherit",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 377,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "unknown quantise mode",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": "s.0a67d6f6c43c",
-    "line": 379,
-    "wiring": "pending-sink-review"
-  },
-  {
-    "english": "scope",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 383,
+    "line": 252,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "P",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 389,
+    "line": 256,
     "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "more than ",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 394,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": " parameters",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 394,
-    "wiring": "pending-dynamic-template"
   },
   {
     "english": "id",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 398,
+    "line": 257,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "v",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 399,
+    "line": 258,
     "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "contains \"",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 411,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": "\", which scenes may never store",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 411,
-    "wiring": "pending-dynamic-template"
-  },
-  {
-    "english": "invalid value for ",
-    "file": "Source/features/bank/BankFile.cpp",
-    "key": null,
-    "line": 420,
-    "wiring": "pending-dynamic-template"
   },
   {
     "english": "Digest",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 456,
+    "line": 269,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "sha256",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 462,
+    "line": 269,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "This file is larger than 1 MiB and cannot be imported as a GapFill scene bank.",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.5c98b352e33a",
+    "line": 291,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "GapBank",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 300,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "This is not a GapFill scene bank (.gapbank).",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.e3dc4f0b38c2",
+    "line": 303,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "formatVersion",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 307,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "The scene bank has no format version.",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.9c94e1fffe67",
+    "line": 309,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "formatVersion",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 313,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "The scene bank has an invalid format version.",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.2f3cbffcb631",
+    "line": 318,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "This bank was made by a newer GapFill (format ",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 325,
+    "wiring": "pending-dynamic-template"
+  },
+  {
+    "english": "). Update GapFill to import it.",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 326,
+    "wiring": "pending-dynamic-template"
+  },
+  {
+    "english": "The scene bank has an invalid format version.",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.2f3cbffcb631",
+    "line": 332,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "name",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 338,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "Scene",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.477e5af2fd7e",
+    "line": 340,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "name",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 344,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "more than 64 scenes",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.fd6a6d30c814",
+    "line": 344,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "name",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 349,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "1",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 351,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "scopeVersion",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 351,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "1",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 353,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "2",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 353,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "unsupported scene scope version",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.4e6aa38cd066",
+    "line": 355,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "1",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 360,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "cloudModel",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 360,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "1",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 360,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "1",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 361,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "2",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 361,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "unsupported Cloud model version",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.77039a209ebb",
+    "line": 363,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "1",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 367,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "grooveModel",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 367,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "1",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 367,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "1",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 368,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "2",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 368,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "unsupported Groove model version",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.7bded31485af",
+    "line": 370,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "name",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 375,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "name longer than 32 characters",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.ef9514026bb3",
+    "line": 377,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "quant",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 381,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "inherit",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 381,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "unknown quantise mode",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": "s.0a67d6f6c43c",
+    "line": 383,
+    "wiring": "pending-sink-review"
+  },
+  {
+    "english": "scope",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 387,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "P",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 393,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "more than ",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 398,
+    "wiring": "pending-dynamic-template"
+  },
+  {
+    "english": " parameters",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 398,
+    "wiring": "pending-dynamic-template"
+  },
+  {
+    "english": "id",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 402,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "v",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 403,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "contains \"",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 415,
+    "wiring": "pending-dynamic-template"
+  },
+  {
+    "english": "\", which scenes may never store",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 415,
+    "wiring": "pending-dynamic-template"
+  },
+  {
+    "english": "invalid value for ",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 424,
+    "wiring": "pending-dynamic-template"
+  },
+  {
+    "english": "Digest",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 460,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "sha256",
+    "file": "Source/features/bank/BankFile.cpp",
+    "key": null,
+    "line": 466,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "The scene bank contains no scenes.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.ec798316123d",
-    "line": 468,
+    "line": 472,
     "wiring": "pending-sink-review"
   },
   {
     "english": "No scene in this bank could be imported.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.8fcb6086d951",
-    "line": 469,
+    "line": 473,
     "wiring": "pending-sink-review"
   },
   {
     "english": " scene(s) ready to import",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 474,
+    "line": 478,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": ", ",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 475,
+    "line": 479,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": " skipped",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 475,
+    "line": 479,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": ". Warning: the file's integrity check does not match.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.1596c2a2e939",
-    "line": 476,
+    "line": 480,
     "wiring": "pending-sink-review"
   },
   {
     "english": ".",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 476,
+    "line": 480,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "The file does not exist.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.6607142ec049",
-    "line": 486,
+    "line": 490,
     "wiring": "pending-sink-review"
   },
   {
     "english": "This file is larger than 1 MiB and cannot be imported as a GapFill scene bank.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.5c98b352e33a",
-    "line": 493,
+    "line": 497,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The file could not be read.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.f60f4735bf99",
-    "line": 501,
+    "line": 505,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Nothing to import.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.a6c235ebd14a",
-    "line": 515,
+    "line": 519,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The imported bank is invalid: ",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 524,
+    "line": 528,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": " added, ",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 597,
+    "line": 601,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": " replaced",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 597,
+    "line": 601,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": ", ",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 598,
+    "line": 602,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": " did not fit",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 598,
+    "line": 602,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": ", ",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 599,
+    "line": 603,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": " skipped",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 599,
+    "line": 603,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": ".",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 600,
+    "line": 604,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "No complete scene bank could be exported. Check its scene values and size.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.5e01b2c8b876",
-    "line": 608,
+    "line": 612,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The file already exists. Choose a different name or confirm the overwrite.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.e0f49f01163e",
-    "line": 614,
+    "line": 618,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The bank is larger than 1 MiB and cannot be exported.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.c0d4c4d45e17",
-    "line": 620,
+    "line": 624,
     "wiring": "pending-sink-review"
   },
   {
     "english": "\n",
     "file": "Source/features/bank/BankFile.cpp",
     "key": null,
-    "line": 626,
+    "line": 630,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "The file could not be written. Check the folder permissions and free space.",
     "file": "Source/features/bank/BankFile.cpp",
     "key": "s.241d161f02aa",
-    "line": 628,
+    "line": 632,
     "wiring": "pending-sink-review"
   },
   {
@@ -19185,325 +19192,332 @@
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "GapFillEvents",
+    "english": "../state/SafeXml.h",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 508,
+    "line": 2,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "format",
+    "english": "GapFillEvents",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
     "line": 509,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "pluginVersion",
+    "english": "format",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
     "line": 510,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "stateVersion",
+    "english": "pluginVersion",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
     "line": 511,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "sampleRate",
+    "english": "stateVersion",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
     "line": 512,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "blockSize",
+    "english": "sampleRate",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
     "line": 513,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "params",
+    "english": "blockSize",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
     "line": 514,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "blocks",
+    "english": "params",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
     "line": 515,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "records",
+    "english": "blocks",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
     "line": 516,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "incomplete",
+    "english": "records",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
     "line": 517,
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "incomplete",
+    "file": "Source/features/events/EventRecorder.cpp",
+    "key": null,
+    "line": 518,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "State",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 519,
+    "line": 520,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Records",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 527,
+    "line": 528,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "File is larger than 2 MiB",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.2ea7d9dd5144",
-    "line": 534,
+    "line": 536,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GapFillEvents",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 538,
+    "line": 540,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Not a GapFill event file",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.66bc57282cd8",
-    "line": 539,
+    "line": 541,
     "wiring": "pending-sink-review"
   },
   {
     "english": "format",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 541,
+    "line": 543,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Unsupported event file format",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.79b21f2fe37e",
-    "line": 543,
+    "line": 545,
     "wiring": "pending-sink-review"
   },
   {
     "english": "pluginVersion",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 547,
+    "line": 549,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "stateVersion",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 548,
+    "line": 550,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "sampleRate",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 549,
+    "line": 551,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "blockSize",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 550,
+    "line": 552,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "params",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 551,
+    "line": 553,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "blocks",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 552,
+    "line": 554,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "incomplete",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 553,
+    "line": 555,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "records",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 554,
+    "line": 556,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Event file header is invalid",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.9617db58570d",
-    "line": 558,
+    "line": 560,
     "wiring": "pending-sink-review"
   },
   {
     "english": "State",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 560,
+    "line": 562,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Records",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": null,
-    "line": 561,
+    "line": 563,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Event file is missing a section",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.0df1ae8e57d7",
-    "line": 564,
+    "line": 566,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event records are not valid base64",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.3f6226e47b32",
-    "line": 571,
+    "line": 573,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event record count does not match the data",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.654eea2f2d81",
-    "line": 574,
+    "line": 576,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event file contains an unknown record type",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.aa9deef939f8",
-    "line": 586,
+    "line": 588,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event records are out of order",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.393818f56dc8",
-    "line": 589,
+    "line": 591,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event file contains an invalid parameter change",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.86df8e3ccb6d",
-    "line": 593,
+    "line": 595,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event file contains an invalid block size",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.52969e279daa",
-    "line": 596,
+    "line": 598,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event file contains unknown outcome flags",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.ef3143592961",
-    "line": 598,
+    "line": 600,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event file contains an unknown command",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.a518ca44706d",
-    "line": 602,
+    "line": 604,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event file contains an invalid command payload",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.b64f023c0395",
-    "line": 616,
+    "line": 618,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event file contains an orphan recipe payload",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.8f6e6a4347ac",
-    "line": 623,
+    "line": 625,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event file contains an invalid outcome payload",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.ceef66983b74",
-    "line": 629,
+    "line": 631,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event file contains an orphan outcome payload",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.e67d1d7f213b",
-    "line": 635,
+    "line": 637,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event file contains orphan recipe extras",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.2420910a5d6c",
-    "line": 637,
+    "line": 639,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Event records run past the recorded block count",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.093439cfb47d",
-    "line": 641,
+    "line": 643,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Recording is larger than 2 MiB",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.bd5029e0c566",
-    "line": 652,
+    "line": 654,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Could not write the file",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.7b9a75f71260",
-    "line": 654,
+    "line": 656,
     "wiring": "pending-sink-review"
   },
   {
     "english": "File is missing or larger than 2 MiB",
     "file": "Source/features/events/EventRecorder.cpp",
     "key": "s.9efd96851785",
-    "line": 660,
+    "line": 662,
     "wiring": "pending-sink-review"
   },
   {
@@ -19549,73 +19563,80 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../state/SafeXml.h",
+    "file": "Source/features/events/Replay.cpp",
+    "key": null,
+    "line": 6,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "No audio was supplied",
     "file": "Source/features/events/Replay.cpp",
     "key": "s.8de3cd3b6122",
-    "line": 60,
+    "line": 61,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The recording has no readable initial state",
     "file": "Source/features/events/Replay.cpp",
     "key": "s.dbd93120ed63",
-    "line": 74,
+    "line": 75,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The recording contains an invalid command payload",
     "file": "Source/features/events/Replay.cpp",
     "key": "s.83d4f1bc34d6",
-    "line": 119,
+    "line": 120,
     "wiring": "pending-sink-review"
   },
   {
     "english": "(no further gap)",
     "file": "Source/features/events/Replay.cpp",
     "key": "s.83e929ee1ff7",
-    "line": 185,
+    "line": 186,
     "wiring": "pending-sink-review"
   },
   {
     "english": "filled",
     "file": "Source/features/events/Replay.cpp",
     "key": null,
-    "line": 187,
+    "line": 188,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "skipped: ",
     "file": "Source/features/events/Replay.cpp",
     "key": null,
-    "line": 187,
+    "line": 188,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": " at sample ",
     "file": "Source/features/events/Replay.cpp",
     "key": null,
-    "line": 188,
+    "line": 189,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "Gap ",
     "file": "Source/features/events/Replay.cpp",
     "key": null,
-    "line": 191,
+    "line": 192,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": ": recorded ",
     "file": "Source/features/events/Replay.cpp",
     "key": null,
-    "line": 191,
+    "line": 192,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": ", replay ",
     "file": "Source/features/events/Replay.cpp",
     "key": null,
-    "line": 192,
+    "line": 193,
     "wiring": "pending-dynamic-template"
   },
   {
@@ -28330,154 +28351,154 @@
     "english": "0.0.0",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 7,
+    "line": 8,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "_",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 29,
+    "line": 30,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GapFill",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 38,
+    "line": 39,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Recipes",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 38,
+    "line": 39,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GFRECIPE",
-    "file": "Source/features/history/RecipeFile.cpp",
-    "key": null,
-    "line": 43,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "name",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
     "line": 44,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "recipe",
+    "english": "name",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
     "line": 45,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "appVersion",
+    "english": "recipe",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
     "line": 46,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "stateVersion",
+    "english": "appVersion",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
     "line": 47,
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "stateVersion",
+    "file": "Source/features/history/RecipeFile.cpp",
+    "key": null,
+    "line": 48,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "extras",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 50,
+    "line": 51,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "That recipe is not valid and was not saved.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.765a3407da8d",
-    "line": 59,
+    "line": 60,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Couldn't create the folder ",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 65,
+    "line": 66,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "Couldn't write ",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 71,
+    "line": 72,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "That file is too large to be a GapFill recipe.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.0c209906c3b2",
-    "line": 84,
+    "line": 86,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GFRECIPE",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 90,
+    "line": 92,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "That file is not a GapFill recipe.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.9a6f7aa5a666",
-    "line": 92,
+    "line": 94,
     "wiring": "pending-sink-review"
   },
   {
     "english": "recipe",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 96,
+    "line": 98,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "That recipe file is damaged or has values GapFill does not understand.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.81f150578021",
-    "line": 98,
+    "line": 100,
     "wiring": "pending-sink-review"
   },
   {
     "english": "name",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 102,
+    "line": 104,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "extras",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 103,
+    "line": 105,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "That file does not exist.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.6e377ece91ee",
-    "line": 115,
+    "line": 117,
     "wiring": "pending-sink-review"
   },
   {
     "english": "That file is too large to be a GapFill recipe.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.0c209906c3b2",
-    "line": 121,
+    "line": 123,
     "wiring": "pending-sink-review"
   },
   {
@@ -28530,38 +28551,45 @@
     "wiring": "pending-sink-review"
   },
   {
+    "english": "The language file is not a JSON object.",
+    "file": "Source/features/i18n/Catalog.cpp",
+    "key": "s.20f48dee0a19",
+    "line": 54,
+    "wiring": "pending-sink-review"
+  },
+  {
     "english": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": null,
-    "line": 57,
+    "line": 63,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "A language entry has an invalid key, value or placeholder.",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": "s.1eaf3503ada6",
-    "line": 61,
+    "line": 67,
     "wiring": "pending-sink-review"
   },
   {
     "english": "A translation must preserve all numbered placeholders.",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": "s.6939efa5cf94",
-    "line": 67,
+    "line": 73,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The language file is missing or larger than 1 MiB.",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": "s.00b17e3d17f0",
-    "line": 81,
+    "line": 87,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The language file could not be read.",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": "s.dd6705392a50",
-    "line": 87,
+    "line": 93,
     "wiring": "pending-sink-review"
   },
   {
@@ -48303,7 +48331,7 @@
     "english": "JSON nesting or a number is outside the supported limits",
     "file": "Source/features/state/SafeJson.h",
     "key": "s.d0cc809cc888",
-    "line": 61,
+    "line": 65,
     "wiring": "pending-sink-review"
   },
   {

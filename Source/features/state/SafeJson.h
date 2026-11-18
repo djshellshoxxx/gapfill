@@ -11,6 +11,7 @@
 #include <juce_core/juce_core.h>
 
 #include <cstddef>
+#include <cstring>
 #include <string_view>
 
 namespace gapfill::state
@@ -57,7 +58,10 @@ inline bool jsonWithinLimits (std::string_view text, int maxDepth = 64) noexcept
 /** juce::JSON::parse behind jsonWithinLimits; a rejected text yields a failed Result. */
 inline juce::Result parseUntrustedJson (const juce::String& text, juce::var& result)
 {
-    if (! jsonWithinLimits ({ text.toRawUTF8(), text.getNumBytesAsUTF8() }))
+    // strlen, not getNumBytesAsUTF8(): the latter walks code points and reads past the end of
+    // a string holding invalid UTF-8 (heap overflow found by the fuzzer).
+    const auto* raw = text.toRawUTF8();
+    if (! jsonWithinLimits ({ raw, std::strlen (raw) }))
         return juce::Result::fail ("JSON nesting or a number is outside the supported limits");
 
     return juce::JSON::parse (text, result);

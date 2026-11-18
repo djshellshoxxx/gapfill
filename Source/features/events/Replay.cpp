@@ -3,6 +3,7 @@
 #include "../../PluginProcessor.h"
 #include "../explain/ExplainState.h"
 #include "../reasons/Reasons.h"
+#include "../state/SafeXml.h"
 
 namespace gapfill::events
 {
@@ -63,7 +64,7 @@ ReplayReport replay (const ReplayData& d, const juce::AudioBuffer<float>& audio)
 
     auto proc = std::make_unique<GapFillAudioProcessor>();
 
-    if (const auto xml = juce::parseXML (d.initialState))
+    if (const auto xml = state::parseUntrustedXml (d.initialState))
     {
         juce::MemoryBlock block;
         juce::AudioProcessor::copyXmlToBinary (*xml, block);

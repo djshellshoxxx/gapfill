@@ -2,6 +2,7 @@
 #include "RecipeCodec.h"
 #include "../state/StateSubtrees.h"
 #include "../state/SafeXml.h"
+#include <cstring>
 
 #ifndef GAPFILL_VERSION
  #define GAPFILL_VERSION "0.0.0"
@@ -79,7 +80,8 @@ RecipeFile parseRecipeText (const juce::String& text)
 {
     RecipeFile result;
 
-    if (text.getNumBytesAsUTF8() > (size_t) kMaxRecipeFileBytes)
+    // strlen: getNumBytesAsUTF8() over-reads a string holding invalid UTF-8 (fuzzing).
+    if (std::strlen (text.toRawUTF8()) > (size_t) kMaxRecipeFileBytes)
     {
         result.error = "That file is too large to be a GapFill recipe.";
         return result;

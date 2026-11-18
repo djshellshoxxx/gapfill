@@ -48,7 +48,13 @@ bool Catalog::load (const void* data, size_t bytes, juce::String& error, const C
         return false;
     }
     std::map<juce::String, juce::String> replacement;
-    const auto& properties = parsed.getDynamicObject()->getProperties();
+    auto* object = parsed.getDynamicObject();   // isObject() is also true for non-dynamic objects (fuzzing)
+    if (object == nullptr)
+    {
+        error = "The language file is not a JSON object.";
+        return false;
+    }
+    const auto& properties = object->getProperties();
     for (int i = 0; i < properties.size(); ++i)
     {
         const auto key = properties.getName (i).toString();

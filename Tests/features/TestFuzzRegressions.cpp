@@ -3,7 +3,9 @@
 
 #include "../TestFramework.h"
 
+#include "features/bank/BankFile.h"
 #include "features/commands/ControllerProfile.h"
+#include "features/events/EventRecorder.h"
 #include "features/history/RecipeFile.h"
 #include "features/i18n/Catalog.h"
 #include "features/state/SafeJson.h"
@@ -12,6 +14,8 @@
 #include "PluginProcessor.h"
 
 #include <juce_core/juce_core.h>
+
+#include <cstring>
 
 using namespace gapfill;
 
@@ -109,4 +113,28 @@ GF_TEST (FuzzRegressions, built_in_controller_profiles_still_parse)
     GF_EXPECT (! commands::builtInProfiles().empty());
     for (const auto& info : commands::builtInProfiles())
         GF_EXPECT (commands::parseProfile (commands::profileToJson (info.profile)).ok);
+}
+
+GF_TEST (FuzzRegressions, every_xml_import_path_rejects_the_juce_hang_inputs)
+{
+    // fuzz events timeout-bc2c4d52 and the bank import (same XmlDocument hangs).
+    events::ReplayData replay;
+    GF_EXPECT (events::fromFileText (juce::String ("<GapFillEvents><?x?>b</GapFillEvents>"), replay).failed());
+    GF_EXPECT (bank::parseString (juce::String ("<GapBank><?x?>b</GapBank>")).status != bank::ParseStatus::Ok);
+
+    const unsigned char invalid[] = { '<', 'G', 'a', 'p', 'B', 'a', 'n', 'k', '>', 0xff, 0xff, '<', '/', 'G', '>' };
+    const auto text = juce::String::fromUTF8 (reinterpret_cast<const char*> (invalid), (int) sizeof (invalid));
+    GF_EXPECT (bank::parseString (text).status != bank::ParseStatus::Ok);
+    GF_EXPECT (events::fromFileText (text, replay).failed());
+}
+
+GF_TEST (FuzzRegressions, a_json_array_is_not_a_catalog)
+{
+    // fuzz catalog crash-039e6ce5 (UBSan): "[][[[[[" passed isObject() but had no DynamicObject.
+    for (const char* input : { "[]", "[][[[[[", "[1,2]" })
+    {
+        i18n::Catalog catalog;
+        juce::String error;
+        GF_EXPECT (! catalog.load (input, std::strlen (input), error) && error.isNotEmpty());
+    }
 }

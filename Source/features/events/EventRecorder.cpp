@@ -1,4 +1,5 @@
 #include "EventRecorder.h"
+#include "../state/SafeXml.h"
 #include <array>
 #include <bit>
 #include <cmath>
@@ -260,7 +261,7 @@ bool EventRecorder::start (const juce::String& initialStateXml, double sampleRat
     store.reserve ((size_t) kRecordCap);
 
     // One canonical single-line form, so the text survives the file round trip byte for byte.
-    if (const auto parsed = juce::parseXML (initialStateXml))
+    if (const auto parsed = state::parseUntrustedXml (initialStateXml))
         headerState = parsed->toString (juce::XmlElement::TextFormat().singleLine());
     else
         headerState = initialStateXml.trim();
@@ -530,10 +531,11 @@ juce::String toFileText (const ReplayData& d)
 
 juce::Result fromFileText (const juce::String& text, ReplayData& out)
 {
-    if ((std::size_t) text.getNumBytesAsUTF8() > kMaxFileBytes)
+    // strlen: getNumBytesAsUTF8() over-reads a string holding invalid UTF-8 (fuzzing).
+    if (std::strlen (text.toRawUTF8()) > kMaxFileBytes)
         return juce::Result::fail ("File is larger than 2 MiB");
 
-    const auto xml = juce::parseXML (text);
+    const auto xml = state::parseUntrustedXml (text);
 
     if (xml == nullptr || ! xml->hasTagName ("GapFillEvents"))
         return juce::Result::fail ("Not a GapFill event file");
