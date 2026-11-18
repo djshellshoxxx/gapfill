@@ -1,4 +1,5 @@
 #include "Catalog.h"
+#include "../state/SafeJson.h"
 #include <cstring>
 
 namespace gapfill::i18n
@@ -41,7 +42,7 @@ bool Catalog::load (const void* data, size_t bytes, juce::String& error, const C
         return false;
     }
     juce::var parsed;
-    if (juce::JSON::parse (juce::String::fromUTF8 (utf8, (int) bytes), parsed).failed() || ! parsed.isObject())
+    if (state::parseUntrustedJson (juce::String::fromUTF8 (utf8, (int) bytes), parsed).failed() || ! parsed.isObject())
     {
         error = "The language file is not a JSON object.";
         return false;

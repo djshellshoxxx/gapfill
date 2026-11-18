@@ -1,5 +1,6 @@
 #include "ControllerProfile.h"
 #include "../controller/FeedbackAdapter.h"
+#include "../state/SafeJson.h"
 
 #include <cmath>
 #include <map>
@@ -160,7 +161,7 @@ ProfileParse parseProfile (const juce::String& json)
 
     juce::var root;
 
-    if (const auto r = juce::JSON::parse (json, root); r.failed())
+    if (const auto r = state::parseUntrustedJson (json, root); r.failed())
         return fail ("The profile is not valid JSON.");
 
     if (root.getDynamicObject() == nullptr)

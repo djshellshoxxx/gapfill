@@ -14236,1305 +14236,1312 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../state/SafeJson.h",
+    "file": "Source/features/commands/ControllerProfile.cpp",
+    "key": null,
+    "line": 3,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "None",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 14,
+    "line": 15,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Preview",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 14,
+    "line": 15,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "LikeLatest",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 14,
+    "line": 15,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "LikeRecipe",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 14,
+    "line": 15,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "LockLatest",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 14,
+    "line": 15,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "LockRecipe",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 14,
+    "line": 15,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Unlock",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 14,
+    "line": 15,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Recapture",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 14,
+    "line": 15,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "ReleaseCapture",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 15,
+    "line": 16,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Panic",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 15,
+    "line": 16,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Recover",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 15,
+    "line": 16,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "SceneGoto",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 15,
+    "line": 16,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "SceneNext",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 15,
+    "line": 16,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "ScenePrev",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 15,
+    "line": 16,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "SceneCancel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 15,
+    "line": 16,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "PresetNext",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 16,
+    "line": 17,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "PresetPrev",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 16,
+    "line": 17,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "StutterStorm",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 16,
+    "line": 17,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Roulette",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 16,
+    "line": 17,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "FillNow",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 16,
+    "line": 17,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "MomentaryStutter",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 16,
+    "line": 17,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "MomentaryFreeze",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 17,
+    "line": 18,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "MomentaryReverse",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 17,
+    "line": 18,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "MomentaryTape",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 17,
+    "line": 18,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "SpectralCapture",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 17,
+    "line": 18,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "SpectralRelease",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 17,
+    "line": 18,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GrooveLearn",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 18,
+    "line": 19,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GrooveReset",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 18,
+    "line": 19,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "AbSwap",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 18,
+    "line": 19,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "EventRecordToggle",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 18,
+    "line": 19,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "PreviewRecipe",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 18,
+    "line": 19,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "SkipLatest",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 19,
+    "line": 20,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "SkipRecipe",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 19,
+    "line": 20,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "PresetGoto",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 19,
+    "line": 20,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "cc",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 24,
+    "line": 25,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "note",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 24,
+    "line": 25,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "program",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 24,
+    "line": 25,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "momentary",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 29,
+    "line": 30,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "toggle",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 29,
+    "line": 30,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "trigger",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 29,
+    "line": 30,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "panic",
-    "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": null,
-    "line": 36,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "scene.current",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 37,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "scene.pending",
+    "english": "scene.current",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 38,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "bypass",
+    "english": "scene.pending",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 39,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "capture",
+    "english": "bypass",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 40,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "hold",
+    "english": "capture",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 41,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "safe",
+    "english": "hold",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 42,
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "safe",
+    "file": "Source/features/commands/ControllerProfile.cpp",
+    "key": null,
+    "line": 43,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "panic",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 44,
+    "line": 45,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\n{ \"name\": \"Generic pad controller (notes 36-51, channel 10)\", \"version\": 1,\n  \"bindings\": [\n    { \"command\": \"Panic\", \"type\": \"note\", \"channel\": 10, \"number\": 36 },\n    { \"command\": \"Recover\", \"type\": \"note\", \"channel\": 10, \"number\": 37 },\n    { \"command\": \"ScenePrev\", \"type\": \"note\", \"channel\": 10, \"number\": 38 },\n    { \"command\": \"SceneNext\", \"type\": \"note\", \"channel\": 10, \"number\": 39 },\n    { \"command\": \"SceneGoto\", \"arg\": 0, \"type\": \"note\", \"channel\": 10, \"number\": 40 },\n    { \"command\": \"SceneGoto\", \"arg\": 1, \"type\": \"note\", \"channel\": 10, \"number\": 41 },\n    { \"command\": \"SceneGoto\", \"arg\": 2, \"type\": \"note\", \"channel\": 10, \"number\": 42 },\n    { \"command\": \"SceneGoto\", \"arg\": 3, \"type\": \"note\", \"channel\": 10, \"number\": 43 },\n    { \"command\": \"SceneGoto\", \"arg\": 4, \"type\": \"note\", \"channel\": 10, \"number\": 44 },\n    { \"command\": \"SceneGoto\", \"arg\": 5, \"type\": \"note\", \"channel\": 10, \"number\": 45 },\n    { \"command\": \"SceneGoto\", \"arg\": 6, \"type\": \"note\", \"channel\": 10, \"number\": 46 },\n    { \"command\": \"SceneGoto\", \"arg\": 7, \"type\": \"note\", \"channel\": 10, \"number\": 47 },\n    { \"command\": \"MomentaryStutter\", \"type\": \"note\", \"channel\": 10, \"number\": 48, \"mode\": \"momentary\" },\n    { \"command\": \"MomentaryFreeze\", \"type\": \"note\", \"channel\": 10, \"number\": 49, \"mode\": \"momentary\" },\n    { \"command\": \"MomentaryReverse\", \"type\": \"note\", \"channel\": 10, \"number\": 50, \"mode\": \"momentary\" },\n    { \"command\": \"MomentaryTape\", \"type\": \"note\", \"channel\": 10, \"number\": 51, \"mode\": \"momentary\" }\n  ],\n  \"feedback\": [\n    { \"source\": \"panic\", \"type\": \"note\", \"channel\": 10, \"number\": 36, \"on\": 127, \"off\": 0 },\n    { \"source\": \"scene.current\", \"arg\": 0, \"type\": \"note\", \"channel\": 10, \"number\": 40, \"on\": 127, \"off\": 8 },\n    { \"source\": \"scene.current\", \"arg\": 1, \"type\": \"note\", \"channel\": 10, \"number\": 41, \"on\": 127, \"off\": 8 },\n    { \"source\": \"scene.current\", \"arg\": 2, \"type\": \"note\", \"channel\": 10, \"number\": 42, \"on\": 127, \"off\": 8 },\n    { \"source\": \"scene.current\", \"arg\": 3, \"type\": \"note\", \"channel\": 10, \"number\": 43, \"on\": 127, \"off\": 8 },\n    { \"source\": \"scene.current\", \"arg\": 4, \"type\": \"note\", \"channel\": 10, \"number\": 44, \"on\": 127, \"off\": 8 },\n    { \"source\": \"scene.current\", \"arg\": 5, \"type\": \"note\", \"channel\": 10, \"number\": 45, \"on\": 127, \"off\": 8 },\n    { \"source\": \"scene.current\", \"arg\": 6, \"type\": \"note\", \"channel\": 10, \"number\": 46, \"on\": 127, \"off\": 8 },\n    { \"source\": \"scene.current\", \"arg\": 7, \"type\": \"note\", \"channel\": 10, \"number\": 47, \"on\": 127, \"off\": 8 },\n    { \"source\": \"scene.pending\", \"arg\": 0, \"type\": \"note\", \"channel\": 10, \"number\": 40, \"on\": 64, \"off\": 8 },\n    { \"source\": \"scene.pending\", \"arg\": 1, \"type\": \"note\", \"channel\": 10, \"number\": 41, \"on\": 64, \"off\": 8 },\n    { \"source\": \"scene.pending\", \"arg\": 2, \"type\": \"note\", \"channel\": 10, \"number\": 42, \"on\": 64, \"off\": 8 },\n    { \"source\": \"scene.pending\", \"arg\": 3, \"type\": \"note\", \"channel\": 10, \"number\": 43, \"on\": 64, \"off\": 8 },\n    { \"source\": \"scene.pending\", \"arg\": 4, \"type\": \"note\", \"channel\": 10, \"number\": 44, \"on\": 64, \"off\": 8 },\n    { \"source\": \"scene.pending\", \"arg\": 5, \"type\": \"note\", \"channel\": 10, \"number\": 45, \"on\": 64, \"off\": 8 },\n    { \"source\": \"scene.pending\", \"arg\": 6, \"type\": \"note\", \"channel\": 10, \"number\": 46, \"on\": 64, \"off\": 8 },\n    { \"source\": \"scene.pending\", \"arg\": 7, \"type\": \"note\", \"channel\": 10, \"number\": 47, \"on\": 64, \"off\": 8 }\n  ] }\n",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 90,
+    "line": 91,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "\n{ \"name\": \"Generic CC buttons (CC 20-29, channel 1)\", \"version\": 1,\n  \"bindings\": [\n    { \"command\": \"Panic\", \"type\": \"cc\", \"channel\": 1, \"number\": 20 },\n    { \"command\": \"Recover\", \"type\": \"cc\", \"channel\": 1, \"number\": 21 },\n    { \"command\": \"ScenePrev\", \"type\": \"cc\", \"channel\": 1, \"number\": 22 },\n    { \"command\": \"SceneNext\", \"type\": \"cc\", \"channel\": 1, \"number\": 23 },\n    { \"command\": \"SceneCancel\", \"type\": \"cc\", \"channel\": 1, \"number\": 24 },\n    { \"command\": \"Roulette\", \"type\": \"cc\", \"channel\": 1, \"number\": 25 },\n    { \"command\": \"PresetPrev\", \"type\": \"cc\", \"channel\": 1, \"number\": 26 },\n    { \"command\": \"PresetNext\", \"type\": \"cc\", \"channel\": 1, \"number\": 27 },\n    { \"command\": \"SceneGoto\", \"arg\": -1, \"type\": \"cc\", \"channel\": 1, \"number\": 28 }\n  ],\n  \"feedback\": [\n    { \"source\": \"panic\", \"type\": \"cc\", \"channel\": 1, \"number\": 20, \"on\": 127, \"off\": 0 }\n  ] }\n",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 131,
+    "line": 132,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "None",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.dc937b598926",
-    "line": 153,
+    "line": 154,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The profile is larger than 8 KiB.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.05147c149572",
-    "line": 159,
+    "line": 160,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The profile is not valid JSON.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.c17754e887c4",
-    "line": 164,
+    "line": 165,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The profile must be a JSON object.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.16ab4c4ce424",
-    "line": 167,
+    "line": 168,
     "wiring": "pending-sink-review"
   },
   {
     "english": "name",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 170,
+    "line": 171,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"name\" must be 1 to 48 printable characters.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.7234674f0ce8",
-    "line": 173,
+    "line": 174,
     "wiring": "pending-sink-review"
   },
   {
     "english": "version",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 179,
+    "line": 180,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"version\" must be 1, 2 or 3.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.1fde23cc39d6",
-    "line": 180,
+    "line": 181,
     "wiring": "pending-sink-review"
   },
   {
     "english": "params",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 183,
+    "line": 184,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "parameterFeedback",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 184,
+    "line": 185,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "txChannel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 184,
+    "line": 185,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "momentaryTimeoutMs",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 184,
+    "line": 185,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Parameter mappings and feedback configuration require version 3.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.6c68a0d27676",
-    "line": 185,
+    "line": 186,
     "wiring": "pending-sink-review"
   },
   {
     "english": "\"params\" must be a list.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.d798b9da0e2c",
-    "line": 187,
+    "line": 188,
     "wiring": "pending-sink-review"
   },
   {
     "english": "parameterFeedback",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 190,
+    "line": 191,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"parameterFeedback\" must be true or false.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.dd95f8b3a584",
-    "line": 191,
+    "line": 192,
     "wiring": "pending-sink-review"
   },
   {
     "english": "txChannel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 194,
+    "line": 195,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"txChannel\" must be 1 to 16.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.68cc24cfa60e",
-    "line": 195,
+    "line": 196,
     "wiring": "pending-sink-review"
   },
   {
     "english": "momentaryTimeoutMs",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 197,
+    "line": 198,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Momentary timeout must be 1000 to 30000 milliseconds.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.e88bdcbf5d28",
-    "line": 198,
+    "line": 199,
     "wiring": "pending-sink-review"
   },
   {
     "english": "A profile can hold at most 64 parameter mappings.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.15ff794d11fb",
-    "line": 203,
+    "line": 204,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Each parameter mapping must be an object.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.8b764f361893",
-    "line": 206,
+    "line": 207,
     "wiring": "pending-sink-review"
   },
   {
     "english": "id",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 207,
+    "line": 208,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 210,
+    "line": 211,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Parameter id must be 1 to 32 identifier characters.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.61df9099a087",
-    "line": 211,
+    "line": 212,
     "wiring": "pending-sink-review"
   },
   {
     "english": "cc",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 213,
+    "line": 214,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "channel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 213,
+    "line": 214,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Parameter CC must be 0 to 127 and channel 0 to 16.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.96edc735c74d",
-    "line": 214,
+    "line": 215,
     "wiring": "pending-sink-review"
   },
   {
     "english": "takeover",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 215,
+    "line": 216,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "jump",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 215,
+    "line": 216,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "jump",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 217,
+    "line": 218,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "pickup",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 217,
+    "line": 218,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Parameter takeover must be jump or pickup.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.a95ce6f77cdc",
-    "line": 218,
+    "line": 219,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Parameter mappings repeat an id or CC.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.8decf8a02b85",
-    "line": 221,
+    "line": 222,
     "wiring": "pending-sink-review"
   },
   {
     "english": "pickup",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 223,
+    "line": 224,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "bindings",
-    "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": null,
-    "line": 227,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "feedback",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 228,
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "feedback",
+    "file": "Source/features/commands/ControllerProfile.cpp",
+    "key": null,
+    "line": 229,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "\"bindings\" must be a list.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.a3968f6783cd",
-    "line": 231,
+    "line": 232,
     "wiring": "pending-sink-review"
   },
   {
     "english": "\"feedback\" must be a list.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.55747b2709d2",
-    "line": 234,
+    "line": 235,
     "wiring": "pending-sink-review"
   },
   {
     "english": "A profile can hold at most 48 bindings.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.a8392b7591f2",
-    "line": 239,
+    "line": 240,
     "wiring": "pending-sink-review"
   },
   {
     "english": "bindings[",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 245,
+    "line": 246,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "]: ",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 245,
+    "line": 246,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "must be an object.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 248,
+    "line": 249,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "command",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 251,
+    "line": 252,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "unknown command \"",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 259,
+    "line": 260,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "\".",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 259,
+    "line": 260,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "arg",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 265,
+    "line": 266,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"arg\" must be an integer from -1 to 127.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 266,
+    "line": 267,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "type",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 270,
+    "line": 271,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "cc",
-    "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": null,
-    "line": 272,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "note",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 273,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "program",
+    "english": "note",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 274,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "\"type\" must be cc, note or program.",
+    "english": "program",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 275,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "\"type\" must be cc, note or program.",
+    "file": "Source/features/commands/ControllerProfile.cpp",
+    "key": null,
+    "line": 276,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "channel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 277,
+    "line": 278,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"channel\" must be 0 (any) to 16.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 278,
+    "line": 279,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "number",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 282,
+    "line": 283,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"number\" must be 0 to 127.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 283,
+    "line": 284,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "mode",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 287,
+    "line": 288,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "trigger",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 287,
+    "line": 288,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "trigger",
-    "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": null,
-    "line": 289,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "momentary",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 290,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "toggle",
+    "english": "momentary",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 291,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "\"mode\" must be trigger, momentary or toggle.",
+    "english": "toggle",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 292,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "\"mode\" must be trigger, momentary or toggle.",
+    "file": "Source/features/commands/ControllerProfile.cpp",
+    "key": null,
+    "line": 293,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "threshold",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 294,
+    "line": 295,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"threshold\" must be 9 to 127.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 295,
+    "line": 296,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "is not a valid binding.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 300,
+    "line": 301,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "reacts to the same MIDI message as an earlier binding.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 304,
+    "line": 305,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "A profile can hold at most 64 feedback rules.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.894895877336",
-    "line": 313,
+    "line": 314,
     "wiring": "pending-sink-review"
   },
   {
     "english": "feedback[",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 319,
+    "line": 320,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "]: ",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 319,
+    "line": 320,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "must be an object.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 322,
+    "line": 323,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "source",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 325,
+    "line": 326,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "panic",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 327,
+    "line": 328,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "scene.current",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 328,
+    "line": 329,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "scene.pending",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 329,
+    "line": 330,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "bypass",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 330,
+    "line": 331,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "capture",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 331,
+    "line": 332,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "hold",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 332,
+    "line": 333,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "safe",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 333,
+    "line": 334,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "unknown feedback source for this profile version.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 334,
+    "line": 335,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "arg",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 338,
+    "line": 339,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"arg\" must be a scene index from 0 to 63.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 339,
+    "line": 340,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "type",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 343,
+    "line": 344,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "note",
-    "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": null,
-    "line": 345,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "cc",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 346,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "\"type\" must be note or cc.",
+    "english": "cc",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 347,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "\"type\" must be note or cc.",
+    "file": "Source/features/commands/ControllerProfile.cpp",
+    "key": null,
+    "line": 348,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "channel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 349,
+    "line": 350,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"channel\" must be 1 to 16.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 350,
+    "line": 351,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "number",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 354,
+    "line": 355,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"number\" must be 0 to 127.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 355,
+    "line": 356,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "on",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 359,
+    "line": 360,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"on\" must be 0 to 127.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 360,
+    "line": 361,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "off",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 364,
+    "line": 365,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\"off\" must be 0 to 127.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 365,
+    "line": 366,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "A CC cannot control both a parameter and a command on overlapping channels.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.e393a58574e3",
-    "line": 376,
+    "line": 377,
     "wiring": "pending-sink-review"
   },
   {
     "english": "A schema 3 profile can drive at most 16 distinct indicators.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.f3e4711155f3",
-    "line": 387,
+    "line": 388,
     "wiring": "pending-sink-review"
   },
   {
     "english": "A feedback CC cannot carry both a parameter value and an indicator.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": "s.9f183cfacb4e",
-    "line": 394,
+    "line": 395,
     "wiring": "pending-sink-review"
   },
   {
     "english": "name",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 405,
+    "line": 406,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "version",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 410,
+    "line": 411,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "id",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 417,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "cc",
-    "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": null,
     "line": 418,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "channel",
+    "english": "cc",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 419,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "takeover",
+    "english": "channel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 420,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "takeover",
+    "file": "Source/features/commands/ControllerProfile.cpp",
+    "key": null,
+    "line": 421,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "pickup",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 420,
+    "line": 421,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "jump",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 420,
+    "line": 421,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "params",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 423,
+    "line": 424,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "parameterFeedback",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 424,
+    "line": 425,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "txChannel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 425,
+    "line": 426,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "momentaryTimeoutMs",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 426,
+    "line": 427,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "command",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 434,
+    "line": 435,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "arg",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 437,
+    "line": 438,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "type",
-    "file": "Source/features/commands/ControllerProfile.cpp",
-    "key": null,
-    "line": 439,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "channel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 440,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "number",
+    "english": "channel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 441,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "mode",
+    "english": "number",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
     "line": 442,
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "mode",
+    "file": "Source/features/commands/ControllerProfile.cpp",
+    "key": null,
+    "line": 443,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "threshold",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 445,
+    "line": 446,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "source",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 453,
+    "line": 454,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "arg",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 456,
+    "line": 457,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "type",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 458,
+    "line": 459,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "cc",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 458,
+    "line": 459,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "note",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 458,
+    "line": 459,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "channel",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 459,
+    "line": 460,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "number",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 460,
+    "line": 461,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "on",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 461,
+    "line": 462,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "off",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 462,
+    "line": 463,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "bindings",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 466,
+    "line": 467,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "feedback",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 467,
+    "line": 468,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GapFill",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 501,
+    "line": 502,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Controllers",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 501,
+    "line": 502,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "*.json",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 512,
+    "line": 513,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": ": larger than 8 KiB",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 519,
+    "line": 520,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": ": ",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 527,
+    "line": 528,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": ": a profile named \"",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 538,
+    "line": 539,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "\" already exists",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 538,
+    "line": 539,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "MIDI output device \"",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 613,
+    "line": 614,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "\" was not found. It will be retried automatically.",
     "file": "Source/features/commands/ControllerProfile.cpp",
     "key": null,
-    "line": 613,
+    "line": 614,
     "wiring": "pending-dynamic-template"
   },
   {
@@ -28495,59 +28502,66 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../state/SafeJson.h",
+    "file": "Source/features/i18n/Catalog.cpp",
+    "key": null,
+    "line": 2,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "0123456789",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": null,
-    "line": 25,
+    "line": 26,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "The language file must be valid UTF-8 and no larger than 1 MiB.",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": "s.2e820150e080",
-    "line": 40,
+    "line": 41,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The language file is not a JSON object.",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": "s.20f48dee0a19",
-    "line": 46,
+    "line": 47,
     "wiring": "pending-sink-review"
   },
   {
     "english": "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": null,
-    "line": 56,
+    "line": 57,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "A language entry has an invalid key, value or placeholder.",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": "s.1eaf3503ada6",
-    "line": 60,
+    "line": 61,
     "wiring": "pending-sink-review"
   },
   {
     "english": "A translation must preserve all numbered placeholders.",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": "s.6939efa5cf94",
-    "line": 66,
+    "line": 67,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The language file is missing or larger than 1 MiB.",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": "s.00b17e3d17f0",
-    "line": 80,
+    "line": 81,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The language file could not be read.",
     "file": "Source/features/i18n/Catalog.cpp",
     "key": "s.dd6705392a50",
-    "line": 86,
+    "line": 87,
     "wiring": "pending-sink-review"
   },
   {
@@ -48284,6 +48298,13 @@
     "key": null,
     "line": 16,
     "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "JSON nesting or a number is outside the supported limits",
+    "file": "Source/features/state/SafeJson.h",
+    "key": "s.d0cc809cc888",
+    "line": 61,
+    "wiring": "pending-sink-review"
   },
   {
     "english": "XmlLimits.h",

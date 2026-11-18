@@ -3,7 +3,10 @@
 
 #include "../TestFramework.h"
 
+#include "features/commands/ControllerProfile.h"
 #include "features/history/RecipeFile.h"
+#include "features/i18n/Catalog.h"
+#include "features/state/SafeJson.h"
 #include "features/state/SafeXml.h"
 #include "features/taste/RatingStore.h"
 #include "PluginProcessor.h"
@@ -78,4 +81,32 @@ GF_TEST (FuzzRegressions, host_state_with_a_processing_instruction_in_content_is
     juce::MemoryBlock after;
     proc.getStateInformation (after);
     GF_EXPECT (after == before);
+}
+
+GF_TEST (FuzzRegressions, json_integer_overflow_and_deep_nesting_are_rejected_before_juce_parses)
+{
+    // fuzz profile crash-ee13a7b9 (UBSan): a 600-digit integer made juce::JSON overflow int64.
+    const auto longNumber = juce::String ("{\"name\":\"x\",\"version\":1,\"bindings\":[")
+                          + juce::String::repeatedString ("2", 600) + "]}";
+    GF_EXPECT (! state::jsonWithinLimits ({ longNumber.toRawUTF8(), longNumber.getNumBytesAsUTF8() }));
+    const auto parsed = commands::parseProfile (longNumber);
+    GF_EXPECT (! parsed.ok && parsed.error.isNotEmpty());
+
+    // 18 digits still fit; digits inside strings are text, not numbers.
+    const juce::String fits ("{\"a\":123456789012345678,\"b\":\"12345678901234567890123\"}");
+    GF_EXPECT (state::jsonWithinLimits ({ fits.toRawUTF8(), fits.getNumBytesAsUTF8() }));
+
+    // JUCE recurses per nesting level: 100k levels would overflow the stack.
+    const auto deep = juce::String::repeatedString ("[", 100000) + juce::String::repeatedString ("]", 100000);
+    i18n::Catalog catalog;
+    juce::String error;
+    GF_EXPECT (! catalog.load (deep.toRawUTF8(), deep.getNumBytesAsUTF8(), error) && error.isNotEmpty());
+}
+
+GF_TEST (FuzzRegressions, built_in_controller_profiles_still_parse)
+{
+    // The guard must not reject real profiles: every built-in re-parses from its own JSON.
+    GF_EXPECT (! commands::builtInProfiles().empty());
+    for (const auto& info : commands::builtInProfiles())
+        GF_EXPECT (commands::parseProfile (commands::profileToJson (info.profile)).ok);
 }
