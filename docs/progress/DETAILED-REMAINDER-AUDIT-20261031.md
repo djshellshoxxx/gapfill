@@ -21,6 +21,9 @@ be changed to close the gaps below. Add bounded opt-in/versioned capabilities.
    allFXoff. Never read audio-owned `isIdle()` from the host query. No audio/PDC
    change. Test pre-first-block automation, all active combinations, configured
    16s Dub, off ramps, mono, rates and concurrent host queries.
+   Status 2026-11-18: legacy prediction is wired. Processor acceptance is in
+   `Tests/features/TestHostTail.cpp` (measured ring <= reported tail, mutation-checked).
+   The parallel-return maximum stays open until a parallel return exists.
 2. **EVENT —recording cannot reproduce the host callback/configuration.**
    `ExplainState.cpp` feeds the first internal chunk length to the recorder;
    `PluginProcessor.cpp` splits a host callback by preparedBlockSize.
