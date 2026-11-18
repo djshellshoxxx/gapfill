@@ -1,7 +1,7 @@
+#include "../support/TestSync.h"
 #include "../support/TestRig.h"
 #include "features/coop/Deterministic.h"
 #include <array>
-#include <barrier>
 #include <bit>
 #include <cmath>
 #include <cstdint>
@@ -125,7 +125,7 @@ namespace
 
         // Harness barriers are OUTSIDE processBlock. Four workers each process
         // one distinct processor per callback; no processor has concurrent calls.
-        std::barrier phase (tracks + 1);
+        gftest::TestBarrier phase (tracks + 1);
         bool stop = false;
         std::array<std::thread, tracks> workers;
         if (threadCount == 4)

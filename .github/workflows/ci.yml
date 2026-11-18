@@ -90,6 +90,8 @@ jobs:
         run: |
           c++ -std=c++17 -Wall -Wextra -Werror -pthread tools/test_scoped_test_thread.cpp -o "$RUNNER_TEMP/scoped-test-thread"
           timeout 15 "$RUNNER_TEMP/scoped-test-thread"
+          c++ -std=c++17 -Wall -Wextra -Werror -pthread tools/test_test_sync.cpp -o "$RUNNER_TEMP/test-sync"
+          timeout 120 "$RUNNER_TEMP/test-sync"
 
       - name: State XML resource limits
         run: |

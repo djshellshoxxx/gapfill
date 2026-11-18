@@ -423,8 +423,11 @@ GF_TEST (Taste, corrupt_oversized_or_partial_library_is_ignored_safely)
     RatingStore huge (big);
     GF_EXPECT (! huge.load() && huge.entries().empty());
 
-    // A read-only target folder reports an error and does not throw.
-    RatingStore nowhere (juce::File ("/proc/definitely/not/writable/ratings.xml"));
+    // An unwritable target reports an error and does not throw. A directory cannot be created
+    // below a regular file on any platform (a /proc path is creatable on Windows drives).
+    auto blocker = tempFile ("blocker");
+    blocker.replaceWithText ("not a directory");
+    RatingStore nowhere (blocker.getChildFile ("sub").getChildFile ("ratings.xml"));
     nowhere.add (recipeFor (1), 1);
     GF_EXPECT (! nowhere.save() && nowhere.notice().isNotEmpty());
 }

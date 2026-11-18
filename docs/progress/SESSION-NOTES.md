@@ -3,6 +3,9 @@
 Read this before re-deriving anything. Newest first inside each section.
 
 ## Decisions
+- 2026-11-18: hosted failure details live in run artifacts. Download them with
+  `curl -sSL https://api.github.com/repos/djshellshoxxx/gapfill/actions/artifacts/<id>/zip` (works unauthenticated here).
+  Repairs are in HANDOFF.md (top table). The F-L11 spec governs input clearing in MIDI-declared builds.
 - 2026-11-16 release continuation: #40 remains draft. Native builds/validators at
   43c1c6f passed, but full assurance found Windows state-recursion stack overflow,
   MIDI-ON CC loss, platform test defects and macOS long-test timeouts. Repairs and
@@ -65,6 +68,10 @@ Read this before re-deriving anything. Newest first inside each section.
 - absorbed-branch check: merge-tree --write-tree <int-or-master> <branch> == that ref's tree.
 
 ## Pitfalls
+- Test harness sync: use gftest::TestBarrier/TestSemaphore (Tests/support/TestSync.h), not std::barrier/semaphore
+  (Apple libc++ atomic-wait stalls; TSan cannot see futex-based waits).
+- Unpaced stress spin loops starve the message thread on <= 3 cores. Yield once per block/sweep.
+- Struct `x = {}` on MSVC copies indeterminate padding. Byte-compared structs need named zeroed padding.
 - Never edit headers while a ninja build of the same tree runs (ODR-mixed objects segfault); use `git worktree add`.
 - Skewed continuous NormalisableRange values drift through save/load: give them an interval.
 - Never put `git push` after `;` in a check chain: it runs even when the checks fail (pushed b95301f with a stale INVENTORY).

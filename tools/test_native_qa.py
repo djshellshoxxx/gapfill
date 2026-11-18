@@ -23,28 +23,49 @@ class AudioUnitRegistrationTests(unittest.TestCase):
     def result(output="", code=0):
         return subprocess.CompletedProcess([], code, output, "")
 
+    def fake(self, listings, probes):
+        """Dispatch on the command: auval -a returns `listings`, auval -v returns `probes` in order."""
+        listings, probes = iter(listings), iter(probes)
+        calls = []
+
+        def run(command, **_):
+            calls.append(command)
+            if command[0] == "killall":
+                return self.result()
+            return next(listings) if command[1] == "-a" else next(probes)
+        return run, calls
+
     def test_waits_for_exact_identity_and_preserves_attempts(self):
-        runner = Mock(side_effect=[self.result(code=1), self.result("aumf Other Gfau - another plugin"),
-                                  self.result("  aumf Gpfl Gfau - GapFill\n")])
+        runner, calls = self.fake([self.result(code=1), self.result("aumf Other Gfau - another plugin"),
+                                   self.result("  aumf Gpfl Gfau - GapFill\n")],
+                                  [self.result(code=1), self.result(code=1)])
         sleep = Mock()
         out = self.root / "evidence"
         nightly_native.wait_for_audio_unit(self.bundle, out, runner=runner, sleep=sleep)
-        sleep.assert_called_once_with(5)
-        self.assertEqual(runner.call_args_list[0].args[0], ["killall", "AudioComponentRegistrar"])
+        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(calls[0], ["killall", "-9", "AudioComponentRegistrar"])
+        self.assertEqual(calls[1:], [["auval", "-a"], ["auval", "-v", "aumf", "Gpfl", "Gfau"]] * 2 + [["auval", "-a"]])
         self.assertTrue((out / "discovery-1.log").is_file())
-        self.assertIn("GapFill", (out / "discovery-2.log").read_text(encoding="utf-8"))
-        self.assertTrue(all(call.args[0] == ["auval", "-a"] for call in runner.call_args_list[1:]))
+        self.assertTrue((out / "probe-2.log").is_file())
+        self.assertIn("GapFill", (out / "discovery-3.log").read_text(encoding="utf-8"))
+
+    def test_successful_direct_probe_counts_as_registered(self):
+        runner, calls = self.fake([self.result("nothing listed")], [self.result("PASSED")])
+        sleep = Mock()
+        nightly_native.wait_for_audio_unit(self.bundle, self.root / "evidence", runner=runner, sleep=sleep)
+        sleep.assert_not_called()
+        self.assertEqual(calls[-1], ["auval", "-v", "aumf", "Gpfl", "Gfau"])
 
     def test_missing_or_failed_discovery_never_passes(self):
-        for result in (self.result("aumf Gpfl Else - different manufacturer"),
-                       self.result("aumf Gpfl Gfau - stale output", code=1)):
-            with self.subTest(result=result):
-                runner = Mock(return_value=result)
+        for listing in (self.result("aumf Gpfl Else - different manufacturer"),
+                        self.result("aumf Gpfl Gfau - stale output", code=1)):
+            with self.subTest(listing=listing):
+                runner, calls = self.fake([listing] * 2, [self.result(code=1)] * 2)
                 sleep = Mock()
                 with self.assertRaisesRegex(RuntimeError, "not registered"):
                     nightly_native.wait_for_audio_unit(self.bundle, self.root / "evidence",
                                                        runner=runner, sleep=sleep, attempts=2)
-                self.assertEqual(runner.call_count, 3)
+                self.assertEqual(len(calls), 5)
                 sleep.assert_called_once_with(5)
 
     def test_actual_au_validation_remains_required_after_discovery(self):

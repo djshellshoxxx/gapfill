@@ -1,3 +1,34 @@
+# Release continuation (2026-11-18, full-assurance repairs for 5667f8a)
+
+- Candidate stays `integration/gapfill-release-20261116`, draft PR #40. It now also
+  contains #35 (docs/dev/14). With that, #32/#35/#36/#37/#38/#39 are all ancestors of #40.
+- Evidence came from the run 43886723865 artifacts (per-test logs in `qa-matrix/*-logs/`
+  and `sanitizer-evidence/*.log`), not from the job logs. The job logs only print the matrix.
+
+## Failures on 5667f8a and their causes
+
+| Job | Failure | Cause | Fix |
+|---|---|---|---|
+| Linux MIDI-ON | `MidiProcessor.declared_output_never_echoes_input...` | 5667f8a stopped clearing input when output is compiled in but both modes are off. F-L11 spec line 33 requires the clear. | Restored `kDeclared` in `beginMidiOutput`. The older WP10 test `plugin_off_..._keeps_the_incoming_cc` now asserts `ccSurvived == !kDeclared`. |
+| Windows | `Effective.feature_hooks_leave_default_parameters_neutral` | `gatherContext` does `g.snap = {}`. MSVC copies the temporary's indeterminate tail padding (offset 360, after `GrooveSnapshot::valid`). | `GrooveSnapshot` gets a named zeroed `reserved[3]`. The size and layout are unchanged. |
+| Windows | `Taste.corrupt_oversized_or_partial_library...` | `/proc/...` can be created on a Windows drive. | The unwritable target is now a path below a regular file. |
+| Windows | `test_i18n_catalog` inventory | `sorted(WindowsPath)` ignores case. | `build_catalog.source_order` sorts by case-sensitive path parts. Has a regression test. |
+| macOS Intel | AU not registered after 8 `auval -a` | Listing alone never triggered the rescan. | Discovery mirrors ci.yml's passing step: `killall -9`, then an `auval -v` probe per attempt. Every attempt's evidence is kept. |
+| macOS arm64 | unit-all 1800 s timeout in `CoopRenderMatrix` | Stalled inside the 64/4-thread config, the only `std::barrier` user. The progress line prints *before* each config. | `Tests/support/TestSync.h` provides a mutex/condvar barrier and semaphore. `tools/test_test_sync.cpp` runs in preflight. |
+| macOS, TSan, ASan | `EditorLifecycle` 600 s deadline | Release on 2 CPUs took 470 s: two unpaced spin loops starve the message thread. ASan progressed steadily (125 cycles in 574 s). | One yield per block and per parameter sweep. The child has a 120 s per-phase stall detector (mutation-checked: it fails with the phase name). The total deadline is x4 only under sanitizers (`TestTimeScale.h`). Rounds, deadlines in Release and assertions are unchanged. |
+
+## Local evidence (Linux, GCC 13, Release, MIDI_OUT=ON)
+
+- Focused groups pass: MidiProcessor 3, MidiOut 15, Effective 14, Taste 24, CoopRenderMatrix 1 (19 s).
+  EditorLifecycle passes on 2 CPUs in 241 s (was 470 s).
+- Preflight (validate_repo, tooling unittests, completeness audit, layout, i18n --check) passes.
+  TestSync passes normally and under GCC TSan.
+- Full suite (x11_test_session, Xvfb): 1709 passed, 0 failed.
+- NOT verified here: Windows, macOS, and the TSan/ASan full builds. They need the hosted push run
+  on the new head. The macOS fixes are reasoned from artifacts and are not reproduced.
+
+---
+
 # Release continuation (2026-11-16, native QA repairs)
 
 - Candidate: `integration/gapfill-release-20261116`, draft PR #40; next tag

@@ -3,12 +3,25 @@ import json
 import math
 import re
 import unittest
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from Source.features.i18n import build_catalog
 
 
 class CatalogTests(unittest.TestCase):
+    def test_source_order_is_case_sensitive_on_windows_paths(self):
+        # WindowsPath ordering ignores case; the inventory must not depend on the host OS.
+        root = PureWindowsPath("C:/repo")
+        paths = [root / "Source/dsp/AnalysisEngine.cpp", root / "Source/MidiLearn.h"]
+        original = build_catalog.REPO
+        try:
+            build_catalog.REPO = root
+            ordered = sorted(paths, key=build_catalog.source_order)
+        finally:
+            build_catalog.REPO = original
+        self.assertEqual(ordered, [root / "Source/MidiLearn.h", root / "Source/dsp/AnalysisEngine.cpp"])
+        self.assertNotEqual(ordered, sorted(paths))
+
     def test_character_literals_cannot_hide_following_presentation(self):
         source = r'''const auto quote = '"'; const auto escaped = '\''; const auto slash = '\\';
             const auto wide = L'"'; const auto count = 100'000;

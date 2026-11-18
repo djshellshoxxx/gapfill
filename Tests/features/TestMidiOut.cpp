@@ -373,11 +373,13 @@ namespace
     }
 }
 
-GF_TEST (MidiOut, plugin_off_emits_nothing_and_keeps_the_incoming_cc)
+GF_TEST (MidiOut, plugin_off_emits_nothing_and_keeps_the_incoming_cc_unless_output_is_declared)
 {
     const auto r = runProcessor ({ { "fill", 100.0f }, { "density", 100.0f } });
     GF_EXPECT (r.events.empty());
-    GF_EXPECT (r.ccSurvived);
+    // F-L11-midi-output.md: with output compiled in, input is cleared even while the runtime
+    // modes are off (no echo of learn CCs); without it the buffer passes through untouched.
+    GF_EXPECT (r.ccSurvived == ! midiout::kDeclared);
 }
 
 GF_TEST (MidiOut, plugin_gap_and_fill_notes_pair_up_and_do_not_change_the_audio)

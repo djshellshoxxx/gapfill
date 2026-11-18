@@ -1,4 +1,6 @@
 #include "../support/ScopedTestThread.h"
+#include "../support/TestSync.h"
+#include "../support/TestTimeScale.h"
 // W-01: the normal suite launches a fresh child whose actual main thread runs
 // JUCE's public event loop. A test worker coordinates 200 editor lifetimes via
 // callSync(), while separate threads process audio and automate every parameter.
@@ -11,8 +13,9 @@
 #include "PluginEditor.h"
 
 #include <atomic>
+#include <chrono>
+#include <cstdlib>
 #include <iostream>
-#include <semaphore>
 #include <thread>
 
 using namespace gapfill;
@@ -58,7 +61,7 @@ namespace
             asyncDelivered.release();
         }
 
-        std::binary_semaphore timerDelivered { 0 }, asyncDelivered { 0 };
+        gftest::TestSemaphore timerDelivered { 0 }, asyncDelivered { 0 };
     };
 
     struct HostSession
@@ -137,6 +140,9 @@ namespace
                             report.nonFinite.fetch_add (1, std::memory_order_relaxed);
 
                 report.blocks.fetch_add (1, std::memory_order_relaxed);
+                // Unpaced spinning on <= 3 cores (macOS runners, sanitizer slowdown) starved the
+                // message thread under test past the deadline. Yield the core once per block.
+                std::this_thread::yield();
             }
         });
 
@@ -145,6 +151,7 @@ namespace
             juce::Random rng (99);
 
             while (! stop.stop_requested())
+            {
                 for (auto* parameter : params)
                 {
                     if (stop.stop_requested())
@@ -154,15 +161,49 @@ namespace
                         ? (rng.nextBool() ? 0.0f : 1.0f) : rng.nextFloat());
                     report.paramWrites.fetch_add (1, std::memory_order_relaxed);
                 }
+
+                std::this_thread::yield(); // once per sweep of every parameter; see the audio worker
+            }
+        });
+
+        // Stall detector: a hang guard stricter than the total deadline. Every phase of every
+        // cycle stamps progress; one phase stuck for two minutes (scaled for sanitizers) ends the
+        // child with the phase name, instead of waiting out the total deadline silently.
+        std::atomic<double> lastProgressMs { juce::Time::getMillisecondCounterHiRes() };
+        std::atomic<const char*> phase { "start" };
+        std::atomic<int> currentRound { 0 };
+        const auto progress = [&] (const char* name)
+        {
+            phase.store (name);
+            lastProgressMs.store (juce::Time::getMillisecondCounterHiRes());
+        };
+
+        gftest::ScopedTestThread watchdog ([&] (gftest::ScopedTestThread::StopToken stop)
+        {
+            const double limitMs = 120000.0 * gftest::kDeadlineScale;
+
+            while (! stop.stop_requested())
+            {
+                if (juce::Time::getMillisecondCounterHiRes() - lastProgressMs.load() > limitMs)
+                {
+                    std::cout << "  editor lifecycle stalled: cycle=" << currentRound.load() << " phase=" << phase.load()
+                              << " blocks=" << report.blocks.load() << " writes=" << report.paramWrites.load() << std::endl;
+                    std::_Exit (3);
+                }
+
+                std::this_thread::sleep_for (std::chrono::milliseconds (100));
+            }
         });
 
         int expiredCallbacks = 0;
-        std::binary_semaphore afterDestroyDelivered { 0 };
+        gftest::TestSemaphore afterDestroyDelivered { 0 };
 
         for (int round = 0; round < rounds; ++round)
         {
+            currentRound.store (round);
+            progress ("create-editor");
             // Eight short progress lines stay below the child's pipe capacity.
-            // Leave the full stress load and ten-minute deadline unchanged.
+            // Leave the full stress load unchanged; deadlines are in the parent and the stall detector.
             if (round % 25 == 0)
                 std::cout << "  editor cycle=" << round
                           << " elapsed=" << (juce::Time::getMillisecondCounterHiRes() - started) * 0.001
@@ -178,7 +219,9 @@ namespace
 
             // Await actual timer dispatch; while the 50 ms probe is pending the
             // editor/processor's shorter-period timers can execute on the live loop.
+            progress ("await-timer");
             host.probe->awaitTimer();
+            progress ("preset-or-state");
 
             GF_EXPECT (juce::MessageManager::callSync ([&]
             {
@@ -189,7 +232,9 @@ namespace
 
                 host.probe->requestAsync();
             }));
+            progress ("await-async");
             host.probe->awaitAsync();
+            progress ("destroy-editor");
 
             GF_EXPECT (juce::MessageManager::callSync ([&]
             {
@@ -203,8 +248,12 @@ namespace
                 });
                 host.editor.reset();
             }));
+            progress ("await-after-destroy");
             afterDestroyDelivered.acquire();
         }
+
+        watchdog.request_stop();
+        watchdog.join();
 
         audio.request_stop();
         automation.request_stop();
@@ -243,14 +292,15 @@ GF_TEST (EditorLifecycle, editor_create_destroy_while_automating_and_processing)
 
     // Deadline contains hangs in the isolated host without using sleeps for thread
     // synchronisation or leaving the normal suite's message loop in a quit state.
-    const bool finished = child.waitForProcessToFinish (600000);
+    // The child's own stall detector fails a stuck phase sooner; this caps the total.
+    const bool finished = child.waitForProcessToFinish (600000 * gftest::kDeadlineScale);
 
     if (! finished)
         child.kill();
 
     const auto output = child.readAllProcessOutput();
     std::cout << output << std::endl;
-    GF_EXPECT_MSG (finished, "message-loop lifecycle child exceeded its ten-minute deadline");
+    GF_EXPECT_MSG (finished, "message-loop lifecycle child exceeded its total deadline (ten minutes, x4 under sanitizers)");
     GF_EXPECT_MSG (child.getExitCode() == 0, output);
     GF_EXPECT_MSG (output.contains ("1 passed, 0 failed"), "the child executed exactly the lifecycle stress case");
 }

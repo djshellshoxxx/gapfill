@@ -41,11 +41,14 @@ def wait_for_audio_unit(bundle: Path, evidence: Path, *, runner=subprocess.run, 
     """Refresh registration and require the built AU's exact identity before validation.
 
     Discovery is not validation: run_matrix must still run auval -v successfully.
-    Keep every discovery attempt so missing registration remains diagnosable.
+    Mirrors ci.yml's passing "Validate Audio Unit" step: SIGKILL the registrar, then
+    per attempt list components and, if the identity is absent, probe it directly
+    (a direct lookup makes a fresh macOS-Intel runner rescan; listing alone did not
+    within 40 s). Keep every attempt so missing registration remains diagnosable.
     """
     identity = auval_command(bundle)[2:]
     evidence.mkdir(parents=True, exist_ok=True)
-    refresh = runner(["killall", "AudioComponentRegistrar"], capture_output=True, text=True, timeout=30)
+    refresh = runner(["killall", "-9", "AudioComponentRegistrar"], capture_output=True, text=True, timeout=30)
     (evidence / "registrar-refresh.log").write_text(
         f"exit {refresh.returncode}\n{refresh.stdout or ''}{refresh.stderr or ''}", encoding="utf-8")
     for attempt in range(attempts):
@@ -53,6 +56,11 @@ def wait_for_audio_unit(bundle: Path, evidence: Path, *, runner=subprocess.run, 
         output = (result.stdout or "") + (result.stderr or "")
         (evidence / f"discovery-{attempt + 1}.log").write_text(output, encoding="utf-8")
         if result.returncode == 0 and any(line.split()[:3] == identity for line in output.splitlines()):
+            return
+        probe = runner(["auval", "-v", *identity], capture_output=True, text=True, timeout=300)
+        (evidence / f"probe-{attempt + 1}.log").write_text(
+            f"exit {probe.returncode}\n{probe.stdout or ''}{probe.stderr or ''}", encoding="utf-8")
+        if probe.returncode == 0:
             return
         if attempt + 1 < attempts:
             sleep(5)

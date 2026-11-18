@@ -149,15 +149,20 @@ def catalog_text(catalog: dict[str, str], code: str = "language") -> str:
     return encoded
 
 
+def source_order(path):
+    """Case-sensitive path-part order on every OS (WindowsPath sorts case-insensitively)."""
+    return path.relative_to(REPO).parts
+
+
 def build():
-    english = {key: value for key, value in json.loads((LANG / "en.json").read_text()).items()
+    english = {key: value for key, value in json.loads((LANG / "en.json").read_text(encoding="utf-8")).items()
                if not key.startswith("s.") and not key.startswith("example.")}
     identifiers = set()
     for path in (REPO / "tools/param_ids").glob("*.lock"):
-        identifiers.update(re.findall(r"\b[a-z][A-Za-z0-9]*\b", path.read_text()))
+        identifiers.update(re.findall(r"\b[a-z][A-Za-z0-9]*\b", path.read_text(encoding="utf-8")))
     by_value = {value: key for key, value in english.items() if not key.startswith("locale.")}
     records = []
-    for path in sorted((REPO / "Source").rglob("*")):
+    for path in sorted((REPO / "Source").rglob("*"), key=source_order):
         if path.suffix not in (".h", ".cpp"):
             continue
         source = path.read_text(encoding="utf-8")
