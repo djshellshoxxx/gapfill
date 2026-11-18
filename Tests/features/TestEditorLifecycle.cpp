@@ -99,6 +99,37 @@ namespace
         std::vector<juce::AudioProcessorParameter*> params;
         juce::MemoryBlock saved;
 
+        ThreadReport report;
+        // Stall detector: a hang guard stricter than the total deadline. Every phase of every
+        // cycle stamps progress; one phase stuck for two minutes (scaled for sanitizers) ends the
+        // child with the phase name, instead of waiting out the total deadline silently.
+        std::atomic<double> lastProgressMs { juce::Time::getMillisecondCounterHiRes() };
+        std::atomic<const char*> phase { "start" };
+        std::atomic<int> currentRound { 0 };
+        const auto progress = [&] (const char* name)
+        {
+            phase.store (name);
+            lastProgressMs.store (juce::Time::getMillisecondCounterHiRes());
+        };
+
+        gftest::ScopedTestThread watchdog ([&] (gftest::ScopedTestThread::StopToken stop)
+        {
+            const double limitMs = 120000.0 * gftest::kDeadlineScale;
+
+            while (! stop.stop_requested())
+            {
+                if (juce::Time::getMillisecondCounterHiRes() - lastProgressMs.load() > limitMs)
+                {
+                    std::cout << "  editor lifecycle stalled: cycle=" << currentRound.load() << " phase=" << phase.load()
+                              << " blocks=" << report.blocks.load() << " writes=" << report.paramWrites.load() << std::endl;
+                    std::_Exit (3);
+                }
+
+                std::this_thread::sleep_for (std::chrono::milliseconds (100));
+            }
+        });
+
+        progress ("create-processor");
         GF_EXPECT (juce::MessageManager::callSync ([&]
         {
             host.proc = std::make_unique<GapFillAudioProcessor>();
@@ -113,8 +144,9 @@ namespace
         }));
 
         GF_EXPECT (params.size() > 100);
+        std::cout << "  editor lifecycle: message thread serviced the first callSync" << std::endl;
+        progress ("start-workers");
         const auto input = drumLoop (sampleRate, 120.0, 2);
-        ThreadReport report;
         const auto started = juce::Time::getMillisecondCounterHiRes();
 
         gftest::ScopedTestThread audio ([&] (gftest::ScopedTestThread::StopToken stop)
@@ -163,35 +195,6 @@ namespace
                 }
 
                 std::this_thread::yield(); // once per sweep of every parameter; see the audio worker
-            }
-        });
-
-        // Stall detector: a hang guard stricter than the total deadline. Every phase of every
-        // cycle stamps progress; one phase stuck for two minutes (scaled for sanitizers) ends the
-        // child with the phase name, instead of waiting out the total deadline silently.
-        std::atomic<double> lastProgressMs { juce::Time::getMillisecondCounterHiRes() };
-        std::atomic<const char*> phase { "start" };
-        std::atomic<int> currentRound { 0 };
-        const auto progress = [&] (const char* name)
-        {
-            phase.store (name);
-            lastProgressMs.store (juce::Time::getMillisecondCounterHiRes());
-        };
-
-        gftest::ScopedTestThread watchdog ([&] (gftest::ScopedTestThread::StopToken stop)
-        {
-            const double limitMs = 120000.0 * gftest::kDeadlineScale;
-
-            while (! stop.stop_requested())
-            {
-                if (juce::Time::getMillisecondCounterHiRes() - lastProgressMs.load() > limitMs)
-                {
-                    std::cout << "  editor lifecycle stalled: cycle=" << currentRound.load() << " phase=" << phase.load()
-                              << " blocks=" << report.blocks.load() << " writes=" << report.paramWrites.load() << std::endl;
-                    std::_Exit (3);
-                }
-
-                std::this_thread::sleep_for (std::chrono::milliseconds (100));
             }
         });
 

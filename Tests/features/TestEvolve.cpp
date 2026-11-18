@@ -4,9 +4,12 @@
 
 #include "features/evolve/Evolve.h"
 
+#include <array>
 #include <cmath>
 #include <cstring>
+#include <new>
 #include <set>
+#include <type_traits>
 
 using namespace gapfill;
 using namespace gftest;
@@ -20,7 +23,14 @@ namespace
 
     EngineSettings evolving (int period = 8, int seed = 7)
     {
+        // Zero the storage, then construct in place: padding is then zero and two calls compare
+        // byte-equal. A plain local holds stack garbage in its padding, which differed between
+        // calls on macOS (Linux happened to reuse identical stack bytes). `{}` would not zero
+        // padding either: EngineSettings is an aggregate.
+        static_assert (std::is_trivially_destructible_v<EngineSettings>);
         EngineSettings s;
+        std::memset (static_cast<void*> (&s), 0, sizeof (s));
+        ::new (static_cast<void*> (&s)) EngineSettings;
         s.seed = seed;
         s.perf.evolve.periodBars = period;
         for (auto& w : s.weights) w = 0.5f;
@@ -101,13 +111,15 @@ GF_TEST (Evolve, random_access_seek_equals_play_through)
 {
     const double ppqs[] { 0.0, 5.5, 31.9, 32.0, 40.0, 63.99, 64.0, 130.2, 511.0, 1000.7, 3.0, 40.0 };
 
-    std::vector<EngineSettings> forward;
+    // Byte snapshots (memcpy preserves padding; a vector element copy need not).
+    std::vector<std::array<unsigned char, sizeof (EngineSettings)>> forward;
 
     for (auto ppq : ppqs)
     {
         auto s = evolving (8);
         evolve::apply (s, ppq, musicalTransport (ppq));
-        forward.push_back (s);
+        auto& bytes = forward.emplace_back();
+        std::memcpy (bytes.data(), &s, sizeof (s));
     }
 
     // Visit the same positions backwards, interleaved with unrelated calls: no state may leak.
@@ -118,7 +130,7 @@ GF_TEST (Evolve, random_access_seek_equals_play_through)
 
         auto s = evolving (8);
         evolve::apply (s, ppqs[i], musicalTransport (ppqs[i]));
-        GF_EXPECT (std::memcmp (&s, &forward[(size_t) i], sizeof (s)) == 0);
+        GF_EXPECT (std::memcmp (&s, forward[(size_t) i].data(), sizeof (s)) == 0);
     }
 }
 

@@ -6,6 +6,10 @@
 
 #include <juce_events/juce_events.h>
 
+#if JUCE_MAC
+ #include <CoreFoundation/CoreFoundation.h>
+#endif
+
 #include <iostream>
 #include <thread>
 
@@ -58,7 +62,16 @@ int runWithMessageLoop (RunTests&& runTests)
             worker.join();
     } };
 
+   #if JUCE_MAC
+    // runDispatchLoop() is [NSApp run] on macOS; in this headless CLI child it never serviced
+    // the worker's first callSync (hosted macOS runs printed nothing and hit the deadline).
+    // JUCE's message queue is a CFRunLoopSource on the main run loop, so run that directly
+    // until the worker posts stopDispatchLoop(). Modal loops are compiled out (CMakeLists).
+    while (! manager->hasStopMessageBeenSent())
+        CFRunLoopRunInMode (kCFRunLoopDefaultMode, 0.1, true);
+   #else
     manager->runDispatchLoop();
+   #endif
     worker.join();
     return result;
 }

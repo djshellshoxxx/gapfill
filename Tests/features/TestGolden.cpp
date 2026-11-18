@@ -170,10 +170,11 @@ GF_TEST (Golden, rendering_is_repeatable_within_one_process)
 GF_TEST (Golden, alloc_guard_counts_allocations_on_the_guarded_thread)
 {
     AllocGuard guard;
-    auto* p = new int[16];
-    volatile int sink = p[0];
-    (void) sink;
-    delete[] p;
+    // Call the replaceable allocation function directly: a matching new/delete *expression*
+    // pair may be elided (C++14 [expr.new]), which Apple clang does at -O3; a direct call is not.
+    // The volatile pointer keeps the block observable.
+    void* volatile p = ::operator new[] (16 * sizeof (int));
+    ::operator delete[] (p);
     GF_EXPECT_MSG (guard.count() >= 1, "AllocGuard did not observe an allocation (operator new not replaced?)");
 }
 

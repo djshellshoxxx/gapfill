@@ -17,6 +17,15 @@
 | macOS arm64 | unit-all 1800 s timeout in `CoopRenderMatrix` | Stalled inside the 64/4-thread config, the only `std::barrier` user. The progress line prints *before* each config. | `Tests/support/TestSync.h` provides a mutex/condvar barrier and semaphore. `tools/test_test_sync.cpp` runs in preflight. |
 | macOS, TSan, ASan | `EditorLifecycle` 600 s deadline | Release on 2 CPUs took 470 s: two unpaced spin loops starve the message thread. ASan progressed steadily (125 cycles in 574 s). | One yield per block and per parameter sweep. The child has a 120 s per-phase stall detector (mutation-checked: it fails with the phase name). The total deadline is x4 only under sanitizers (`TestTimeScale.h`). Rounds, deadlines in Release and assertions are unchanged. |
 
+## Follow-up on deff8c4 (push run 44229039992)
+
+- Windows full QA: every row passes (auval is macOS-only). macOS arm64 now finishes the whole suite: the CoopRenderMatrix stall is gone.
+- Three macOS failures remained, and each is fixed in the next commit:
+  - EditorLifecycle child printed nothing after its header. It never serviced its first callSync because `runDispatchLoop()` is `[NSApp run]` on macOS. `MessageLoopTestRunner` now runs `CFRunLoopRunInMode` until `hasStopMessageBeenSent()` (macOS only). The stall detector now also covers the first callSync.
+  - `Golden.alloc_guard_counts...`: Apple clang elides a matching new/delete expression pair. The probe now calls `::operator new[]` directly.
+  - `Evolve.random_access_seek...`: memcmp across stack padding. The helper zeroes the storage and constructs in place; snapshots are copied with memcpy.
+- None of these is reproducible on Linux. All three need the hosted macOS run.
+
 ## Local evidence (Linux, GCC 13, Release, MIDI_OUT=ON)
 
 - Focused groups pass: MidiProcessor 3, MidiOut 15, Effective 14, Taste 24, CoopRenderMatrix 1 (19 s).
