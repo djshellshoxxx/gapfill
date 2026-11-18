@@ -1,6 +1,7 @@
 #include "RecipeFile.h"
 #include "RecipeCodec.h"
 #include "../state/StateSubtrees.h"
+#include "../state/SafeXml.h"
 
 #ifndef GAPFILL_VERSION
  #define GAPFILL_VERSION "0.0.0"
@@ -84,7 +85,7 @@ RecipeFile parseRecipeText (const juce::String& text)
         return result;
     }
 
-    const auto xml = juce::XmlDocument::parse (text);
+    const auto xml = state::parseUntrustedXml (text);
 
     if (xml == nullptr || ! xml->hasTagName ("GFRECIPE"))
     {

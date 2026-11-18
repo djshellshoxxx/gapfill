@@ -3465,185 +3465,185 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "features/state/SafeXml.h",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 19,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "MeterState::reasonCount must cover every RejectReason",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 24,
+    "line": 25,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Input",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.36ecb4f86691",
-    "line": 38,
+    "line": 39,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Output",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.b2439bcb8dee",
-    "line": 39,
+    "line": 40,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Sidechain",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.b8ddff9a59c3",
-    "line": 40,
+    "line": 41,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Wet",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.5690f06c3e93",
-    "line": 43,
+    "line": 44,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GAPFILL",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.c8e296d57b39",
-    "line": 50,
+    "line": 51,
     "wiring": "pending-sink-review"
   },
   {
     "english": "bypass",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 55,
+    "line": 56,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Project state could not be saved within its validation or size limits. The previous saved state was retained.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.acba25d96f78",
-    "line": 293,
+    "line": 294,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Project state could not be saved within its validation or size limits. No previous valid state was available.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.be0a1f09b00e",
-    "line": 294,
+    "line": 295,
     "wiring": "pending-sink-review"
   },
   {
     "english": "lookahead",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 323,
+    "line": 324,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Custom",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.494ca78f7374",
-    "line": 1269,
+    "line": 1270,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GAPFILL_STATE",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1340,
+    "line": 1341,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "version",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1341,
+    "line": 1342,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "stateVersion",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1342,
+    "line": 1343,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "program",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1343,
+    "line": 1344,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "editorWidth",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1344,
+    "line": 1345,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "editorHeight",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1345,
+    "line": 1346,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "tooltips",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1346,
+    "line": 1347,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "reducedMotion",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1347,
+    "line": 1348,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "keyboardNavigation",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1348,
+    "line": 1349,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "id",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1387,
+    "line": 1388,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "value",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1400,
+    "line": 1401,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "value",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1405,
+    "line": 1406,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "id",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1474,
+    "line": 1475,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "value",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1476,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "id",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1511,
+    "line": 1477,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -3654,24 +3654,24 @@
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1518,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "value",
-    "file": "Source/PluginProcessor.cpp",
-    "key": null,
-    "line": 1518,
-    "wiring": "protected-or-nonprose"
-  },
-  {
     "english": "id",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1545,
+    "line": 1513,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1519,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1519,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -3682,59 +3682,66 @@
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "value",
+    "english": "id",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1549,
+    "line": 1547,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "value",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1549,
+    "line": 1550,
+    "wiring": "protected-or-nonprose"
+  },
+  {
+    "english": "value",
+    "file": "Source/PluginProcessor.cpp",
+    "key": null,
+    "line": 1550,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "The selected preset destination is not a writable file.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.2fc673ae06cf",
-    "line": 1572,
+    "line": 1573,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GapFill could not create preset data.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.fc8327ad4a75",
-    "line": 1582,
+    "line": 1583,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GapFill could not write the preset file. Check the folder permissions and available disk space.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.4c3cc02c1899",
-    "line": 1588,
+    "line": 1589,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The selected preset file does not exist.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.09808bbd9e1a",
-    "line": 1601,
+    "line": 1602,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The selected preset file is empty.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.fb498034e025",
-    "line": 1609,
+    "line": 1610,
     "wiring": "pending-sink-review"
   },
   {
     "english": "The selected preset file is too large. GapFill preset files must be 1 MB or smaller.",
     "file": "Source/PluginProcessor.cpp",
     "key": "s.8ad083a6ca28",
-    "line": 1615,
+    "line": 1616,
     "wiring": "pending-sink-review"
   },
   {
@@ -3755,49 +3762,49 @@
     "english": "GAPFILL_STATE",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1679,
+    "line": 1680,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "program",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1683,
+    "line": 1684,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "editorWidth",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1686,
+    "line": 1687,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "editorHeight",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1687,
+    "line": 1688,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "tooltips",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1688,
+    "line": 1689,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "reducedMotion",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1689,
+    "line": 1690,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "keyboardNavigation",
     "file": "Source/PluginProcessor.cpp",
     "key": null,
-    "line": 1690,
+    "line": 1691,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -28306,157 +28313,164 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../state/SafeXml.h",
+    "file": "Source/features/history/RecipeFile.cpp",
+    "key": null,
+    "line": 4,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "0.0.0",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 6,
+    "line": 7,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "_",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 28,
+    "line": 29,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GapFill",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 37,
+    "line": 38,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Recipes",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 37,
+    "line": 38,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GFRECIPE",
-    "file": "Source/features/history/RecipeFile.cpp",
-    "key": null,
-    "line": 42,
-    "wiring": "protected-or-nonprose"
-  },
-  {
-    "english": "name",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
     "line": 43,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "recipe",
+    "english": "name",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
     "line": 44,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "appVersion",
+    "english": "recipe",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
     "line": 45,
     "wiring": "protected-or-nonprose"
   },
   {
-    "english": "stateVersion",
+    "english": "appVersion",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
     "line": 46,
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "stateVersion",
+    "file": "Source/features/history/RecipeFile.cpp",
+    "key": null,
+    "line": 47,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "extras",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 49,
+    "line": 50,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "That recipe is not valid and was not saved.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.765a3407da8d",
-    "line": 58,
+    "line": 59,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Couldn't create the folder ",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 64,
+    "line": 65,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "Couldn't write ",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 70,
+    "line": 71,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "That file is too large to be a GapFill recipe.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.0c209906c3b2",
-    "line": 83,
+    "line": 84,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GFRECIPE",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 89,
+    "line": 90,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "That file is not a GapFill recipe.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.9a6f7aa5a666",
-    "line": 91,
+    "line": 92,
     "wiring": "pending-sink-review"
   },
   {
     "english": "recipe",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 95,
+    "line": 96,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "That recipe file is damaged or has values GapFill does not understand.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.81f150578021",
-    "line": 97,
+    "line": 98,
     "wiring": "pending-sink-review"
   },
   {
     "english": "name",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 101,
+    "line": 102,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "extras",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": null,
-    "line": 102,
+    "line": 103,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "That file does not exist.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.6e377ece91ee",
-    "line": 114,
+    "line": 115,
     "wiring": "pending-sink-review"
   },
   {
     "english": "That file is too large to be a GapFill recipe.",
     "file": "Source/features/history/RecipeFile.cpp",
     "key": "s.0c209906c3b2",
-    "line": 120,
+    "line": 121,
     "wiring": "pending-sink-review"
   },
   {
@@ -41725,59 +41739,66 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../state/SafeXml.h",
+    "file": "Source/features/presetbrowser/GlobalSettings.cpp",
+    "key": null,
+    "line": 2,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "favourites",
     "file": "Source/features/presetbrowser/GlobalSettings.cpp",
     "key": null,
-    "line": 14,
+    "line": 15,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GAPFILL_SETTINGS_FILE",
     "file": "Source/features/presetbrowser/GlobalSettings.cpp",
     "key": null,
-    "line": 59,
+    "line": 60,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "gapfill-unit-test-settings-",
     "file": "Source/features/presetbrowser/GlobalSettings.cpp",
     "key": null,
-    "line": 64,
+    "line": 65,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": ".xml",
     "file": "Source/features/presetbrowser/GlobalSettings.cpp",
     "key": null,
-    "line": 64,
+    "line": 65,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GapFill",
     "file": "Source/features/presetbrowser/GlobalSettings.cpp",
     "key": null,
-    "line": 67,
+    "line": 68,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "settings.xml",
     "file": "Source/features/presetbrowser/GlobalSettings.cpp",
     "key": null,
-    "line": 67,
+    "line": 68,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\r\n",
     "file": "Source/features/presetbrowser/GlobalSettings.cpp",
     "key": null,
-    "line": 126,
+    "line": 127,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "\n",
     "file": "Source/features/presetbrowser/GlobalSettings.cpp",
     "key": null,
-    "line": 150,
+    "line": 151,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -42285,206 +42306,213 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../state/SafeXml.h",
+    "file": "Source/features/presetbrowser/PresetCatalog.cpp",
+    "key": null,
+    "line": 4,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "Subtle",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.3eadecfbd533",
-    "line": 14,
+    "line": 15,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Rhythmic",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.d519799712ed",
-    "line": 14,
+    "line": 15,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Glitch",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.14980158e2b5",
-    "line": 14,
+    "line": 15,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Ambient",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.44bb0e5fb370",
-    "line": 14,
+    "line": 15,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Dub",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.34af43e8f247",
-    "line": 14,
+    "line": 15,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Destructive",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.c3e58a73609d",
-    "line": 15,
+    "line": 16,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Utility",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.9450d833fa77",
-    "line": 15,
+    "line": 16,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Starting Points",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.d61b00941a5c",
-    "line": 15,
+    "line": 16,
     "wiring": "pending-sink-review"
   },
   {
     "english": "\\/:*?\"<>|",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": null,
-    "line": 49,
+    "line": 50,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "CON",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.a3dbc4b644a9",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "PRN",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.5c31b1c1eda5",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "AUX",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.1898ed910d4b",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "NUL",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.ae6de1827cfc",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "COM1",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.6eac394becc8",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "COM2",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.d7577f451dee",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "COM3",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.6b8aaefda6df",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "LPT1",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.6d50a69c730c",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "LPT2",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.a270a8b75904",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "LPT3",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.dd8350f723ac",
-    "line": 69,
+    "line": 70,
     "wiring": "pending-sink-review"
   },
   {
     "english": "",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": null,
-    "line": 100,
+    "line": 101,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "F:",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": null,
-    "line": 101,
+    "line": 102,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "U:",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": null,
-    "line": 120,
+    "line": 121,
     "wiring": "pending-dynamic-template"
   },
   {
     "english": "name",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": null,
-    "line": 125,
+    "line": 126,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "category",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": null,
-    "line": 126,
+    "line": 127,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "description",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": null,
-    "line": 134,
+    "line": 135,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "author",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": null,
-    "line": 135,
+    "line": 136,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Preset",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": "s.7252e7ce0085",
-    "line": 139,
+    "line": 140,
     "wiring": "pending-sink-review"
   },
   {
     "english": "*.gapfill",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": null,
-    "line": 176,
+    "line": 177,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "*.gapfill",
     "file": "Source/features/presetbrowser/PresetCatalog.cpp",
     "key": null,
-    "line": 188,
+    "line": 189,
     "wiring": "protected-or-nonprose"
   },
   {
@@ -42530,220 +42558,227 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../state/SafeXml.h",
+    "file": "Source/features/presetbrowser/PresetFiles.cpp",
+    "key": null,
+    "line": 4,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "GapFill",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 17,
+    "line": 18,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Presets",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 17,
+    "line": 18,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "app",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 22,
+    "line": 23,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": ".gapfill",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 30,
+    "line": 31,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": ".gapfill",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 32,
+    "line": 33,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Please choose a preset name that contains valid filename characters.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.66a48256fc23",
-    "line": 43,
+    "line": 44,
     "wiring": "pending-sink-review"
   },
   {
     "english": "name",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 50,
+    "line": 51,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "category",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 50,
+    "line": 51,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "description",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 50,
+    "line": 51,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "author",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 50,
+    "line": 51,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "name",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 53,
+    "line": 54,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "category",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 58,
+    "line": 59,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "description",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 61,
+    "line": 62,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "author",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 64,
+    "line": 65,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GapFill could not create preset data.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.fc8327ad4a75",
-    "line": 70,
+    "line": 71,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GapFill could not create the user preset folder.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.0b19b13e7d82",
-    "line": 76,
+    "line": 77,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GapFill could not write the preset file. Check the folder permissions and available disk space.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.4c3cc02c1899",
-    "line": 85,
+    "line": 86,
     "wiring": "pending-sink-review"
   },
   {
     "english": "That factory preset no longer exists.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.cf1e5c6be8dd",
-    "line": 100,
+    "line": 101,
     "wiring": "pending-sink-review"
   },
   {
     "english": "name",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 114,
+    "line": 115,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "category",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 114,
+    "line": 115,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "description",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 114,
+    "line": 115,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "author",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 114,
+    "line": 115,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Only user presets can be renamed.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.30a4648f632e",
-    "line": 127,
+    "line": 128,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Please choose a preset name that contains valid filename characters.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.66a48256fc23",
-    "line": 133,
+    "line": 134,
     "wiring": "pending-sink-review"
   },
   {
     "english": ".gapfill",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 137,
+    "line": 138,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "A preset with that name already exists.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.4430c4488e44",
-    "line": 141,
+    "line": 142,
     "wiring": "pending-sink-review"
   },
   {
     "english": "That preset file is not valid GapFill XML.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.a26728e5c998",
-    "line": 149,
+    "line": 150,
     "wiring": "pending-sink-review"
   },
   {
     "english": "name",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": null,
-    "line": 153,
+    "line": 154,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GapFill could not write the renamed preset.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.0d710b2546de",
-    "line": 159,
+    "line": 160,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Only user presets can be deleted.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.b2a8c2966e1b",
-    "line": 178,
+    "line": 179,
     "wiring": "pending-sink-review"
   },
   {
     "english": "GapFill could not delete that preset file.",
     "file": "Source/features/presetbrowser/PresetFiles.cpp",
     "key": "s.aab94bdcef5e",
-    "line": 184,
+    "line": 185,
     "wiring": "pending-sink-review"
   },
   {
@@ -48251,6 +48286,13 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "XmlLimits.h",
+    "file": "Source/features/state/SafeXml.h",
+    "key": null,
+    "line": 15,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "StateSubtrees.h",
     "file": "Source/features/state/StateSubtrees.cpp",
     "key": null,
@@ -50827,122 +50869,129 @@
     "wiring": "protected-or-nonprose"
   },
   {
+    "english": "../state/SafeXml.h",
+    "file": "Source/features/taste/RatingStore.cpp",
+    "key": null,
+    "line": 2,
+    "wiring": "protected-or-nonprose"
+  },
+  {
     "english": "0123456789abcdefABCDEF",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 18,
+    "line": 19,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "GapFill",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 37,
+    "line": 38,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "ratings.xml",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 37,
+    "line": 38,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Ratings",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 54,
+    "line": 55,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "R",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 57,
+    "line": 58,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "v",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 60,
+    "line": 61,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "r",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 62,
+    "line": 63,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "s",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 66,
+    "line": 67,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Your ratings file could not be read; starting with an empty library.",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": "s.b2dbc369dac3",
-    "line": 107,
+    "line": 108,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Ratings",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 162,
+    "line": 163,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "v",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 163,
+    "line": 164,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "R",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 167,
+    "line": 168,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "r",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 168,
+    "line": 169,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "v",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 169,
+    "line": 170,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "s",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": null,
-    "line": 170,
+    "line": 171,
     "wiring": "protected-or-nonprose"
   },
   {
     "english": "Your ratings could not be saved (folder not writable).",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": "s.984dc33bcb8a",
-    "line": 175,
+    "line": 176,
     "wiring": "pending-sink-review"
   },
   {
     "english": "Your ratings could not be saved.",
     "file": "Source/features/taste/RatingStore.cpp",
     "key": "s.195230d63396",
-    "line": 183,
+    "line": 184,
     "wiring": "pending-sink-review"
   },
   {

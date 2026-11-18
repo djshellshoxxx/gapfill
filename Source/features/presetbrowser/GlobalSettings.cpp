@@ -1,4 +1,5 @@
 #include "GlobalSettings.h"
+#include "../state/SafeXml.h"
 
 namespace gapfill::settings
 {
@@ -24,8 +25,8 @@ GlobalSettings::GlobalSettings (const juce::File& f) : file (f)
     // A file that exists but is not valid XML is treated as unreadable: defaults apply.
     if (file.existsAsFile())
     {
-        const auto parsed = juce::XmlDocument::parse (file);
-        usable = parsed != nullptr && file.getSize() < 2 * 1024 * 1024;
+        const auto parsed = state::parseUntrustedXml (file, 2 * 1024 * 1024 - 1);
+        usable = parsed != nullptr;
     }
     else
     {

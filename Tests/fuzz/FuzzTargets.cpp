@@ -115,9 +115,10 @@ namespace
 
     void fuzzRatings (const std::uint8_t* data, std::size_t size)
     {
-        taste::RatingStore store (scratch);
-        std::vector<taste::RatingEntry> entries;
-        juce::ignoreUnused (store.parse (writeScratch (data, size), entries));
+        // Public path: the store reads its own library file.
+        taste::RatingStore store (writeScratch (data, size));
+        if (! store.load() && ! store.entries().empty())
+            fail ("rejected rating library left entries behind");
     }
 }
 
@@ -145,6 +146,16 @@ extern "C" int LLVMFuzzerInitialize (int*, char***)
         processor->setRateAndBufferSizeDetails (48000.0, 512);
         processor->prepareToPlay (48000.0, 512);
     }
+
+    // Registered after JUCE's own statics exist, so it runs before their destructors:
+    // without it, exit-time static teardown freed JUCE's ShutdownDetector before the
+    // processor's timer thread (a harness-only use-after-free, found by the first run).
+    std::atexit ([]
+    {
+        processor.reset();
+        juceInit.reset();
+        scratch.getParentDirectory().deleteRecursively();
+    });
     return 0;
 }
 

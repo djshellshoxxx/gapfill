@@ -16,6 +16,7 @@
 #include "features/wetbus/WetBus.h"
 #include "features/glitch/GlitchHooks.h"
 #include "dsp/SoloLimit.h"
+#include "features/state/SafeXml.h"
 
 namespace gapfill
 {
@@ -1617,8 +1618,7 @@ bool GapFillAudioProcessor::loadParameterStateFromFile (const juce::File& file, 
     }
 
     const auto text = file.loadFileAsString();
-    auto xml = state::xmlWithinLimits ({ text.toRawUTF8(), text.getNumBytesAsUTF8() })
-        ? juce::XmlDocument::parse (text) : nullptr;
+    auto xml = state::parseUntrustedXml (text);
 
     if (xml == nullptr)
     {
@@ -1651,6 +1651,7 @@ void GapFillAudioProcessor::setStateInformation (const void* data, int sizeInByt
     const auto length = (int) juce::ByteOrder::littleEndianInt (bytes + 4);
     const auto xmlBytes = juce::jmin (length, sizeInBytes - 8);
     if (xmlBytes <= 0 || ! juce::CharPointer_UTF8::isValidString (bytes + 8, xmlBytes)
+        || ! state::processingInstructionsOnlyInProlog ({ bytes + 8, (std::size_t) xmlBytes })
         || ! state::xmlWithinLimits ({ bytes + 8, (std::size_t) xmlBytes }))
         return;
     auto xml = getXmlFromBinary (data, sizeInBytes);
