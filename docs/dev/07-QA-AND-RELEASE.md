@@ -136,11 +136,14 @@ Windows and macOS only re-run the `Plugin` smoke subset. Docs-only changes skip 
 jobs. Full job graph, caches and limits: `09-FAST-INCREMENTAL-BUILDS.md`.
 
 Beta release: dispatch **Release beta** (`release-beta.yml`) with `tag` (e.g. `v0.0.2-beta1`)
-on a commit whose CI run succeeded (optionally pass `source_run_id`). It checks the tag against
-CMake, the run's conclusion and head SHA, downloads the verified artifacts, packages
+on a commit whose full-assurance CI run succeeded (optionally pass `source_run_id`). Dispatch
+CI with `full_assurance=true`, or use the successful assurance run from an `integration/**` push.
+It checks the tag against CMake, the run's conclusion and head SHA, and every required native,
+sanitizer and performance/soak job in that same run. Missing, skipped, cancelled or failed
+assurance blocks publication even if ordinary CI is green. It downloads the verified artifacts, packages
 (`packaging/package_release.sh`, `packaging/package_macos.sh`), writes a combined SHA-256 list and
 publishes a GitHub **pre-release** (not draft). It rebuilds and re-tests nothing; manual host
-scripts (section 4) and the nightly jobs remain separate release requirements (section 5).
+scripts (section 4) remain separate release requirements (section 5).
 
 ## 6. Risk register (top risks, highest first)
 

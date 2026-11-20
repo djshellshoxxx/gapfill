@@ -38,3 +38,18 @@ Every other unavailable applicable step blocks strict automated acceptance. Fast
 ## Regression tests
 
 `python3 -m unittest tools/test_qa_matrix.py` exercises real subprocess exits, Python unittest counts/skips, metadata collection, AU identity and strict report reconciliation. Tests include crash/unrelated-error rejection, same-case assertion/cleanup failures, damaged logs, mismatched candidates and malformed evidence. Native DSP, host and validator results require their actual executables and environments.
+
+## Release source qualification
+
+`release_source.py` consumes the complete paginated jobs response from the selected CI run.
+The release workflow supplies that run's ID and the exact release commit. All eight required
+full-assurance rows (five native configurations, ASan/UBSan, TSan, and performance/soak)
+must have completed successfully in that run for that commit. Missing, skipped, cancelled,
+failed, duplicate or stale rows block packaging. The gate also rejects failed additional
+assurance rows and incomplete API pagination. Job labels are a contract shared with
+`ci.yml` and `nightly.yml`; update the gate and its tests together when the matrix changes.
+
+The existing release checks still require the successful CI workflow, exact commit, and
+unexpired platform artifacts. This module does not establish manual host, listening or
+signing acceptance. `python3 -m unittest tools.test_release_source` checks the job contract
+and executes the real release verification shell step against offline GitHub fixtures.

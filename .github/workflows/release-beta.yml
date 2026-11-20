@@ -1,7 +1,7 @@
 name: Release beta
 
 # Publishes a GitHub PRERELEASE from the verified per-platform artifacts of a
-# successful CI run for the EXACT commit this workflow is dispatched on. Nothing
+# successful full-assurance CI run for the EXACT commit this workflow is dispatched on. Nothing
 # is rebuilt here. Packaged binaries are revalidated before publication and
 # after downloading the published assets. Signing uses provisioned identities
 # only; unsigned betas keep signing acceptance explicitly unverified.
@@ -17,7 +17,7 @@ on:
         required: true
         type: string
       source_run_id:
-        description: 'CI run id to take artifacts from (optional; default = successful CI run for this SHA)'
+        description: 'Full-assurance CI run id (optional; default = latest successful CI run for this SHA)'
         required: false
         type: string
       require_signing:
@@ -87,13 +87,19 @@ jobs:
           if [ -z "$run_id" ]; then
             run_id="$(gh run list --workflow ci.yml --commit "$GITHUB_SHA" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
           fi
-          [ -n "$run_id" ] || { echo "::error::No successful CI run found for $GITHUB_SHA. Dispatch the CI workflow on this commit first (docs-only commits skip native jobs)."; exit 1; }
+          [ -n "$run_id" ] || { echo "::error::No successful CI run found for $GITHUB_SHA. Dispatch CI on this commit with full_assurance=true first."; exit 1; }
 
           repo="$GITHUB_REPOSITORY"
           read -r conclusion head_sha path < <(gh api "repos/$repo/actions/runs/$run_id" --jq '[.conclusion, .head_sha, .path] | @tsv')
           [ "$conclusion" = success ] || { echo "::error::CI run $run_id concluded '$conclusion'"; exit 1; }
           [ "$head_sha" = "$GITHUB_SHA" ] || { echo "::error::CI run $run_id built $head_sha, this workflow runs on $GITHUB_SHA"; exit 1; }
-          [[ "$path" == .github/workflows/ci.yml* ]] || { echo "::error::Run $run_id is not a CI workflow run ($path)"; exit 1; }
+          [[ "$path" == .github/workflows/ci.yml ]] || { echo "::error::Run $run_id is not a CI workflow run ($path)"; exit 1; }
+
+          # Ordinary CI can be green while full assurance is skipped. Require
+          # every native/sanitizer/soak row from this exact run and commit.
+          gh api --paginate "repos/$repo/actions/runs/$run_id/jobs?filter=latest&per_page=100" > "$RUNNER_TEMP/release-source-jobs.json"
+          python3 tools/qa/release_source.py --jobs "$RUNNER_TEMP/release-source-jobs.json" \
+            --run-id "$run_id" --sha "$GITHUB_SHA"
 
           names="$(gh api --paginate "repos/$repo/actions/runs/$run_id/artifacts" --jq '.artifacts[] | select(.expired == false) | .name')"
           for need in gapfill-linux-x64 gapfill-windows-x64 gapfill-macos-arm64 gapfill-macos-x86_64 unit-test-results; do
