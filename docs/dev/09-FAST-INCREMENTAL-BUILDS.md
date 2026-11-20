@@ -90,9 +90,9 @@ Rust toolchain itself (preinstalled on runners).
 ## 3. Cutting a beta (`.github/workflows/release-beta.yml`)
 
 1. Bump `project(GapFill VERSION ...)` / `GAPFILL_RELEASE_STAGE` in `CMakeLists.txt` if needed and merge to `master`.
-2. Make sure CI is green on the exact commit you will release. If that commit was docs-only (native jobs skipped), run the **CI** workflow manually on it first.
+2. Make sure CI, including full assurance, is green on the exact commit you will release. Run the **CI** workflow manually with `full_assurance=true` when needed; a successful ordinary PR/dispatch run does not qualify. Pushes to `integration/**` run full assurance automatically.
 3. Actions > **Release beta** > Run workflow on `master`; inputs: `tag` (e.g. `v0.0.2-beta1`, must equal `v<CMake version>-<stage><N>`) and optionally `source_run_id`.
-4. `verify` refuses unless: tag format/CMake match, tag and release do not exist, the CI run concluded `success`, its head SHA equals the dispatched SHA, and all four platform artifacts plus `unit-test-results` are unexpired.
+4. `verify` refuses unless: tag format/CMake match, tag and release do not exist, the CI run concluded `success`, its head SHA equals the dispatched SHA, every required native/sanitizer/performance-soak assurance job passed in that same run, and all four platform artifacts plus `unit-test-results` are unexpired. If the default latest successful run lacks full assurance, supply the qualified `source_run_id` explicitly.
 5. `package-desktop` (Linux runner, NSIS) rebuilds build-tree layouts from the artifacts (`tools/release_stage_artifacts.sh`, which also checks PE/ELF x86-64 headers) and runs `packaging/package_release.sh`: Windows installer, portable/VST3/CLAP zips, Linux portable/VST3/CLAP zips. `package-macos` runs `packaging/package_macos.sh` per arch: lipo and `codesign --verify` re-checks, then `GapFill-<ver>-macOS-<arch>.zip` (VST3, AU, CLAP, Standalone, INSTALL.txt).
 6. `publish` writes one `GapFill-<ver>-SHA256SUMS.txt`, creates the GitHub release with `prerelease=true`, `draft=false`, `--latest=false` targeting the verified SHA, then downloads it back and re-checks every checksum.
 

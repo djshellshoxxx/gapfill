@@ -78,7 +78,7 @@ jobs:
         run: python -m unittest tools/test_validate_repo.py tools/test_check_hot_files.py tools/test_completeness_audit.py tools/test_qa_matrix.py tools/test_check_layout_literals.py tools/test_x11_test_session.py
 
       - name: Release assurance tool regressions
-        run: python -m unittest tools.qa.nightly_test tools.test_release_pipeline tools.test_i18n_catalog tools.test_native_qa
+        run: python -m unittest tools.qa.nightly_test tools.test_release_pipeline tools.test_release_source tools.test_i18n_catalog tools.test_native_qa
 
       - name: Transport trace analysis and bounded callback queue
         run: |
